@@ -1,0 +1,3 @@
+# The answers for a scripted run of SETUP.EXE: SETUP.EXE /PLAY ME-PLAY.TXT /DUMP DUMP.TXT
+# A page with nothing here presses its default button.
+licence choose licence.accepted yes
