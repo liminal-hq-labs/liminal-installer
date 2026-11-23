@@ -1,0 +1,250 @@
+# Builds liminst and the engine runner on every platform, packages the examples, and publishes tagged releases.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Package the example projects after building
+        type: boolean
+        default: true
+      freebsd:
+        description: Also build on FreeBSD (best effort)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, platform: linux-x86_64 }
+          - { os: ubuntu-24.04-arm, platform: linux-aarch64 }
+          - { os: windows-latest, platform: windows-x86_64 }
+          - { os: macos-latest, platform: macos-aarch64 }
+          # macos-13 was retired by GitHub; macos-15-intel is its x86_64 successor.
+          - { os: macos-15-intel, platform: macos-x86_64 }
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Install the pinned Rust toolchain
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - name: Cache Rust build output
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: release-${{ matrix.platform }}
+
+      - name: Build and stage the binaries
+        run: bash scripts/ci-stage.sh "${{ matrix.platform }}"
+
+      - name: Upload the binaries
+        uses: actions/upload-artifact@v5
+        with:
+          name: binaries-${{ matrix.platform }}
+          path: dist/liminal-installer-${{ matrix.platform }}.tar.gz
+          if-no-files-found: error
+
+  freebsd:
+    name: Build freebsd-x86_64
+    if: github.event_name == 'push' || inputs.freebsd
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Build in a FreeBSD virtual machine
+        uses: cross-platform-actions/action@v0.29.0
+        with:
+          operating_system: freebsd
+          version: '14.2'
+          run: |
+            sudo pkg install -y rust bash jq
+            bash scripts/ci-stage.sh freebsd-x86_64
+
+      - name: Upload the binaries
+        uses: actions/upload-artifact@v5
+        with:
+          name: binaries-freebsd-x86_64
+          path: dist/liminal-installer-freebsd-x86_64.tar.gz
+          if-no-files-found: error
+
+  package:
+    name: Package ${{ matrix.platform }}
+    needs: build
+    if: github.event_name == 'push' || inputs.package
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, platform: linux-x86_64, family: linux }
+          - { os: windows-latest, platform: windows-x86_64, family: windows }
+          - { os: macos-latest, platform: macos-aarch64, family: macos }
+    # Every signing input is optional. A missing secret skips its step; nothing prints a value.
+    env:
+      APPLE_CERT_P12: ${{ secrets.APPLE_CERT_P12 }}
+      APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+      APPLE_INSTALLER_IDENTITY: ${{ secrets.APPLE_INSTALLER_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+      WINDOWS_CERT_PFX: ${{ secrets.WINDOWS_CERT_PFX }}
+      WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Check for example projects
+        id: examples
+        run: |
+          if compgen -G 'examples/*/installer/installer.toml' >/dev/null; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "No examples yet; nothing to package."
+          fi
+
+      - name: Download the binaries
+        if: steps.examples.outputs.found == 'true'
+        uses: actions/download-artifact@v5
+        with:
+          name: binaries-${{ matrix.platform }}
+          path: tools
+
+      - name: Put liminst on the path
+        if: steps.examples.outputs.found == 'true'
+        run: |
+          tar -xzf "tools/liminal-installer-${{ matrix.platform }}.tar.gz" -C tools
+          echo "$PWD/tools" >> "$GITHUB_PATH"
+
+      - name: Install WiX 5
+        if: steps.examples.outputs.found == 'true' && matrix.family == 'windows'
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          echo "$USERPROFILE/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Build the example packages
+        if: steps.examples.outputs.found == 'true'
+        run: bash scripts/ci-package.sh "${{ matrix.family }}" "packages/${{ matrix.platform }}"
+
+      - name: Sign the Windows packages
+        if: steps.examples.outputs.found == 'true' && matrix.family == 'windows' && env.WINDOWS_CERT_PFX != ''
+        run: |
+          printf '%s' "$WINDOWS_CERT_PFX" | base64 --decode > "$RUNNER_TEMP/codesign.pfx"
+          signtool="$(find '/c/Program Files (x86)/Windows Kits/10/bin' -name signtool.exe -path '*x64*' | sort | tail -n 1)"
+          find "packages/${{ matrix.platform }}" \( -name '*.msi' -o -name '*.msix' \) -print0 |
+            xargs -0 -r -n 1 "$signtool" sign /fd SHA256 /f "$(cygpath -w "$RUNNER_TEMP/codesign.pfx")" /p "$WINDOWS_CERT_PASSWORD" /tr http://timestamp.digicert.com /td SHA256
+          rm -f "$RUNNER_TEMP/codesign.pfx"
+
+      - name: Import the Apple signing certificate
+        if: steps.examples.outputs.found == 'true' && matrix.family == 'macos' && env.APPLE_CERT_P12 != ''
+        run: |
+          keychain="$RUNNER_TEMP/build.keychain-db"
+          pass="$(uuidgen)"
+          printf '%s' "$APPLE_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$pass" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$pass" "$keychain"
+          security import "$RUNNER_TEMP/cert.p12" -P "$APPLE_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$pass" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" login.keychain
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+      - name: Sign the macOS packages
+        if: steps.examples.outputs.found == 'true' && matrix.family == 'macos' && env.APPLE_CERT_P12 != '' && env.APPLE_INSTALLER_IDENTITY != ''
+        run: |
+          find "packages/${{ matrix.platform }}" -name '*.pkg' -print0 | while IFS= read -r -d '' pkg; do
+            productsign --sign "$APPLE_INSTALLER_IDENTITY" "$pkg" "$pkg.signed"
+            mv "$pkg.signed" "$pkg"
+          done
+
+      - name: Notarise the macOS packages
+        if: steps.examples.outputs.found == 'true' && matrix.family == 'macos' && env.APPLE_ID != '' && env.APPLE_TEAM_ID != '' && env.APPLE_APP_PASSWORD != '' && env.APPLE_INSTALLER_IDENTITY != ''
+        run: |
+          find "packages/${{ matrix.platform }}" -name '*.pkg' -print0 | while IFS= read -r -d '' pkg; do
+            xcrun notarytool submit "$pkg" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+            xcrun stapler staple "$pkg"
+          done
+
+      - name: Upload the packages
+        if: steps.examples.outputs.found == 'true'
+        uses: actions/upload-artifact@v5
+        with:
+          name: packages-${{ matrix.platform }}
+          path: packages/${{ matrix.platform }}
+          if-no-files-found: warn
+
+  publish:
+    name: Publish release
+    needs: [build, freebsd, package]
+    # Run even when the best-effort FreeBSD build or the package jobs were skipped or failed, but never after a failed build.
+    if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/v') && needs.build.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Download every artefact
+        uses: actions/download-artifact@v5
+        with:
+          path: artefacts
+
+      - name: Collect release files and checksums
+        run: |
+          mkdir release
+          find artefacts -type f \( -name '*.tar.gz' -o -name '*.run' -o -name '*.deb' -o -name '*.rpm' -o -name '*.msi' -o -name '*.msix' -o -name '*.pkg' -o -name '*.dmg' -o -name '*.zip' \) -print0 |
+            while IFS= read -r -d '' f; do
+              # Example outputs share names across platforms, so prefix them with their artefact folder.
+              dir="$(cut -d/ -f2 <<<"$f")"
+              case "$f" in
+                */binaries-*) cp "$f" release/ ;;
+                *) cp "$f" "release/${dir}-$(basename "$f")" ;;
+              esac
+            done
+          cd release
+          sha256sum -- * > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          prerelease=()
+          case "$TAG" in *-*) prerelease=(--prerelease) ;; esac
+          # --generate-notes groups changes by pull request label using .github/release.yml.
+          gh release create "$TAG" release/* --repo "$REPO" --title "$TAG" --generate-notes --verify-tag "${prerelease[@]}"
