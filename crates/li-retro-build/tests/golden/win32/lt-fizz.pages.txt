@@ -1,0 +1,41 @@
+== welcome | Welcome
+button: Next
+button: Cancel
+== licence | Software License Agreement
+doc: 160 chars
+radio: Licence acceptance
+  ( ) I accept the agreement
+  ( ) I do not accept the agreement
+button: Back
+button: Next [disabled]
+button: Cancel
+== folder | Choose Destination Location
+field: Destination Folder = C:\Program Files\Lieutenant Fizz — Episode One
+button: Back
+button: Next
+button: Cancel
+== components | Select Components
+check: Components
+  [x] Game program
+  [x] Episode one levels
+text: Space required: 2 KB
+text: Space available: 64.0 MB
+button: Back
+button: Next
+button: Cancel
+== ready | Start Copying Files
+text: 3 files, 2 KB in 2 components
+text: Destination: C:\Program Files\Lieutenant Fizz — Episode One
+button: Back
+button: Next
+button: Cancel
+== copying | Setup Status
+text: Lieutenant Fizz — Episode One Setup is performing the requested operations. Copying 
+billboard: Meet Ben — Ten years old, bike helmet on, red sneakers laced. His Fizz Stunner fires soda pop: it stuns, it never hurts.
+button: Cancel
+meter: Current file
+meter: Overall progress
+== done | Setup Complete
+check: After setup
+  [ ] Launch Lieutenant Fizz
+button: Finish

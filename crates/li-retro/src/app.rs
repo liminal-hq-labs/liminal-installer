@@ -17,6 +17,7 @@ use alloc::vec::Vec;
 
 use crate::Error;
 use crate::expr;
+use crate::gui::{GuiEvent, GuiPage};
 use crate::install::{self, Progress, Receipt};
 use crate::model::{Builtin, Flow, Kind, Project, Step};
 use crate::pack::Pack;
@@ -37,7 +38,8 @@ pub enum Mode {
 impl Mode {
 	/// Reads the command tail: `/U [dir]` uninstalls, `/V` prints the version.
 	pub fn from_args(args: &str) -> Result<Mode, String> {
-		let mut words = args.split_whitespace();
+		let words = words_of(args);
+		let mut words = words.iter().map(String::as_str);
 		match words.next() {
 			None => Ok(Mode::Install),
 			Some(w) if w.eq_ignore_ascii_case("/U") || w.eq_ignore_ascii_case("-U") => {
@@ -51,6 +53,33 @@ impl Mode {
 	}
 }
 
+/// The words of a command tail; a word in double quotes may hold spaces.
+pub fn words_of(args: &str) -> Vec<String> {
+	let mut out = Vec::new();
+	let mut cur = String::new();
+	let mut quoted = false;
+	let mut any = false;
+	for c in args.chars() {
+		match c {
+			'"' => {
+				quoted = !quoted;
+				any = true;
+			}
+			c if c.is_whitespace() && !quoted => {
+				if any || !cur.is_empty() {
+					out.push(core::mem::take(&mut cur));
+					any = false;
+				}
+			}
+			c => cur.push(c),
+		}
+	}
+	if any || !cur.is_empty() {
+		out.push(cur);
+	}
+	out
+}
+
 /// The result of a flow.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Outcome2 {
@@ -62,7 +91,8 @@ pub enum Outcome2 {
 struct Session<'a, P: Platform> {
 	p: &'a mut P,
 	project: &'a Project,
-	pack: Pack,
+	/// `None` for an uninstall run from the install folder, which has no payload.
+	pack: Option<Pack>,
 	v: Values,
 }
 
@@ -83,8 +113,9 @@ pub fn run<P: Platform>(p: &mut P, args: &str) -> i32 {
 		}
 	};
 	if mode == Mode::Version {
+		let host = if p.native_shell() { "Windows" } else { "DOS" };
 		p.report(&format!(
-			"Liminal Installer for DOS {}\n",
+			"Liminal Installer for {host} {}\n",
 			env!("CARGO_PKG_VERSION")
 		));
 		if let Ok((project, _)) = load_project(p) {
@@ -92,7 +123,16 @@ pub fn run<P: Platform>(p: &mut P, args: &str) -> i32 {
 		}
 		return 0;
 	}
-	let (project, pack) = match load_project(p) {
+	let kept = if matches!(mode, Mode::Uninstall(_)) {
+		p.uninstall_project()
+	} else {
+		None
+	};
+	let loaded = match kept {
+		Some(bytes) => Project::decode(&bytes).map(|pr| (pr, None)),
+		None => load_project(p).map(|(pr, pack)| (pr, Some(pack))),
+	};
+	let (project, pack) = match loaded {
 		Ok(x) => x,
 		Err(e) => {
 			p.report(&format!("SETUP.LPK: {e}\n"));
@@ -145,7 +185,14 @@ impl<P: Platform> Session<'_, P> {
 			("product.version", &pr.version),
 			("target.id", target),
 			("target.renderer", renderer),
-			("system.os", "dos"),
+			(
+				"system.os",
+				if renderer == "win32-classic" {
+					"windows"
+				} else {
+					"dos"
+				},
+			),
 			("system.arch", "x86"),
 			("validate.problems", ""),
 		] {
@@ -155,8 +202,13 @@ impl<P: Platform> Session<'_, P> {
 			Mode::Uninstall(Some(d)) => d.clone(),
 			_ => pr.default_dir.clone(),
 		};
-		self.v
-			.set_str("install.path", &install::normalize_dir(&dir));
+		let dir = match (dir.strip_prefix("%PROGRAMFILES%"), self.p.program_files()) {
+			(Some(rest), Some(pf)) => format!("{}{rest}", pf.trim_end_matches('\\')),
+			(Some(rest), None) => format!("C:\\Program Files{rest}"),
+			(None, _) => dir,
+		};
+		let dir = install::normalize_dir_for(self.p, &dir);
+		self.v.set_str("install.path", &dir);
 		let all: Vec<String> = pr.components.iter().map(|c| c.id.clone()).collect();
 		self.v
 			.state
@@ -172,7 +224,8 @@ impl<P: Platform> Session<'_, P> {
 	}
 
 	fn dir(&self) -> String {
-		install::normalize_dir(
+		install::normalize_dir_for(
+			&*self.p,
 			self.v
 				.str("install.path")
 				.unwrap_or(&self.project.default_dir),
@@ -221,6 +274,10 @@ impl<P: Platform> Session<'_, P> {
 
 	/// A small modal box with an OK button, over the current screen.
 	fn message(&mut self, lines: &[&str]) {
+		if let Some(g) = self.p.gui() {
+			g.message(&lines.join("\n"));
+			return;
+		}
 		let mut cells = Cells::default();
 		cells.fill(
 			crate::model::Rect {
@@ -396,9 +453,13 @@ impl<P: Platform> Session<'_, P> {
 		let Some(screen) = step.screen else {
 			return Action::Next;
 		};
+		self.p.step(&step.id);
 		let now = self.now();
 		let mut page = Page::new(self.project, usize::from(screen), &mut self.v, now);
 		self.refresh();
+		if self.p.gui().is_some() {
+			return self.gui_page(step, usize::from(screen), &page);
+		}
 		self.show(&page);
 		loop {
 			let key = self.p.wait_key(250);
@@ -447,6 +508,74 @@ impl<P: Platform> Session<'_, P> {
 		}
 	}
 
+	/// The pages a person will see in this flow, for a "Step 2 of 7" caption.
+	fn page_count(&self, step: &Step) -> usize {
+		let flow = ["install", "uninstall"]
+			.iter()
+			.filter_map(|id| self.project.flow(id))
+			.find(|f| f.steps.iter().any(|s| s.id == step.id));
+		flow.map_or(1, |f| {
+			f.steps
+				.iter()
+				.filter(|s| s.screen.is_some() && s.kind != Kind::Finish)
+				.count()
+				.max(1)
+		})
+	}
+
+	/// A page on a native window: the window keeps its controls and returns on every change or
+	/// button; the values are refreshed between calls.
+	fn gui_page(&mut self, step: &Step, screen: usize, _page: &Page) -> Action {
+		let project = self.project;
+		let scr = &project.screens[screen];
+		let total = self.page_count(step);
+		let number = project_position(project, step).min(total);
+		let mut fresh = true;
+		loop {
+			self.refresh();
+			let title = self.v.interpolate(&scr.title);
+			let event = {
+				let Some(g) = self.p.gui() else {
+					return Action::Next;
+				};
+				let mut gp = GuiPage {
+					screen: scr,
+					strings: &project.strings,
+					values: &mut self.v,
+					step: &step.id,
+					kind: step.kind,
+					product: &project.name,
+					title,
+					number,
+					total,
+					fresh,
+				};
+				g.page(&mut gp)
+			};
+			fresh = false;
+			match event {
+				GuiEvent::Changed => {}
+				GuiEvent::Action(a) => match a.as_str() {
+					"next" | "commit" | "finish" | "ok" => {
+						if self.validate(step) {
+							return Action::Next;
+						}
+						fresh = true;
+					}
+					"back" => return Action::Back,
+					"cancel" => {
+						return if step.kind == Kind::Finish {
+							Action::Next
+						} else {
+							Action::Cancel
+						};
+					}
+					_ => {}
+				},
+			}
+		}
+	}
+
 	/// The commit step: shows its page and runs the install, or the uninstall in the uninstall flow.
 	fn commit(&mut self, step: &Step, uninstall: bool) -> Result<(), Error> {
 		let dir = self.dir();
@@ -462,21 +591,24 @@ impl<P: Platform> Session<'_, P> {
 			project,
 			v: self.v.clone(),
 			page,
+			screen: step.screen.map(usize::from),
+			step: step.id.clone(),
+			kind: step.kind,
+			fresh: true,
 			last: 0,
 		};
 		let p = &mut *self.p;
 		let result = if uninstall {
 			install::uninstall(p, &dir, &mut |p, pr| live.update(p, pr)).map(|_| ())
 		} else {
-			install::install(
-				p,
-				project,
-				&mut self.pack,
-				&dir,
-				&sel,
-				&values,
-				&mut |p, pr| live.update(p, pr),
-			)
+			let Some(pack) = self.pack.as_mut() else {
+				return Err(Error::Format(
+					"this run has no payload to install".to_string(),
+				));
+			};
+			install::install(p, project, pack, &dir, &sel, &values, &mut |p, pr| {
+				live.update(p, pr)
+			})
 		};
 		self.v.file_pct = 100;
 		self.v.total_pct = 100;
@@ -499,6 +631,10 @@ struct Live<'a> {
 	project: &'a Project,
 	v: Values,
 	page: Option<Page>,
+	screen: Option<usize>,
+	step: String,
+	kind: Kind,
+	fresh: bool,
 	last: u32,
 }
 
@@ -523,6 +659,27 @@ impl Live<'_> {
 		let pct = self.v.total_pct.to_string();
 		self.v.set_var("progress.percent", &pct);
 		self.v.set_var("system.free_space", &human(pr.free));
+		if let Some(sc) = self.screen
+			&& p.gui().is_some()
+		{
+			let scr = &self.project.screens[sc];
+			let title = self.v.interpolate(&scr.title);
+			let fresh = core::mem::replace(&mut self.fresh, false);
+			let mut gp = GuiPage {
+				screen: scr,
+				strings: &self.project.strings,
+				values: &mut self.v,
+				step: &self.step,
+				kind: self.kind,
+				product: &self.project.name,
+				title,
+				number: 0,
+				total: 0,
+				fresh,
+			};
+			let cont = p.gui().is_some_and(|g| g.working(&mut gp, pr));
+			return keep && cont;
+		}
 		if let Some(pg) = self.page.as_mut() {
 			pg.tick(now);
 			let mut cells = Cells::default();
@@ -533,6 +690,21 @@ impl Live<'_> {
 		}
 		keep
 	}
+}
+
+/// The 1-based place of a step among the flow's steps that show a page.
+fn project_position(project: &Project, step: &Step) -> usize {
+	project
+		.flows
+		.iter()
+		.find(|f| f.steps.iter().any(|s| s.id == step.id))
+		.map_or(1, |f| {
+			f.steps
+				.iter()
+				.filter(|s| s.screen.is_some() && s.kind != Kind::Finish)
+				.position(|s| s.id == step.id)
+				.map_or(1, |i| i + 1)
+		})
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -686,7 +686,7 @@ mod tests {
 		assert!(!err);
 		assert_eq!(project["id"], "hq.liminal.lt-fizz");
 		let (_, targets) = call(&s, "list_targets", json!({}));
-		assert_eq!(targets.as_array().unwrap().len(), 5);
+		assert_eq!(targets.as_array().unwrap().len(), 6);
 		let (_, flow) = call(&s, "get_flow", json!({"id": "install"}));
 		assert_eq!(flow["errors"].as_array().unwrap().len(), 0);
 		let (_, layout) = call(

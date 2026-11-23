@@ -81,6 +81,17 @@ pub fn normalize_dir(dir: &str) -> String {
 	d.to_string()
 }
 
+/// [`normalize_dir`] for a machine that keeps the case of long names (`native_shell`): the same
+/// cleaning without the upper-casing.
+pub fn normalize_dir_for<P: Platform>(p: &P, dir: &str) -> String {
+	if p.native_shell() {
+		let d = dir.trim().replace('/', "\\");
+		d.trim_end_matches('\\').to_string()
+	} else {
+		normalize_dir(dir)
+	}
+}
+
 /// The files a set of components installs, in the order the receipt lists them.
 pub fn selected_files<'p>(project: &'p Project, selected: &[String]) -> Vec<&'p FileEntry> {
 	let mut files: Vec<&FileEntry> = project
@@ -154,7 +165,7 @@ fn extract<P: Platform>(
 	let mut crc = Crc::default();
 	let mut total = 0u64;
 	let result = (|| {
-		let mut x = pack.begin(p, &Pack::name_of(&f.dest))?;
+		let mut x = pack.begin(p, &f.stored)?;
 		while let Some(chunk) = pack.next(p, &mut x)? {
 			// Written in pieces, so progress and Esc are answered a few times a second on a floppy.
 			for piece in chunk.chunks(4096) {
@@ -222,6 +233,42 @@ pub fn ini_set(text: &str, section: &str, key: &str, value: &str) -> String {
 	out
 }
 
+/// A shortcut on the Start menu, in a folder named for the product, written through the shell.
+fn shell_shortcut<P: Platform>(
+	p: &mut P,
+	project: &Project,
+	dir: &str,
+	name: &str,
+	target: &str,
+	j: &mut Journal,
+	made: &mut Made,
+) -> Result<(), Error> {
+	let Some(programs) = p.start_menu_programs() else {
+		return Ok(());
+	};
+	let folder = format!("{programs}\\{}", file_safe(&project.name));
+	if p.mkdir(&folder)? {
+		j.dirs.push(folder.clone());
+	}
+	let lnk = format!("{folder}\\{}.lnk", file_safe(name));
+	let existed = p.exists(&lnk);
+	p.make_shortcut(&lnk, &join(dir, target), dir, name)?;
+	if !existed {
+		j.files.push(lnk.clone());
+	}
+	made.shortcuts.push(lnk);
+	Ok(())
+}
+
+/// A name with the characters a file name cannot hold taken out.
+fn file_safe(name: &str) -> String {
+	let s: String = name
+		.chars()
+		.map(|c| if "\\/:*?\"<>|".contains(c) { ' ' } else { c })
+		.collect();
+	s.trim().to_string()
+}
+
 fn write_text<P: Platform>(p: &mut P, path: &str, body: &str) -> Result<(), Error> {
 	let h = p.create(path)?;
 	let r = p.write(h, body.as_bytes());
@@ -235,6 +282,10 @@ struct Made {
 	files: Vec<(String, u32, u32)>,
 	inis: Vec<String>,
 	batches: Vec<String>,
+	/// Shortcut files (full paths) and the uninstaller's files, which the shell machine adds.
+	shortcuts: Vec<String>,
+	extras: Vec<String>,
+	keys: Vec<String>,
 }
 
 /// Installs the selected components (and the required ones) into `dir`.
@@ -251,7 +302,7 @@ pub fn install<P: Platform>(
 	v: &Values,
 	progress: &mut dyn FnMut(&mut P, &Progress) -> bool,
 ) -> Result<(), Error> {
-	let dir = normalize_dir(dir);
+	let dir = normalize_dir_for(p, dir);
 	let files = selected_files(project, selected);
 	let need = bytes_needed(project, selected);
 	let free = p.free_space(&dir).unwrap_or(u64::MAX);
@@ -266,6 +317,9 @@ pub fn install<P: Platform>(
 		files: Vec::new(),
 		inis: Vec::new(),
 		batches: Vec::new(),
+		shortcuts: Vec::new(),
+		extras: Vec::new(),
+		keys: Vec::new(),
 	};
 	let result = do_install(
 		p, project, pack, &dir, selected, v, &files, free, &mut j, &mut made, progress,
@@ -359,7 +413,15 @@ fn do_install<P: Platform>(
 					made.inis.push(path.clone());
 				}
 			}
-			Op::Shortcut { target, batch, .. } => {
+			Op::Shortcut {
+				name,
+				target,
+				batch,
+			} => {
+				if p.native_shell() {
+					shell_shortcut(p, project, dir, name, target, j, made)?;
+					continue;
+				}
 				let to = join(dir, batch);
 				let existed = p.exists(&to);
 				let drive = dir.get(..2).filter(|d| d.ends_with(':')).unwrap_or("");
@@ -376,6 +438,26 @@ fn do_install<P: Platform>(
 				made.batches.push(batch.clone());
 			}
 		}
+	}
+	if p.native_shell() {
+		let bytes = project.encode()?;
+		for name in p.install_uninstaller(dir, &bytes)? {
+			j.files.push(join(dir, &name));
+			made.extras.push(name);
+		}
+		let uninstall = format!("\"{}\" /U \"{dir}\"", join(dir, "UNINST.EXE"));
+		let key = project.id.clone();
+		p.register_uninstall(
+			&key,
+			&[
+				("DisplayName", &project.name),
+				("DisplayVersion", &project.version),
+				("Publisher", &project.publisher),
+				("InstallLocation", dir),
+				("UninstallString", &uninstall),
+			],
+		)?;
+		made.keys.push(key);
 	}
 	let mut lir = String::from("LIR 1\r\n");
 	lir.push_str(&format!(
@@ -406,6 +488,15 @@ fn do_install<P: Platform>(
 	for b in &made.batches {
 		lir.push_str(&format!("B {b}\r\n"));
 	}
+	for x in &made.extras {
+		lir.push_str(&format!("X {x}\r\n"));
+	}
+	for sc in &made.shortcuts {
+		lir.push_str(&format!("S {sc}\r\n"));
+	}
+	for k in &made.keys {
+		lir.push_str(&format!("R {k}\r\n"));
+	}
 	let receipt = join(dir, RECEIPT);
 	write_text(p, &receipt, &lir)?;
 	j.files.push(receipt);
@@ -425,6 +516,11 @@ pub struct Receipt {
 	pub files: Vec<(String, u32, u32)>,
 	/// INI and batch files, which have no checksum.
 	pub others: Vec<String>,
+	/// The shortcut files (full paths) and the registry keys a Windows install made.
+	pub shortcuts: Vec<String>,
+	pub keys: Vec<String>,
+	/// The uninstaller's own files, below the install folder.
+	pub extras: Vec<String>,
 }
 
 impl Receipt {
@@ -467,6 +563,12 @@ impl Receipt {
 				}
 			} else if let Some(rest) = line.strip_prefix("I ").or_else(|| line.strip_prefix("B ")) {
 				r.others.push(rest.to_string());
+			} else if let Some(rest) = line.strip_prefix("S ") {
+				r.shortcuts.push(rest.to_string());
+			} else if let Some(rest) = line.strip_prefix("X ") {
+				r.extras.push(rest.to_string());
+			} else if let Some(rest) = line.strip_prefix("R ") {
+				r.keys.push(rest.to_string());
 			}
 		}
 		if r.dir.is_empty() {
@@ -478,7 +580,7 @@ impl Receipt {
 	}
 
 	pub fn read<P: Platform>(p: &mut P, dir: &str) -> Result<Receipt, Error> {
-		let path = join(&normalize_dir(dir), RECEIPT);
+		let path = join(&normalize_dir_for(p, dir), RECEIPT);
 		let bytes = p
 			.read_file(&path)
 			.map_err(|_| Error::Io(format!("{path} was not found; nothing to remove")))?;
@@ -495,9 +597,9 @@ pub fn uninstall<P: Platform>(
 	dir: &str,
 	progress: &mut dyn FnMut(&mut P, &Progress) -> bool,
 ) -> Result<u32, Error> {
-	let dir = normalize_dir(dir);
+	let dir = normalize_dir_for(p, dir);
 	let r = Receipt::read(p, &dir)?;
-	let total = (r.files.len() + r.others.len()) as u32;
+	let total = (r.files.len() + r.others.len() + r.shortcuts.len()) as u32;
 	let mut pr = Progress {
 		files_total: total,
 		bytes_total: u64::from(total),
@@ -523,6 +625,28 @@ pub fn uninstall<P: Platform>(
 		pr.free = p.free_space(&dir).unwrap_or(0);
 		if !progress(p, &pr) {
 			return Err(Error::Cancelled);
+		}
+	}
+	// What only a Windows install makes. A shortcut or the uninstaller that cannot be removed is
+	// not worth stopping for.
+	for sc in r.shortcuts.iter().rev() {
+		if p.exists(sc) {
+			let _ = p.remove_file(sc);
+		}
+		pr.files_done += 1;
+		pr.bytes_done = u64::from(pr.files_done);
+		pr.file = sc.rsplit('\\').next().unwrap_or(sc).to_string();
+		if !progress(p, &pr) {
+			return Err(Error::Cancelled);
+		}
+	}
+	for k in &r.keys {
+		p.unregister_uninstall(k);
+	}
+	for x in &r.extras {
+		let path = join(&dir, x);
+		if p.exists(&path) {
+			let _ = p.remove_file(&path);
 		}
 	}
 	p.remove_file(&join(&dir, RECEIPT))?;

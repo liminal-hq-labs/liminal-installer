@@ -182,6 +182,9 @@ pub struct BuildArgs {
 	/// Build the web runner with Tauri first (`bun run --cwd apps/runner tauri build --no-bundle`; slow, needs the Tauri system libraries)
 	#[arg(long)]
 	pub build_web_runner: bool,
+	/// The `SETUP.EXE` Win32 runtime to carry in a `win32-classic` target's outputs; without it one is found or built from `win32/`
+	#[arg(long, value_name = "PATH")]
+	pub win32_runtime: Option<PathBuf>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -398,6 +401,7 @@ pub fn execute(cli: &Cli) -> CliResult<u8> {
 				dos_runtime: a.dos_runtime.clone(),
 				web_runner: a.web_runner.clone(),
 				build_web_runner: a.build_web_runner,
+				win32_runtime: a.win32_runtime.clone(),
 			};
 			let built = NativeBuilder
 				.build(&req)

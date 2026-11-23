@@ -27,6 +27,12 @@ theme    = "fizz-win95"
 outputs  = ["floppy-1440"]
 
 [[target]]
+id       = "windows-x86"
+renderer = "win32-classic"
+theme    = "fizz-win95"
+outputs  = ["floppy-1440", "zip"]
+
+[[target]]
 id       = "windows-x86_64"
 renderer = "win32-classic"
 theme    = "fizz-win95"

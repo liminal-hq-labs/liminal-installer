@@ -33,6 +33,12 @@ theme    = "afterglow"
 outputs  = ["setup-exe", "msix"]
 
 [[target]]
+id       = "windows-x86"
+renderer = "win32-classic"
+theme    = "afterglow"
+outputs  = ["floppy-1440", "zip"]
+
+[[target]]
 id       = "macos-aarch64"
 renderer = "web"
 theme    = "afterglow"

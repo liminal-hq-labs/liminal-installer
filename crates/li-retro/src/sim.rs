@@ -12,6 +12,9 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use crate::Error;
+use crate::gui::{Gui, GuiEvent, GuiPage};
+use crate::install::Progress;
+use crate::model::Widget;
 use crate::platform::{Key, Platform};
 use crate::ui::Cells;
 
@@ -41,6 +44,16 @@ pub struct HostPlatform {
 	pub ports: BTreeMap<u16, u8>,
 	/// The ports written, in order.
 	pub port_writes: Vec<(u16, u8)>,
+	/// Behave as a Windows machine: long names keep their case, shortcuts, an uninstall entry.
+	pub native: bool,
+	/// The answers a person gives a native window.
+	pub gui: Option<ScriptGui>,
+	/// The ids of the steps entered, in order.
+	pub steps: Vec<String>,
+	/// The Add/Remove Programs entries: key to values.
+	pub registry: BTreeMap<String, Vec<(String, String)>>,
+	/// What `uninstall_project` returns, once: the compiled project kept in the install folder.
+	pub kept_project: Option<Vec<u8>>,
 	clock: u32,
 	idle: u32,
 	written: u64,
@@ -64,6 +77,11 @@ impl HostPlatform {
 			beeps: Vec::new(),
 			ports: BTreeMap::new(),
 			port_writes: Vec::new(),
+			native: false,
+			gui: None,
+			steps: Vec::new(),
+			registry: BTreeMap::new(),
+			kept_project: None,
 			clock: 0,
 			idle: 0,
 			written: 0,
@@ -270,10 +288,220 @@ impl Platform for HostPlatform {
 		self.reports.push(text.to_string());
 	}
 
+	fn step(&mut self, id: &str) {
+		self.steps.push(id.to_string());
+	}
+
+	fn native_shell(&self) -> bool {
+		self.native
+	}
+
+	fn gui(&mut self) -> Option<&mut dyn Gui> {
+		self.gui.as_mut().map(|g| g as &mut dyn Gui)
+	}
+
+	fn start_menu_programs(&mut self) -> Option<String> {
+		let dir = "C:\\WINDOWS\\Start Menu\\Programs";
+		fs::create_dir_all(self.host(dir)).ok()?;
+		Some(dir.to_string())
+	}
+
+	fn program_files(&mut self) -> Option<String> {
+		Some("C:\\Program Files".to_string())
+	}
+
+	fn make_shortcut(
+		&mut self,
+		lnk: &str,
+		target: &str,
+		work_dir: &str,
+		description: &str,
+	) -> Result<(), Error> {
+		let body = alloc::format!(
+			"target={target}\r\nstart_in={work_dir}\r\ndescription={description}\r\n"
+		);
+		fs::write(self.host(lnk), body).map_err(|e| Self::io(lnk, e))
+	}
+
+	fn register_uninstall(&mut self, key: &str, values: &[(&str, &str)]) -> Result<(), Error> {
+		self.registry.insert(
+			key.to_string(),
+			values
+				.iter()
+				.map(|(k, v)| (k.to_string(), v.to_string()))
+				.collect(),
+		);
+		Ok(())
+	}
+
+	fn unregister_uninstall(&mut self, key: &str) {
+		self.registry.remove(key);
+	}
+
+	fn install_uninstaller(&mut self, dir: &str, project: &[u8]) -> Result<Vec<String>, Error> {
+		fs::write(self.host(&alloc::format!("{dir}\\UNINST.EXE")), b"MZ stub")
+			.and_then(|()| fs::write(self.host(&alloc::format!("{dir}\\UNINST.DAT")), project))
+			.map_err(|e| Self::io(dir, e))?;
+		Ok(alloc::vec![
+			"UNINST.EXE".to_string(),
+			"UNINST.DAT".to_string()
+		])
+	}
+
+	fn uninstall_project(&mut self) -> Option<Vec<u8>> {
+		self.kept_project.take()
+	}
+
 	fn dump(&mut self, text: &str) {
 		if std::env::var_os("LI_SIM_TRACE").is_some() {
 			std::eprintln!("{text}");
 		}
 		self.frames.push(text.to_string());
+	}
+}
+
+/// One thing a person does on a native page.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GuiOp {
+	/// Types a value into the field bound to `bind`.
+	Set(String, String),
+	/// Ticks or unticks the checklist item `id`.
+	Toggle(String),
+	/// Chooses the radio item `id` of the group bound to `bind`.
+	Choose(String, String),
+	/// Presses the button whose action is the value.
+	Click(String),
+}
+
+/// A native window played by a script, for tests: every page it shows is recorded, and each call
+/// applies the next [`GuiOp`] queued for that page's step. A page with nothing queued is left
+/// by pressing its default button.
+#[derive(Default)]
+pub struct ScriptGui {
+	/// What to do on each step, in order.
+	pub script: BTreeMap<String, VecDeque<GuiOp>>,
+	/// `(step, title, the text of its widgets)` for every page first shown.
+	pub pages: Vec<(String, String, Vec<String>)>,
+	/// `GuiPage::describe` of every page first shown, in order.
+	pub described: Vec<String>,
+	/// The buttons seen on each page with whether they were enabled.
+	pub buttons: Vec<(String, Vec<(String, bool)>)>,
+	/// The file names seen while working, and the total percentage of the last update.
+	pub files_seen: Vec<String>,
+	pub last_total: u32,
+	pub messages: Vec<String>,
+	/// Cancel the copy after this many progress updates.
+	pub cancel_after: Option<u32>,
+	updates: u32,
+}
+
+impl ScriptGui {
+	pub fn new() -> ScriptGui {
+		ScriptGui::default()
+	}
+
+	/// Queues what to do on `step`.
+	pub fn on(&mut self, step: &str, ops: Vec<GuiOp>) -> &mut Self {
+		self.script.entry(step.to_string()).or_default().extend(ops);
+		self
+	}
+}
+
+impl Gui for ScriptGui {
+	fn page(&mut self, page: &mut GuiPage<'_>) -> GuiEvent {
+		if page.fresh {
+			self.described.push(page.describe());
+			let mut text = Vec::new();
+			let mut buttons = Vec::new();
+			for w in &page.screen.widgets {
+				match w {
+					Widget::Text { template, .. } => text.push(page.text(template)),
+					Widget::Doc { text: t, .. } => text.push(t.clone()),
+					Widget::List { label, items, .. } => {
+						text.push(page.text(label));
+						text.extend(items.iter().map(|i| page.text(&i.label)));
+					}
+					Widget::Field { label, .. } => text.push(page.text(label)),
+					Widget::Button { label, .. } => {
+						buttons.push((page.text(label), page.enabled(w)));
+					}
+					_ => {}
+				}
+			}
+			self.pages
+				.push((page.step.to_string(), page.title.clone(), text));
+			self.buttons.push((page.step.to_string(), buttons));
+		}
+		let op = self.script.get_mut(page.step).and_then(VecDeque::pop_front);
+		match op {
+			Some(GuiOp::Set(bind, v)) => {
+				page.values.set_str(&bind, &v);
+				GuiEvent::Changed
+			}
+			Some(GuiOp::Toggle(id)) => {
+				for w in &page.screen.widgets {
+					if let Widget::List {
+						check: true,
+						bind,
+						items,
+						..
+					} = w && let Some(item) = items.iter().find(|i| i.id == id)
+						&& !item.required
+					{
+						let mut on = page.values.list(bind).cloned().unwrap_or_default();
+						match on.iter().position(|x| *x == id) {
+							Some(p) => {
+								on.remove(p);
+							}
+							None => on.push(id.clone()),
+						}
+						page.values
+							.state
+							.insert(bind.clone(), crate::ui::Value::List(on));
+					}
+				}
+				GuiEvent::Changed
+			}
+			Some(GuiOp::Choose(bind, id)) => {
+				page.values.set_str(&bind, &id);
+				GuiEvent::Changed
+			}
+			Some(GuiOp::Click(a)) => GuiEvent::Action(a),
+			None => {
+				// The default button, else "next".
+				let pick = page
+					.screen
+					.widgets
+					.iter()
+					.filter_map(|w| match w {
+						Widget::Button {
+							action, default, ..
+						} if page.enabled(w) => Some((action.clone(), *default)),
+						_ => None,
+					})
+					.find(|(_, d)| *d)
+					.map(|(a, _)| a)
+					.unwrap_or_else(|| "next".to_string());
+				GuiEvent::Action(pick)
+			}
+		}
+	}
+
+	fn working(&mut self, page: &mut GuiPage<'_>, p: &Progress) -> bool {
+		if page.fresh {
+			self.described.push(page.describe());
+			self.pages
+				.push((page.step.to_string(), page.title.clone(), Vec::new()));
+		}
+		if self.files_seen.last() != Some(&p.file) && !p.file.is_empty() {
+			self.files_seen.push(p.file.clone());
+		}
+		self.last_total = page.values.total_pct;
+		self.updates += 1;
+		!self.cancel_after.is_some_and(|n| self.updates > n)
+	}
+
+	fn message(&mut self, text: &str) {
+		self.messages.push(text.to_string());
 	}
 }
