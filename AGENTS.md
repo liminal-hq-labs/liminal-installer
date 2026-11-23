@@ -72,7 +72,11 @@ Liminal Installer is a [Liminal HQ Labs](https://github.com/liminal-hq-labs) exp
 - **Shared CI images** come from [`liminal-hq/.github`](https://github.com/liminal-hq/.github) (`ci-rust`, `ci-web`, `tauri-ci-desktop` and others). Pick the leanest tier that fits and pin it by digest. A project image belongs here only when no shared tier covers it.
 - **Dependabot** is off. Add `.github/dependabot.yml` only when the project opts in (see `docs/new-project.md`).
 
-<!-- Add the project's toolchain pin, build container and single local gate (for example `make validate`) here. -->
+- **Toolchain:** `rust-toolchain.toml` pins Rust 1.98.0 with `rustfmt` and `clippy`. Use `cargo nextest` for tests.
+- **Single local gate:** `make validate` runs `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo nextest run --workspace --locked` and the header check. `make markdown` and `make e2e-linux` run the other checks.
+- **End to end:** `bash scripts/e2e-linux.sh` builds a themed `.run` and a signed feed, then installs, updates, repairs and uninstalls it in a clean Debian container (needs `docker`). `scripts/e2e-linux-container.sh` is its in-container half.
+- **Docker-based tools:** markdownlint, shellcheck and actionlint run from pinned images (see Testing), so nothing but `docker` is installed locally for them.
+- **Studio UI:** `apps/studio/ui` is a pnpm project (`pnpm install`, `pnpm typecheck`, `pnpm test`); the Tauri shell in `apps/studio/src-tauri` has its own `Cargo.lock` and is built with `cargo check` there.
 
 ## Licence headers
 
@@ -89,13 +93,20 @@ Use `#` comments for shell, YAML, TOML and Dockerfiles, and an XML comment for S
 
 ## Architecture rules
 
-<!-- The few rules that keep the design honest, for example "core first: the library has no UI dependency" or "all I/O is async". Delete this comment when the first rule lands. -->
-
+- **Core first.** `li-model` and `li-engine` have no UI dependency. The CLI, the runner, the Studio and the renderers sit on top of them and never the other way round.
+- **Plan before commit.** An install builds a plan first, then stages, commits and records. Every operation records its own undo, so a failure or an uninstall can reverse it.
+- **Themes cannot add operations.** A theme draws pages and plays media. Only components and scripts put operations in a plan.
+- **Scripts get only declared capabilities.** A Lua script runs in a sandbox and holds only what its `-- capabilities:` header names. Writing files goes through the plan.
+- **Vendored chrome is refreshed by its recipe.** `apps/studio/ui/vendor/studio-chrome` changes only by the steps in its `PROVENANCE.md`, never by hand.
 - **SPEC first.** A change to behaviour, interfaces, settings or defaults updates `SPEC.md` in the same change.
 
 ## Testing
 
+- `make validate` — the single local gate (format, clippy, `cargo nextest`, headers)
 - `bash scripts/check-headers.sh` — SPDX headers
+- `cd apps/studio/ui && pnpm typecheck && pnpm test` — the Studio UI
+- `cd apps/studio/src-tauri && cargo check && cargo clippy -- -D warnings` — the Tauri shell
+- `bash scripts/e2e-linux.sh` (or `make e2e-linux`) — install, update, repair and uninstall in a Debian container
 - `bash scripts/check-banner.sh` — hero banner rules and text fit (needs `xmllint`, `rsvg-convert`, `python3` and Chromium; `--shots DIR` writes frames to look at)
 - `docker run --rm -v "$PWD:/workdir" davidanson/markdownlint-cli2:v0.17.2 "**/*.md"` — markdown
 - `docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:stable scripts/*.sh` — shell scripts
@@ -112,10 +123,15 @@ State exactly what was and was not run when reporting results.
 ## Repository layout
 
 ```text
-README.md SPEC.md AGENTS.md CLAUDE.md LICENSE-APACHE LICENSE-MIT
-.editorconfig .markdownlint.jsonc .gitignore rustfmt.toml
+README.md SPEC.md AGENTS.md CLAUDE.md LICENSE-APACHE LICENSE-MIT Makefile
+.editorconfig .markdownlint.jsonc .gitignore rustfmt.toml rust-toolchain.toml
+crates/        li-model, li-engine, li-script, li-render-tui, li-pack, li-package, li-cli (`liminst`),
+               li-runner (`liminal-engine`), li-studio (the Studio's editing core), li-examples-test
+apps/studio/   ui/ (Vite page, vendored chrome in ui/vendor) and src-tauri/ (the desktop shell)
+examples/      lt-fizz, planboard and neutral projects
+retro/         the DOS runtime scaffold and its build container
 assets/        hero banner
 docs/          decisions and project notes
-scripts/       header check, banner check and its Chromium text-fit harness
-.github/       CI workflow, issue and pull request templates, release notes configuration
+scripts/       header check, banner check, packaging and end-to-end scripts
+.github/       CI workflow, the `installer-action` composite action, issue and pull request templates
 ```

@@ -93,7 +93,7 @@ pub struct HookInfo {
 pub struct ScriptReport {
 	pub ok: bool,
 	pub hooks: Vec<HookInfo>,
-	/// The `li.*` modules the script asks for.
+	/// The `li.*` modules the script's declared capabilities open.
 	pub capabilities: Vec<String>,
 	pub diagnostics: Vec<Problem>,
 	pub output: Vec<String>,
@@ -103,8 +103,8 @@ pub struct ScriptReport {
 #[error("{0}")]
 pub struct BackendError(pub String);
 
-/// What the Studio needs from the engine. The real engine implements this against `li-engine`
-/// and `li-script`; [`crate::MockBackend`] stands in until then. Methods take the whole open
+/// What the Studio needs from the engine. [`crate::EngineBackend`] implements this against `li-engine`,
+/// `li-script` and `li-render-tui`; [`crate::MockBackend`] stands in for tests and the browser demo. Methods take the whole open
 /// project so an implementation may read `project.root` from disk instead of the loaded copy.
 pub trait StudioBackend: Send + Sync {
 	/// The same checks as `liminst check`.

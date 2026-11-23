@@ -10,7 +10,8 @@
 //! _project/installer/installer.toml      the manifest
 //! _project/installer/components.toml
 //! _project/installer/flows/…             flows
-//! _project/installer/themes/…            layouts, theme files and their assets
+//! _project/installer/layouts/…           layouts shared by every theme
+//! _project/installer/themes/…            theme files, their layouts and their assets
 //! _project/installer/scripts/…           Lua hooks
 //! _project/feed.pub                      the pinned feed key, as hex
 //! _project/version                       the product version this build is
@@ -38,7 +39,7 @@ pub const VERSION_FILE: &str = "_project/version";
 pub const TARGET_FILE: &str = "_project/target";
 
 const PROJECT_FILES: &[&str] = &["installer.toml", "components.toml"];
-const PROJECT_TREES: &[&str] = &["flows/", "themes/", "scripts/"];
+const PROJECT_TREES: &[&str] = &["flows/", "layouts/", "themes/", "scripts/"];
 
 /// Adds the project's own files (manifest, components, flows, themes and scripts), the build's
 /// target and version, and the pinned feed key, if any, to a `.lip` built by `pack_payload`. The product

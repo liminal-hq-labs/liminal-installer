@@ -159,6 +159,10 @@ impl<'a> FlowRunner<'a> {
 		let Some(spec) = &step.on_enter else {
 			return Ok(None);
 		};
+		// Built-in actions are carried out by the lifecycle, not by a script.
+		if spec.starts_with("builtin:") {
+			return Ok(None);
+		}
 		let (path, hook) = spec
 			.split_once('#')
 			.ok_or_else(|| EngineError::Flow(format!("on_enter `{spec}` needs `path#hook`")))?;

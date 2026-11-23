@@ -1032,6 +1032,7 @@ dependencies = [
 name = "li-examples-test"
 version = "0.1.0"
 dependencies = [
+ "li-engine",
  "li-model",
  "serde_json",
  "toml",
@@ -1119,7 +1120,10 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "getrandom 0.3.4",
+ "li-engine",
  "li-model",
+ "li-render-tui",
+ "li-script",
  "serde",
  "serde_json",
  "tempfile",

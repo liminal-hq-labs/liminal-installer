@@ -377,7 +377,18 @@ mod tests {
 			.map(|h| h.name.as_str())
 			.collect();
 		assert_eq!(present, ["detect", "validate"]);
-		assert!(r.capabilities.contains(&"li.retro.sound".to_string()));
+		let with_module = MockBackend
+			.test_script(
+				&p,
+				"scripts/y.lua",
+				"local s = require(\"li.retro.sound\")\nfunction detect(page) end",
+			)
+			.unwrap();
+		assert!(
+			with_module
+				.capabilities
+				.contains(&"li.retro.sound".to_string())
+		);
 		let bad = MockBackend
 			.test_script(&p, "scripts/x.lua", "-- nothing")
 			.unwrap();

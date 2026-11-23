@@ -28,8 +28,8 @@ From source, with a recent Rust toolchain:
 
 ```sh
 cargo build --release -p li-cli
-liminst check examples/planboard
-liminst preview examples/planboard --target linux-x86_64
+liminst check -C examples/planboard
+liminst preview -C examples/planboard --target linux-x86_64
 ```
 
 The `liminst` binary is in `target/release/`.
