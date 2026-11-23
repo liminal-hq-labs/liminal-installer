@@ -1,0 +1,18 @@
+# The tui renderer: draws layouts with ratatui.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[package]
+name = "li-render-tui"
+description = "Terminal renderer for Liminal Installer layouts, with retro and plain styles"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+li-model.workspace = true
+ratatui.workspace = true
+serde_json.workspace = true
