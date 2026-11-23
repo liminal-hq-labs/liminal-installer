@@ -12,6 +12,7 @@ fmt:
 
 clippy:
 	cargo clippy --workspace --all-targets --locked -- -D warnings
+	cargo clippy -p li-lpk --no-default-features --locked -- -D warnings
 
 test:
 	cargo nextest run --workspace --locked

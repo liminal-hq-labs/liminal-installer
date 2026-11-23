@@ -279,6 +279,7 @@ A feed is published with a detached signature at `feed.json.sig`: the Ed25519 si
 | `feed add` | Add the built release to a feed; `--sign-key` signs it |
 | `theme pack` | Package a theme for sharing; `--sign-key` signs it |
 | `studio --mcp` | Serve the project to agents over MCP, with no window; `--port` picks the port |
+| `lpk pack`, `list`, `unpack`, `verify` | Make, list, unpack and check a Liminal Pack (`.LPK`, [docs/lpk-format.md](docs/lpk-format.md)); `pack` takes `--volume-size` (a number, `k`, `m` or `floppy-1440`), `--first-volume-size`, `--chunk-log2`, `--target` and `--fixed-time`, and writes `NAME.LPK`, `NAME.L02` and so on when the pack spans volumes; `verify` exits 2 on the first damaged chunk, file or missing volume |
 
 Table 7. `liminst` commands.
 
@@ -295,6 +296,8 @@ Example 2. A CI job.
     sign-key: ${{ secrets.FEED_KEY }}
     feed: feed/stable.json
 ```
+
+The **Liminal Pack** (`.LPK`) is the pack format the retro runtimes read, specified byte by byte in [docs/lpk-format.md](docs/lpk-format.md) (D47 to D50). A pack is one or more volumes. Each volume has a 48-byte header and a 32-byte footer with CRC-32s; volume 1 has the directory of files (8.3 and long names, size, DOS date and time, attributes, CRC-32, the flags `EXECUTABLE`, `REPLACE_IF_NEWER` and `SHARED`, and a target mask). File data is in chunks of at most 32 KiB, each stored or raw deflate, so a 16-bit unpacker needs one 32 KiB buffer. A set of disks is a set of volumes: a chunk is never split across two, a next-volume marker ends a volume in the middle of a file, and the reader asks its caller for each volume. The reader (`li-lpk`, `no_std`, no allocation) refuses any damage with a typed error and never hands on a chunk that failed its checksum. The format has a major and a minor version: a reader accepts every minor of its major and refuses must-understand flags it does not know.
 
 ## 13 · Studio API for agents
 

@@ -99,6 +99,7 @@ Use `#` comments for shell, YAML, TOML and Dockerfiles, and an XML comment for S
 - **Scripts get only declared capabilities.** A Lua script runs in a sandbox and holds only what its `-- capabilities:` header names. Writing files goes through the plan.
 - **Wire types are generated.** A Rust type the Studio UI or an MCP client receives derives `ts_rs::TS`, and its TypeScript is generated into `packages/protocol`, never written by hand. Failed commands and tools carry `{ kind, message }` (`StudioError`).
 - **The DOS runtime is Rust, and its foundation is a copy.** `dos/` is refreshed only by the steps in `dos/PROVENANCE.md`. The portable parts live in `li-retro` (`no_std` plus `alloc`, tested on the host); `dos/setup` holds only what touches the machine. No Lua on DOS: a step names a `builtin:` action.
+- **The pack format is specified first.** `.LPK` is defined byte by byte in `docs/lpk-format.md`; `li-lpk`'s reader is `no_std`, allocates nothing, and answers any damaged input with a typed error, never a panic. A format change follows the version and compatibility rule on that page and updates the golden files in `crates/li-lpk/tests/golden/` (`LI_UPDATE_GOLDEN=1`).
 - **Vendored chrome is refreshed by its recipe.** `packages/chrome` changes only by the steps in its `PROVENANCE.md`, never by hand. The Studio imports it by deep path.
 - **Every visible string is in the catalogue.** UI text comes from `apps/studio/src/i18n/messages.ts` through `t('area.key')` (en-CA, sentence case), never a literal in JSX. `bun run check:i18n` enforces it; look at a layout with `?locale=en-XA` and `?locale=ar-XB` in a development build.
 - **Styles are CSS Modules** next to the component, over the `--lis-*` tokens in `src/theme/tokens.css`. The tokens come from `bun run tokens`; do not edit the generated file.
@@ -136,7 +137,7 @@ README.md SPEC.md AGENTS.md CLAUDE.md LICENSE-APACHE LICENSE-MIT Makefile
 .editorconfig .markdownlint.jsonc .gitignore rustfmt.toml rust-toolchain.toml
 crates/        li-model, li-engine, li-script, li-render-tui, li-pack, li-package, li-cli (`liminst`),
                li-runner (`liminal-engine`), li-studio (the Studio's editing core), li-examples-test,
-               li-retro (the `no_std` DOS runtime core) and li-retro-build (its compiler)
+               li-retro (the `no_std` DOS runtime core), li-retro-build (its compiler) and li-lpk (the `.LPK` pack format: a `no_std` reader and a host packer)
 apps/studio/   the Studio: index.html, vite.config.ts, src/ (React) and src-tauri/ (the desktop shell)
 packages/      chrome/ (`@liminal-hq/studio-chrome`, vendored, see its PROVENANCE.md) and protocol/ (`@liminal-hq/installer-protocol`: ts-rs bindings, generated, committed)
 examples/      lt-fizz, planboard and neutral projects

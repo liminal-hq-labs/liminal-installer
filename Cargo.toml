@@ -39,6 +39,7 @@ li-package = { path = "crates/li-package" }
 li-studio = { path = "crates/li-studio" }
 li-retro = { path = "crates/li-retro" }
 li-retro-build = { path = "crates/li-retro-build" }
+li-lpk = { path = "crates/li-lpk", default-features = false }
 
 # Third-party crates shared by more than one member.
 ratatui = "0.30"

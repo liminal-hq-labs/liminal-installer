@@ -1,0 +1,27 @@
+# The Liminal Pack (`.LPK`) format: a `no_std` reader and a host-side packer.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[package]
+name = "li-lpk"
+description = "The Liminal Pack (.LPK) format: a no_std, allocation-free unpacker for DOS, Win16 and Win32 runtimes, and a host-side packer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[features]
+default = ["std"]
+# The packer: builds volumes in memory. Needs `alloc` and the deflate compressor.
+writer = ["dep:miniz_oxide"]
+# Host helpers (files on disk, 8.3 names, DOS time) and `std::error::Error`. Implies the packer.
+std = ["writer", "miniz_oxide/std"]
+
+[dependencies]
+miniz_oxide = { version = "0.8", default-features = false, features = ["with-alloc"], optional = true }
+
+[dev-dependencies]
+proptest = "1"
+tempfile.workspace = true
