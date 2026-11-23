@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+	<Package Name="Lieutenant Fizz — Episode One" Manufacturer="Liminal HQ" Version="1.0.0.0" UpgradeCode="F93ED5C9-D0E4-5E37-A1E5-A564B9816075" Scope="perUser" InstallerVersion="500" Compressed="yes">
+		<MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed."/>
+		<MediaTemplate EmbedCab="yes"/>
+		<StandardDirectory Id="LocalAppDataFolder">
+			<Directory Id="ProgramsFolder" Name="Programs">
+				<Directory Id="INSTALLFOLDER" Name="Lieutenant Fizz — Episode One">
+					<Directory Id="D0" Name=".liminal">
+						<Component Id="C1" Guid="*">
+							<File Id="F1" Name="receipt.json" Source="$(var.SourceDir)\.liminal\receipt.json" KeyPath="no"/>
+							<RegistryValue Root="HKCU" Key="Software\Liminal HQ\Lieutenant Fizz — Episode One\Components" Name="C1" Type="integer" Value="1" KeyPath="yes"/>
+						</Component>
+					</Directory>
+					<Directory Id="D2" Name="SOUND">
+						<Component Id="C3" Guid="*">
+							<File Id="F3" Name="SB.DRV" Source="$(var.SourceDir)\SOUND\SB.DRV" KeyPath="no"/>
+							<RegistryValue Root="HKCU" Key="Software\Liminal HQ\Lieutenant Fizz — Episode One\Components" Name="C3" Type="integer" Value="1" KeyPath="yes"/>
+						</Component>
+					</Directory>
+					<Directory Id="D4" Name="bin">
+						<Component Id="C5" Guid="*">
+							<File Id="F5" Name="fizz" Source="$(var.SourceDir)\bin\fizz" KeyPath="no">
+								<Shortcut Id="S5" Name="Lieutenant Fizz — Episode One" Directory="ProgramMenuFolder" WorkingDirectory="INSTALLFOLDER" Advertise="yes"/>
+							</File>
+							<RegistryValue Root="HKCU" Key="Software\Liminal HQ\Lieutenant Fizz — Episode One\Components" Name="C5" Type="integer" Value="1" KeyPath="yes"/>
+						</Component>
+					</Directory>
+				</Directory>
+			</Directory>
+		</StandardDirectory>
+		<Feature Id="Main" Title="Lieutenant Fizz — Episode One" Level="1">
+			<ComponentRef Id="C1"/>
+			<ComponentRef Id="C3"/>
+			<ComponentRef Id="C5"/>
+		</Feature>
+	</Package>
+</Wix>

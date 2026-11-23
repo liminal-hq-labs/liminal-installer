@@ -1,0 +1,35 @@
+%global debug_package %{nil}
+%global __os_install_post %{nil}
+
+Name:           lt-fizz
+Version:        1.0.0
+Release:        1
+Summary:        Lieutenant Fizz — Episode One
+License:        MIT
+URL:            https://example.org/fizz
+Vendor:         Liminal HQ
+Source0:        %{name}-%{version}.tar.gz
+BuildArch:      x86_64
+AutoReqProv:    no
+
+%description
+A space adventure about carbonated heroics.
+
+%prep
+%setup -q
+
+%build
+
+%install
+install -d %{buildroot}/opt/lt-fizz
+cp -a . %{buildroot}/opt/lt-fizz/
+install -d %{buildroot}/usr/bin
+ln -s /opt/lt-fizz/bin/fizz %{buildroot}/usr/bin/lt-fizz
+
+%files
+/opt/lt-fizz
+/usr/bin/lt-fizz
+
+%changelog
+* Thu Jan 01 1970 Liminal HQ <noreply@localhost> - 1.0.0-1
+- Packaged by liminst
