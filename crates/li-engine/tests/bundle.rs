@@ -6,7 +6,9 @@
 mod common;
 
 use common::*;
-use li_engine::bundle::{bundle_project, bundled_version, extract_project, pinned_key};
+use li_engine::bundle::{
+	bundle_project, bundled_target, bundled_version, extract_project, pinned_key,
+};
 use li_engine::{LipPayload, Payload, Project, pack_payload};
 use li_pack::{Lip, generate_keypair};
 
@@ -15,10 +17,11 @@ fn a_bundled_project_loads_back_and_the_payload_is_unchanged() {
 	let p = project();
 	let (_, vk) = generate_keypair().unwrap();
 	let plain = pack_payload(&p, "linux-x86_64").unwrap();
-	let bytes = bundle_project(&p, &plain, "1.0.0", Some(&vk)).unwrap();
+	let bytes = bundle_project(&p, &plain, "linux-x86_64", "1.0.0", Some(&vk)).unwrap();
 	let lip = Lip::parse(&bytes).unwrap();
 	assert_eq!(pinned_key(&lip).unwrap(), Some(vk));
 	assert_eq!(bundled_version(&lip).as_deref(), Some("1.0.0"));
+	assert_eq!(bundled_target(&lip).as_deref(), Some("linux-x86_64"));
 
 	let payload = LipPayload(lip.clone());
 	let plain_payload = LipPayload::from_bytes(&plain).unwrap();

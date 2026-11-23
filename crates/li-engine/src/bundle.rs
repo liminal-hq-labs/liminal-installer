@@ -14,6 +14,7 @@
 //! _project/installer/scripts/…           Lua hooks
 //! _project/feed.pub                      the pinned feed key, as hex
 //! _project/version                       the product version this build is
+//! _project/target                        the target id the payload was packed for
 //! ```
 //!
 //! An update's `.lip` brings its own project, so a new version can change its flows and
@@ -33,16 +34,19 @@ pub const PROJECT_DIR: &str = "_project";
 pub const PINNED_KEY: &str = "_project/feed.pub";
 /// Where the product version sits in a bundled `.lip`.
 pub const VERSION_FILE: &str = "_project/version";
+/// Where the target id (`linux-x86_64`) sits in a bundled `.lip`.
+pub const TARGET_FILE: &str = "_project/target";
 
 const PROJECT_FILES: &[&str] = &["installer.toml", "components.toml"];
 const PROJECT_TREES: &[&str] = &["flows/", "themes/", "scripts/"];
 
 /// Adds the project's own files (manifest, components, flows, themes and scripts), the build's
-/// version and the pinned feed key, if any, to a `.lip` built by `pack_payload`. The product
+/// target and version, and the pinned feed key, if any, to a `.lip` built by `pack_payload`. The product
 /// payload under `dist/` and the like is not duplicated.
 pub fn bundle_project(
 	project: &Project,
 	lip_bytes: &[u8],
+	target: &str,
 	version: &str,
 	feed_key: Option<&VerifyingKey>,
 ) -> Result<Vec<u8>> {
@@ -65,6 +69,7 @@ pub fn bundle_project(
 			)?;
 		}
 	}
+	builder.add(TARGET_FILE, format!("{target}\n").into_bytes(), false)?;
 	builder.add(VERSION_FILE, format!("{version}\n").into_bytes(), false)?;
 	if let Some(key) = feed_key {
 		builder.add(
@@ -109,9 +114,18 @@ pub fn pinned_key(lip: &Lip) -> Result<Option<VerifyingKey>> {
 	}
 }
 
-/// The product version a `.lip` was built for, if it carries one.
-pub fn bundled_version(lip: &Lip) -> Option<String> {
-	lip.read(VERSION_FILE)
+fn text_entry(lip: &Lip, path: &str) -> Option<String> {
+	lip.read(path)
 		.map(|b| String::from_utf8_lossy(b).trim().to_owned())
 		.filter(|v| !v.is_empty())
+}
+
+/// The product version a `.lip` was built for, if it carries one.
+pub fn bundled_version(lip: &Lip) -> Option<String> {
+	text_entry(lip, VERSION_FILE)
+}
+
+/// The target id a `.lip` was packed for, if it carries one.
+pub fn bundled_target(lip: &Lip) -> Option<String> {
+	text_entry(lip, TARGET_FILE)
 }

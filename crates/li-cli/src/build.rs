@@ -164,6 +164,7 @@ fn lip_bytes(req: &BuildRequest) -> Result<Vec<u8>, BuildError> {
 	li_engine::bundle::bundle_project(
 		req.project,
 		&plain,
+		&req.target.id,
 		&req.version,
 		pinned_key(req.project)?.as_ref(),
 	)

@@ -998,7 +998,9 @@ dependencies = [
  "assert_cmd",
  "clap",
  "flate2",
+ "li-engine",
  "li-model",
+ "li-pack",
  "li-package",
  "li-render-tui",
  "predicates",
@@ -1082,6 +1084,22 @@ dependencies = [
  "li-model",
  "ratatui",
  "serde_json",
+]
+
+[[package]]
+name = "li-runner"
+version = "0.1.0"
+dependencies = [
+ "assert_cmd",
+ "clap",
+ "li-engine",
+ "li-model",
+ "li-pack",
+ "li-render-tui",
+ "predicates",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

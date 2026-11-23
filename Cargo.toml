@@ -43,3 +43,13 @@ tar = "0.4"
 flate2 = "1"
 assert_cmd = "2"
 predicates = "3"
+
+# Packing a `.run` gzips the runner; unoptimized, that takes seconds per build in tests.
+[profile.dev.package.miniz_oxide]
+opt-level = 3
+
+[profile.dev.package.flate2]
+opt-level = 3
+
+[profile.dev.package.sha2]
+opt-level = 3
