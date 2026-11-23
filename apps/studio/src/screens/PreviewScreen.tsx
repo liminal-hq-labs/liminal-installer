@@ -9,6 +9,12 @@ import { FullScreenBody, type FullScreenBodyProps } from '../preview/FullScreenB
 import { PlaybackBar, RunStage } from '../preview/RunStage';
 import { useRun } from '../preview/useRun';
 import { useEffect, useState } from 'react';
+import {
+	stepFor,
+	TerminalPreview,
+	TerminalViewSwitch,
+	type TerminalView,
+} from '../preview/TerminalPreview';
 import { lookFor } from '../preview/model';
 import preview from '../preview/preview.module.css';
 import { useChromeState, usePreview, useProject, useStudio } from '../app/StudioContext';
@@ -63,6 +69,7 @@ export function PreviewScreen() {
 	const previewStep = usePreview((s) => s.previewStep);
 	const targets = summary.targets;
 	const shown = pv?.steps[previewStep];
+	const [view, setView] = useState<TerminalView>('rich');
 	const setStep = (i: number) => studio.preview.setState({ previewStep: i });
 	const run = useRun(pv, summary.components, previewStep, setStep);
 	const fullscreen = usePreview((s) => s.fullscreen);
@@ -72,6 +79,8 @@ export function PreviewScreen() {
 	const stale = Boolean(pv && pv.target !== previewTarget);
 	const skippedCount = pv?.steps.filter((x) => x.skipped).length ?? 0;
 	const renderer = pv?.renderer ?? targetInfo?.renderer ?? 'canvas';
+	const isTui = renderer.startsWith('tui');
+	const real = isTui && view === 'terminal' && pv && shown?.layout && !shown.skipped;
 
 	return (
 		<div className={ui.screen}>
@@ -104,6 +113,7 @@ export function PreviewScreen() {
 				>
 					{t('preview.run')}
 				</button>
+				{isTui ? <TerminalViewSwitch value={view} onChange={setView} /> : null}
 				{pv ? (
 					<span className={stale ? cx(ui.chip, styles.stale) : cx(text.dim, text.small)}>
 						{stale
@@ -165,7 +175,20 @@ export function PreviewScreen() {
 								{t('preview.fullScreen')}
 							</button>
 						</div>
-						{pv && shown?.layout_tree ? (
+						{real ? (
+							<TerminalPreview
+								api={studio.api}
+								target={pv.target}
+								page={shown.id}
+								state={shown.state}
+								label={t('terminal.label', { id: shown.id })}
+								onOutcome={(o) => {
+									const step = stepFor(o);
+									if (step === 'cancel') setStep(0);
+									else if (step) go(step === 'back' ? -1 : 1);
+								}}
+							/>
+						) : pv && shown?.layout_tree ? (
 							<>
 								<div
 									className={preview.host}

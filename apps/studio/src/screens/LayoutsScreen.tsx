@@ -36,6 +36,7 @@ import {
 } from '../lib/stage';
 import type { Layout, LayoutNode } from '../lib/types';
 import { LayoutPreview } from '../preview/PreviewTree';
+import { TerminalPreview, TerminalViewSwitch, type TerminalView } from '../preview/TerminalPreview';
 import { lookFor } from '../preview/model';
 import { useProject, useStudio } from '../app/StudioContext';
 import { cx } from '../ui/cx';
@@ -565,6 +566,12 @@ export function LayoutsScreen() {
 	useEffect(() => {
 		if (renderer !== layoutRenderer) studio.project.setState({ layoutRenderer: renderer });
 	}, [renderer, layoutRenderer, studio]);
+	const [view, setView] = useState<TerminalView>('rich');
+	// The real terminal runs on a target that uses this renderer, and reopens after an edit to the
+	// layout or its stage.
+	const tuiTarget = summary.targets.find((x) => x.renderer === renderer)?.full_id;
+	const real = renderer.startsWith('tui') && view === 'terminal' && tuiTarget;
+	const editKey = useMemo(() => JSON.stringify([layout, stage]), [layout, stage]);
 	if (!layout) return <p className={text.muted}>{t('common.loading')}</p>;
 	return (
 		<div className={ui.screen}>
@@ -597,6 +604,9 @@ export function LayoutsScreen() {
 								))}
 							</select>
 						</label>
+						{renderer.startsWith('tui') && tuiTarget ? (
+							<TerminalViewSwitch value={view} onChange={setView} />
+						) : null}
 						<span className={ui.chip}>
 							{t('layouts.look', {
 								look: lookFor(renderer, themeId, layout.root.props?.style as string | undefined),
@@ -604,28 +614,38 @@ export function LayoutsScreen() {
 						</span>
 					</div>
 					<div className={styles.host}>
-						<LayoutPreview
-							layout={layout}
-							stage={isStageId(layoutId) ? null : stage}
-							step={step}
-							renderer={renderer}
-							options={{
-								theme: themeId,
-								components: summary.components,
-								interact: {
-									mode: 'edit',
-									selected: refKey({
-										scope: isStageId(layoutId) ? 'stage' : scope,
-										path: selected,
-									}),
-									onSelect: (key) => {
-										const ref = parseRef(key);
-										if (ref)
-											studio.project.setState({ layoutScope: ref.scope, layoutPath: ref.path });
+						{real ? (
+							<TerminalPreview
+								api={studio.api}
+								target={real}
+								page={layoutId}
+								refreshKey={editKey}
+								label={t('terminal.label', { id: layoutId })}
+							/>
+						) : (
+							<LayoutPreview
+								layout={layout}
+								stage={isStageId(layoutId) ? null : stage}
+								step={step}
+								renderer={renderer}
+								options={{
+									theme: themeId,
+									components: summary.components,
+									interact: {
+										mode: 'edit',
+										selected: refKey({
+											scope: isStageId(layoutId) ? 'stage' : scope,
+											path: selected,
+										}),
+										onSelect: (key) => {
+											const ref = parseRef(key);
+											if (ref)
+												studio.project.setState({ layoutScope: ref.scope, layoutPath: ref.path });
+										},
 									},
-								},
-							}}
-						/>
+								}}
+							/>
+						)}
 					</div>
 				</section>
 			</div>
