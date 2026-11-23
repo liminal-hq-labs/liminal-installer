@@ -1,0 +1,46 @@
+{
+	"$schema": "https://liminal-hq.github.io/installer/schema/flow.json",
+	"version": 1,
+	"id": "update",
+	"steps": [
+		{
+			"id": "check-feed",
+			"type": "action",
+			"on_enter": "builtin:check-feed",
+			"next": "has-update"
+		},
+		{
+			"id": "has-update",
+			"type": "branch",
+			"branches": [
+				{
+					"when": "state.update.available",
+					"next": "update-offer"
+				}
+			],
+			"next": "up-to-date"
+		},
+		{
+			"id": "update-offer",
+			"type": "page",
+			"layout": "update-offer",
+			"next": "copying"
+		},
+		{
+			"id": "copying",
+			"type": "commit",
+			"layout": "copying",
+			"next": "done"
+		},
+		{
+			"id": "up-to-date",
+			"type": "finish",
+			"layout": "done"
+		},
+		{
+			"id": "done",
+			"type": "finish",
+			"layout": "done"
+		}
+	]
+}

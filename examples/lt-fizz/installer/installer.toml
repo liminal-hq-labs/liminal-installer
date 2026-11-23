@@ -1,0 +1,42 @@
+# Lieutenant Fizz example project: retro and modern targets.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[product]
+id        = "hq.liminal.lt-fizz"
+name      = "Lieutenant Fizz — Episode One"
+publisher = "Liminal HQ"
+version   = { from = "git-tag" }
+licence   = "LICENCE.TXT"
+
+[defaults]
+scope = "user"
+theme = "fizz-win95"
+
+[[target]]
+id       = "dos-x86"
+renderer = "tui-retro"
+theme    = "fizz-dos"
+outputs  = ["floppy-1440", "zip"]
+
+[[target]]
+id       = "win16-x86"
+renderer = "win16"
+theme    = "fizz-win95"
+outputs  = ["floppy-1440"]
+
+[[target]]
+id       = "windows-x86_64"
+renderer = "win32-classic"
+theme    = "fizz-win95"
+outputs  = ["setup-exe", "msix"]
+
+[[target]]
+id       = "linux-x86_64"
+renderer = "tui"
+theme    = "fizz-win95"
+outputs  = ["run"]
+
+[signing]
+feed_key = "keys/feed.pub"

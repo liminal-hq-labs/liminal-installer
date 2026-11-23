@@ -1,0 +1,33 @@
+# Neutral example project: the default theme on three targets.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[product]
+id        = "hq.liminal.neutral-sample"
+name      = "Neutral Sample"
+publisher = "Liminal HQ"
+version   = "1.0.0"
+licence   = "LICENCE.TXT"
+
+[defaults]
+scope = "ask"
+theme = "neutral"
+
+[[target]]
+id       = "linux-x86_64"
+renderer = "canvas"
+outputs  = ["run"]
+
+[[target]]
+id       = "linux-x86_64"
+renderer = "tui"
+outputs  = ["run"]
+
+[[target]]
+id       = "windows-x86_64"
+renderer = "canvas"
+outputs  = ["setup-exe"]
+
+[signing]
+feed_key = "keys/feed.pub"

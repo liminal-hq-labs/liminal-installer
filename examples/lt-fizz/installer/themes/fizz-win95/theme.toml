@@ -1,0 +1,16 @@
+# The Fizz Win95 theme: the classic setup look.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[theme]
+id        = "fizz-win95"
+name      = "Fizz Windows 95"
+renderers = ["win16", "win32-classic", "tui"]
+fallback  = "plain"
+
+[pages]
+intro = { layout = "intro", before = "welcome", skippable = true }
+
+[audio]
+music = "assets/theme.mod"

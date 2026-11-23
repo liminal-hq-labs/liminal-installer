@@ -1,0 +1,250 @@
+{
+	"$schema": "https://liminal-hq.github.io/installer/schema/layout.json",
+	"version": 1,
+	"id": "components",
+	"root": {
+		"kind": "backdrop",
+		"props": {
+			"style": "classic",
+			"title": "Lieutenant Fizz — Episode One",
+			"label": "Lieutenant Fizz — Episode One setup"
+		},
+		"children": [
+			{
+				"kind": "dialog",
+				"props": {
+					"title": "Choose components — Lt. Fizz",
+					"label": "Choose components",
+					"style": "win32-classic"
+				},
+				"children": [
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "column",
+							"gap": 12
+						},
+						"children": [
+							{
+								"kind": "text",
+								"props": {
+									"text": "Choose what to install",
+									"role": "heading"
+								}
+							},
+							{
+								"kind": "checklist",
+								"bind": "components.selected",
+								"props": {
+									"label": "Components",
+									"items": "components"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"text": "Space required: {install.size}",
+									"role": "caption"
+								}
+							}
+						]
+					},
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "row",
+							"gap": 8,
+							"align": "end"
+						},
+						"children": [
+							{
+								"kind": "button",
+								"props": {
+									"label": "Back",
+									"action": "back"
+								}
+							},
+							{
+								"kind": "button",
+								"props": {
+									"label": "Next",
+									"action": "next",
+									"default": true
+								}
+							},
+							{
+								"kind": "button",
+								"props": {
+									"label": "Cancel",
+									"action": "cancel"
+								}
+							}
+						]
+					}
+				]
+			}
+		],
+		"overrides": {
+			"tui-retro": {
+				"kind": "backdrop",
+				"props": {
+					"style": "text-mode",
+					"charset": "cp437",
+					"fill": "░",
+					"title": "Lieutenant Fizz — Episode One",
+					"label": "Lieutenant Fizz — Episode One setup",
+					"palette": "blue-on-grey"
+				},
+				"children": [
+					{
+						"kind": "dialog",
+						"props": {
+							"title": "Choose components",
+							"label": "Choose components",
+							"border": "double",
+							"shadow": true
+						},
+						"children": [
+							{
+								"kind": "stack",
+								"props": {
+									"direction": "column",
+									"gap": 1
+								},
+								"children": [
+									{
+										"kind": "text",
+										"props": {
+											"text": "Choose what to install",
+											"role": "heading"
+										}
+									},
+									{
+										"kind": "checklist",
+										"bind": "components.selected",
+										"props": {
+											"label": "Components",
+											"items": "components"
+										}
+									},
+									{
+										"kind": "text",
+										"props": {
+											"text": "Space required: {install.size}",
+											"role": "caption"
+										}
+									}
+								]
+							},
+							{
+								"kind": "stack",
+								"props": {
+									"direction": "row",
+									"gap": 8,
+									"align": "end"
+								},
+								"children": [
+									{
+										"kind": "button",
+										"props": {
+											"label": "Back",
+											"action": "back"
+										}
+									},
+									{
+										"kind": "button",
+										"props": {
+											"label": "Next",
+											"action": "next",
+											"default": true
+										}
+									},
+									{
+										"kind": "button",
+										"props": {
+											"label": "Cancel",
+											"action": "cancel"
+										}
+									}
+								]
+							}
+						]
+					}
+				]
+			},
+			"tui": {
+				"kind": "window",
+				"props": {
+					"title": "Lieutenant Fizz — Episode One — Choose components",
+					"label": "Choose components",
+					"border": "rounded"
+				},
+				"children": [
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "column",
+							"gap": 1
+						},
+						"children": [
+							{
+								"kind": "text",
+								"props": {
+									"text": "Choose what to install",
+									"role": "heading"
+								}
+							},
+							{
+								"kind": "checklist",
+								"bind": "components.selected",
+								"props": {
+									"label": "Components",
+									"items": "components"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"text": "Space required: {install.size}",
+									"role": "caption"
+								}
+							}
+						]
+					},
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "row",
+							"gap": 8,
+							"align": "end"
+						},
+						"children": [
+							{
+								"kind": "button",
+								"props": {
+									"label": "Back",
+									"action": "back"
+								}
+							},
+							{
+								"kind": "button",
+								"props": {
+									"label": "Next",
+									"action": "next",
+									"default": true
+								}
+							},
+							{
+								"kind": "button",
+								"props": {
+									"label": "Cancel",
+									"action": "cancel"
+								}
+							}
+						]
+					}
+				]
+			}
+		}
+	}
+}

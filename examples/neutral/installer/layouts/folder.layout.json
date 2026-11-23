@@ -1,0 +1,187 @@
+{
+	"$schema": "https://liminal-hq.github.io/installer/schema/layout.json",
+	"version": 1,
+	"id": "folder",
+	"root": {
+		"kind": "window",
+		"props": {
+			"title": "Neutral Sample Setup",
+			"label": "Choose a folder",
+			"style": "neutral"
+		},
+		"children": [
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "column",
+					"gap": 12
+				},
+				"children": [
+					{
+						"kind": "text",
+						"props": {
+							"text": "Choose the destination folder",
+							"role": "heading"
+						}
+					},
+					{
+						"kind": "path",
+						"bind": "install.path",
+						"props": {
+							"label": "Destination folder",
+							"mode": "directory"
+						}
+					},
+					{
+						"kind": "radio",
+						"bind": "install.scope",
+						"props": {
+							"label": "Install for",
+							"options": [
+								{
+									"id": "user",
+									"label": "Only me"
+								},
+								{
+									"id": "machine",
+									"label": "Everyone on this computer"
+								}
+							]
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Space required: {install.size} · Free: {system.free_space}",
+							"role": "caption"
+						}
+					}
+				]
+			},
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "row",
+					"gap": 8,
+					"align": "end"
+				},
+				"children": [
+					{
+						"kind": "button",
+						"props": {
+							"label": "Back",
+							"action": "back"
+						}
+					},
+					{
+						"kind": "button",
+						"props": {
+							"label": "Next",
+							"action": "next",
+							"default": true
+						}
+					},
+					{
+						"kind": "button",
+						"props": {
+							"label": "Cancel",
+							"action": "cancel"
+						}
+					}
+				]
+			}
+		],
+		"overrides": {
+			"tui": {
+				"kind": "window",
+				"props": {
+					"title": "Neutral Sample — Choose a folder",
+					"label": "Choose a folder",
+					"border": "rounded"
+				},
+				"children": [
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "column",
+							"gap": 1
+						},
+						"children": [
+							{
+								"kind": "text",
+								"props": {
+									"text": "Choose the destination folder",
+									"role": "heading"
+								}
+							},
+							{
+								"kind": "path",
+								"bind": "install.path",
+								"props": {
+									"label": "Destination folder",
+									"mode": "directory"
+								}
+							},
+							{
+								"kind": "radio",
+								"bind": "install.scope",
+								"props": {
+									"label": "Install for",
+									"options": [
+										{
+											"id": "user",
+											"label": "Only me"
+										},
+										{
+											"id": "machine",
+											"label": "Everyone on this computer"
+										}
+									]
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"text": "Space required: {install.size} · Free: {system.free_space}",
+									"role": "caption"
+								}
+							}
+						]
+					},
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "row",
+							"gap": 8,
+							"align": "end"
+						},
+						"children": [
+							{
+								"kind": "button",
+								"props": {
+									"label": "Back",
+									"action": "back"
+								}
+							},
+							{
+								"kind": "button",
+								"props": {
+									"label": "Next",
+									"action": "next",
+									"default": true
+								}
+							},
+							{
+								"kind": "button",
+								"props": {
+									"label": "Cancel",
+									"action": "cancel"
+								}
+							}
+						]
+					}
+				]
+			}
+		}
+	}
+}

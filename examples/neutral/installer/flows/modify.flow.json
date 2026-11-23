@@ -1,0 +1,30 @@
+{
+	"$schema": "https://liminal-hq.github.io/installer/schema/flow.json",
+	"version": 1,
+	"id": "modify",
+	"steps": [
+		{
+			"id": "components",
+			"type": "page",
+			"layout": "components",
+			"next": "ready"
+		},
+		{
+			"id": "ready",
+			"type": "page",
+			"layout": "ready",
+			"next": "copying"
+		},
+		{
+			"id": "copying",
+			"type": "commit",
+			"layout": "copying",
+			"next": "done"
+		},
+		{
+			"id": "done",
+			"type": "finish",
+			"layout": "done"
+		}
+	]
+}

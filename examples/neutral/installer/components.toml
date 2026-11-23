@@ -1,0 +1,16 @@
+# Neutral example project: what gets installed.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[[component]]
+id       = "app"
+name     = "Neutral Sample"
+required = true
+files    = [{ from = "dist/{target}/neutral*", to = "{install}/" }]
+shortcut = [{ name = "Neutral Sample", target = "{install}/neutral", in = "start_menu" }]
+
+[[component]]
+id    = "examples"
+name  = "Example files"
+files = [{ from = "dist/examples/*.txt", to = "{install}/examples/" }]

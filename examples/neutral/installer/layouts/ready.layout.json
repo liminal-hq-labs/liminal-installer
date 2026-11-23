@@ -1,0 +1,153 @@
+{
+	"$schema": "https://liminal-hq.github.io/installer/schema/layout.json",
+	"version": 1,
+	"id": "ready",
+	"root": {
+		"kind": "window",
+		"props": {
+			"title": "Neutral Sample Setup",
+			"label": "Ready to install",
+			"style": "neutral"
+		},
+		"children": [
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "column",
+					"gap": 12
+				},
+				"children": [
+					{
+						"kind": "text",
+						"props": {
+							"text": "Ready to install",
+							"role": "heading"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Setup will copy the files below to {install.path}.",
+							"role": "body"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"role": "summary",
+							"text": "{plan.summary}",
+							"label": "Installation summary"
+						}
+					}
+				]
+			},
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "row",
+					"gap": 8,
+					"align": "end"
+				},
+				"children": [
+					{
+						"kind": "button",
+						"props": {
+							"label": "Back",
+							"action": "back"
+						}
+					},
+					{
+						"kind": "button",
+						"props": {
+							"label": "Install",
+							"action": "commit",
+							"default": true
+						}
+					},
+					{
+						"kind": "button",
+						"props": {
+							"label": "Cancel",
+							"action": "cancel"
+						}
+					}
+				]
+			}
+		],
+		"overrides": {
+			"tui": {
+				"kind": "window",
+				"props": {
+					"title": "Neutral Sample — Ready to install",
+					"label": "Ready to install",
+					"border": "rounded"
+				},
+				"children": [
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "column",
+							"gap": 1
+						},
+						"children": [
+							{
+								"kind": "text",
+								"props": {
+									"text": "Ready to install",
+									"role": "heading"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"text": "Setup will copy the files below to {install.path}.",
+									"role": "body"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"role": "summary",
+									"text": "{plan.summary}",
+									"label": "Installation summary"
+								}
+							}
+						]
+					},
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "row",
+							"gap": 8,
+							"align": "end"
+						},
+						"children": [
+							{
+								"kind": "button",
+								"props": {
+									"label": "Back",
+									"action": "back"
+								}
+							},
+							{
+								"kind": "button",
+								"props": {
+									"label": "Install",
+									"action": "commit",
+									"default": true
+								}
+							},
+							{
+								"kind": "button",
+								"props": {
+									"label": "Cancel",
+									"action": "cancel"
+								}
+							}
+						]
+					}
+				]
+			}
+		}
+	}
+}
