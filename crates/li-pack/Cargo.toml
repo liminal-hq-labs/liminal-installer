@@ -1,0 +1,27 @@
+# Hashing, signing, `.lip` payloads and signed feeds.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[package]
+name = "li-pack"
+description = "SHA-256, Ed25519 signing, the .lip payload container and signed feeds"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+li-model.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+sha2.workspace = true
+hex.workspace = true
+ed25519-dalek.workspace = true
+getrandom.workspace = true
+time.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
