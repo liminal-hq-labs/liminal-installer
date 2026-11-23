@@ -18,7 +18,7 @@ pub const COLS: usize = 80;
 /// The rows of the text screen.
 pub const ROWS: usize = 25;
 /// The version of the compiled format.
-pub const FORMAT: u16 = 1;
+pub const FORMAT: u16 = 2;
 
 /// The attributes of the retro look.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -73,8 +73,12 @@ pub struct Component {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FileEntry {
 	pub component: u16,
-	/// The destination below the install directory, in 8.3 form with `\` separators.
+	/// The destination below the install directory with `\` separators: 8.3 on DOS, any Windows
+	/// name for the Win32 runtime.
 	pub dest: String,
+	/// The file's 8.3 name in `SETUP.LPK` (`/` between parts). It is the destination for DOS and
+	/// a generated name for a long one, whose real name the pack keeps as the long name.
+	pub stored: String,
 	pub size: u32,
 	pub crc: u32,
 }
@@ -220,6 +224,9 @@ impl Widget {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Screen {
 	pub id: String,
+	/// The dialog's title, with `{placeholders}`: the heading of a native window (the text
+	/// runtime has it in the border cells).
+	pub title: String,
 	/// Runs of `(count: u16 little-endian, char, attr)`, 4 bytes each, covering `COLS * ROWS` cells.
 	pub runs: Vec<u8>,
 	pub widgets: Vec<Widget>,

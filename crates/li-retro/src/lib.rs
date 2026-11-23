@@ -13,6 +13,7 @@
 //! | [`model`] | The compiled project and its validator |
 //! | [`expr`] | The `when` bytecode and its VM |
 //! | [`ui`] | The cell buffer, the retro renderer for a flattened screen, keyboard handling |
+//! | [`gui`] | The seam a native window (Win32) implements to show the pages as real controls |
 //! | [`install`] | Install, uninstall and the `INSTALL.LIR` receipt |
 //! | [`app`] | The flow VM that ties them together (`run`) |
 //! | [`platform`] | What the runtime needs from the machine |
@@ -31,6 +32,7 @@ use alloc::string::String;
 pub mod app;
 pub mod cp437;
 pub mod expr;
+pub mod gui;
 pub mod install;
 pub mod model;
 pub mod pack;

@@ -1,0 +1,28 @@
+# Cargo settings for the Win32 build: Pentium-class code, no C runtime, linked by lld-link (after win9x-rust, see PROVENANCE.md).
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[build]
+target = "win32.json"
+
+[target.win32]
+linker = "lld-link"
+rustflags = [
+	# No CRT and no std, so the entry point is ours and nothing newer than Windows 95 gets imported.
+	"-C", "link-arg=/NODEFAULTLIB",
+	"-C", "link-arg=/ENTRY:start",
+	# Subsystem version 4.0 is what the Windows 9x loader expects.
+	"-C", "link-arg=/SUBSYSTEM:WINDOWS,4.0",
+	# Windows 9x predates ASLR; load at the preferred base with no relocations.
+	"-C", "link-arg=/FIXED",
+	"-C", "link-arg=/DYNAMICBASE:NO",
+	# Small sections: the file alignment 9x accepts, no padding to 4 KiB on disk.
+	"-C", "link-arg=/FILEALIGN:512",
+]
+
+# The prebuilt `core` for i686 assumes SSE2, so `core` and `alloc` are built here for a Pentium (D62). The build script sets RUSTC_BOOTSTRAP=1.
+[unstable]
+build-std = ["core", "alloc", "compiler_builtins"]
+build-std-features = ["compiler-builtins-mem"]
+json-target-spec = true

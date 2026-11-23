@@ -3,6 +3,10 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+//! The same code builds a `windows-x86` target with the `win32-classic` renderer (`win32/`,
+//! `--win32-runtime`, `LIMINST_WIN32_RUNTIME`): `SETUP.EXE` is then the Win32 runtime and the
+//! outputs are `win32/` beside the others, a zip and a floppy image.
+//!
 //! A `tui-retro` target has these outputs:
 //!
 //! | Output | Is |
@@ -23,24 +27,54 @@ use li_package::dos::{DosImageError, floppy_1440, zip};
 
 use crate::build::{BuildError, BuildRequest, BuiltArtefact};
 
+/// Which runtime a target is built for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Flavour {
+	Dos,
+	Win32,
+}
+
+impl Flavour {
+	fn folder(self) -> &'static str {
+		match self {
+			Flavour::Dos => "dos",
+			Flavour::Win32 => "win32",
+		}
+	}
+	fn label(self) -> &'static str {
+		match self {
+			Flavour::Dos => "DOS",
+			Flavour::Win32 => "Win32",
+		}
+	}
+}
+
 fn other(m: impl Into<String>) -> BuildError {
 	BuildError::Other(m.into())
 }
 
 /// Finds the repository's `dos/` folder by walking up from `start`.
-fn find_dos_dir(start: &Path) -> Option<PathBuf> {
+fn find_dos_dir(start: &Path, flavour: Flavour) -> Option<PathBuf> {
 	start
 		.ancestors()
-		.map(|d| d.join("dos"))
+		.map(|d| d.join(flavour.folder()))
 		.find(|d| d.join("build.sh").is_file())
 }
 
 /// The runtime, `SETUP.EXE`: the named file, or one found or built.
-fn runtime(req: &BuildRequest) -> Result<Vec<u8>, BuildError> {
-	let from_env = std::env::var_os("LIMINST_DOS_RUNTIME").map(PathBuf::from);
-	if let Some(p) = req.dos_runtime.clone().or(from_env) {
-		return std::fs::read(&p)
-			.map_err(|e| other(format!("cannot read the DOS runtime {}: {e}", p.display())));
+fn runtime(req: &BuildRequest, flavour: Flavour) -> Result<Vec<u8>, BuildError> {
+	let (var, named, label) = match flavour {
+		Flavour::Dos => ("LIMINST_DOS_RUNTIME", &req.dos_runtime, "DOS"),
+		Flavour::Win32 => ("LIMINST_WIN32_RUNTIME", &req.win32_runtime, "Win32"),
+	};
+	let from_env = std::env::var_os(var).map(PathBuf::from);
+	if let Some(p) = named.clone().or(from_env) {
+		return std::fs::read(&p).map_err(|e| {
+			other(format!(
+				"cannot read the {label} runtime {}: {e}",
+				p.display()
+			))
+		});
 	}
 	let mut starts = vec![
 		std::env::current_dir().unwrap_or_default(),
@@ -50,7 +84,7 @@ fn runtime(req: &BuildRequest) -> Result<Vec<u8>, BuildError> {
 		starts.extend(exe.parent().map(Path::to_path_buf));
 	}
 	for s in &starts {
-		if let Some(dos) = find_dos_dir(s) {
+		if let Some(dos) = find_dos_dir(s, flavour) {
 			let setup = dos.join("dist/SETUP.EXE");
 			if !setup.is_file() {
 				let status = Command::new("bash").arg(dos.join("build.sh")).status();
@@ -58,8 +92,9 @@ fn runtime(req: &BuildRequest) -> Result<Vec<u8>, BuildError> {
 					Ok(s) if s.success() => {}
 					_ => {
 						return Err(other(format!(
-							"the DOS runtime is not built and {} could not build it; run `dos/tools/fetch-tools.sh` and `dos/build.sh`, or pass --dos-runtime PATH to a prebuilt SETUP.EXE",
-							dos.join("build.sh").display()
+							"the {label} runtime is not built and {} could not build it; build it with `{0}/build.sh`, or pass --{1}-runtime PATH to a prebuilt SETUP.EXE",
+							dos.join("build.sh").display(),
+							flavour.folder()
 						)));
 					}
 				}
@@ -67,12 +102,18 @@ fn runtime(req: &BuildRequest) -> Result<Vec<u8>, BuildError> {
 			return std::fs::read(&setup).map_err(|e| other(format!("{}: {e}", setup.display())));
 		}
 	}
-	Err(other(
-		"no DOS runtime: pass --dos-runtime PATH to a prebuilt SETUP.EXE, set LIMINST_DOS_RUNTIME, or run from a checkout that has dos/build.sh",
-	))
+	Err(other(format!(
+		"no {label} runtime: pass --{0}-runtime PATH to a prebuilt SETUP.EXE, set {var}, or run from a checkout that has {0}/build.sh",
+		flavour.folder()
+	)))
 }
 
-fn readme(name: &str, version: &str) -> String {
+fn readme(name: &str, version: &str, flavour: Flavour) -> String {
+	if flavour == Flavour::Win32 {
+		return format!(
+			"{name} {version}\r\n\r\nTo install, run SETUP.EXE from this disk or folder.\r\nTo remove it, use Add/Remove Programs, or run SETUP.EXE /U.\r\n\r\nSETUP needs Windows 95 or later (a Pentium or better). Keep SETUP.EXE and SETUP.LPK together.\r\n"
+		);
+	}
 	format!(
 		"{name} {version}\r\n\r\nTo install, run SETUP from this disk or folder.\r\nTo remove it, run SETUP /U.\r\n\r\nSETUP needs a 386 or later, DOS 5 or later and 2 MB of extended memory.\r\nKeep SETUP.EXE and SETUP.DAT together.\r\n"
 	)
@@ -89,18 +130,31 @@ pub fn build(
 	outputs: &[String],
 	dir: &Path,
 ) -> Result<Vec<BuiltArtefact>, BuildError> {
-	let compiled = li_retro_build::compile(req.project, &req.target.id, &req.version)
-		.map_err(|e| other(e.to_string()))?;
+	build_for(req, outputs, dir, Flavour::Dos)
+}
+
+/// Builds the outputs of a `tui-retro` (DOS) or `win32-classic` (Win32) target.
+pub fn build_for(
+	req: &BuildRequest,
+	outputs: &[String],
+	dir: &Path,
+	flavour: Flavour,
+) -> Result<Vec<BuiltArtefact>, BuildError> {
+	let compiled = match flavour {
+		Flavour::Dos => li_retro_build::compile(req.project, &req.target.id, &req.version),
+		Flavour::Win32 => li_retro_build::compile_win32(req.project, &req.target.id, &req.version),
+	}
+	.map_err(|e| other(e.to_string()))?;
 	let dat = compiled.lpk().map_err(|e| other(e.to_string()))?;
 	let pack_len = dat.len();
-	let exe = runtime(req)?;
-	let readme = readme(&req.project.installer.product.name, &req.version).into_bytes();
+	let exe = runtime(req, flavour)?;
+	let readme = readme(&req.project.installer.product.name, &req.version, flavour).into_bytes();
 	let files = vec![
 		("SETUP.EXE".to_owned(), exe),
 		("SETUP.LPK".to_owned(), dat),
 		("README.TXT".to_owned(), readme),
 	];
-	let loose = dir.join("dos");
+	let loose = dir.join(flavour.folder());
 	std::fs::create_dir_all(&loose).map_err(|e| PackageError::io(&loose, e))?;
 	for (n, d) in &files {
 		let p = loose.join(n);
@@ -162,7 +216,8 @@ pub fn build(
 				kind: other_name.to_owned(),
 				path: None,
 				note: Some(format!(
-					"`{other_name}` is not an output of a DOS target (use zip or floppy-1440); skipped"
+					"`{other_name}` is not an output of a {} target (use zip or floppy-1440); skipped",
+					flavour.label()
 				)),
 			}),
 		}

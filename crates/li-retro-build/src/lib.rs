@@ -29,8 +29,42 @@ use li_model::{Flow, StepType};
 use li_retro::model::{self, Builtin, Kind, Op};
 use li_retro::pack::{PROJECT_FILE, Pack};
 
-pub use payload::dos_rel;
+pub use payload::{dos_rel, win_rel};
 pub use screens::{Context, ScreenKey, tui_layout};
+
+/// Which runtime the project is compiled for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Flavour {
+	/// `SETUP.EXE` for DOS: 80 by 25 text, 8.3 names, `tui-retro`.
+	Dos,
+	/// `SETUP.EXE` for Windows 95 and later: native controls, long names, `win32-classic`.
+	Win32,
+}
+
+impl Flavour {
+	/// What the runtime is called in a message.
+	pub fn name(self) -> &'static str {
+		match self {
+			Flavour::Dos => "DOS",
+			Flavour::Win32 => "Windows",
+		}
+	}
+
+	/// The renderer a target must use.
+	pub fn renderer(self) -> &'static str {
+		match self {
+			Flavour::Dos => "tui-retro",
+			Flavour::Win32 => "win32-classic",
+		}
+	}
+
+	fn pack_target(self) -> u8 {
+		match self {
+			Flavour::Dos => targets::DOS,
+			Flavour::Win32 => targets::WIN32,
+		}
+	}
+}
 
 /// What stops a compile.
 #[derive(Debug, thiserror::Error)]
@@ -45,6 +79,7 @@ pub(crate) fn err<T>(m: impl Into<String>) -> Result<T, CompileError> {
 
 /// The result of a compile.
 pub struct Compiled {
+	pub flavour: Flavour,
 	pub project: model::Project,
 	/// The files' contents, in the order of `project.files`.
 	pub data: Vec<Vec<u8>>,
@@ -68,13 +103,18 @@ impl Compiled {
 			.map_err(|e| CompileError::Message(e.to_string()))?;
 		let mut specs = vec![FileSpec {
 			attr: 0x02,
-			targets: targets::DOS,
+			targets: self.flavour.pack_target(),
 			..FileSpec::new(PROJECT_FILE, project)
 		}];
 		for (f, data) in self.project.files.iter().zip(&self.data) {
 			specs.push(FileSpec {
-				targets: targets::DOS,
-				..FileSpec::new(Pack::name_of(&f.dest), data.clone())
+				targets: self.flavour.pack_target(),
+				long_name: if f.stored == Pack::name_of(&f.dest) {
+					String::new()
+				} else {
+					Pack::name_of(&f.dest)
+				},
+				..FileSpec::new(f.stored.clone(), data.clone())
 			});
 		}
 		let opts = Options {
@@ -100,13 +140,35 @@ pub fn compile(
 	target_id: &str,
 	version: &str,
 ) -> Result<Compiled, CompileError> {
+	compile_for(project, target_id, version, Flavour::Dos)
+}
+
+/// Compiles `project` for the target `target_id`, whose renderer must be `win32-classic`: the
+/// same compiled project, with long file names, Start menu shortcuts and the native window's
+/// pages in place of the text screens.
+pub fn compile_win32(
+	project: &Project,
+	target_id: &str,
+	version: &str,
+) -> Result<Compiled, CompileError> {
+	compile_for(project, target_id, version, Flavour::Win32)
+}
+
+/// Compiles for either runtime.
+pub fn compile_for(
+	project: &Project,
+	target_id: &str,
+	version: &str,
+	flavour: Flavour,
+) -> Result<Compiled, CompileError> {
 	let target = project
 		.target(target_id)
 		.ok_or_else(|| CompileError::Message(format!("the project has no target `{target_id}`")))?;
-	if target.renderer != "tui-retro" {
+	if target.renderer != flavour.renderer() {
 		return err(format!(
-			"target `{target_id}` uses the `{}` renderer; the DOS runtime draws `tui-retro`",
-			target.renderer
+			"target `{target_id}` uses the `{}` renderer; this runtime draws `{}`",
+			target.renderer,
+			flavour.renderer()
 		));
 	}
 	let mut warnings = Vec::new();
@@ -127,7 +189,8 @@ pub fn compile(
 		})
 		.collect();
 
-	let (files, data, mut ops) = payload::build(project, target, &components, &mut warnings)?;
+	let (files, data, mut ops) =
+		payload::build(project, target, &components, flavour, &mut warnings)?;
 
 	// Flows and the screens their steps show.
 	let mut screen_keys: Vec<screens::ScreenKey> = Vec::new();
@@ -142,6 +205,7 @@ pub fn compile(
 			flow,
 			&mut cx,
 			&mut screen_keys,
+			flavour,
 			&mut warnings,
 		)?);
 	}
@@ -149,7 +213,8 @@ pub fn compile(
 		if !FLOWS.contains(&id.as_str()) {
 			let _ = flow;
 			warnings.push(format!(
-				"flow `{id}` is not used by the DOS runtime, which runs `install` and `uninstall`"
+				"flow `{id}` is not used by the {} runtime, which runs `install` and `uninstall`",
+				flavour.name()
 			));
 		}
 	}
@@ -173,9 +238,10 @@ pub fn compile(
 		};
 		rscreens.push(screens::compile(&ctx, key, &id, &mut cx, &mut warnings)?);
 	}
-	let uses_sound = flows
-		.iter()
-		.any(|f| f.steps.iter().any(|s| s.builtin == Builtin::DetectSound));
+	let uses_sound = flavour == Flavour::Dos
+		&& flows
+			.iter()
+			.any(|f| f.steps.iter().any(|s| s.builtin == Builtin::DetectSound));
 	if uses_sound {
 		for key in ["card", "port", "irq", "dma"] {
 			ops.push(Op::WriteIni {
@@ -211,7 +277,20 @@ pub fn compile(
 		publisher: project.installer.product.publisher.clone(),
 		version: version.to_owned(),
 		target: target.full_id(),
-		default_dir: format!("C:\\{slug}"),
+		default_dir: match flavour {
+			Flavour::Dos => format!("C:\\{slug}"),
+			Flavour::Win32 => format!(
+				"%PROGRAMFILES%\\{}",
+				project
+					.installer
+					.product
+					.name
+					.chars()
+					.filter(|c| !"\\/:*?\"<>|".contains(*c))
+					.collect::<String>()
+					.trim()
+			),
+		},
 		theme: model::Theme::default(),
 		strings: cx.into_table(),
 		components: rcomps,
@@ -223,6 +302,7 @@ pub fn compile(
 	out.validate()
 		.map_err(|e| CompileError::Message(e.to_string()))?;
 	Ok(Compiled {
+		flavour,
 		project: out,
 		data,
 		warnings,
@@ -232,9 +312,16 @@ pub fn compile(
 fn builtin_of(
 	spec: &str,
 	location: &str,
+	flavour: Flavour,
 	warnings: &mut Vec<String>,
 ) -> Result<Builtin, CompileError> {
 	match spec.strip_prefix("builtin:") {
+		Some("detect-sound") if flavour == Flavour::Win32 => {
+			warnings.push(format!(
+				"{location}: `builtin:detect-sound` probes DOS sound hardware and is skipped on Windows"
+			));
+			Ok(Builtin::None)
+		}
 		Some("detect-sound") => Ok(Builtin::DetectSound),
 		Some("check-disk-space") => Ok(Builtin::CheckDiskSpace),
 		Some(other) => {
@@ -244,7 +331,8 @@ fn builtin_of(
 			Ok(Builtin::None)
 		}
 		None => err(format!(
-			"{location}: `{spec}` is a script hook, and the DOS runtime does not run Lua scripts; use a `builtin:` action (detect-sound or check-disk-space) or remove the hook"
+			"{location}: `{spec}` is a script hook, and the {} runtime does not run Lua scripts; use a `builtin:` action (detect-sound or check-disk-space) or remove the hook",
+			flavour.name()
 		)),
 	}
 }
@@ -255,6 +343,7 @@ fn compile_flow(
 	flow: &Flow,
 	cx: &mut expr::Strings,
 	screen_ids: &mut Vec<screens::ScreenKey>,
+	flavour: Flavour,
 	warnings: &mut Vec<String>,
 ) -> Result<model::Flow, CompileError> {
 	let index = |id: &str| flow.steps.iter().position(|s| s.id == id).map(|i| i as u16);
@@ -284,7 +373,7 @@ fn compile_flow(
 			None => None,
 		};
 		let builtin = match &s.on_enter {
-			Some(spec) => builtin_of(spec, &loc, warnings)?,
+			Some(spec) => builtin_of(spec, &loc, flavour, warnings)?,
 			None => Builtin::None,
 		};
 		let screen = match &s.layout {

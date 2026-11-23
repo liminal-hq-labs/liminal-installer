@@ -18,6 +18,7 @@ Liminal Installer is a Liminal HQ Labs experiment: Themeable installers, updater
 - **Packs.** `.LPK` is specified in `docs/lpk-format.md` first. `li-lpk`'s reader is `no_std`, allocates nothing and never panics on bad input; a format change follows its compatibility rule and updates the golden files (`LI_UPDATE_GOLDEN=1`).
 - **Toolchain.** Rust 1.98.0 (`rust-toolchain.toml`), `cargo nextest`. `make validate` is the single local gate. Markdown, shell and workflow checks run in Docker.
 - **DOS.** The `tui-retro` runtime is Rust: `dos/` (Desk's foundation, copied with `dos/PROVENANCE.md`, its own workspace) over `crates/li-retro` (`no_std`, host-tested). No Lua on DOS: steps name `builtin:` actions. Windows 3.1 stays C in `retro/`. `make dos` runs the DOS checks.
+- **Win32.** `win32/` builds `SETUP.EXE` for Windows 95 and later: Rust `no_std`, no C runtime, `core` built from source for a Pentium, ANSI imports on `win32/tools/imports.allow`, subsystem 4.0, over `li-retro`'s flow VM and `Gui` trait. `make win32` runs the checks and the Wine install.
 - **Wire types.** Rust types the UI or MCP clients receive derive `ts_rs::TS`; their TypeScript is generated into `packages/protocol` and committed, never hand-edited. Failures are `{ kind, message }` (`StudioError`).
 - **CI.** One job per check. Shared images come from `liminal-hq/.github`. Dependabot is off unless the project opts in.
 - **Docs.** Update `SPEC.md` and `docs/decisions.md` in the same change as the behaviour.
@@ -31,6 +32,7 @@ cargo nextest run --workspace --locked --profile ci   # as CI runs it
 bash scripts/check-banner.sh     # add --shots /tmp/shots for review frames
 bash scripts/e2e-linux.sh        # install, update, repair, uninstall in Debian (docker)
 make dos                         # DOS runtime: fetch tools, fmt, clippy, build, DOSBox install and uninstall
+make win32                       # Win32 runtime: fmt, clippy, build, Pentium and import scans, host tests, Wine install and uninstall
 bun run format:check             # Prettier; `bun run format` fixes
 bun run typecheck && bun run test:js && bun run check:i18n
 bash scripts/check-bindings-drift.sh   # ts-rs bindings in packages/protocol; regenerate with scripts/generate-protocol-bindings.sh

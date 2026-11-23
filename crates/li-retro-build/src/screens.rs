@@ -30,17 +30,18 @@ pub struct Context<'a> {
 }
 
 /// A copy of the tree with the `tui-retro` (else `tui`) override applied at every level.
-fn resolve(n: &Node) -> Node {
+fn resolve(n: &Node, renderer: &str) -> Node {
 	let base = n
 		.overrides
-		.get("tui-retro")
+		.get(renderer)
+		.or_else(|| n.overrides.get("tui-retro"))
 		.or_else(|| n.overrides.get("tui"))
 		.unwrap_or(n);
 	Node {
 		kind: base.kind.clone(),
 		bind: base.bind.clone(),
 		props: base.props.clone(),
-		children: base.children.iter().map(resolve).collect(),
+		children: base.children.iter().map(|c| resolve(c, renderer)).collect(),
 		overrides: Default::default(),
 	}
 }
@@ -310,7 +311,7 @@ pub fn tui_layout(cx: &Context, id: &str, step: &str, kind: &str) -> Result<Layo
 				cx.target.id
 			))
 		})?;
-	let mut root = resolve(&layout.root);
+	let mut root = resolve(&layout.root, &cx.target.renderer);
 	expand_lists(&mut root, cx.components);
 	Ok(Layout {
 		schema: None,
@@ -318,6 +319,19 @@ pub fn tui_layout(cx: &Context, id: &str, step: &str, kind: &str) -> Result<Layo
 		id: layout.id.clone(),
 		root,
 	})
+}
+
+/// The heading of a page: the title of its first `dialog`, else the root's own.
+fn page_title(root: &Node) -> Option<String> {
+	fn dialog(n: &Node) -> Option<String> {
+		if n.kind == "dialog"
+			&& let Some(t) = str_of(n, "title")
+		{
+			return Some(t.to_owned());
+		}
+		n.children.iter().find_map(dialog)
+	}
+	dialog(root).or_else(|| str_of(root, "title").map(str::to_owned))
 }
 
 /// Flattens the layout `id` for the target.
@@ -350,7 +364,7 @@ pub fn compile(
 	let mut cells = Vec::with_capacity(COLS * ROWS);
 	for c in &flat.cells {
 		let ch = c.symbol.chars().next().unwrap_or(' ');
-		if !cp437::has_glyph(ch) && ch != ' ' {
+		if cx.target.renderer == "tui-retro" && !cp437::has_glyph(ch) && ch != ' ' {
 			warnings.push(format!(
 				"layout {id}: `{ch}` has no glyph in code page 437 and is drawn as `?`"
 			));
@@ -363,8 +377,10 @@ pub fn compile(
 	}
 	warnings.sort();
 	warnings.dedup();
+	let title = page_title(&flat_layout.root).unwrap_or_default();
 	Ok(model::Screen {
 		id: id.to_owned(),
+		title,
 		runs: model::Screen::pack(&cells),
 		widgets,
 	})

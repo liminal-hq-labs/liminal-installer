@@ -1,0 +1,19 @@
+# SETUP.EXE: the Liminal Installer runtime for Windows 95 and later.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[package]
+name = "setup"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "The Liminal Installer Win32 runtime"
+license = "Apache-2.0 OR MIT"
+
+[[bin]]
+name = "setup"
+path = "src/main.rs"
+
+[dependencies]
+li-retro = { path = "../../crates/li-retro", default-features = false }

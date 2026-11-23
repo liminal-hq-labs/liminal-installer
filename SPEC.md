@@ -7,8 +7,8 @@ The file formats, operations and interfaces behind the [architecture](docs/archi
 Everything in this specification is in progress. Nothing is released, and any part may change between commits.
 
 - **Engine** (plan, stage, commit, record): in progress. Install, update, modify, repair, uninstall and launch work end to end on Linux through the runner (§14).
-- **CLI** (`check`, `preview`, `build`, `keygen`, `feed`, `theme`, `studio`): in progress. `check`, `preview`, the Linux `build` (themed `.run` and `.lip`) and the DOS `build` (`SETUP.LPK`, `zip`, `floppy-1440`) work, and feeds and themes are signed.
-- **Renderers**: `tui` is in progress; `tui-retro` works for DOS (`SETUP.EXE` in Rust, see [docs/retro-dos.md](docs/retro-dos.md)); `web` works as a Tauri window, the web runner (see [docs/web-runner.md](docs/web-runner.md)); `win16`, `win32-classic` and `canvas` are in progress as scaffolds or designs.
+- **CLI** (`check`, `preview`, `build`, `keygen`, `feed`, `theme`, `studio`): in progress. `check`, `preview`, the Linux `build` (themed `.run` and `.lip`) and the DOS `build` (`SETUP.LPK`, `zip`, `floppy-1440`) and the Win32 `build` (the same outputs for `windows-x86`) work, and feeds and themes are signed.
+- **Renderers**: `tui` is in progress; `tui-retro` works for DOS (`SETUP.EXE` in Rust, see [docs/retro-dos.md](docs/retro-dos.md)); `web` works as a Tauri window, the web runner (see [docs/web-runner.md](docs/web-runner.md)); `win32-classic` works for Windows 95 and later on 32-bit x86 (`SETUP.EXE` in Rust with native controls, see [docs/retro-win32.md](docs/retro-win32.md); checked under Wine, the check on a Windows Me machine is pending); `win16` and `canvas` are in progress as scaffolds or designs.
 - **Studio** and its MCP server: in progress. GraphQL is deferred (D26).
 - **Tauri apps** (`[tauri]`, `liminst import tauri`, WebView2, the two Windows modes, per-product updates): in progress. Built and tested against the simulated machine; the real machine's registry is still a stand-in (§15).
 - **Example installers** for Planboard, Lt. Fizz, Neutral and Plume Notes (a Tauri app): in progress.
@@ -227,7 +227,7 @@ Table 4. Operations.
 
 A `registry.set` value may be written `dword:xxxxxxxx` (a `REG_DWORD`, as in a `.reg` file), and a `{placeholder}` in a value is resolved when it is written; the receipt keeps the placeholder form. `prereq.webview2` and `tauri.wrap` are the Windows operations of a Tauri product (§15). Each records what it did in the receipt: the version the WebView2 step found and whether it ran an installer, and the uninstall entry the wrapped setup left.
 
-The DOS runtime performs `mkdir`, `copy`, `write_ini` and `shortcut` (a launcher batch file), then writes the receipt. File types, URL schemes and `PATH` entries are skipped with a build warning.
+The DOS runtime performs `mkdir`, `copy`, `write_ini` and `shortcut` (a launcher batch file), then writes the receipt. File types, URL schemes and `PATH` entries are skipped with a build warning. The Win32 runtime (`windows-x86` with `win32-classic`) performs `mkdir`, `copy` and `shortcut` (a `.lnk` in a Start menu folder named for the product), adds the product to Add/Remove Programs and keeps an uninstaller in the install folder; it skips file types, URL schemes and `PATH` entries with a build warning, and `detect-sound` (see [docs/retro-win32.md](docs/retro-win32.md)).
 
 ## 9 · Lifecycle and receipts
 
@@ -254,13 +254,13 @@ Example 1. A receipt, shortened.
 
 A receipt also records `updates`, the product's `[updates]` section at install time (absent on older receipts, which the installer updates), and a wrapped install's `external` entry inside its `tauri.wrap` operation (§15).
 
-Receipts are kept in `{install}/.liminal/receipt.json` and indexed per user and per machine, so the Hub can find every installed product. The retro runtime writes the same data as `INSTALL.LIR`: a text file of `LIR 1`, `product=`, `version=`, `target=`, `dir=`, `components=` lines and one `D` (directory made), `F name size crc` (file, with a CRC-32), `I` (INI) or `B` (launcher batch) record per line. It records CRC-32, not SHA-256; uninstall removes the files, then the directories it made when they are empty. See [docs/retro-dos.md](docs/retro-dos.md).
+Receipts are kept in `{install}/.liminal/receipt.json` and indexed per user and per machine, so the Hub can find every installed product. The retro runtime writes the same data as `INSTALL.LIR`: a text file of `LIR 1`, `product=`, `version=`, `target=`, `dir=`, `components=` lines and one `D` (directory made), `F name size crc` (file, with a CRC-32), `I` (INI) or `B` (launcher batch) record per line; the Win32 runtime adds `X` (a file of the uninstaller, below the install directory), `S` (a Start menu shortcut, by full path) and `R` (the Add/Remove Programs registry key), and writes `D` records of directories outside the install directory by full path, as the DOS runtime does for a parent it made. A reader that does not know a letter ignores the line. It records CRC-32, not SHA-256; uninstall removes the files, then the directories it made when they are empty. See [docs/retro-dos.md](docs/retro-dos.md).
 
 ## 10 · Platform integration
 
 | Platform | Apps list | Shortcuts and file types |
 |---|---|---|
-| Windows 95–11 | Uninstall registry key | Start Menu .lnk, ProgIDs |
+| Windows 95–11 | Uninstall registry key (`UninstallString`, kept `UNINST.EXE`) | Start Menu .lnk (`IShellLink`), ProgIDs |
 | Windows 3.1 | None; uninstall via setup | Program Manager group (DDE) |
 | Linux, FreeBSD | Package database for native packages | XDG desktop entries, shared MIME info, icon theme |
 | macOS | `pkgutil` receipt for .pkg | /Applications, Launch Services |

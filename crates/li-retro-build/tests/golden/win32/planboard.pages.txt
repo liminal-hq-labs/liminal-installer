@@ -1,0 +1,45 @@
+== welcome | Planboard Setup
+button: Next
+button: Cancel
+== licence | Planboard Setup
+doc: 140 chars
+radio: Licence acceptance
+  ( ) I accept the agreement
+  ( ) I do not accept the agreement
+button: Back
+button: Next [disabled]
+button: Cancel
+== folder | Planboard Setup
+field: Destination folder = C:\Program Files\Planboard
+radio: Install for
+  ( ) Only me
+  ( ) Everyone on this computer
+text: Space required: 3 KB · Free: 64.0 MB
+button: Back
+button: Next
+button: Cancel
+== components | Planboard Setup
+check: Components
+  [x] Planboard
+  [x] Command-line tool
+  [x] Documentation
+text: Installs for you only · no administrator needed · 3 KB
+button: Back
+button: Next
+button: Cancel
+== ready | Planboard Setup
+text: Setup will copy the files below to C:\Program Files\Planboard.
+text: 4 files, 3 KB in 3 components
+button: Back
+button: Install
+button: Cancel
+== copying | Planboard Setup
+meter: Current file
+meter: Overall progress
+meter: Free space after install
+billboard: Boards that keep up with you — Stickies, frames and pages that stay in step across your devices and your agents.
+button: Cancel
+== done | Planboard Setup
+check: After setup
+  [ ] Start Planboard
+button: Finish

@@ -81,6 +81,7 @@ fn project() -> Project {
 		flows: vec![],
 		screens: vec![Screen {
 			id: "s".into(),
+			title: String::new(),
 			runs: Screen::pack(&cells),
 			widgets,
 		}],

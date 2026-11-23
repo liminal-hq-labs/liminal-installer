@@ -6,5 +6,5 @@
 [theme]
 id        = "afterglow"
 name      = "Afterglow"
-renderers = ["canvas", "web", "tui"]
+renderers = ["canvas", "web", "tui", "win32-classic"]
 fallback  = "plain"

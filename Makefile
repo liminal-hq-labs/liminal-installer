@@ -3,7 +3,7 @@
 # (c) Copyright 2026 Liminal HQ, Scott Morris
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 
-.PHONY: validate fmt clippy test headers js i18n bindings markdown e2e-linux dos
+.PHONY: validate fmt clippy test headers js i18n bindings markdown e2e-linux dos win32
 
 validate: fmt clippy test headers js bindings
 
@@ -46,3 +46,12 @@ dos:
 	bash dos/tools/fetch-tools.sh || echo "dos: the DOS tools could not be fetched; the DOSBox steps are skipped"
 	bash dos/check.sh
 	bash dos/tools/e2e.sh
+
+# The Win32 runtime for Windows 95 and later: format and lints, then (with lld-link and llvm-objdump) build SETUP.EXE and check that it holds only
+# Pentium instructions, imports only allowlisted ANSI functions and is a Windows 95 PE; then the host tests of the Win32 flow and, with Wine and
+# Xvfb, a real install and uninstall of Lt. Fizz and Planboard. Not part of `validate`, which needs none of these tools.
+win32:
+	bash win32/check.sh
+	cargo nextest run -p li-retro -p li-retro-build --locked
+	cargo nextest run -p li-cli -E 'binary(win32)' --locked
+	bash win32/tools/wine-e2e.sh

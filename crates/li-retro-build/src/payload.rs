@@ -8,7 +8,7 @@ use li_model::{Component, Target};
 use li_retro::model::{FileEntry, Op};
 use li_retro::pack::{PROJECT_FILE, crc32};
 
-use crate::{CompileError, err};
+use crate::{CompileError, Flavour, err};
 
 fn dos_name_ok(part: &str) -> bool {
 	let ok = |s: &str, max: usize| {
@@ -46,6 +46,32 @@ pub fn dos_rel(to: &str) -> Result<String, CompileError> {
 	Ok(parts.join("\\"))
 }
 
+/// Turns `{install}/docs/Read Me.txt` into `docs\Read Me.txt`: the case kept, parts that Windows
+/// accepts (no reserved characters, no empty or dotted-only part).
+pub fn win_rel(to: &str) -> Result<String, CompileError> {
+	let Some(rest) = to.strip_prefix("{install}/") else {
+		return err(format!(
+			"`{to}` is not below `{{install}}`; the Windows runtime installs into one folder"
+		));
+	};
+	let mut parts = Vec::new();
+	for part in rest.split('/').filter(|p| !p.is_empty()) {
+		if part
+			.chars()
+			.any(|c| "\\:*?\"<>|".contains(c) || c.is_control())
+			|| part.trim_matches('.').is_empty()
+			|| part.len() > 255
+		{
+			return err(format!("`{part}` in `{to}` is not a name Windows accepts"));
+		}
+		parts.push(part.to_owned());
+	}
+	if parts.is_empty() {
+		return err(format!("`{to}` names no file"));
+	}
+	Ok(parts.join("\\"))
+}
+
 /// The files, their contents in the same order, and the launcher operations.
 pub type Built = (Vec<FileEntry>, Vec<Vec<u8>>, Vec<Op>);
 
@@ -55,8 +81,13 @@ pub fn build(
 	project: &Project,
 	target: &Target,
 	components: &[&Component],
+	flavour: Flavour,
 	warnings: &mut Vec<String>,
 ) -> Result<Built, CompileError> {
+	let rel_of = |to: &str| match flavour {
+		Flavour::Dos => dos_rel(to),
+		Flavour::Win32 => win_rel(to),
+	};
 	let source = DirPayload::new(&project.dir).map_err(|e| CompileError::Message(e.to_string()))?;
 	let mut files: Vec<(FileEntry, Vec<u8>)> = Vec::new();
 	let mut ops = Vec::new();
@@ -76,7 +107,7 @@ pub fn build(
 				} else {
 					rule.to.clone()
 				};
-				let dest = dos_rel(&to)
+				let dest = rel_of(&to)
 					.map_err(|e| CompileError::Message(format!("component `{}`: {e}", c.id)))?;
 				if dest.eq_ignore_ascii_case(PROJECT_FILE) {
 					return err(format!(
@@ -84,7 +115,10 @@ pub fn build(
 						c.id
 					));
 				}
-				if files.iter().any(|(f, _)| f.dest == dest) {
+				if files
+					.iter()
+					.any(|(f, _)| f.dest.eq_ignore_ascii_case(&dest))
+				{
 					return err(format!("component `{}`: `{dest}` is installed twice", c.id));
 				}
 				let data = source
@@ -95,6 +129,7 @@ pub fn build(
 				files.push((
 					FileEntry {
 						component: ci as u16,
+						stored: String::new(),
 						dest,
 						size,
 						crc: crc32(&data),
@@ -104,9 +139,17 @@ pub fn build(
 			}
 		}
 		for s in &c.shortcut {
-			let rel = dos_rel(&s.target).map_err(|e| {
+			let rel = rel_of(&s.target).map_err(|e| {
 				CompileError::Message(format!("component `{}` shortcut `{}`: {e}", c.id, s.name))
 			})?;
+			if flavour == Flavour::Win32 {
+				ops.push(Op::Shortcut {
+					name: s.name.clone(),
+					target: rel,
+					batch: String::new(),
+				});
+				continue;
+			}
 			let stem = rel
 				.rsplit('\\')
 				.next()
@@ -130,12 +173,21 @@ pub fn build(
 		}
 		if !c.file_types.is_empty() || !c.url_schemes.is_empty() || !c.path.is_empty() {
 			warnings.push(format!(
-				"component `{}`: file types, URL schemes and PATH entries have no DOS equivalent and are skipped",
-				c.id
+				"component `{}`: file types, URL schemes and PATH entries have no {} equivalent and are skipped",
+				c.id,
+				flavour.name()
 			));
 		}
 	}
 	files.sort_by(|a, b| a.0.dest.cmp(&b.0.dest));
+	// The names the pack stores them under: the destination itself on DOS, `F0000001` and on for a
+	// Windows name, which the pack keeps as the long name.
+	for (i, (f, _)) in files.iter_mut().enumerate() {
+		f.stored = match flavour {
+			Flavour::Dos => f.dest.replace('\\', "/"),
+			Flavour::Win32 => format!("F{:07X}", i + 1),
+		};
+	}
 	let (entries, data) = files.into_iter().unzip();
 	Ok((entries, data, ops))
 }

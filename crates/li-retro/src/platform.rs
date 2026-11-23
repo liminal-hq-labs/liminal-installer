@@ -7,6 +7,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use crate::Error;
+use crate::gui::Gui;
 use crate::ui::Cells;
 
 /// A key press.
@@ -83,6 +84,56 @@ pub trait Platform {
 	fn report(&mut self, _text: &str) {}
 	/// What the focused control is, for a screen reader or a test. Not drawn on the screen.
 	fn announce(&mut self, _text: &str) {}
+	/// A hook for tests: called with the step's id each time a page is entered.
+	fn step(&mut self, _id: &str) {}
 	/// A hook for tests: called with the screen's text whenever a screen is shown to a person.
 	fn dump(&mut self, _text: &str) {}
+
+	// What a graphical machine with a shell adds. The defaults are for DOS, which has none of it.
+
+	/// Whether this is a Windows machine: long file names that keep their case, shortcuts through
+	/// the shell, an uninstall entry in the registry and an uninstaller kept in the install folder.
+	fn native_shell(&self) -> bool {
+		false
+	}
+	/// The native window that shows the pages, when there is one. The text screens are used when
+	/// this returns `None`.
+	fn gui(&mut self) -> Option<&mut dyn Gui> {
+		None
+	}
+	/// The folder that holds the programs on the Start menu, without a trailing backslash.
+	fn start_menu_programs(&mut self) -> Option<String> {
+		None
+	}
+	/// The folder programs are installed under by default (`C:\Program Files`).
+	fn program_files(&mut self) -> Option<String> {
+		None
+	}
+	/// Writes a shortcut file `lnk` that starts `target` in `work_dir`.
+	fn make_shortcut(
+		&mut self,
+		_lnk: &str,
+		_target: &str,
+		_work_dir: &str,
+		_description: &str,
+	) -> Result<(), Error> {
+		Ok(())
+	}
+	/// Adds the product to Add/Remove Programs: the key's name, its values and the command that
+	/// removes it.
+	fn register_uninstall(&mut self, _key: &str, _values: &[(&str, &str)]) -> Result<(), Error> {
+		Ok(())
+	}
+	/// Removes the entry [`Platform::register_uninstall`] made.
+	fn unregister_uninstall(&mut self, _key: &str) {}
+	/// Keeps a copy of the runtime and the compiled project in `dir` so the product can be
+	/// removed later; returns the names (below `dir`) of the files it wrote.
+	fn install_uninstaller(&mut self, _dir: &str, _project: &[u8]) -> Result<Vec<String>, Error> {
+		Ok(Vec::new())
+	}
+	/// The compiled project for an uninstall that runs from the install folder, when this
+	/// machine keeps one there.
+	fn uninstall_project(&mut self) -> Option<Vec<u8>> {
+		None
+	}
 }
