@@ -1,18 +1,20 @@
-// Tests the HTML renderer: which look each target gets, interpolation, art, meters and the controls.
+// Tests the preview renderer: which look each target gets, interpolation, art, meters and the controls.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import {
-	artSvg,
-	escapeHtml,
-	fill,
-	lookFor,
-	renderLayoutHtml,
-	renderTreeHtml,
-} from './previewRender';
-import type { Layout, LayoutNode } from './types';
+import type { Layout, LayoutNode } from '../lib/types';
+import { fill, lookFor, type RenderOptions } from './model';
+import { ArtSvg, LayoutPreview, PreviewTree } from './PreviewTree';
+
+const renderTreeHtml = (root: LayoutNode, options: RenderOptions): string =>
+	renderToStaticMarkup(<PreviewTree root={root} options={options} />);
+const renderLayoutHtml = (layout: Layout, renderer: string): string =>
+	renderToStaticMarkup(<LayoutPreview layout={layout} renderer={renderer} />);
+const artSvg = (art: unknown, label?: string): string =>
+	renderToStaticMarkup(<ArtSvg art={art} label={label} />);
 
 const art = {
 	width: 6,
@@ -126,9 +128,8 @@ describe('lookFor', () => {
 	});
 });
 
-describe('text helpers', () => {
-	it('escapes HTML and fills known placeholders only', () => {
-		expect(escapeHtml('<a href="x">&</a>')).toBe('&lt;a href=&quot;x&quot;&gt;&amp;&lt;/a&gt;');
+describe('fill', () => {
+	it('fills known placeholders only', () => {
 		expect(fill('v{product.version} {unknown.thing}')).toBe('v1.0.0 {unknown.thing}');
 		expect(fill('{target.id}', { 'target.id': 'dos-x86' })).toBe('dos-x86');
 	});
@@ -140,7 +141,7 @@ describe('artSvg', () => {
 		expect(svg).toContain('viewBox="0 0 6 10"');
 		expect(svg).toContain('width="24" height="40"');
 		expect(svg).toContain('shape-rendering="crispEdges"');
-		expect(svg).toContain('<rect x="1" y="4" width="2" height="2" fill="#ffffff"/>');
+		expect(svg).toContain('<rect x="1" y="4" width="2" height="2" fill="#ffffff"></rect>');
 		expect(svg).toContain('aria-label="Lt. Fizz"');
 		expect(artSvg({ width: 2, height: 2, rects: [[0, 0, 1, 1, 'red" onload="x']] })).not.toContain(
 			'onload',
@@ -155,18 +156,18 @@ describe('artSvg', () => {
 describe('the Windows 95 classic look', () => {
 	const html = renderTreeHtml(classic, opts);
 	it('draws the wordmark, bevelled dialog, side panel, taskbar and buttons', () => {
-		expect(html).toContain('pv-win95');
+		expect(html).toContain('pvWin95');
 		expect(html).toContain('data-w="1024" data-h="768"');
 		expect(html).toContain('>Lieutenant Fizz</div>');
 		expect(html).toContain('Setup powered by Liminal Installer');
-		expect(html).toContain('pv-w-title');
+		expect(html).toContain('pvWTitle');
 		expect(html).toContain('Choose Destination Location');
-		expect(html).toContain('pv-w-side');
+		expect(html).toContain('pvWSide');
 		expect(html).toContain('background:#008080');
 		expect(html).toContain('Fizz Setup');
 		expect(html).toContain('<u>B</u>ack');
 		expect(html).toContain('<u>N</u>ext &gt;');
-		expect(html).toContain('pv-default');
+		expect(html).toContain('pvDefault');
 		expect(html).toContain('<u>r</u>');
 	});
 	it('interpolates placeholders from the run and never leaves one raw', () => {
@@ -177,11 +178,11 @@ describe('the Windows 95 classic look', () => {
 	it('expands the component list and checks what the state selects', () => {
 		expect(html).toContain('Game program');
 		expect(html).toContain('Levels');
-		expect(html.match(/pv-box on/g)).toHaveLength(1);
-		expect(html).toContain('pv-sunken');
+		expect(html.match(/pvBox on/g)).toHaveLength(1);
+		expect(html).toContain('pvSunken');
 	});
 	it('draws the three status meters as lit-block columns with a Low warning', () => {
-		expect(html.match(/class="pv-vmeter"/g)).toHaveLength(3);
+		expect(html.match(/class="pvVmeter"/g)).toHaveLength(3);
 		expect(html).toContain('aria-valuenow="50"');
 		expect(html).toContain('aria-valuenow="25"');
 		expect(html).toContain('aria-valuenow="2"');
@@ -259,27 +260,27 @@ describe('the DOS text-mode look', () => {
 		state: { 'sound.card': 'sbpro', m: 0.5 },
 	});
 	it('draws the title bar, ░ backdrop, double-border dialog with the title in the border and key hints', () => {
-		expect(html).toContain('pv-dos');
+		expect(html).toContain('pvDos');
 		expect(html).toContain('data-w="960" data-h="600"');
 		expect(html).toContain('Lt. Fizz  Setup');
 		expect(html).toContain('░░░░');
 		expect(html).toContain('[ Sound Card ]');
-		expect(html).toContain('pv-dos-hints');
-		expect(html).toContain('<span class="pv-keycap">Enter</span> Accept');
+		expect(html).toContain('pvDosHints');
+		expect(html).toContain('<span class="pvKeycap">Enter</span> Accept');
 	});
 	it('draws step progress, text-mode controls and a block meter', () => {
 		expect(html).toContain('Step 5 of 8');
-		expect(html.match(/<i class="pv-on">/g)).toHaveLength(5);
+		expect(html.match(/<i class="pvOn">/g)).toHaveLength(5);
 		expect(html).toContain('(•)');
 		expect(html).toContain('( )');
-		expect(html).toContain('&lt; <span class="pv-hot">O</span>K &gt;');
+		expect(html).toContain('&lt; <span class="pvHot">O</span>K &gt;');
 		expect(html).toContain('█'.repeat(12));
-		expect(html).toContain('pv-g-fields');
+		expect(html).toContain('pvGFields');
 		expect(html).toContain('>220</span>');
 	});
 	it('marks the chosen radio row', () => {
 		expect(html).toMatch(
-			/pv-choice pv-sel"[^>]*><span class="pv-glyph">\(•\)<\/span><span class="pv-choice-body"><span class="pv-choice-label">Sound Blaster/,
+			/pvChoice pvSel"[^>]*><span class="pvGlyph">\(•\)<\/span><span class="pvChoiceBody"><span class="pvChoiceLabel">Sound Blaster/,
 		);
 	});
 });
@@ -346,22 +347,22 @@ describe('Afterglow and Neutral', () => {
 			vars: { 'progress.percent': '62' },
 			state: { m: 0.62 },
 		});
-		expect(html).toContain('pv-afterglow');
+		expect(html).toContain('pvAfterglow');
 		expect(html).toContain('data-w="1024" data-h="720"');
 		expect(html).toContain('aria-current="step"');
-		expect(html.match(/pv-state-done/g)).toHaveLength(1);
-		expect(html).toContain('pv-cards');
+		expect(html.match(/pvStateDone/g)).toHaveLength(1);
+		expect(html).toContain('pvCards');
 		expect(html).toContain('· required');
 		expect(html).toContain('Adds to PATH');
 		expect(html).toContain('style="width:62%"');
 		expect(html).toContain('62%</span>');
 		expect(html).toContain('No administrator needed');
-		expect(html).toContain('pv-default');
+		expect(html).toContain('pvDefault');
 	});
 	it('draws the same tree as Neutral for the Neutral theme', () => {
 		const html = renderTreeHtml(modern, { renderer: 'canvas', theme: 'neutral' });
-		expect(html).toContain('pv-neutral');
-		expect(html).not.toContain('pv-afterglow');
+		expect(html).toContain('pvNeutral');
+		expect(html).not.toContain('pvAfterglow');
 	});
 	it('uses a renderer override where one exists and escapes content', () => {
 		const layout: Layout = {

@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { t, type MessageId } from '../i18n/messages';
 import type { SettingsSectionDef } from '@liminal-hq/studio-chrome/SettingsShell/types';
 import {
 	AdvancedPage,
@@ -26,14 +27,14 @@ export const SECTION_IDS = [
 ] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
 
-export const SECTION_LABELS: Record<SectionId, string> = {
-	general: 'General',
-	appearance: 'Appearance',
-	editor: 'Editor',
-	preview: 'Preview',
-	agents: 'Agents',
-	projects: 'Projects',
-	advanced: 'Advanced',
+export const SECTION_LABELS: Record<SectionId, MessageId> = {
+	general: 'prefs.section.general',
+	appearance: 'prefs.section.appearance',
+	editor: 'prefs.section.editor',
+	preview: 'prefs.section.preview',
+	agents: 'prefs.section.agents',
+	projects: 'prefs.section.projects',
+	advanced: 'prefs.section.advanced',
 };
 
 const PAGES: Record<SectionId, (props: PageProps) => React.JSX.Element> = {
@@ -50,6 +51,6 @@ const PAGES: Record<SectionId, (props: PageProps) => React.JSX.Element> = {
 export function preferenceSections(props: PageProps): SettingsSectionDef[] {
 	return SECTION_IDS.map((id) => {
 		const Page = PAGES[id];
-		return { id, label: SECTION_LABELS[id], render: () => <Page {...props} /> };
+		return { id, label: t(SECTION_LABELS[id]), render: () => <Page {...props} /> };
 	});
 }

@@ -15,7 +15,11 @@ import type { WindowControls } from '@liminal-hq/studio-chrome/TitleBar/windowCo
 import { WindowChromeProvider } from '@liminal-hq/studio-chrome/WindowChromeProvider/WindowChromeProvider';
 import { WindowFrame } from '@liminal-hq/studio-chrome/WindowFrame';
 import type { ChromeStore } from './chromeStore';
-import { APP_NAME, DialogButtons, DialogMessage, Mark } from './DialogBodies';
+import { appName, DialogButtons, DialogMessage, Mark } from './DialogBodies';
+import { chromeLabels } from '../i18n/chromeLabels';
+import { t } from '../i18n/messages';
+import { cx } from '../ui/cx';
+import styles from './Chrome.module.css';
 import { MNEMONICS, buildMenus, isActionId, recentPath } from './menuModel';
 import type { Host } from '../lib/host';
 import { PageDialog } from './DialogPages';
@@ -45,7 +49,7 @@ function InPageDialogView({ store, host }: { store: ChromeStore; host: Host }) {
 				: { footer: <DialogButtons spec={spec} onAnswer={done} /> })}
 		>
 			{spec.kind === 'preferences' ? (
-				<div className="prefs-inline">
+				<div className={styles.prefsInline}>
 					<PreferencesScreen port={store.port} host={host} />
 				</div>
 			) : spec.kind === 'shortcuts' || spec.kind === 'agent' || spec.kind === 'new-project' ? (
@@ -75,13 +79,14 @@ function DesktopShell({
 	const bar = state.menu.menuBar;
 	return (
 		<WindowChromeProvider controls={controls}>
-			<WindowFrame className="chrome-surface">
+			<WindowFrame className={styles.chromeSurface}>
 				<TitleBar
+					labels={chromeLabels()}
 					start={
-						<span className="wordmark">
+						<span className={styles.wordmark}>
 							{/* With the bar on, it carries the menus, F10 and Alt, and the wordmark opens nothing. */}
 							<AppMenuButton
-								label={APP_NAME}
+								label={appName()}
 								mark={<Mark />}
 								items={menus.flat}
 								onSelect={choose}
@@ -89,18 +94,18 @@ function DesktopShell({
 							/>
 						</span>
 					}
-					center={<TitleBarTitle>{state.title || APP_NAME}</TitleBarTitle>}
+					center={<TitleBarTitle>{state.title || appName()}</TitleBarTitle>}
 				/>
 				{bar ? (
 					<MenuBar
 						items={menus.bar}
 						onSelect={choose}
-						label="Menu bar"
-						moreLabel="More"
+						label={t('chrome.menuBar')}
+						moreLabel={t('chrome.more')}
 						mnemonics={MNEMONICS}
 					/>
 				) : null}
-				<div id="app" className="app-host" ref={appHost} />
+				<div id="app" className={styles.appHost} ref={appHost} />
 				{/* Empty on the desktop, where dialogs are windows; the browser demo draws them here. */}
 				<InPageDialogView store={store} host={host} />
 			</WindowFrame>
@@ -111,7 +116,7 @@ function DesktopShell({
 function PlainShell({ store, host, appHost }: ShellProps) {
 	return (
 		<>
-			<div id="app" className="app-host plain" ref={appHost} />
+			<div id="app" className={cx(styles.appHost, styles.plain)} ref={appHost} />
 			<InPageDialogView store={store} host={host} />
 		</>
 	);

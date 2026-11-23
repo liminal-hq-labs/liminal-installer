@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { KIND_MESSAGE, type ApiDoc } from './luaDocs';
-import { t } from './phrases';
+import { t } from '../i18n/messages';
 
 function add(parent: HTMLElement, tag: string, text: string, className?: string): HTMLElement {
 	const el = parent.ownerDocument.createElement(tag);
@@ -23,14 +23,14 @@ export function docElement(entry: ApiDoc, owner: Document = document): HTMLEleme
 	add(head, 'span', t(KIND_MESSAGE[entry.kind]), 'ed-doc-kind');
 	add(root, 'p', entry.note, 'ed-doc-note');
 	if (entry.syntax) {
-		add(root, 'span', t('doc.syntax'), 'ed-doc-label');
+		add(root, 'span', t('editor.doc.syntax'), 'ed-doc-label');
 		add(root, 'code', entry.syntax);
 	}
 	if (entry.example) {
-		add(root, 'span', t('doc.example'), 'ed-doc-label');
+		add(root, 'span', t('editor.doc.example'), 'ed-doc-label');
 		add(root, 'code', entry.example);
 	}
 	if (entry.capability)
-		add(root, 'span', t('doc.needs', { capability: entry.capability }), 'ed-doc-needs');
+		add(root, 'span', t('editor.doc.needs', { capability: entry.capability }), 'ed-doc-needs');
 	return root;
 }

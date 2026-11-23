@@ -5,8 +5,8 @@
 packages/chrome/
 **/generated/
 # The design-token export and the CSS generated from it.
-apps/studio/src/styles/tokens.json
-apps/studio/src/styles/tokens.css
+apps/studio/src/theme/tokens.json
+apps/studio/src/theme/tokens.css
 bun.lock
 # Only the Studio UI sources are formatted: TypeScript, CSS and JSON.
 *.md

@@ -17,18 +17,18 @@ import { depthChange, lex } from './luaLex';
 
 const language = StreamLanguage.define(lua);
 
-/** The colours are tokens (`--ed-*`), set for each theme in `app.css`. */
+/** The colours are tokens (`--lis-ed-*`), set for each theme in `app.css`. */
 export const luaHighlight = HighlightStyle.define([
 	{
 		tag: [tags.keyword, tags.controlKeyword, tags.definitionKeyword, tags.operatorKeyword],
-		color: 'var(--ed-keyword)',
+		color: 'var(--lis-ed-keyword)',
 	},
-	{ tag: [tags.atom, tags.bool, tags.null], color: 'var(--ed-atom)' },
-	{ tag: tags.number, color: 'var(--ed-number)' },
-	{ tag: [tags.string, tags.special(tags.string)], color: 'var(--ed-string)' },
+	{ tag: [tags.atom, tags.bool, tags.null], color: 'var(--lis-ed-atom)' },
+	{ tag: tags.number, color: 'var(--lis-ed-number)' },
+	{ tag: [tags.string, tags.special(tags.string)], color: 'var(--lis-ed-string)' },
 	{
 		tag: [tags.comment, tags.lineComment, tags.blockComment],
-		color: 'var(--ed-comment)',
+		color: 'var(--lis-ed-comment)',
 		fontStyle: 'italic',
 	},
 	{
@@ -37,15 +37,15 @@ export const luaHighlight = HighlightStyle.define([
 			tags.function(tags.variableName),
 			tags.function(tags.propertyName),
 		],
-		color: 'var(--ed-function)',
+		color: 'var(--lis-ed-function)',
 	},
 	{
 		tag: [tags.definition(tags.variableName), tags.definition(tags.propertyName)],
-		color: 'var(--ed-definition)',
+		color: 'var(--lis-ed-definition)',
 	},
-	{ tag: tags.propertyName, color: 'var(--ed-property)' },
-	{ tag: [tags.operator, tags.punctuation, tags.bracket], color: 'var(--ed-punct)' },
-	{ tag: tags.invalid, color: 'var(--ed-error)' },
+	{ tag: tags.propertyName, color: 'var(--lis-ed-property)' },
+	{ tag: [tags.operator, tags.punctuation, tags.bracket], color: 'var(--lis-ed-punct)' },
+	{ tag: tags.invalid, color: 'var(--lis-ed-error)' },
 ]);
 
 /** The ranges that fold: from the end of the line that opens a block to the end of the line before its closer. */

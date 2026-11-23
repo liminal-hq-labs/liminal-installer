@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { t } from '../i18n/messages';
 import type {
 	ChangeEvent,
 	ErrorKind,
@@ -140,7 +141,7 @@ async function tauriApi(): Promise<Api> {
 			const { open } = await import('@tauri-apps/plugin-dialog');
 			const picked = await open({
 				directory: true,
-				title: 'Open installer project',
+				title: t('api.openProjectTitle'),
 				...(startIn ? { defaultPath: startIn } : {}),
 			});
 			return typeof picked === 'string' ? picked : null;
@@ -154,5 +155,5 @@ export async function createApi(): Promise<Api> {
 		const { demoApi } = await import('./demoApi');
 		return demoApi();
 	}
-	throw new Error('The Studio needs its desktop shell.');
+	throw new Error(t('api.needsShell'));
 }

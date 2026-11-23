@@ -12,6 +12,7 @@ import { SettingsGroup } from '@liminal-hq/studio-chrome/SettingsShell/SettingsG
 import { SettingsRow } from '@liminal-hq/studio-chrome/SettingsShell/SettingsRow';
 import { TextRow } from '@liminal-hq/studio-chrome/SettingsShell/TextRow';
 import { ToggleRow } from '@liminal-hq/studio-chrome/SettingsShell/ToggleRow';
+import { t, tn } from '../i18n/messages';
 import type { AgentInfo, AppInfo, Host } from '../lib/host';
 import {
 	LIMITS,
@@ -21,6 +22,7 @@ import {
 	type Settings,
 	type ThemeId,
 } from '../lib/settings';
+import ui from '../ui/ui.module.css';
 import { refusal, type Failures } from './usePreferences';
 
 /** What a page needs: the settings in force, why a write was refused, and the ways to change them. */
@@ -98,43 +100,24 @@ export function GeneralPage(p: PageProps) {
 	const count = p.settings.recentProjects.length;
 	return (
 		<>
-			<SettingsGroup title="Window">
-				{toggle(
-					p,
-					'menuBar',
-					'Show menu bar',
-					'Show File, Edit, View, Project and Help under the title bar. The app menu stays on the wordmark.',
-				)}
+			<SettingsGroup title={t('prefs.group.window')}>
+				{toggle(p, 'menuBar', t('prefs.menuBar.label'), t('prefs.menuBar.desc'))}
 			</SettingsGroup>
-			<SettingsGroup title="Projects">
-				{toggle(
-					p,
-					'reopenLastProject',
-					'Reopen the last project on start',
-					'Open the project that was open when the Studio closed, unless one is given on the command line.',
-				)}
+			<SettingsGroup title={t('prefs.group.projects')}>
+				{toggle(p, 'reopenLastProject', t('prefs.reopen.label'), t('prefs.reopen.desc'))}
 				{toggle(
 					p,
 					'confirmDiscard',
-					'Confirm before discarding unsaved script edits',
-					'Ask before Reload, Open project or closing the window throws away edits to a script.',
+					t('prefs.confirmDiscard.label'),
+					t('prefs.confirmDiscard.desc'),
 				)}
 			</SettingsGroup>
-			<SettingsGroup title="Recent projects">
-				{numberRow(
-					p,
-					'recentLimit',
-					'Projects to remember',
-					'How many projects File > Open recent lists, from 5 to 20.',
-				)}
+			<SettingsGroup title={t('prefs.group.recent')}>
+				{numberRow(p, 'recentLimit', t('prefs.recentLimit.label'), t('prefs.recentLimit.desc'))}
 				<ButtonRow
-					label="Recent projects"
-					description={
-						count === 0
-							? 'The list is empty.'
-							: `${count} ${count === 1 ? 'project' : 'projects'} in File > Open recent.`
-					}
-					actionLabel="Clear recent projects"
+					label={t('prefs.group.recent')}
+					description={count === 0 ? t('prefs.recent.empty') : tn('prefs.recent.count', count)}
+					actionLabel={t('prefs.recent.clear')}
 					disabled={count === 0}
 					onAction={() => void p.update({ recentProjects: [] })}
 					{...refusal(p.failures, 'recentProjects')}
@@ -145,54 +128,48 @@ export function GeneralPage(p: PageProps) {
 }
 
 const THEME_OPTIONS: { value: ThemeId; label: string }[] = [
-	{ value: 'afterglow', label: 'Afterglow dark' },
-	{ value: 'afterglow-light', label: 'Afterglow light' },
-	{ value: 'system', label: 'Follow system' },
-	{ value: 'afterglow-dark', label: 'Afterglow dark, neutral' },
+	{ value: 'afterglow', label: t('prefs.theme.dark') },
+	{ value: 'afterglow-light', label: t('prefs.theme.light') },
+	{ value: 'system', label: t('prefs.theme.system') },
+	{ value: 'afterglow-dark', label: t('prefs.theme.neutral') },
 ];
 
 export function AppearancePage(p: PageProps) {
 	return (
 		<>
-			<SettingsGroup title="Theme">
+			<SettingsGroup title={t('prefs.group.theme')}>
 				<SelectRow
-					label="Theme"
-					description="Applies to every Studio window at once. Follow system switches between Afterglow dark and light with the desktop."
+					label={t('prefs.group.theme')}
+					description={t('prefs.theme.desc')}
 					value={p.settings.theme}
 					options={THEME_OPTIONS}
 					onChange={(v) => void p.update({ theme: v })}
 					{...refusal(p.failures, 'theme')}
 				/>
 			</SettingsGroup>
-			<SettingsGroup title="Layout">
+			<SettingsGroup title={t('prefs.group.layout')}>
 				<SegmentedRow<Density>
-					label="Interface density"
-					description="Compact tightens spacing in lists, tables and toolbars."
+					label={t('prefs.density.label')}
+					description={t('prefs.density.desc')}
 					value={p.settings.density}
 					options={[
-						{ value: 'comfortable', label: 'Comfortable' },
-						{ value: 'compact', label: 'Compact' },
+						{ value: 'comfortable', label: t('prefs.density.comfortable') },
+						{ value: 'compact', label: t('prefs.density.compact') },
 					]}
 					onChange={(v) => void p.update({ density: v })}
 					{...refusal(p.failures, 'density')}
 				/>
-				{numberRow(
-					p,
-					'textSize',
-					'Interface text size',
-					'Scales the text of every window, from 90 to 130 percent.',
-					'%',
-				)}
+				{numberRow(p, 'textSize', t('prefs.textSize.label'), t('prefs.textSize.desc'), '%')}
 			</SettingsGroup>
-			<SettingsGroup title="Motion">
+			<SettingsGroup title={t('prefs.group.motion')}>
 				<SegmentedRow<MotionSetting>
-					label="Reduce motion"
-					description="Turn off transitions and animation. Follow system uses the desktop's setting."
+					label={t('prefs.motion.label')}
+					description={t('prefs.motion.desc')}
 					value={p.settings.reduceMotion}
 					options={[
-						{ value: 'system', label: 'Follow system' },
-						{ value: 'on', label: 'On' },
-						{ value: 'off', label: 'Off' },
+						{ value: 'system', label: t('prefs.theme.system') },
+						{ value: 'on', label: t('prefs.motion.on') },
+						{ value: 'off', label: t('prefs.motion.off') },
 					]}
 					onChange={(v) => void p.update({ reduceMotion: v })}
 					{...refusal(p.failures, 'reduceMotion')}
@@ -205,34 +182,12 @@ export function AppearancePage(p: PageProps) {
 export function EditorPage(p: PageProps) {
 	return (
 		<>
-			<SettingsGroup title="Script editor" description="These apply to the Scripts screen.">
-				{numberRow(
-					p,
-					'editorFontSize',
-					'Font size',
-					'The size of the code, from 10 to 24 pixels.',
-					'px',
-				)}
-				{numberRow(
-					p,
-					'tabWidth',
-					'Tab width',
-					'How many columns a tab character spans, from 1 to 8.',
-					'columns',
-				)}
-				{toggle(
-					p,
-					'wrapLines',
-					'Wrap lines',
-					'Break long lines at the edge of the editor instead of scrolling sideways.',
-				)}
-				{toggle(p, 'lineNumbers', 'Show line numbers', 'Number the lines beside the code.')}
-				{toggle(
-					p,
-					'formatOnSave',
-					'Format on save',
-					'Strip trailing spaces, use one line feed per line and end the file with a single newline when saving.',
-				)}
+			<SettingsGroup title={t('prefs.group.editor')} description={t('prefs.group.editorDesc')}>
+				{numberRow(p, 'editorFontSize', t('prefs.fontSize.label'), t('prefs.fontSize.desc'), 'px')}
+				{numberRow(p, 'tabWidth', t('prefs.tabWidth.label'), t('prefs.tabWidth.desc'), 'columns')}
+				{toggle(p, 'wrapLines', t('prefs.wrap.label'), t('prefs.wrap.desc'))}
+				{toggle(p, 'lineNumbers', t('prefs.lineNumbers.label'), t('prefs.lineNumbers.desc'))}
+				{toggle(p, 'formatOnSave', t('prefs.formatOnSave.label'), t('prefs.formatOnSave.desc'))}
 			</SettingsGroup>
 		</>
 	);
@@ -242,31 +197,23 @@ export function PreviewPage(p: PageProps) {
 	const current = p.settings.previewTarget;
 	const known = current === '' || p.targets.includes(current);
 	return (
-		<SettingsGroup title="Dry run">
+		<SettingsGroup title={t('prefs.group.dryRun')}>
 			<SelectRow
-				label="Default target"
-				description="The target the Dry run screen starts on. It is shown only when the project has it."
+				label={t('prefs.previewTarget.label')}
+				description={t('prefs.previewTarget.desc')}
 				value={current}
 				options={[
-					{ value: '', label: 'First target of the project' },
+					{ value: '', label: t('prefs.previewTarget.first') },
 					...p.targets.map((t) => ({ value: t, label: t })),
-					...(known ? [] : [{ value: current, label: `${current} (not in this project)` }]),
+					...(known
+						? []
+						: [{ value: current, label: t('prefs.previewTarget.missing', { target: current }) }]),
 				]}
 				onChange={(v) => void p.update({ previewTarget: v })}
 				{...refusal(p.failures, 'previewTarget')}
 			/>
-			{toggle(
-				p,
-				'previewAutoRun',
-				'Run the preview again when a flow or layout changes',
-				'Keeps the Dry run screen current as you or an agent edit. Off, a change clears the preview.',
-			)}
-			{toggle(
-				p,
-				'showSkippedSteps',
-				'Show skipped steps',
-				'List the steps that do not apply to the target, dimmed, in the step list.',
-			)}
+			{toggle(p, 'previewAutoRun', t('prefs.autoRun.label'), t('prefs.autoRun.desc'))}
+			{toggle(p, 'showSkippedSteps', t('prefs.skipped.label'), t('prefs.skipped.desc'))}
 		</SettingsGroup>
 	);
 }
@@ -300,54 +247,41 @@ export function AgentsPage(p: PageProps) {
 	const error = (key: 'token' | 'copy' | 'regen') =>
 		notice?.key === key ? { error: notice.text } : {};
 	const fetchToken = async () => {
-		const t = await host.agentToken();
-		if (t === null) throw new Error('The agent server is off.');
-		return t;
+		const token = await host.agentToken();
+		if (token === null) throw new Error(t('agent.serverOff'));
+		return token;
 	};
 	return (
 		<>
 			<SettingsGroup
-				title="Agent server"
-				description="An agent can read the project, edit flows, layouts and scripts, and run checks and dry runs. Every change it makes goes through the same undo history as yours, so Undo reverses it."
+				title={t('prefs.group.agentServer')}
+				description={t('prefs.group.agentServerDesc')}
 			>
-				{toggle(
-					p,
-					'mcpEnabled',
-					'Enable the MCP server',
-					'Serve the Studio to agents on this computer only (127.0.0.1). Off by default in a release build.',
-				)}
-				{numberRow(
-					p,
-					'mcpPort',
-					'Port',
-					'0 picks a free port each time the server starts. A port that is taken is refused.',
-				)}
+				{toggle(p, 'mcpEnabled', t('prefs.mcp.label'), t('prefs.mcp.desc'))}
+				{numberRow(p, 'mcpPort', t('prefs.port.label'), t('prefs.port.desc'))}
 				<SettingsRow
-					label="Status"
+					label={t('prefs.status.label')}
 					description={
 						running
 							? agent.url
 							: settings.mcpEnabled
-								? 'The server is not running.'
-								: 'The server is off.'
+								? t('prefs.status.notRunning')
+								: t('prefs.status.off')
 					}
 					{...(!running && settings.mcpEnabled && startError
-						? { error: `It did not start: ${startError}` }
+						? { error: t('prefs.status.didNotStart', { why: startError }) }
 						: {})}
 				/>
 			</SettingsGroup>
-			<SettingsGroup
-				title="Access token"
-				description="Agents send the token as a bearer token. It is not written to logs or to the settings file, and it changes each time the Studio starts."
-			>
+			<SettingsGroup title={t('prefs.group.token')} description={t('prefs.group.tokenDesc')}>
 				<SettingsRow
-					label="Token"
-					description={token ?? 'Hidden until you ask to see it.'}
+					label={t('prefs.token.label')}
+					description={token ?? t('prefs.token.hidden')}
 					{...error('token')}
 				>
 					<button
 						type="button"
-						className="btn"
+						className={ui.btn}
 						disabled={!running}
 						onClick={() => {
 							if (token !== null) return setToken(null);
@@ -355,30 +289,32 @@ export function AgentsPage(p: PageProps) {
 							fetchToken().then(setToken, fail('token'));
 						}}
 					>
-						{token !== null ? 'Hide token' : 'Show token'}
+						{token !== null ? t('prefs.token.hide') : t('prefs.token.show')}
 					</button>
 				</SettingsRow>
 				<ButtonRow
-					label="Copy token"
+					label={t('prefs.copyToken.label')}
 					description={
-						notice?.key === 'copy' && notice.text === 'Copied.'
-							? 'Copied to the clipboard.'
-							: 'Put the token on the clipboard.'
+						notice?.key === 'copy' && notice.text === t('prefs.copied')
+							? t('prefs.copyToken.copied')
+							: t('prefs.copyToken.desc')
 					}
-					actionLabel="Copy"
+					actionLabel={t('prefs.copyToken.action')}
 					disabled={!running}
 					onAction={() => {
 						setNotice(null);
 						fetchToken()
-							.then((t) => p.host.copy(t))
-							.then(() => setNotice({ key: 'copy', text: 'Copied.' }), fail('copy'));
+							.then((value) => p.host.copy(value))
+							.then(() => setNotice({ key: 'copy', text: t('prefs.copied') }), fail('copy'));
 					}}
-					{...(notice?.key === 'copy' && notice.text !== 'Copied.' ? { error: notice.text } : {})}
+					{...(notice?.key === 'copy' && notice.text !== t('prefs.copied')
+						? { error: notice.text }
+						: {})}
 				/>
 				<ButtonRow
-					label="Regenerate token"
-					description="Agents using the old token are refused from now on."
-					actionLabel="Regenerate"
+					label={t('prefs.regen.label')}
+					description={t('prefs.regen.desc')}
+					actionLabel={t('prefs.regen.action')}
 					danger
 					disabled={!running}
 					onAction={() => {
@@ -386,13 +322,12 @@ export function AgentsPage(p: PageProps) {
 						void (async () => {
 							const answer = await host.confirm({
 								kind: 'confirm',
-								title: 'Regenerate token',
-								message: 'Regenerate the access token?',
-								detail:
-									'Agents using the current token are refused until you give them the new one.',
+								title: t('prefs.regen.label'),
+								message: t('prefs.regen.message'),
+								detail: t('prefs.regen.detail'),
 								buttons: [
-									{ id: 'regenerate', label: 'Regenerate', primary: true, danger: true },
-									{ id: 'cancel', label: 'Cancel' },
+									{ id: 'regenerate', label: t('prefs.regen.action'), primary: true, danger: true },
+									{ id: 'cancel', label: t('common.cancel') },
 								],
 							});
 							if (answer !== 'regenerate') return;
@@ -440,8 +375,8 @@ function PathRows({
 				{...refusal(p.failures, name)}
 			/>
 			<ButtonRow
-				label={`Browse for ${label.toLowerCase()}`}
-				actionLabel="Browse…"
+				label={t('prefs.browse.for', { name: label.toLowerCase() })}
+				actionLabel={t('prefs.browse.action')}
 				onAction={() => {
 					setBrowseError(undefined);
 					p.host
@@ -458,35 +393,35 @@ function PathRows({
 export function ProjectsPage(p: PageProps) {
 	return (
 		<>
-			<SettingsGroup title="Folders">
+			<SettingsGroup title={t('prefs.group.folders')}>
 				<PathRows
 					p={p}
 					name="projectsFolder"
-					label="Projects folder"
+					label={t('prefs.projectsFolder.label')}
 					kind="folder"
-					title="Choose the projects folder"
-					placeholder="Not set"
-					description="Where Open project… starts. Leave empty to start where the system chooses."
+					title={t('prefs.projectsFolder.title')}
+					placeholder={t('prefs.projectsFolder.placeholder')}
+					description={t('prefs.projectsFolder.desc')}
 				/>
 			</SettingsGroup>
-			<SettingsGroup title="Tools">
+			<SettingsGroup title={t('prefs.group.tools')}>
 				<PathRows
 					p={p}
 					name="runnerPath"
-					label="Runner"
+					label={t('prefs.runner.label')}
 					kind="file"
-					title="Choose liminal-engine"
+					title={t('prefs.runner.title')}
 					placeholder="liminal-engine"
-					description="The `liminal-engine` runner that builds use. It must answer `--version` before the path is saved. Builds from the Studio are not available yet."
+					description={t('prefs.runner.desc')}
 				/>
 				<PathRows
 					p={p}
 					name="dockerPath"
-					label="Docker (optional)"
+					label={t('prefs.docker.label')}
 					kind="file"
-					title="Choose docker"
+					title={t('prefs.docker.title')}
 					placeholder="docker"
-					description="Used for the retro and Linux package checks. It must answer `--version` before the path is saved."
+					description={t('prefs.docker.desc')}
 				/>
 			</SettingsGroup>
 		</>
@@ -514,38 +449,38 @@ export function AdvancedPage(p: PageProps) {
 	const error = (key: string) => (notice?.key === key ? { error: notice.text } : {});
 	return (
 		<>
-			<SettingsGroup title="Files">
+			<SettingsGroup title={t('prefs.group.files')}>
 				<ButtonRow
-					label="Settings file"
-					description={info?.settingsFile ?? 'Where your preferences are kept.'}
-					actionLabel="Open location"
+					label={t('prefs.settingsFile.label')}
+					description={info?.settingsFile ?? t('prefs.settingsFile.desc')}
+					actionLabel={t('prefs.settingsFile.action')}
 					onAction={() => attempt('settings', () => host.reveal('settings'))}
 					{...error('settings')}
 				/>
 				<ButtonRow
-					label="Logs"
-					description={info?.logDir ?? 'Where the Studio writes logs.'}
-					actionLabel="Show location"
+					label={t('prefs.logs.label')}
+					description={info?.logDir ?? t('prefs.logs.desc')}
+					actionLabel={t('prefs.logs.action')}
 					onAction={() => attempt('logs', () => host.reveal('logs'))}
 					{...error('logs')}
 				/>
 			</SettingsGroup>
-			<SettingsGroup title="Reset">
+			<SettingsGroup title={t('prefs.group.reset')}>
 				<ButtonRow
-					label="Reset all preferences"
-					description="Put every setting back to its default, including the recent projects. Your projects are not touched."
-					actionLabel="Reset all…"
+					label={t('prefs.reset.label')}
+					description={t('prefs.reset.desc')}
+					actionLabel={t('prefs.reset.action')}
 					danger
 					onAction={() =>
 						attempt('reset', async () => {
 							const answer = await host.confirm({
 								kind: 'confirm',
-								title: 'Reset preferences',
-								message: 'Reset all preferences?',
-								detail: 'Every setting goes back to its default. Your projects are not touched.',
+								title: t('prefs.reset.title'),
+								message: t('prefs.reset.message'),
+								detail: t('prefs.reset.detail'),
 								buttons: [
-									{ id: 'reset', label: 'Reset all', primary: true, danger: true },
-									{ id: 'cancel', label: 'Cancel' },
+									{ id: 'reset', label: t('prefs.reset.confirm'), primary: true, danger: true },
+									{ id: 'cancel', label: t('common.cancel') },
 								],
 							});
 							if (answer === 'reset') await p.reset();
@@ -554,12 +489,10 @@ export function AdvancedPage(p: PageProps) {
 					{...error('reset')}
 				/>
 			</SettingsGroup>
-			<SettingsGroup title="About">
+			<SettingsGroup title={t('prefs.group.about')}>
 				<SettingsRow
-					label="Version"
-					description={
-						info ? `Liminal Installer Studio ${info.version}` : 'Liminal Installer Studio'
-					}
+					label={t('prefs.version.label')}
+					description={info ? t('prefs.version.value', { version: info.version }) : t('app.name')}
 				/>
 			</SettingsGroup>
 		</>

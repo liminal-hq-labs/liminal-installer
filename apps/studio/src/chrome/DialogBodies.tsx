@@ -3,9 +3,15 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { t } from '../i18n/messages';
+import { cx } from '../ui/cx';
+import text from '../ui/text.module.css';
+import ui from '../ui/ui.module.css';
+import chrome from './Chrome.module.css';
 import type { DialogResult, DialogSpec } from './dialogWindow';
 
-export const APP_NAME = 'Liminal Installer Studio';
+/** The product name, for the wordmark and the title bar. */
+export const appName = (): string => t('app.name');
 
 /** The mark beside the wordmark: a small rounded square with the brand gradient. */
 export function Mark() {
@@ -42,7 +48,7 @@ export function Mark() {
 export function buttonsOf(spec: DialogSpec) {
 	return spec.buttons && spec.buttons.length > 0
 		? spec.buttons
-		: [{ id: 'close', label: 'Close', primary: true }];
+		: [{ id: 'close', label: t('common.close'), primary: true }];
 }
 
 export function DialogButtons({
@@ -53,12 +59,12 @@ export function DialogButtons({
 	onAnswer(result: DialogResult): void;
 }) {
 	return (
-		<div className="dlg-actions">
+		<div className={chrome.dlgActions}>
 			{buttonsOf(spec).map((b) => (
 				<button
 					key={b.id}
 					type="button"
-					className={`btn${b.primary ? ' primary' : ''}${b.danger ? ' danger' : ''}`}
+					className={cx(ui.btn, b.primary && ui.primary, b.danger && ui.danger)}
 					onClick={() => onAnswer(b.id)}
 					autoFocus={b.primary}
 				>
@@ -74,22 +80,19 @@ export function DialogMessage({ spec }: { spec: DialogSpec }) {
 	if (spec.kind === 'about') {
 		return (
 			<>
-				<div className="dlg-brand">
+				<div className={chrome.dlgBrand}>
 					<Mark />
-					<span className="dlg-wordmark">{APP_NAME}</span>
+					<span className={chrome.dlgWordmark}>{appName()}</span>
 				</div>
-				<p>
-					Design installers, updaters and launchers for every platform from one project. Edit flows,
-					layouts and scripts, then dry-run them without changing anything.
-				</p>
-				<p className="dim">A Liminal HQ Labs experiment.</p>
+				<p>{t('about.body')}</p>
+				<p className={text.dim}>{t('about.labs')}</p>
 			</>
 		);
 	}
 	return (
 		<>
-			{spec.message ? <p className="dlg-message">{spec.message}</p> : null}
-			{spec.detail ? <p className="dim">{spec.detail}</p> : null}
+			{spec.message ? <p className={chrome.dlgMessage}>{spec.message}</p> : null}
+			{spec.detail ? <p className={text.dim}>{spec.detail}</p> : null}
 		</>
 	);
 }

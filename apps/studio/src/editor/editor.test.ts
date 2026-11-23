@@ -12,7 +12,9 @@ import { formatLua } from './format';
 import { docTooltip, nameAt } from './hover';
 import { luaSupport } from './luaLanguage';
 import { API_DOCS, HOOK_PARAMS, docFor, hookSignature } from './luaDocs';
-import { ENGLISH, editorPhrases, setLanguage, t } from './phrases';
+import { setActiveLocale, resetActiveLocale } from '../i18n/active';
+import { t } from '../i18n/messages';
+import { CM_PHRASES, editorPhrases } from './phrases';
 
 /** A state over `text` with the caret at the `|` marker, which is removed. */
 function at(text: string): { state: EditorState; pos: number } {
@@ -200,21 +202,22 @@ describe('phrases', () => {
 		const phrases = editorPhrases();
 		expect(phrases['Find']).toBe('Find');
 		expect(phrases['Go to line']).toBe('Go to line');
-		expect(Object.keys(phrases).length).toBe(
-			Object.keys(ENGLISH).filter((k) => k.startsWith('cm.')).length,
-		);
+		expect(Object.keys(phrases).length).toBe(Object.keys(CM_PHRASES).length);
 	});
 
 	it('fills placeholders and lets a language replace a word', () => {
-		expect(t('status.position', { line: 4, column: 9 })).toBe('Ln 4, Col 9');
-		expect(t('status.lua')).toBe('Lua 5.4 · retro subset checked');
-		setLanguage({ 'cm.Find': 'Chercher', 'status.position': 'Lg {line}, Col {column}' });
+		expect(t('editor.status.position', { line: 4, column: 9 })).toBe('Ln 4, Col 9');
+		expect(t('editor.status.lua')).toBe('Lua 5.4 · retro subset checked');
+		setActiveLocale('en-CA', {
+			'editor.cm.find': 'Chercher',
+			'editor.status.position': 'Lg {line}, Col {column}',
+		});
 		try {
 			expect(editorPhrases()['Find']).toBe('Chercher');
-			expect(t('status.position', { line: 1, column: 2 })).toBe('Lg 1, Col 2');
-			expect(t('cm.Replace')).toBe('Replace');
+			expect(t('editor.status.position', { line: 1, column: 2 })).toBe('Lg 1, Col 2');
+			expect(t('editor.cm.replace')).toBe('Replace');
 		} finally {
-			setLanguage({});
+			resetActiveLocale();
 		}
 	});
 });

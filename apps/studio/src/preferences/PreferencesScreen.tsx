@@ -5,6 +5,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { SettingsShell } from '@liminal-hq/studio-chrome/SettingsShell/SettingsShell';
+import { settingsLabels } from '../i18n/chromeLabels';
+import { t } from '../i18n/messages';
+import styles from '../chrome/Chrome.module.css';
 import { createApi } from '../lib/api';
 import type { Host } from '../lib/host';
 import type { SettingsPort } from '../lib/settings';
@@ -68,14 +71,14 @@ export function PreferencesScreen({
 				: [],
 		[settings, failures, update, reset, host, targets, guard.epoch],
 	);
-	if (!settings) return <div className="prefs-screen" aria-busy="true" />;
+	if (!settings) return <div className={styles.prefsScreen} aria-busy="true" />;
 	return (
-		<div className="prefs-screen" ref={guard.containerRef} {...guard.handlers}>
+		<div className={styles.prefsScreen} ref={guard.containerRef} {...guard.handlers}>
 			<SettingsShell
 				sections={sections}
 				activeId={active}
 				onSelect={setActive}
-				labels={{ navigation: 'Preferences sections' }}
+				labels={{ ...settingsLabels(), navigation: t('prefs.sections') }}
 			/>
 		</div>
 	);

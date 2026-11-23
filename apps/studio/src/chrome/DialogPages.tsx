@@ -4,11 +4,16 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { useEffect, useMemo, useState } from 'react';
+import { t } from '../i18n/messages';
 import { errorMessage } from '../lib/api';
 import type { Host } from '../lib/host';
 import type { Settings } from '../lib/settings';
 import { CREATED_PREFIX, type DialogResult } from './dialogWindow';
 import { shortcutTable } from './menuModel';
+import { cx } from '../ui/cx';
+import text from '../ui/text.module.css';
+import ui from '../ui/ui.module.css';
+import chrome from './Chrome.module.css';
 
 const message = errorMessage;
 
@@ -16,13 +21,13 @@ const message = errorMessage;
 export function ShortcutsBody() {
 	const groups = useMemo(() => shortcutTable(), []);
 	return (
-		<div className="shortcuts">
+		<div className={chrome.shortcuts}>
 			{groups.map((g) => (
 				<section key={g.menu} aria-label={g.menu}>
 					<h2>{g.menu}</h2>
 					<dl>
 						{g.rows.map((r) => (
-							<div key={r.id} className="shortcut-row">
+							<div key={r.id} className={chrome.shortcutRow}>
 								<dt>{r.label}</dt>
 								<dd>
 									{r.keys.map((k) => (
@@ -34,9 +39,7 @@ export function ShortcutsBody() {
 					</dl>
 				</section>
 			))}
-			<p className="dim small">
-				F10 or a lone Alt opens the menu. Alt and a letter open a menu in the bar.
-			</p>
+			<p className={cx(text.dim, text.small)}>{t('shortcuts.note')}</p>
 		</div>
 	);
 }
@@ -78,80 +81,76 @@ export function AgentBody({ host }: { host: Host }) {
 			live = false;
 		};
 	}, [host]);
-	const say = (text: string, error = false) => setNote({ text, error });
+	const say = (line: string, error = false) => setNote({ text: line, error });
 	const fetchToken = async () => {
-		const t = await host.agentToken();
-		if (t === null) throw new Error('The agent server is off.');
-		return t;
+		const token = await host.agentToken();
+		if (token === null) throw new Error(t('agent.serverOff'));
+		return token;
 	};
-	const copy = (what: string, text: () => Promise<string>) => () => {
+	const copy = (what: string, source: () => Promise<string>) => () => {
 		setNote(null);
-		text()
-			.then((t) => host.copy(t))
+		source()
+			.then((value) => host.copy(value))
 			.then(
-				() => say(`${what} copied.`),
+				() => say(t('agent.copied', { what })),
 				(e) => say(message(e), true),
 			);
 	};
-	if (url === undefined) return <p className="dim">Looking for the agent server…</p>;
+	if (url === undefined) return <p className={text.dim}>{t('agent.looking')}</p>;
 	if (url === null) {
 		return (
-			<div className="agent-connect">
-				<p>The agent server is not running.</p>
+			<div className={chrome.agentConnect}>
+				<p>{t('agent.notRunning')}</p>
 				{why ? (
-					<p className="err">It did not start: {why}</p>
+					<p className={text.err}>{t('agent.didNotStart', { why })}</p>
 				) : (
-					<p className="dim">Turn on the MCP server in Preferences, under Agents.</p>
+					<p className={text.dim}>{t('agent.turnOn')}</p>
 				)}
 			</div>
 		);
 	}
 	return (
-		<div className="agent-connect">
-			<p>
-				Agents edit this project over MCP, through the same undo history as you. The server listens
-				on this computer only.
-			</p>
-			<label className="field">
-				<span>Endpoint</span>
+		<div className={chrome.agentConnect}>
+			<p>{t('agent.intro')}</p>
+			<label className={ui.field}>
+				<span>{t('agent.endpoint')}</span>
 				<input type="text" readOnly value={url} onFocus={(e) => e.currentTarget.select()} />
 			</label>
-			<div className="row">
-				<button type="button" className="btn" onClick={copy('URL', async () => url)}>
-					Copy URL
+			<div className={chrome.row}>
+				<button type="button" className={ui.btn} onClick={copy(t('agent.url'), async () => url)}>
+					{t('agent.copyUrl')}
 				</button>
-				<button type="button" className="btn" onClick={copy('Token', fetchToken)}>
-					Copy token
+				<button type="button" className={ui.btn} onClick={copy(t('agent.token'), fetchToken)}>
+					{t('agent.copyToken')}
 				</button>
 				<button
 					type="button"
-					className="btn"
+					className={ui.btn}
 					onClick={() => {
 						if (token !== null) return setToken(null);
 						setNote(null);
 						fetchToken().then(setToken, (e) => say(message(e), true));
 					}}
 				>
-					{token !== null ? 'Hide token' : 'Show token'}
+					{token !== null ? t('agent.hideToken') : t('agent.showToken')}
 				</button>
 			</div>
-			{token !== null ? <code className="token">{token}</code> : null}
-			<h2>Sample client configuration</h2>
-			<p className="dim small">
-				For a client that reads an `mcpServers` block, such as Claude Code or Claude Desktop.
-				Copying it puts the real token in.
-			</p>
-			<pre className="snippet">{clientConfig(url, 'YOUR_TOKEN')}</pre>
-			<div className="row">
+			{token !== null ? <code className={cx(chrome.token, ui.token)}>{token}</code> : null}
+			<h2>{t('agent.sampleHeading')}</h2>
+			<p className={cx(text.dim, text.small)}>{t('agent.sampleNote')}</p>
+			<pre className={chrome.snippet}>{clientConfig(url, 'YOUR_TOKEN')}</pre>
+			<div className={chrome.row}>
 				<button
 					type="button"
-					className="btn"
-					onClick={copy('Configuration', async () => clientConfig(url, await fetchToken()))}
+					className={ui.btn}
+					onClick={copy(t('agent.configuration'), async () =>
+						clientConfig(url, await fetchToken()),
+					)}
 				>
-					Copy configuration
+					{t('agent.copyConfiguration')}
 				</button>
 			</div>
-			<p role="status" className={note?.error ? 'err' : 'dim'}>
+			<p role="status" className={note?.error ? text.err : text.dim}>
 				{note?.text ?? ''}
 			</p>
 		</div>
@@ -195,7 +194,7 @@ export function NewProjectBody({
 				join(parent.trim(), leaf),
 				name.trim(),
 				shownId.trim(),
-				publisher.trim() || 'Unknown publisher',
+				publisher.trim() || t('newProject.unknownPublisher'),
 			);
 			onAnswer(`${CREATED_PREFIX}${folder}`);
 		} catch (e) {
@@ -205,81 +204,79 @@ export function NewProjectBody({
 	};
 	return (
 		<form
-			className="new-project"
+			className={chrome.newProject}
 			onSubmit={(e) => {
 				e.preventDefault();
 				if (ready && !busy) void create();
 			}}
 		>
-			<label className="field">
-				<span>Name</span>
+			<label className={ui.field}>
+				<span>{t('newProject.name')}</span>
 				<input
 					type="text"
 					value={name}
 					autoFocus
 					onChange={(e) => setName(e.target.value)}
-					placeholder="Fizz Level"
+					placeholder={t('newProject.namePlaceholder')}
 				/>
 			</label>
-			<label className="field">
-				<span>Id</span>
+			<label className={ui.field}>
+				<span>{t('newProject.id')}</span>
 				<input
 					type="text"
 					value={shownId}
 					onChange={(e) => (setId(e.target.value), setIdTouched(true))}
-					placeholder="hq.liminal.fizz"
+					placeholder={t('newProject.idPlaceholder')}
 				/>
 			</label>
-			<label className="field">
-				<span>Publisher</span>
+			<label className={ui.field}>
+				<span>{t('newProject.publisher')}</span>
 				<input
 					type="text"
 					value={publisher}
 					onChange={(e) => setPublisher(e.target.value)}
-					placeholder="Liminal HQ"
+					placeholder={t('newProject.publisherPlaceholder')}
 				/>
 			</label>
-			<label className="field">
-				<span>Create in</span>
-				<span className="row">
+			<label className={ui.field}>
+				<span>{t('newProject.createIn')}</span>
+				<span className={chrome.row}>
 					<input
 						type="text"
 						value={parent}
 						onChange={(e) => setParent(e.target.value)}
-						placeholder="A folder for the project"
+						placeholder={t('newProject.folderPlaceholder')}
 					/>
 					<button
 						type="button"
-						className="btn"
+						className={ui.btn}
 						onClick={() =>
-							void host
-								.browse('folder', 'Choose where to create the project', parent || undefined)
-								.then(
-									(p) => p && setParent(p),
-									(e) => setError(message(e)),
-								)
+							void host.browse('folder', t('newProject.chooseFolder'), parent || undefined).then(
+								(p) => p && setParent(p),
+								(e) => setError(message(e)),
+							)
 						}
 					>
-						Browse…
+						{t('newProject.browse')}
 					</button>
 				</span>
 			</label>
-			<p className="dim small">
+			<p className={cx(text.dim, text.small)}>
 				{leaf && parent
-					? `The files go in ${join(parent, leaf)}/installer.`
-					: 'Writes the same starting files as `liminst init`.'}
+					? t('newProject.filesGoIn', { folder: `${join(parent, leaf)}/installer` })
+					: t('newProject.sameFiles')}
 			</p>
 			{error ? (
-				<p className="err" role="alert">
+				<p className={text.err} role="alert">
 					{error}
 				</p>
 			) : null}
-			<div className="dlg-actions">
-				<button type="button" className="btn" onClick={() => onAnswer(null)}>
-					Cancel
+			<div className={chrome.dlgActions}>
+				<button type="button" className={ui.btn} onClick={() => onAnswer(null)}>
+					{t('common.cancel')}
 				</button>
-				<button type="submit" className="btn primary" disabled={!ready || busy}>
-					{busy ? 'Creating…' : 'Create project'}
+				<button type="submit" className={cx(ui.btn, ui.primary)} disabled={!ready || busy}>
+					{busy ? t('newProject.creating') : t('newProject.create')}
 				</button>
 			</div>
 		</form>

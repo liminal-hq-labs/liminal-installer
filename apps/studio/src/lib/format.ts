@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { t, tn } from '../i18n/messages';
 import type { HistoryEntry, Operation, Problem, Screenshot } from './types';
 
 /** An `<img src>` value for a preview screenshot. */
@@ -59,7 +60,7 @@ export function historyRows(
 ): { label: string; source: string; doc: string; undone: boolean }[] {
 	return [...entries].reverse().map((e) => ({
 		label: e.label,
-		source: e.source === 'mcp' ? 'Agent' : 'You',
+		source: e.source === 'mcp' ? t('history.sourceAgent') : t('history.sourceYou'),
 		doc: `${e.doc.type} ${e.doc.id}`,
 		undone: !e.applied,
 	}));
@@ -70,4 +71,12 @@ export function targetStatus(problems: Problem[], fullId: string): 'ok' | 'warni
 	const mine = problemsFor(problems, `target:${fullId}`);
 	if (mine.some((p) => p.severity === 'error')) return 'error';
 	return mine.length > 0 ? 'warning' : 'ok';
+}
+
+/** "2 errors, 1 warning": the counts the status bar shows, leaving out a zero. */
+export function problemSummary(errors: number, warnings: number): string {
+	return [
+		...(errors === 0 ? [] : [tn('problems.errors', errors)]),
+		...(warnings === 0 ? [] : [tn('problems.warnings', warnings)]),
+	].join(', ');
 }

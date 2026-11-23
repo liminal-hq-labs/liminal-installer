@@ -23,7 +23,7 @@ import {
 	type ApiDoc,
 	type DocKind,
 } from './luaDocs';
-import { t } from './phrases';
+import { t } from '../i18n/messages';
 
 const TYPES: Record<DocKind, string> = {
 	module: 'namespace',
@@ -120,7 +120,7 @@ export function suggest(state: EditorState, pos: number, explicit = false): Sugg
 			return {
 				label: c,
 				type: 'constant',
-				detail: t('kind.capability'),
+				detail: t('editor.kind.capability'),
 				...(doc ? { info: () => docElement(doc) } : {}),
 			} as Completion;
 		});
@@ -152,9 +152,9 @@ export function suggest(state: EditorState, pos: number, explicit = false): Sugg
 			options.push(option(d, d.name));
 	}
 	for (const lib of LIBRARIES)
-		options.push({ label: lib, type: 'namespace', detail: t('kind.module') });
+		options.push({ label: lib, type: 'namespace', detail: t('editor.kind.module') });
 	for (const k of LUA_KEYWORDS)
-		options.push({ label: k, type: 'keyword', detail: t('kind.keyword'), boost: -1 });
+		options.push({ label: k, type: 'keyword', detail: t('editor.kind.keyword'), boost: -1 });
 	return { from: pos - typed.length, options, validFor: /^\w*$/ };
 }
 

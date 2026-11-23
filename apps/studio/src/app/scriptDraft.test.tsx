@@ -5,13 +5,17 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { EditorView } from '@codemirror/view';
+import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { startApp, type App } from './app';
-import { createChromeStore, type ChromeStore } from './chrome/chromeStore';
-import { SCREEN_ACTIONS } from './chrome/menuModel';
-import type { Api } from './lib/api';
-import { browserSettings } from './lib/settings';
-import type { ProjectSummary, ScriptReport } from './lib/types';
+import { startApp, type App } from './startApp';
+import { createChromeStore, type ChromeStore } from '../chrome/chromeStore';
+import { SCREEN_ACTIONS } from '../chrome/menuModel';
+import type { Api } from '../lib/api';
+import { browserSettings } from '../lib/settings';
+import type { ProjectSummary, ScriptReport } from '../lib/types';
+
+// React reports state changes outside `act` when this is set; each test settles the app inside `act`.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const SOURCES: Record<string, string> = {
 	'scripts/a.lua': '-- capabilities: env\nfunction detect(page)\nend\n',
@@ -95,8 +99,17 @@ function fakeApi() {
 	return { api, writes, tests };
 }
 
-const settle = async () => {
-	for (let i = 0; i < 8; i++) await new Promise((r) => setTimeout(r, 0));
+const settle = () =>
+	act(async () => {
+		for (let i = 0; i < 8; i++) await new Promise((r) => setTimeout(r, 0));
+	});
+
+const choose = async (select: HTMLSelectElement, value: string) => {
+	await act(async () => {
+		select.value = value;
+		select.dispatchEvent(new Event('change', { bubbles: true }));
+	});
+	await settle();
 };
 
 describe('the script draft', () => {
@@ -108,10 +121,14 @@ describe('the script draft', () => {
 
 	const view = () => EditorView.findFromDOM(document.querySelector('.cm-editor') as HTMLElement)!;
 	const type = (text: string) =>
-		view().dispatch({ changes: { from: view().state.doc.length, insert: text } });
+		act(async () => {
+			view().dispatch({ changes: { from: view().state.doc.length, insert: text } });
+		});
 	const text = () => view().state.doc.toString();
 	const go = async (screen: keyof typeof SCREEN_ACTIONS) => {
-		await app.dispatch(SCREEN_ACTIONS[screen]);
+		await act(async () => {
+			await app.dispatch(SCREEN_ACTIONS[screen]);
+		});
 		await settle();
 	};
 	const dirtyLabel = () => document.getElementById('script-dirty')?.textContent;
@@ -123,7 +140,9 @@ describe('the script draft', () => {
 		await chrome.init();
 		fake = fakeApi();
 		guard = vi.fn<() => Promise<boolean>>();
-		app = await startApp(root, chrome, { header: false, api: fake.api, settleUnsaved: guard });
+		await act(async () => {
+			app = await startApp(root, chrome, { header: false, api: fake.api, settleUnsaved: guard });
+		});
 		await go('script');
 	});
 
@@ -137,35 +156,42 @@ describe('the script draft', () => {
 		expect(chrome.get().menu.scriptDirty).toBe(false);
 	});
 
-	it('marks the draft dirty as it is typed in, and clean again when the text matches the file', () => {
-		type('-- more\n');
+	it('marks the draft dirty as it is typed in, and clean again when the text matches the file', async () => {
+		await type('-- more\n');
 		expect(dirtyLabel()).toBe('Unsaved changes');
 		expect(chrome.get().menu.scriptDirty).toBe(true);
-		view().dispatch({
-			changes: { from: SOURCES['scripts/a.lua']!.length, to: view().state.doc.length, insert: '' },
+		await act(async () => {
+			view().dispatch({
+				changes: {
+					from: SOURCES['scripts/a.lua']!.length,
+					to: view().state.doc.length,
+					insert: '',
+				},
+			});
 		});
 		expect(dirtyLabel()).toBe('Saved');
 		expect(chrome.get().menu.scriptDirty).toBe(false);
 	});
 
-	it('keeps unsaved edits and the same editor across redraws and other screens', async () => {
-		const before = document.querySelector('.cm-editor');
-		type('-- keep me\n');
+	it('keeps unsaved edits across other screens and redraws', async () => {
+		await type('-- keep me\n');
 		await go('project');
 		expect(document.querySelector('.cm-editor')).toBeNull();
 		await go('script');
-		expect(document.querySelector('.cm-editor')).toBe(before);
+		expect(document.querySelector('.cm-editor')).not.toBeNull();
 		expect(text()).toContain('-- keep me');
 		expect(dirtyLabel()).toBe('Unsaved changes');
-		chrome.setTitle('forces a redraw elsewhere');
+		await act(async () => chrome.setTitle('forces a redraw elsewhere'));
 		expect(text()).toContain('-- keep me');
 	});
 
 	it('saves the draft from any screen with File > Save', async () => {
-		type('-- saved from elsewhere\n');
+		await type('-- saved from elsewhere\n');
 		await go('project');
 		expect(chrome.get().menu.scriptDirty).toBe(true);
-		await app.dispatch('file.save');
+		await act(async () => {
+			await app.dispatch('file.save');
+		});
 		await settle();
 		expect(fake.writes).toEqual([
 			{ path: 'scripts/a.lua', source: `${SOURCES['scripts/a.lua']}-- saved from elsewhere\n` },
@@ -177,16 +203,18 @@ describe('the script draft', () => {
 	});
 
 	it('formats on save when that setting is on, and the editor shows what was written', async () => {
-		await chrome.updateSettings({ formatOnSave: true });
-		type('if x then\ny()   \nend\n');
-		await app.dispatch('file.save');
+		await act(async () => chrome.updateSettings({ formatOnSave: true }));
+		await type('if x then\ny()   \nend\n');
+		await act(async () => {
+			await app.dispatch('file.save');
+		});
 		expect(fake.writes[0]!.source).toBe(`${SOURCES['scripts/a.lua']}if x then\n\ty()\nend\n`);
 		expect(text()).toBe(fake.writes[0]!.source);
 	});
 
 	it('discards the draft and clears the dirty flag', async () => {
-		type('-- oops\n');
-		app.discard();
+		await type('-- oops\n');
+		await act(async () => app.discard());
 		expect(text()).toBe(SOURCES['scripts/a.lua']);
 		expect(dirtyLabel()).toBe('Saved');
 		expect(chrome.get().menu.scriptDirty).toBe(false);
@@ -194,12 +222,12 @@ describe('the script draft', () => {
 	});
 
 	it('asks before another script replaces unsaved edits, and stays when the answer is no', async () => {
-		type('-- unsaved\n');
+		await type('-- unsaved\n');
 		guard.mockResolvedValue(false);
-		const select = document.querySelector<HTMLSelectElement>('select[aria-label="Script"]')!;
-		select.value = 'scripts/b.lua';
-		select.dispatchEvent(new Event('change'));
-		await settle();
+		await choose(
+			document.querySelector<HTMLSelectElement>('select[aria-label="Script"]')!,
+			'scripts/b.lua',
+		);
 		expect(guard).toHaveBeenCalledTimes(1);
 		expect(text()).toContain('-- unsaved');
 		expect(document.querySelector<HTMLSelectElement>('select[aria-label="Script"]')!.value).toBe(
@@ -208,24 +236,24 @@ describe('the script draft', () => {
 	});
 
 	it('opens the other script once the edits are discarded', async () => {
-		type('-- unsaved\n');
+		await type('-- unsaved\n');
 		guard.mockImplementation(async () => {
 			app.discard();
 			return true;
 		});
-		const select = document.querySelector<HTMLSelectElement>('select[aria-label="Script"]')!;
-		select.value = 'scripts/b.lua';
-		select.dispatchEvent(new Event('change'));
-		await settle();
+		await choose(
+			document.querySelector<HTMLSelectElement>('select[aria-label="Script"]')!,
+			'scripts/b.lua',
+		);
 		expect(text()).toBe(SOURCES['scripts/b.lua']);
 		expect(chrome.get().menu.scriptDirty).toBe(false);
 	});
 
 	it('does not ask when the open script is clean', async () => {
-		const select = document.querySelector<HTMLSelectElement>('select[aria-label="Script"]')!;
-		select.value = 'scripts/b.lua';
-		select.dispatchEvent(new Event('change'));
-		await settle();
+		await choose(
+			document.querySelector<HTMLSelectElement>('select[aria-label="Script"]')!,
+			'scripts/b.lua',
+		);
 		expect(guard).not.toHaveBeenCalled();
 		expect(text()).toBe(SOURCES['scripts/b.lua']);
 	});
@@ -238,12 +266,11 @@ describe('the test run', () => {
 	let fake: ReturnType<typeof fakeApi>;
 	const view = () => EditorView.findFromDOM(document.querySelector('.cm-editor') as HTMLElement)!;
 	const status = () => document.getElementById('script-test-status')?.textContent ?? '';
-	const press = async () => {
-		[...document.querySelectorAll('button')].find((b) => b.textContent === 'Test run')!.click();
-	};
-	const settle2 = async () => {
-		for (let i = 0; i < 8; i++) await new Promise((r) => setTimeout(r, 0));
-	};
+	const press = () =>
+		act(async () => {
+			[...document.querySelectorAll('button')].find((b) => b.textContent === 'Test run')!.click();
+		});
+	const settle2 = settle;
 
 	beforeEach(async () => {
 		document.body.innerHTML = '<div id="root"></div>';
@@ -251,8 +278,12 @@ describe('the test run', () => {
 		chrome = createChromeStore(browserSettings(undefined));
 		await chrome.init();
 		fake = fakeApi();
-		app = await startApp(root, chrome, { header: false, api: fake.api });
-		await app.dispatch(SCREEN_ACTIONS.script);
+		await act(async () => {
+			app = await startApp(root, chrome, { header: false, api: fake.api });
+		});
+		await act(async () => {
+			await app.dispatch(SCREEN_ACTIONS.script);
+		});
 		await settle2();
 	});
 
@@ -263,19 +294,22 @@ describe('the test run', () => {
 			new Promise((resolve) => (release = () => resolve(original(...args))));
 		await press();
 		expect(status()).toBe('Running…');
-		release();
+		await act(async () => release());
 		await settle2();
 		expect(status()).toMatch(/^Tested at \d\d:\d\d:\d\d · \d+ ms \(saved file\)$/);
 		expect(document.getElementById('script-console')!.textContent).toContain('✓');
 		expect(document.getElementById('script-console')!.textContent).toContain('detect(page)');
-		expect(document.querySelector('.toast')?.textContent).toContain('Test passed');
+		expect(document.querySelector('[data-testid="toast"]')?.textContent).toContain('Test passed');
 	});
 
 	it('runs the unsaved draft against the chosen target and says so', async () => {
-		view().dispatch({ changes: { from: view().state.doc.length, insert: '-- draft\n' } });
-		const pick = document.querySelector<HTMLSelectElement>('select[aria-label="Test target"]')!;
-		pick.value = 'linux-x86_64:tui';
-		pick.dispatchEvent(new Event('change'));
+		await act(async () => {
+			view().dispatch({ changes: { from: view().state.doc.length, insert: '-- draft\n' } });
+		});
+		await choose(
+			document.querySelector<HTMLSelectElement>('select[aria-label="Test target"]')!,
+			'linux-x86_64:tui',
+		);
 		await press();
 		await settle2();
 		const run = fake.tests.at(-1)!;
@@ -292,10 +326,12 @@ describe('the test run', () => {
 		await settle2();
 		expect(status()).not.toContain('out of date');
 		expect(document.getElementById('script-stale')!.hidden).toBe(true);
-		view().dispatch({ changes: { from: 0, insert: 'x' } });
+		await act(async () => {
+			view().dispatch({ changes: { from: 0, insert: 'x' } });
+		});
 		expect(status()).toContain('out of date');
 		expect(document.getElementById('script-stale')!.hidden).toBe(false);
-		expect(document.getElementById('script-console')!.classList.contains('stale')).toBe(true);
+		expect(document.getElementById('script-console')!.className).toMatch(/stale/);
 	});
 
 	it('shows a failure in the result area, not only in a toast', async () => {
@@ -323,7 +359,7 @@ describe('the test run', () => {
 		expect(text).toContain('✗');
 		expect(text).toContain('capability `env` is denied');
 		expect(text).toContain('failed');
-		expect(document.querySelector('.toast')?.textContent).toContain('Test failed');
+		expect(document.querySelector('[data-testid="toast"]')?.textContent).toContain('Test failed');
 	});
 
 	it('shows an error the backend raises in the console too', async () => {
@@ -336,6 +372,6 @@ describe('the test run', () => {
 			'unknown target `nope`',
 		);
 		expect(status()).toMatch(/^Could not run at/);
-		expect(document.querySelector('.toast.error')).not.toBeNull();
+		expect(document.querySelector('[data-testid="toast"][data-error="true"]')).not.toBeNull();
 	});
 });

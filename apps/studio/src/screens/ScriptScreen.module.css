@@ -1,0 +1,106 @@
+/*
+ * (c) Copyright 2026 Liminal HQ, Scott Morris
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ */
+
+.scriptGrid {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 300px;
+	gap: 12px;
+	align-items: start;
+}
+.scriptMain {
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+.targetPick {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+.editorFrame {
+	display: flex;
+	min-width: 0;
+	height: 56vh;
+	min-height: 280px;
+	border: 1px solid var(--lis-border-default);
+	border-radius: var(--lis-radius-sm);
+	background: var(--lis-bg-sidebar);
+	overflow: hidden;
+}
+.scriptEditor {
+	flex: 1 1 auto;
+	min-width: 0;
+	height: 100%;
+}
+.scriptEditor :global(.cm-editor) {
+	height: 100%;
+}
+.scriptEditor :global(.cm-scroller) {
+	overflow: auto;
+}
+.editorFoot {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 16px;
+	align-items: center;
+}
+.editorFoot .err {
+	color: var(--lis-colour-error);
+}
+.console {
+	border: 1px solid var(--lis-border-subtle);
+	border-radius: var(--lis-radius-sm);
+	background: var(--lis-bg-panel);
+	padding: 8px 12px;
+}
+.console.stale .consoleBody {
+	opacity: 0.55;
+}
+.consoleBody {
+	font: 12px/1.8 var(--lis-font-mono);
+	color: var(--lis-text-secondary);
+}
+.console .line {
+	white-space: pre-wrap;
+}
+.console .line.sub {
+	padding-left: 18px;
+	line-height: 1.5;
+}
+.console .mark {
+	display: inline-block;
+	width: 1.2em;
+}
+.console .ok {
+	color: var(--lis-colour-success);
+}
+.console .err {
+	color: var(--lis-colour-error);
+}
+.console .warn {
+	color: var(--lis-colour-warning);
+}
+.console .line.ok,
+.console .line.err {
+	color: var(--lis-text-secondary);
+}
+.console .line.ok .mark {
+	color: var(--lis-colour-success);
+}
+.console .line.err .mark {
+	color: var(--lis-colour-error);
+}
+.console .line.warn .mark {
+	color: var(--lis-colour-warning);
+}
+.console .summary {
+	margin-top: 4px;
+}
+@media (max-width: 1100px) {
+	.scriptGrid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}

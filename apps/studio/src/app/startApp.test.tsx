@@ -4,11 +4,13 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { act } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { problemSummary, startApp } from './app';
-import { createChromeStore } from './chrome/chromeStore';
-import { StudioError, type Api } from './lib/api';
-import { browserSettings } from './lib/settings';
+import { problemSummary } from '../lib/format';
+import { startApp, type App } from './startApp';
+import { createChromeStore } from '../chrome/chromeStore';
+import { StudioError, type Api } from '../lib/api';
+import { browserSettings } from '../lib/settings';
 import type {
 	ChangeEvent,
 	Flow,
@@ -16,7 +18,7 @@ import type {
 	HistoryView,
 	Problem,
 	ProjectSummary,
-} from './lib/types';
+} from '../lib/types';
 
 const flowOf = (id: string): Flow => ({
 	version: 1,
@@ -60,6 +62,9 @@ const projects: Record<string, ProjectSummary> = {
 	'/a': summary('/a', ['install', 'extra'], ['welcome', 'other'], ['scripts/a.lua']),
 	'/b': summary('/b', ['setup'], ['intro']),
 };
+
+// React reports state changes outside `act` when this is set; the helpers below settle inside it.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 interface Fake {
 	api: Api;
@@ -149,7 +154,23 @@ async function boot(fake: Fake) {
 	await chrome.init();
 	const root = document.createElement('div');
 	document.body.append(root);
-	const app = await startApp(root, chrome, { header: true, api: fake.api });
+	let started!: App;
+	await act(async () => {
+		started = await startApp(root, chrome, { header: true, api: fake.api });
+	});
+	// Each call settles React inside `act`, so the page is up to date when it resolves.
+	const settled = async (run: () => Promise<boolean>): Promise<boolean> => {
+		let result = false;
+		await act(async () => {
+			result = await run();
+		});
+		return result;
+	};
+	const app: App = {
+		dispatch: (id) => settled(() => started.dispatch(id)),
+		openPath: (path) => settled(() => started.openPath(path)),
+		discard: () => void act(async () => started.discard()),
+	};
 	return { app, root, chrome };
 }
 
@@ -175,7 +196,7 @@ describe('opening another project', () => {
 		expect(fake.calls.filter((c) => c === 'getFlow:install' || c === 'getLayout:welcome')).toEqual(
 			[],
 		);
-		expect(root.querySelector('.statusbar-path')?.textContent).toBe('/b');
+		expect(root.querySelector('[data-testid="status-path"]')?.textContent).toBe('/b');
 	});
 
 	it('shows a project that fails to open as a toast and keeps the one that was open', async () => {
@@ -183,8 +204,10 @@ describe('opening another project', () => {
 		const { app, root } = await boot(fake);
 		await app.openPath('/a');
 		expect(await app.openPath('/missing')).toBe(false);
-		expect(root.querySelector('.toast.error')?.textContent).toContain('no project at /missing');
-		expect(root.querySelector('.statusbar-path')?.textContent).toBe('/a');
+		expect(root.querySelector('[data-testid="toast"][data-error="true"]')?.textContent).toContain(
+			'no project at /missing',
+		);
+		expect(root.querySelector('[data-testid="status-path"]')?.textContent).toBe('/a');
 	});
 });
 
@@ -203,7 +226,9 @@ describe('a project that cannot be opened', () => {
 		await chrome.recordProject('/gone');
 		expect(chrome.get().settings.recentProjects).toContain('/gone');
 		expect(await app.openPath('/gone')).toBe(false);
-		expect(root.querySelector('.toast.error')?.textContent).toBe('no project at /gone');
+		expect(root.querySelector('[data-testid="toast"][data-error="true"]')?.textContent).toBe(
+			'no project at /gone',
+		);
 		expect(chrome.get().settings.recentProjects).not.toContain('/gone');
 	});
 
@@ -213,7 +238,9 @@ describe('a project that cannot be opened', () => {
 		);
 		await chrome.recordProject('/broken');
 		expect(await app.openPath('/broken')).toBe(false);
-		expect(root.querySelector('.toast.error')?.textContent).toBe('invalid installer.toml: bad');
+		expect(root.querySelector('[data-testid="toast"][data-error="true"]')?.textContent).toBe(
+			'invalid installer.toml: bad',
+		);
 		expect(chrome.get().settings.recentProjects).toContain('/broken');
 	});
 });
@@ -228,7 +255,7 @@ describe('running actions', () => {
 		const { app, root } = await boot(fake);
 		await app.openPath('/a');
 		expect(await app.dispatch('edit.undo')).toBe(false);
-		const toast = root.querySelector('.toast.error');
+		const toast = root.querySelector('[data-testid="toast"][data-error="true"]');
 		expect(toast?.textContent).toBe('nothing to undo');
 		expect(toast?.getAttribute('role')).toBe('status');
 	});
@@ -278,7 +305,7 @@ describe('the status bar', () => {
 		const fake = fakeApi();
 		const { app, root } = await boot(fake);
 		await app.openPath('/a');
-		expect(root.querySelector('.statusbar-end')?.textContent).toContain('No problems');
+		expect(root.querySelector('[data-testid="status-end"]')?.textContent).toContain('No problems');
 	});
 
 	it('counts errors and warnings, and a click opens the checks on the Overview', async () => {
@@ -289,8 +316,10 @@ describe('the status bar', () => {
 		await app.dispatch('view.flow');
 		const button = root.querySelector<HTMLButtonElement>('#status-problems')!;
 		expect(button.textContent).toBe('1 error, 2 warnings');
-		expect(root.querySelector('.statusbar-end')?.textContent).not.toContain('No problems');
-		button.click();
+		expect(root.querySelector('[data-testid="status-end"]')?.textContent).not.toContain(
+			'No problems',
+		);
+		await act(async () => button.click());
 		expect(root.querySelector('#checks')).not.toBeNull();
 		expect(root.querySelector('#checks')?.textContent).toContain('finding 3');
 	});
@@ -308,7 +337,7 @@ describe('the status bar', () => {
 		fake.entries = [entry(0, true), entry(1, true), entry(2, false)];
 		const { app, root } = await boot(fake);
 		await app.openPath('/a');
-		expect(root.querySelector('.statusbar-end')?.textContent).toContain('History (2)');
+		expect(root.querySelector('[data-testid="status-end"]')?.textContent).toContain('History (2)');
 	});
 
 	it('words the counts', () => {
@@ -323,7 +352,7 @@ describe('the agent card', () => {
 		const fake = fakeApi({ mcpError: async () => 'port 4000 is in use' });
 		const { app, root } = await boot(fake);
 		await app.openPath('/a');
-		const card = root.querySelector('.agent-card');
+		const card = root.querySelector('[data-testid="agent-card"]');
 		expect(card?.textContent).toContain('did not start');
 		expect(card?.textContent).toContain('port 4000 is in use');
 	});

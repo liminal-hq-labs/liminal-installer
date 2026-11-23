@@ -1,0 +1,79 @@
+/*
+ * The chrome's variables (`--lic-*`) and the editor's syntax colours, in the Studio's tokens. The
+ * generator appends this file to `tokens.css`, after the design-system tokens it refers to.
+ *
+ * (c) Copyright 2026 Liminal HQ, Scott Morris
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ */
+
+/*
+ * The Studio's palette in the shared chrome's variables, every one the chrome reads, so its title bar,
+ * menus, dialogs and settings follow the Afterglow themes with no per-theme chrome rules.
+ */
+:root {
+	--lis-accent-soft: color-mix(in srgb, var(--lis-accent) 10%, transparent);
+	/* Surfaces and text */
+	--lic-bg-chrome: var(--lis-bg-sidebar);
+	--lic-bg-chrome-unfocused: var(--lis-bg-sidebar);
+	--lic-bg-raised: var(--lis-bg-modal);
+	--lic-bg-menu: var(--lis-bg-modal);
+	--lic-menu-backdrop: none;
+	--lic-bg-shell: var(--lis-bg-app);
+	--lic-bg-settings-pane: var(--lis-bg-app);
+	--lic-bg-settings-nav: var(--lis-bg-sidebar);
+	--lic-text-primary: var(--lis-text-primary);
+	--lic-text-secondary: var(--lis-text-secondary);
+	--lic-text-muted: var(--lis-text-muted);
+	--lic-border-subtle: var(--lis-border-default);
+	/* Accent, danger and focus */
+	--lic-accent: var(--lis-accent);
+	--lic-accent-contrast: var(--lis-text-inverse);
+	--lic-danger: var(--lis-colour-error);
+	--lic-danger-fg: var(--lis-text-bright);
+	--lic-focus-ring: var(--lis-focus-ring);
+	--lic-focus-ring-on-accent: var(--lis-text-inverse);
+	/* Title bar controls: the raised surface, so buttons stand out from the pane */
+	--lic-control-bg: var(--lis-bg-hover-strong);
+	--lic-control-bg-hover: color-mix(in srgb, var(--lis-text-bright) 12%, transparent);
+	--lic-window-close-hover-bg: #c42b1c;
+	--lic-window-close-hover-fg: #ffffff;
+	--lic-title-bar-height: var(--lis-topbar-height);
+	--lic-title-bar-opacity: 1;
+	/* Window frame */
+	--lic-window-radius: 10px;
+	--lic-window-shadow: none;
+	--lic-window-shadow-unfocused: none;
+	--lic-window-shadow-margin: 0px;
+	/* Menus and dialogs */
+	--lic-shadow-menu: var(--lis-shadow-panel);
+	--lic-shadow-dialog: var(--lis-shadow-modal);
+	--lic-font-mono: var(--lis-font-mono);
+	--lic-scrim: color-mix(in srgb, var(--lis-bg-app) 60%, transparent);
+	/* Controls and the settings shell */
+	--lic-field-bg: var(--lis-bg-input);
+	--lic-switch-off: color-mix(in srgb, var(--lis-text-primary) 30%, var(--lis-bg-app));
+	--lic-switch-thumb: var(--lis-text-bright);
+	--lic-settings-nav-width: var(--lis-sidebar-width);
+}
+
+/* Syntax colours for the editor, from the design tokens. Light themes take the deeper steps of the palette. */
+:root {
+	--lis-ed-keyword: var(--lis-brand-purple);
+	--lis-ed-function: var(--lis-brand-blue);
+	--lis-ed-string: var(--lis-brand-green);
+	--lis-ed-number: var(--lis-syntax-number);
+	--lis-ed-atom: var(--lis-brand-orange);
+	--lis-ed-comment: var(--lis-text-muted);
+	--lis-ed-definition: var(--lis-brand-cyan);
+	--lis-ed-property: var(--lis-text-secondary);
+	--lis-ed-punct: var(--lis-text-secondary);
+	--lis-ed-error: var(--lis-colour-error);
+}
+:root[data-theme='afterglow-light'] {
+	--lis-ed-keyword: var(--lis-purple-400);
+	--lis-ed-function: var(--lis-blue-400);
+	--lis-ed-string: var(--lis-green-400);
+	--lis-ed-number: #b4236b;
+	--lis-ed-atom: var(--lis-orange-400);
+	--lis-ed-definition: var(--lis-cyan-500);
+}

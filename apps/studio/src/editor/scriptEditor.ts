@@ -36,7 +36,7 @@ import { checkExtension } from './diagnostics';
 import { formatLua } from './format';
 import { hoverDocs } from './hover';
 import { luaSupport } from './luaLanguage';
-import { phraseExtension, t } from './phrases';
+import { phraseExtension } from './phrases';
 import { editorTheme } from './theme';
 
 export interface EditorSettings {
@@ -240,5 +240,3 @@ export function createScriptEditor(
 		destroy: () => view.destroy(),
 	};
 }
-
-export { t };

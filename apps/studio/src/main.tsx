@@ -3,11 +3,10 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import './styles/tokens.css';
+import './theme/tokens.css';
+import './theme/base.css';
 import '@fontsource/vt323/latin-400.css';
-import './styles/app.css';
-import './styles/preview.css';
-import { startApp, type App } from './app';
+import { startApp, type App } from './app/startApp';
 import { mountShell } from './chrome/Chrome';
 import { createChromeStore, type ChromeStore } from './chrome/chromeStore';
 import {
@@ -22,8 +21,11 @@ import { mountInfoWindow } from './chrome/InfoWindow';
 import { actionForEvent, isActionId, recentPath } from './chrome/menuModel';
 import { createWindowControls, inTauri } from './chrome/windowControls';
 import { applyAppearance, defaultSystem, followSystem } from './lib/appearance';
+import { loadLocale } from './i18n/loadCatalogue';
+import { t } from './i18n/messages';
 import { createHost } from './lib/host';
 import { browserSettings, tauriSettings, type SettingsPort } from './lib/settings';
+import { initLogger } from './services/logger';
 
 const storage = () => {
 	try {
@@ -55,6 +57,8 @@ const wantsChrome = () =>
 async function boot(): Promise<void> {
 	const container = document.getElementById('root');
 	if (!container) return;
+	await loadLocale(location.search, import.meta.env.DEV, document.documentElement);
+	initLogger(new URLSearchParams(location.search).get('window') ?? 'main');
 	document.documentElement.dataset.shell = inTauri() ? 'tauri' : 'browser';
 	const port: SettingsPort = inTauri() ? await tauriSettings() : browserSettings(storage());
 	const store = createChromeStore(port);
@@ -85,13 +89,13 @@ async function boot(): Promise<void> {
 		}
 		const answer = await dialogs.open({
 			kind: 'confirm',
-			title: 'Unsaved changes',
-			message: 'The script has changes that are not saved.',
-			detail: 'Save them first, or discard them and carry on.',
+			title: t('dialog.unsaved.title'),
+			message: t('dialog.unsaved.message'),
+			detail: t('dialog.unsaved.detail'),
 			buttons: [
-				{ id: 'save', label: 'Save', primary: true },
-				{ id: 'discard', label: 'Discard changes', danger: true },
-				{ id: 'cancel', label: 'Cancel' },
+				{ id: 'save', label: t('dialog.unsaved.save'), primary: true },
+				{ id: 'discard', label: t('dialog.unsaved.discard'), danger: true },
+				{ id: 'cancel', label: t('dialog.unsaved.cancel') },
 			],
 		}).result;
 		// Going on after a save that failed would lose the edits, so the save settles it.
@@ -121,15 +125,17 @@ async function boot(): Promise<void> {
 			else if (id === 'help.about')
 				await dialogs.open({
 					kind: 'about',
-					title: 'About Liminal Installer Studio',
-					buttons: [{ id: 'close', label: 'Close', primary: true }],
+					title: t('dialog.about'),
+					buttons: [{ id: 'close', label: t('common.close'), primary: true }],
 				}).result;
-			else if (id === 'app.preferences') await openInfoWindow('preferences', 'Preferences');
-			else if (id === 'help.shortcuts') await openInfoWindow('shortcuts', 'Keyboard Shortcuts');
-			else if (id === 'help.agent') await openInfoWindow('agent', 'Connect an Agent');
+			else if (id === 'app.preferences')
+				await openInfoWindow('preferences', t('dialog.preferences'));
+			else if (id === 'help.shortcuts') await openInfoWindow('shortcuts', t('dialog.shortcuts'));
+			else if (id === 'help.agent') await openInfoWindow('agent', t('dialog.agent'));
 			else if (id === 'file.new') {
 				if (!(await settleUnsaved())) return;
-				const answer = await dialogs.open({ kind: 'new-project', title: 'New Project' }).result;
+				const answer = await dialogs.open({ kind: 'new-project', title: t('dialog.newProject') })
+					.result;
 				if (answer?.startsWith(CREATED_PREFIX))
 					await app?.openPath(answer.slice(CREATED_PREFIX.length));
 			} else if (id === 'file.quit') {

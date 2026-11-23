@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { MenuItem, SelectableMenuItem } from '@liminal-hq/studio-chrome/ContextMenu/types';
+import { t, type MessageId } from '../i18n/messages';
 
 export type Screen = 'project' | 'flow' | 'layouts' | 'script' | 'preview';
 
@@ -53,7 +54,8 @@ export const initialMenuState: MenuState = {
 };
 
 interface Action {
-	label: string;
+	/** The catalogue message that labels the item. */
+	label: MessageId;
 	/** Shown beside the item and matched against key presses. The first is the one displayed. */
 	keys?: string[];
 	enabled?: (s: MenuState) => boolean;
@@ -73,7 +75,7 @@ export const SCREEN_ACTIONS: Record<Screen, ActionId> = {
 	preview: 'view.preview',
 };
 
-const screenAction = (screen: Screen, label: string, key: string): Action => ({
+const screenAction = (screen: Screen, label: MessageId, key: string): Action => ({
 	label,
 	keys: [`Ctrl+${key}`],
 	enabled: needsProject,
@@ -81,36 +83,40 @@ const screenAction = (screen: Screen, label: string, key: string): Action => ({
 });
 
 export const ACTIONS: Record<ActionId, Action> = {
-	'file.new': { label: 'New project…', keys: ['Ctrl+N'] },
-	'file.open': { label: 'Open project…', keys: ['Ctrl+O'] },
-	'file.reload': { label: 'Reload', keys: ['F5'], enabled: needsProject },
-	'file.clearRecent': { label: 'Clear recent projects', enabled: (s) => s.recent.length > 0 },
-	'file.save': { label: 'Save', keys: ['Ctrl+S'], enabled: (s) => s.hasProject && s.scriptDirty },
-	'app.preferences': { label: 'Preferences…', keys: ['Ctrl+,'] },
-	'file.quit': { label: 'Quit', keys: ['Ctrl+Q'] },
+	'file.new': { label: 'menu.newProject', keys: ['Ctrl+N'] },
+	'file.open': { label: 'menu.openProject', keys: ['Ctrl+O'] },
+	'file.reload': { label: 'menu.reload', keys: ['F5'], enabled: needsProject },
+	'file.clearRecent': { label: 'menu.clearRecent', enabled: (s) => s.recent.length > 0 },
+	'file.save': {
+		label: 'menu.save',
+		keys: ['Ctrl+S'],
+		enabled: (s) => s.hasProject && s.scriptDirty,
+	},
+	'app.preferences': { label: 'menu.preferences', keys: ['Ctrl+,'] },
+	'file.quit': { label: 'menu.quit', keys: ['Ctrl+Q'] },
 	'edit.undo': {
-		label: 'Undo',
+		label: 'menu.undo',
 		keys: ['Ctrl+Z'],
 		enabled: (s) => s.hasProject && s.canUndo,
 		textFieldOwnsKey: true,
 	},
 	'edit.redo': {
-		label: 'Redo',
+		label: 'menu.redo',
 		keys: ['Ctrl+Shift+Z', 'Ctrl+Y'],
 		enabled: (s) => s.hasProject && s.canRedo,
 		textFieldOwnsKey: true,
 	},
-	'view.project': screenAction('project', 'Project', '1'),
-	'view.flow': screenAction('flow', 'Flow', '2'),
-	'view.layouts': screenAction('layouts', 'Layouts', '3'),
-	'view.script': screenAction('script', 'Scripts', '4'),
-	'view.preview': screenAction('preview', 'Dry run', '5'),
-	'view.menuBar': { label: 'Show menu bar', keys: ['Ctrl+Shift+M'], checked: (s) => s.menuBar },
-	'project.check': { label: 'Run check', keys: ['F7'], enabled: needsProject },
-	'project.preview': { label: 'Run dry-run preview', keys: ['F8'], enabled: needsProject },
-	'help.shortcuts': { label: 'Keyboard shortcuts', keys: ['Ctrl+/'] },
-	'help.agent': { label: 'Connect an agent…' },
-	'help.about': { label: 'About Liminal Installer Studio', keys: ['F1'] },
+	'view.project': screenAction('project', 'menu.viewProject', '1'),
+	'view.flow': screenAction('flow', 'menu.viewFlow', '2'),
+	'view.layouts': screenAction('layouts', 'menu.viewLayouts', '3'),
+	'view.script': screenAction('script', 'menu.viewScripts', '4'),
+	'view.preview': screenAction('preview', 'menu.viewDryRun', '5'),
+	'view.menuBar': { label: 'menu.showMenuBar', keys: ['Ctrl+Shift+M'], checked: (s) => s.menuBar },
+	'project.check': { label: 'menu.runCheck', keys: ['F7'], enabled: needsProject },
+	'project.preview': { label: 'menu.runPreview', keys: ['F8'], enabled: needsProject },
+	'help.shortcuts': { label: 'menu.shortcuts', keys: ['Ctrl+/'] },
+	'help.agent': { label: 'menu.connectAgent' },
+	'help.about': { label: 'menu.about', keys: ['F1'] },
 };
 
 /** In a group, this stands for the submenu of recent projects. */
@@ -124,7 +130,7 @@ interface Group {
 
 interface Menu {
 	id: string;
-	label: string;
+	label: MessageId;
 	/** Alt plus this letter opens the menu in the bar. */
 	mnemonic: string;
 	groups: Group[];
@@ -134,7 +140,7 @@ interface Menu {
 export const MENUS: Menu[] = [
 	{
 		id: 'file',
-		label: 'File',
+		label: 'menu.file',
 		mnemonic: 'f',
 		groups: [
 			{ items: ['file.new', 'file.open', RECENT, 'file.reload'] },
@@ -143,10 +149,15 @@ export const MENUS: Menu[] = [
 			{ items: ['file.quit'], last: true },
 		],
 	},
-	{ id: 'edit', label: 'Edit', mnemonic: 'e', groups: [{ items: ['edit.undo', 'edit.redo'] }] },
+	{
+		id: 'edit',
+		label: 'menu.edit',
+		mnemonic: 'e',
+		groups: [{ items: ['edit.undo', 'edit.redo'] }],
+	},
 	{
 		id: 'view',
-		label: 'View',
+		label: 'menu.view',
 		mnemonic: 'v',
 		groups: [
 			{ items: ['view.project', 'view.flow', 'view.layouts', 'view.script', 'view.preview'] },
@@ -155,13 +166,13 @@ export const MENUS: Menu[] = [
 	},
 	{
 		id: 'project',
-		label: 'Project',
+		label: 'menu.project',
 		mnemonic: 'p',
 		groups: [{ items: ['project.check', 'project.preview'] }],
 	},
 	{
 		id: 'help',
-		label: 'Help',
+		label: 'menu.help',
 		mnemonic: 'h',
 		groups: [{ items: ['help.shortcuts', 'help.agent'] }, { items: ['help.about'] }],
 	},
@@ -185,7 +196,7 @@ function item(id: ActionId, state: MenuState): SelectableMenuItem {
 	const shortcut = action.keys?.[0];
 	const base = {
 		id,
-		label: action.label,
+		label: t(action.label),
 		disabled: !isEnabled(id, state),
 		...(shortcut ? { shortcut } : {}),
 	};
@@ -218,7 +229,7 @@ function recentMenu(state: MenuState): MenuItem {
 					{
 						type: 'action',
 						id: `${RECENT_PREFIX}none`,
-						label: 'No recent projects',
+						label: t('menu.noRecent'),
 						disabled: true,
 					},
 				]
@@ -232,7 +243,7 @@ function recentMenu(state: MenuState): MenuItem {
 					{ type: 'separator', id: 'separator:recent' },
 					item('file.clearRecent', state),
 				];
-	return { type: 'submenu', id: 'menu:recent', label: 'Open recent', items: rows };
+	return { type: 'submenu', id: 'menu:recent', label: t('menu.openRecent'), items: rows };
 }
 
 /** Items of several groups, one separator between neighbouring groups. */
@@ -248,7 +259,7 @@ export function buildBarMenu(state: MenuState): MenuItem[] {
 	return MENUS.map((menu) => ({
 		type: 'submenu',
 		id: menuId(menu.id),
-		label: menu.label,
+		label: t(menu.label),
 		items: joinGroups(menu.groups, state),
 	}));
 }
@@ -321,10 +332,10 @@ export function shortcutTable(): {
 	rows: { id: ActionId; label: string; keys: string[] }[];
 }[] {
 	return MENUS.map((menu) => ({
-		menu: menu.label,
+		menu: t(menu.label),
 		rows: menu.groups
 			.flatMap((g) => g.items)
 			.filter((id): id is ActionId => id !== RECENT && (ACTIONS[id].keys?.length ?? 0) > 0)
-			.map((id) => ({ id, label: ACTIONS[id].label, keys: ACTIONS[id].keys! })),
+			.map((id) => ({ id, label: t(ACTIONS[id].label), keys: ACTIONS[id].keys! })),
 	})).filter((g) => g.rows.length > 0);
 }

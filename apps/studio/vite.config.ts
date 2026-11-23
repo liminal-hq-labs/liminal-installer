@@ -21,5 +21,10 @@ export default defineConfig({
 		fs: { allow: [repoRoot] },
 	},
 	build: { target: 'es2022', outDir: 'dist' },
-	test: { environment: 'node', include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.ts'] },
+	test: {
+		environment: 'node',
+		include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.ts'],
+		// Class names stay as written in the stylesheet, so a test can look for `pvStage`.
+		css: { modules: { classNameStrategy: 'non-scoped' } },
+	},
 });

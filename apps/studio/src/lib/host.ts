@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { t } from '../i18n/messages';
 import { invokeCommand } from './api';
 import {
 	createDialogs,
@@ -77,21 +78,21 @@ export async function tauriHost(): Promise<Host> {
 export function browserHost(): Host {
 	return {
 		appInfo: async () => ({
-			version: 'browser demo',
-			settingsFile: 'Browser storage',
-			logDir: 'Not available in a browser',
+			version: t('host.browserDemo'),
+			settingsFile: t('host.browserStorage'),
+			logDir: t('host.noLogs'),
 		}),
 		reveal: async () => {
-			throw new Error('A browser has no file manager to show it in.');
+			throw new Error(t('host.noFileManager'));
 		},
 		agent: async () => null,
 		agentError: async () => null,
 		newProject: async () => {
-			throw new Error('Creating a project needs the desktop app.');
+			throw new Error(t('host.newNeedsDesktop'));
 		},
 		agentToken: async () => null,
 		regenerateToken: async () => {
-			throw new Error('The agent server runs only in the desktop app.');
+			throw new Error(t('host.agentDesktopOnly'));
 		},
 		browse: async () => null,
 		copy: copyText,

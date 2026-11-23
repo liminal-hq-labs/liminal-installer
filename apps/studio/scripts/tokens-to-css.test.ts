@@ -6,12 +6,12 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain JavaScript module without types
 import { resolveRefs, toCss, valueIn } from './tokens-to-css.mjs';
-import tokens from '../src/styles/tokens.json';
+import tokens from '../src/theme/tokens.json';
 
 describe('tokens to CSS', () => {
 	it('turns references into variable lookups so themes carry through', () => {
-		expect(resolveRefs('{brand-purple}')).toBe('var(--lh-brand-purple)');
-		expect(resolveRefs('1px solid {border-subtle}')).toBe('1px solid var(--lh-border-subtle)');
+		expect(resolveRefs('{brand-purple}')).toBe('var(--lis-brand-purple)');
+		expect(resolveRefs('1px solid {border-subtle}')).toBe('1px solid var(--lis-border-subtle)');
 	});
 
 	it('reads a token per theme, and only overrides where a theme says so', () => {
@@ -26,31 +26,31 @@ describe('tokens to CSS', () => {
 	it('makes the base theme the default and the others opt-in', () => {
 		const css: string = toCss(tokens);
 		expect(css).toMatch(/:root,\n:root\[data-theme="afterglow"\] \{/);
-		expect(css).toContain('--lh-bg-app: #050507;');
-		expect(css).toContain('--lh-brand-orange: #ffaa40;');
+		expect(css).toContain('--lis-bg-app: #050507;');
+		expect(css).toContain('--lis-brand-orange: #ffaa40;');
 		const light = css.slice(css.indexOf('[data-theme="afterglow-light"] {'));
 		expect(light).toContain('color-scheme: light;');
-		expect(light).toContain('--lh-bg-app: #fbfaf6;');
-		expect(light).toContain('--lh-brand-orange: #b45309;');
-		expect(light).not.toContain('--lh-font-body');
+		expect(light).toContain('--lis-bg-app: #fbfaf6;');
+		expect(light).toContain('--lis-brand-orange: #b45309;');
+		expect(light).not.toContain('--lis-font-body');
 	});
 
 	it('emits the layout, type and spacing groups', () => {
 		const css: string = toCss(tokens);
-		expect(css).toContain('--lh-topbar-height: 40px;');
-		expect(css).toContain('--lh-statusbar-height: 28px;');
-		expect(css).toContain('--lh-sidebar-width: 220px;');
-		expect(css).toContain('--lh-space-2: 0.5rem;');
-		expect(css).toMatch(/--lh-font-heading: 'Space Grotesk'/);
+		expect(css).toContain('--lis-topbar-height: 40px;');
+		expect(css).toContain('--lis-statusbar-height: 28px;');
+		expect(css).toContain('--lis-sidebar-width: 220px;');
+		expect(css).toContain('--lis-space-2: 0.5rem;');
+		expect(css).toMatch(/--lis-font-heading: 'Space Grotesk'/);
 	});
 
 	it('leaves other products’ palettes out', () => {
 		const css: string = toCss(tokens);
-		expect(css).not.toContain('--lh-wp-');
-		expect(css).not.toContain('--lh-cadence-');
+		expect(css).not.toContain('--lis-wp-');
+		expect(css).not.toContain('--lis-cadence-');
 	});
 
 	it('resolves accent through the brand colour', () => {
-		expect(toCss(tokens)).toContain('--lh-accent: var(--lh-brand-orange);');
+		expect(toCss(tokens)).toContain('--lis-accent: var(--lis-brand-orange);');
 	});
 });

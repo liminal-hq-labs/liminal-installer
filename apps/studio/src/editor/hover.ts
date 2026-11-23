@@ -7,7 +7,7 @@ import type { EditorState, Extension } from '@codemirror/state';
 import { hoverTooltip, type Tooltip } from '@codemirror/view';
 import { docElement } from './docElement';
 import { HEADER_DOC, capabilityDoc, docFor } from './luaDocs';
-import { t } from './phrases';
+import { t } from '../i18n/messages';
 
 const WORD = /[A-Za-z0-9_]/;
 
@@ -66,7 +66,7 @@ function tooltip(pos: number, end: number, doc: Parameters<typeof docElement>[0]
 		create() {
 			const dom = docElement(doc);
 			dom.setAttribute('role', 'tooltip');
-			dom.setAttribute('aria-label', t('doc.popup'));
+			dom.setAttribute('aria-label', t('editor.doc.popup'));
 			return { dom };
 		},
 	};

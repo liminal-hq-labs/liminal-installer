@@ -24,6 +24,9 @@ import type { Host } from '../lib/host';
 import { PageDialog } from './DialogPages';
 import { PreferencesScreen } from '../preferences/PreferencesScreen';
 import { inTauri } from './windowControls';
+import { chromeLabels } from '../i18n/chromeLabels';
+import { t } from '../i18n/messages';
+import styles from './Chrome.module.css';
 
 /** Only the Close button, on the end side. */
 const closeOnly: ButtonLayout = { start: [], end: ['close'] };
@@ -71,18 +74,19 @@ function InfoWindow({ spec, id, store, host, controls }: InfoWindowProps) {
 
 	return (
 		<WindowChromeProvider controls={controls}>
-			<WindowFrame className="chrome-surface">
+			<WindowFrame className={styles.chromeSurface}>
 				<TitleBar
+					labels={chromeLabels()}
 					buttonLayout={closeOnly}
 					titleAlign="start"
 					center={<TitleBarTitle>{spec.title}</TitleBarTitle>}
 				/>
 				{spec.kind === 'preferences' ? (
-					<div className="app-host prefs-host">
+					<div className={`${styles.appHost} ${styles.prefsHost}`}>
 						<PreferencesScreen port={store.port} host={host} />
 					</div>
 				) : spec.kind === 'shortcuts' || spec.kind === 'agent' || spec.kind === 'new-project' ? (
-					<div className="dlg-body">
+					<div className={styles.dlgBody}>
 						<PageDialog
 							kind={spec.kind}
 							host={host}
@@ -94,7 +98,7 @@ function InfoWindow({ spec, id, store, host, controls }: InfoWindowProps) {
 						)}
 					</div>
 				) : (
-					<div className="dlg-body">
+					<div className={styles.dlgBody}>
 						<DialogMessage spec={spec} />
 						<DialogButtons spec={spec} onAnswer={(r) => void answer(id, r, controls)} />
 					</div>
@@ -117,11 +121,11 @@ export function mountInfoWindow(
 	const spec =
 		decodeSpec(search) ??
 		(kind === 'preferences'
-			? ({ kind: 'preferences', title: 'Preferences' } as DialogSpec)
+			? ({ kind: 'preferences', title: t('dialog.preferences') } as DialogSpec)
 			: kind === 'shortcuts'
-				? ({ kind: 'shortcuts', title: 'Keyboard Shortcuts' } as DialogSpec)
+				? ({ kind: 'shortcuts', title: t('dialog.shortcuts') } as DialogSpec)
 				: kind === 'agent'
-					? ({ kind: 'agent', title: 'Connect an Agent' } as DialogSpec)
+					? ({ kind: 'agent', title: t('dialog.agent') } as DialogSpec)
 					: undefined);
 	if (!spec) return false;
 	createRoot(container).render(

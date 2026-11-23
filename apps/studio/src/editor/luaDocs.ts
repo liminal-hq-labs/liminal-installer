@@ -7,7 +7,7 @@
 // no `require`), a capability header comment opens them, and a hook is a global function or a field of the table
 // the script returns.
 
-import type { MessageId } from './phrases';
+import type { MessageId } from '../i18n/messages';
 
 export type DocKind =
 	'module' | 'function' | 'hook' | 'field' | 'capability' | 'keyword' | 'global' | 'variable';
@@ -26,14 +26,14 @@ export interface ApiDoc {
 }
 
 export const KIND_MESSAGE: Record<DocKind, MessageId> = {
-	module: 'kind.module',
-	function: 'kind.function',
-	hook: 'kind.hook',
-	field: 'kind.field',
-	capability: 'kind.capability',
-	keyword: 'kind.keyword',
-	global: 'kind.global',
-	variable: 'kind.variable',
+	module: 'editor.kind.module',
+	function: 'editor.kind.function',
+	hook: 'editor.kind.hook',
+	field: 'editor.kind.field',
+	capability: 'editor.kind.capability',
+	keyword: 'editor.kind.keyword',
+	global: 'editor.kind.global',
+	variable: 'editor.kind.variable',
 };
 
 /** What each hook receives. */

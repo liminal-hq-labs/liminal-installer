@@ -1,0 +1,78 @@
+/*
+ * (c) Copyright 2026 Liminal HQ, Scott Morris
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ */
+
+.flowLayout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 320px;
+	gap: 12px;
+	align-items: start;
+}
+.graphWrap {
+	overflow: auto;
+	padding: 8px;
+	min-height: 260px;
+}
+.graph {
+	color: var(--lis-text-muted);
+	display: block;
+}
+.edge {
+	stroke: var(--lis-text-muted);
+	stroke-width: 1.5;
+}
+.edge.branch {
+	stroke: var(--lis-brand-purple);
+	stroke-dasharray: 4 3;
+}
+.edgeLabel {
+	fill: var(--lis-brand-purple);
+	font-size: 10px;
+	font-family: var(--lis-font-mono);
+}
+.node {
+	cursor: pointer;
+}
+.node rect {
+	fill: var(--lis-bg-modal);
+	stroke: var(--lis-border-default);
+	stroke-width: 1.5;
+}
+.node.tCommit rect {
+	stroke: var(--lis-accent);
+}
+.node.tFinish rect {
+	stroke: var(--lis-colour-success);
+}
+.node.tBranch rect {
+	stroke: var(--lis-brand-purple);
+}
+.node.tAction rect {
+	stroke: var(--lis-brand-cyan);
+}
+.node.selected rect {
+	fill: var(--lis-accent-soft);
+	stroke-width: 2.5;
+}
+.node.invalid rect {
+	stroke: var(--lis-colour-error);
+	stroke-dasharray: 5 3;
+}
+.node.connectable:hover rect {
+	stroke: var(--lis-accent);
+}
+.nodeId {
+	fill: var(--lis-text-bright);
+	font-size: 13px;
+	font-weight: 600;
+}
+.nodeType {
+	fill: var(--lis-text-muted);
+	font-size: 11px;
+}
+@media (max-width: 1100px) {
+	.flowLayout {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}

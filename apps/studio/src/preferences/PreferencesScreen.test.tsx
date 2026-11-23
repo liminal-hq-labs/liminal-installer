@@ -7,6 +7,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { PreferencesScreen } from './PreferencesScreen';
+import { t } from '../i18n/messages';
 import { SECTION_IDS, SECTION_LABELS } from './sections';
 import { testHost, testPort, type TestPort } from './testPort';
 import type { Host } from '../lib/host';
@@ -42,7 +43,7 @@ describe('sections', () => {
 			within(nav)
 				.getAllByRole('button')
 				.map((b) => b.textContent),
-		).toEqual(SECTION_IDS.map((id) => SECTION_LABELS[id]));
+		).toEqual(SECTION_IDS.map((id) => t(SECTION_LABELS[id])));
 		expect(SECTION_IDS).toEqual([
 			'general',
 			'appearance',
@@ -57,7 +58,7 @@ describe('sections', () => {
 	it('draws every section without error and with a named control per row', async () => {
 		await open();
 		for (const id of SECTION_IDS) {
-			await go(SECTION_LABELS[id]);
+			await go(t(SECTION_LABELS[id]));
 			const main = screen.getByRole('main');
 			expect(within(main).getAllByRole('group').length).toBeGreaterThan(0);
 			expect(main.querySelectorAll('input, select, button').length).toBeGreaterThan(1);

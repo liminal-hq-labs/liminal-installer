@@ -1,8 +1,9 @@
-// The state the window chrome shows, kept outside React so the app, the menus and the dialogs share one source.
+// The state the window chrome shows, in a zustand store so the app, the menus and the dialogs share one source.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { createStore } from 'zustand/vanilla';
 import type { Settings, SettingsPort } from '../lib/settings';
 import { defaultSettings, pushRecent, sameSettings } from '../lib/settings';
 import type { DialogSpec, DialogResult } from './dialogWindow';
@@ -44,17 +45,17 @@ export interface ChromeStore {
 }
 
 export function createChromeStore(port: SettingsPort): ChromeStore {
-	let state: ChromeState = {
+	const store = createStore<ChromeState>(() => ({
 		menu: { ...initialMenuState },
 		settings: { ...defaultSettings },
 		title: '',
 		dialog: null,
-	};
-	const listeners = new Set<() => void>();
-	const set = (next: ChromeState) => {
+	}));
+	let state = store.getState();
+	const set = (next: ChromeState) => store.setState(next, true);
+	store.subscribe((next) => {
 		state = next;
-		for (const l of [...listeners]) l();
-	};
+	});
 	const applySettings = (settings: Settings) => {
 		if (sameSettings(settings, state.settings)) return;
 		set({
@@ -66,10 +67,7 @@ export function createChromeStore(port: SettingsPort): ChromeStore {
 	return {
 		port,
 		get: () => state,
-		subscribe(listener) {
-			listeners.add(listener);
-			return () => void listeners.delete(listener);
-		},
+		subscribe: (listener) => store.subscribe(() => listener()),
 		async init() {
 			await port.onChange(applySettings);
 			applySettings(await port.read().catch(() => ({ ...defaultSettings })));

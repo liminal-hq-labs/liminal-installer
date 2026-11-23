@@ -6,10 +6,10 @@
 
 /* Each stage is composed at its artboard's pixel size and scaled to fit by `fitStages`. */
 
-.preview-host {
+.host {
 	margin-top: 12px;
 }
-.pv-fit {
+.pvFit {
 	position: relative;
 	width: 100%;
 	overflow: hidden;
@@ -30,7 +30,7 @@
 .pv *::after {
 	box-sizing: border-box;
 }
-.pv-stage {
+.pvStage {
 	position: absolute;
 	inset: 0;
 }
@@ -42,42 +42,42 @@
 	font: inherit;
 	cursor: default;
 }
-.pv-col {
+.pvCol {
 	display: flex;
 	flex-direction: column;
 }
-.pv-row {
+.pvRow {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
 }
-.pv-grid {
+.pvGrid {
 	display: grid;
 	gap: 8px;
 }
-.pv-art {
+.pvArt {
 	display: block;
 	flex: none;
 }
-.pv-group {
+.pvGroup {
 	display: contents;
 }
-.pv-custom,
-.pv-unknown {
+.pvCustom,
+.pvUnknown {
 	padding: 8px;
 	border: 1px dashed currentColor;
 	opacity: 0.6;
 }
-.pv-choices > .pv-caption {
+.pvChoices > .pvCaption {
 	display: none;
 }
-.pv-hot {
+.pvHot {
 	text-decoration: none;
 }
 
 /* ---------------- DOS text mode ---------------- */
 
-.pv-dos {
+.pvDos {
 	width: 960px;
 	height: 600px;
 	background: #0000aa;
@@ -87,7 +87,7 @@
 		'Courier New',
 		monospace;
 }
-.pv-dos-bar {
+.pvDosBar {
 	position: absolute;
 	left: 0;
 	top: 0;
@@ -99,7 +99,7 @@
 	justify-content: space-between;
 	padding: 0 12px;
 }
-.pv-dos-fill {
+.pvDosFill {
 	position: absolute;
 	left: 0;
 	top: 24px;
@@ -110,7 +110,7 @@
 	overflow: hidden;
 	opacity: 0.55;
 }
-.pv-dos-side {
+.pvDosSide {
 	position: absolute;
 	left: 48px;
 	top: 60px;
@@ -119,36 +119,36 @@
 	display: flex;
 	flex-direction: column;
 }
-.pv-dos-side .pv-title {
+.pvDosSide .pvTitle {
 	font-size: 32px;
 	line-height: 32px;
 }
-.pv-dos-side .pv-subtitle {
+.pvDosSide .pvSubtitle {
 	color: #55ffff;
 	margin-top: 6px;
 }
-.pv-dos-side .pv-image {
+.pvDosSide .pvImage {
 	margin-top: 24px;
 }
-.pv-dos-side .pv-steps {
+.pvDosSide .pvSteps {
 	margin-top: 20px;
 	color: #aaaaaa;
 	line-height: 26px;
 }
-.pv-dos .pv-steps-bar {
+.pvDos .pvStepsBar {
 	display: flex;
 }
-.pv-dos .pv-steps-bar i {
+.pvDos .pvStepsBar i {
 	font-style: normal;
 	color: #5555ff;
 }
-.pv-dos .pv-steps-bar i::before {
+.pvDos .pvStepsBar i::before {
 	content: '■';
 }
-.pv-dos .pv-steps-bar i.pv-on {
+.pvDos .pvStepsBar i.pvOn {
 	color: #fff;
 }
-.pv-dos-shadow {
+.pvDosShadow {
 	position: absolute;
 	left: 312px;
 	top: 84px;
@@ -156,7 +156,7 @@
 	height: 408px;
 	background: #000;
 }
-.pv-dos-dialog {
+.pvDosDialog {
 	position: absolute;
 	left: 300px;
 	top: 72px;
@@ -168,7 +168,7 @@
 	padding: 18px 24px;
 	overflow: visible;
 }
-.pv-dos-dtitle {
+.pvDosDtitle {
 	position: absolute;
 	left: 50%;
 	top: -15px;
@@ -177,45 +177,45 @@
 	padding: 0 8px;
 	white-space: nowrap;
 }
-.pv-dos-content {
+.pvDosContent {
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
 	max-height: 330px;
 	overflow: hidden;
 }
-.pv-dos-footer {
+.pvDosFooter {
 	position: absolute;
 	left: 24px;
 	right: 24px;
 	bottom: 18px;
 }
-.pv-dos-footer .pv-stack {
+.pvDosFooter .pvStack {
 	justify-content: center;
 	gap: 24px;
 	width: 100%;
 }
-.pv-dos .pv-stack {
+.pvDos .pvStack {
 	gap: 0;
 }
-.pv-dos .pv-g-fields {
+.pvDos .pvGFields {
 	gap: 24px;
 	margin-top: 6px;
 }
-.pv-dos .pv-text {
+.pvDos .pvText {
 	white-space: normal;
 }
-.pv-dos .pv-heading {
+.pvDos .pvHeading {
 	color: #fff;
 }
-.pv-dos .pv-text.pv-caption,
-.pv-dos .pv-note {
+.pvDos .pvText.pvCaption,
+.pvDos .pvNote {
 	color: #555;
 }
-.pv-dos .pv-error {
+.pvDos .pvError {
 	color: #a00;
 }
-.pv-dos .pv-document {
+.pvDos .pvDocument {
 	background: #000;
 	color: #aaa;
 	padding: 0 8px;
@@ -224,99 +224,99 @@
 	white-space: pre-wrap;
 	font: inherit;
 }
-.pv-dos .pv-summary {
+.pvDos .pvSummary {
 	white-space: pre-wrap;
 	font: inherit;
 }
-.pv-dos .pv-choice-list {
+.pvDos .pvChoiceList {
 	display: flex;
 	flex-direction: column;
 }
-.pv-dos .pv-choice {
+.pvDos .pvChoice {
 	padding: 0 8px;
 	display: flex;
 	gap: 8px;
 }
-.pv-dos .pv-choice.pv-sel {
+.pvDos .pvChoice.pvSel {
 	background: #0000aa;
 	color: #ffff55;
 }
-.pv-dos .pv-desc,
-.pv-dos .pv-badges {
+.pvDos .pvDesc,
+.pvDos .pvBadges {
 	display: none;
 }
-.pv-dos .pv-field,
-.pv-dos .pv-path {
+.pvDos .pvField,
+.pvDos .pvPath {
 	display: inline-flex;
 	gap: 8px;
 	align-items: baseline;
 }
-.pv-dos .pv-input {
+.pvDos .pvInput {
 	background: #000;
 	color: #55ffff;
 	padding: 0 6px;
 	min-width: 2.2em;
 }
-.pv-dos .pv-path .pv-input {
+.pvDos .pvPath .pvInput {
 	min-width: 14em;
 }
-.pv-dos .pv-button {
+.pvDos .pvButton {
 	background: #00aaaa;
 	color: #000;
 	border: 0;
 	padding: 0 10px;
 	white-space: pre;
 }
-.pv-dos .pv-button .pv-hot {
+.pvDos .pvButton .pvHot {
 	color: #fff;
 }
-.pv-dos .pv-button.pv-default {
+.pvDos .pvButton.pvDefault {
 	background: #0000aa;
 	color: #fff;
 }
-.pv-dos .pv-button.pv-default .pv-hot {
+.pvDos .pvButton.pvDefault .pvHot {
 	color: #ffff55;
 }
-.pv-dos .pv-meter {
+.pvDos .pvMeter {
 	display: flex;
 	gap: 12px;
 	align-items: baseline;
 }
-.pv-dos .pv-meter-label {
+.pvDos .pvMeterLabel {
 	width: 9.5em;
 	flex: none;
 	white-space: nowrap;
 	overflow: hidden;
 }
-.pv-dos .pv-meter-caption {
+.pvDos .pvMeterCaption {
 	display: none;
 }
-.pv-dos .pv-bar-text .pv-on {
+.pvDos .pvBarText .pvOn {
 	color: #0000aa;
 }
-.pv-dos .pv-bar-text .pv-off {
+.pvDos .pvBarText .pvOff {
 	color: #555;
 }
-.pv-dos .pv-bar-text.pv-warn {
+.pvDos .pvBarText.pvWarn {
 	color: #a00;
 }
-.pv-dos .pv-billboard {
+.pvDos .pvBillboard {
 	background: #0000aa;
 	color: #fff;
 	border: 2px solid #555;
 	padding: 4px 12px;
 	margin: 4px 0;
 }
-.pv-dos .pv-bb-title {
+.pvDos .pvBbTitle {
 	color: #ffff55;
 }
-.pv-dos .pv-bb-art {
+.pvDos .pvBbArt {
 	display: none;
 }
-.pv-dos .pv-bb-dots {
+.pvDos .pvBbDots {
 	display: none;
 }
-.pv-dos-hints {
+.pvDosHints {
 	position: absolute;
 	left: 0;
 	top: 576px;
@@ -327,22 +327,22 @@
 	overflow: hidden;
 	padding: 0 12px;
 }
-.pv-dos-hints .pv-stack {
+.pvDosHints .pvStack {
 	gap: 28px;
 	white-space: nowrap;
 	height: 24px;
 }
-.pv-dos-hints .pv-keycap {
+.pvDosHints .pvKeycap {
 	color: #a00;
 }
-.pv-tui .pv-dos-dialog {
+.pvTui .pvDosDialog {
 	border-style: solid;
 	border-width: 2px;
 }
 
 /* ---------------- Windows 95 classic ---------------- */
 
-.pv-win95 {
+.pvWin95 {
 	width: 1024px;
 	height: 768px;
 	background: linear-gradient(180deg, #0000aa 0%, #00004a 70%, #000 100%);
@@ -353,12 +353,12 @@
 		sans-serif;
 	color: #000;
 }
-.pv-win95 {
+.pvWin95 {
 	--bevel:
 		inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
 	--sunk: inset 1px 1px #808080, inset -1px -1px #fff, inset 2px 2px #404040;
 }
-.pv-w-mark {
+.pvWMark {
 	position: absolute;
 	left: 40px;
 	top: 28px;
@@ -369,7 +369,7 @@
 	color: #fff;
 	text-shadow: 4px 4px 0 #000;
 }
-.pv-w-sub {
+.pvWSub {
 	position: absolute;
 	left: 44px;
 	top: 94px;
@@ -380,13 +380,13 @@
 	color: #ffff55;
 	text-shadow: 3px 3px 0 #000;
 }
-.pv-w-credit {
+.pvWCredit {
 	position: absolute;
 	right: 40px;
 	top: 40px;
 	color: #aaaaff;
 }
-.pv-w-dialog {
+.pvWDialog {
 	position: absolute;
 	left: 192px;
 	top: 176px;
@@ -397,7 +397,7 @@
 		6px 6px 0 rgba(0, 0, 0, 0.5);
 	padding: 3px;
 }
-.pv-w-title {
+.pvWTitle {
 	height: 22px;
 	background: linear-gradient(90deg, #000080, #1084d0);
 	color: #fff;
@@ -407,7 +407,7 @@
 	padding: 0 3px 0 6px;
 	font-weight: 700;
 }
-.pv-w-close {
+.pvWClose {
 	width: 18px;
 	height: 16px;
 	padding: 0;
@@ -418,13 +418,13 @@
 	align-items: center;
 	justify-content: center;
 }
-.pv-w-main {
+.pvWMain {
 	display: flex;
 	gap: 16px;
 	padding: 16px;
 	min-height: 332px;
 }
-.pv-w-side {
+.pvWSide {
 	width: 168px;
 	height: 300px;
 	flex: 0 0 168px;
@@ -435,15 +435,15 @@
 	position: relative;
 	overflow: hidden;
 }
-.pv-w-side .pv-stack,
-.pv-w-side .pv-image {
+.pvWSide .pvStack,
+.pvWSide .pvImage {
 	position: absolute;
 	inset: 0;
 }
-.pv-w-side .pv-image {
+.pvWSide .pvImage {
 	background: #008080;
 }
-.pv-w-side .pv-image::before {
+.pvWSide .pvImage::before {
 	content: '';
 	position: absolute;
 	left: 0;
@@ -452,35 +452,35 @@
 	height: 60px;
 	background: var(--ground, #004040);
 }
-.pv-w-side .pv-art {
+.pvWSide .pvArt {
 	position: absolute;
 	left: 50%;
 	top: 70px;
 	transform: translateX(-50%);
 }
-.pv-w-content {
+.pvWContent {
 	flex: 1 1 auto;
 	min-width: 0;
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
 }
-.pv-w-content .pv-stack {
+.pvWContent .pvStack {
 	gap: 12px;
 }
-.pv-win95 .pv-text {
+.pvWin95 .pvText {
 	line-height: 1.5;
 }
-.pv-win95 .pv-heading {
+.pvWin95 .pvHeading {
 	font-weight: 700;
 }
-.pv-win95 .pv-caption {
+.pvWin95 .pvCaption {
 	color: #404040;
 }
-.pv-win95 .pv-error {
+.pvWin95 .pvError {
 	color: #a00000;
 }
-.pv-win95 .pv-document {
+.pvWin95 .pvDocument {
 	background: #fff;
 	box-shadow: var(--sunk);
 	padding: 6px 8px;
@@ -492,38 +492,38 @@
 		'Courier New',
 		monospace;
 }
-.pv-win95 .pv-summary {
+.pvWin95 .pvSummary {
 	white-space: pre-wrap;
 	font: inherit;
 	background: #fff;
 	box-shadow: var(--sunk);
 	padding: 6px 8px;
 }
-.pv-win95 .pv-sunken {
+.pvWin95 .pvSunken {
 	background: #fff;
 	box-shadow: var(--sunk);
 }
-.pv-win95 .pv-choice-list {
+.pvWin95 .pvChoiceList {
 	padding: 4px 6px;
 	display: flex;
 	flex-direction: column;
 	gap: 3px;
 }
-.pv-win95 .pv-choice {
+.pvWin95 .pvChoice {
 	display: flex;
 	gap: 8px;
 	align-items: center;
 	padding: 1px 2px;
 }
-.pv-win95 .pv-choice-body {
+.pvWin95 .pvChoiceBody {
 	display: flex;
 	flex-direction: column;
 }
-.pv-win95 .pv-desc,
-.pv-win95 .pv-badges {
+.pvWin95 .pvDesc,
+.pvWin95 .pvBadges {
 	display: none;
 }
-.pv-win95 .pv-box {
+.pvWin95 .pvBox {
 	width: 13px;
 	height: 13px;
 	background: #fff;
@@ -531,7 +531,7 @@
 	position: relative;
 	flex: none;
 }
-.pv-win95 .pv-box.on::after {
+.pvWin95 .pvBox.on::after {
 	content: '';
 	position: absolute;
 	left: 4px;
@@ -542,7 +542,7 @@
 	border-width: 0 2px 2px 0;
 	transform: rotate(40deg);
 }
-.pv-win95 .pv-dot {
+.pvWin95 .pvDot {
 	width: 12px;
 	height: 12px;
 	border-radius: 50%;
@@ -551,7 +551,7 @@
 	position: relative;
 	flex: none;
 }
-.pv-win95 .pv-dot.on::after {
+.pvWin95 .pvDot.on::after {
 	content: '';
 	position: absolute;
 	left: 3px;
@@ -561,7 +561,7 @@
 	border-radius: 50%;
 	background: #000;
 }
-.pv-win95 .pv-path {
+.pvWin95 .pvPath {
 	margin-top: 28px;
 	padding: 14px 12px 12px;
 	position: relative;
@@ -575,7 +575,7 @@
 		1px 1px #fff,
 		-1px -1px #808080;
 }
-.pv-win95 .pv-path .pv-caption {
+.pvWin95 .pvPath .pvCaption {
 	position: absolute;
 	top: -8px;
 	left: 8px;
@@ -583,24 +583,24 @@
 	background: #c0c0c0;
 	color: #000;
 }
-.pv-win95 .pv-path .pv-input {
+.pvWin95 .pvPath .pvInput {
 	flex: 1;
 }
-.pv-win95 .pv-field {
+.pvWin95 .pvField {
 	display: flex;
 	align-items: center;
 	gap: 8px;
 }
-.pv-win95 .pv-g-fields {
+.pvWin95 .pvGFields {
 	gap: 16px;
 }
-.pv-win95 .pv-field .pv-input {
+.pvWin95 .pvField .pvInput {
 	background: #fff;
 	box-shadow: var(--sunk);
 	padding: 2px 6px;
 	min-width: 44px;
 }
-.pv-win95 .pv-button {
+.pvWin95 .pvButton {
 	min-width: 80px;
 	height: 23px;
 	border: 0;
@@ -609,33 +609,33 @@
 	color: #000;
 	padding: 0 8px;
 }
-.pv-win95 .pv-button.pv-default {
+.pvWin95 .pvButton.pvDefault {
 	box-shadow:
 		var(--bevel),
 		0 0 0 1px #000;
 	outline: 1px dotted #000;
 	outline-offset: -5px;
 }
-.pv-w-sep {
+.pvWSep {
 	margin: 0 16px;
 	height: 2px;
 	box-shadow:
 		inset 0 1px #808080,
 		inset 0 -1px #fff;
 }
-.pv-w-footer {
+.pvWFooter {
 	display: flex;
 	justify-content: flex-end;
 	gap: 8px;
 	padding: 12px 16px 14px;
 }
-.pv-win95 .pv-meter {
+.pvWin95 .pvMeter {
 	display: grid;
 	grid-template-columns: 150px 1fr 90px;
 	gap: 8px;
 	align-items: center;
 }
-.pv-win95 .pv-bar {
+.pvWin95 .pvBar {
 	display: flex;
 	gap: 2px;
 	padding: 3px;
@@ -643,18 +643,18 @@
 	background: #fff;
 	box-shadow: var(--sunk);
 }
-.pv-win95 .pv-blk {
+.pvWin95 .pvBlk {
 	width: 100%;
 	max-width: 10px;
 	background: transparent;
 }
-.pv-win95 .pv-blk.pv-lit {
+.pvWin95 .pvBlk.pvLit {
 	background: #000080;
 }
-.pv-win95 .pv-pct {
+.pvWin95 .pvPct {
 	display: none;
 }
-.pv-win95 .pv-billboard {
+.pvWin95 .pvBillboard {
 	background: #008080;
 	color: #fff;
 	box-shadow: var(--sunk);
@@ -665,25 +665,25 @@
 	min-height: 92px;
 	position: relative;
 }
-.pv-win95 .pv-bb-title {
+.pvWin95 .pvBbTitle {
 	font-weight: 700;
 }
-.pv-win95 .pv-bb-dots {
+.pvWin95 .pvBbDots {
 	position: absolute;
 	right: 8px;
 	bottom: 6px;
 	display: flex;
 	gap: 4px;
 }
-.pv-win95 .pv-bb-dots i {
+.pvWin95 .pvBbDots i {
 	width: 6px;
 	height: 6px;
 	background: #004040;
 }
-.pv-win95 .pv-bb-dots i.pv-on {
+.pvWin95 .pvBbDots i.pvOn {
 	background: #fff;
 }
-.pv-status {
+.pvStatus {
 	position: absolute;
 	left: 28px;
 	bottom: 44px;
@@ -692,18 +692,18 @@
 	box-shadow: var(--bevel);
 	padding: 4px;
 }
-.pv-vmeter {
+.pvVmeter {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	gap: 6px;
 	padding: 4px 8px 6px;
 }
-.pv-vmeter + .pv-vmeter {
+.pvVmeter + .pvVmeter {
 	border-left: 1px solid #808080;
 	box-shadow: inset 1px 0 #fff;
 }
-.pv-vgauge {
+.pvVgauge {
 	width: 22px;
 	height: 112px;
 	background: #f4f4f4;
@@ -712,12 +712,12 @@
 	flex-direction: column-reverse;
 	gap: 2px;
 }
-.pv-vgauge i {
+.pvVgauge i {
 	display: block;
 	height: 5px;
 	flex: 0 0 5px;
 }
-.pv-vicons {
+.pvVicons {
 	height: 108px;
 	display: flex;
 	flex-direction: column;
@@ -725,7 +725,7 @@
 	justify-content: space-between;
 	padding-top: 4px;
 }
-.pv-w-task {
+.pvWTask {
 	position: absolute;
 	left: 0;
 	bottom: 0;
@@ -740,18 +740,18 @@
 	gap: 4px;
 	padding: 2px 3px 0;
 }
-.pv-w-task > span {
+.pvWTask > span {
 	height: 22px;
 	display: inline-flex;
 	align-items: center;
 	padding: 0 6px;
 }
-.pv-w-start {
+.pvWStart {
 	gap: 4px;
 	font-weight: 700;
 	box-shadow: var(--bevel);
 }
-.pv-w-win {
+.pvWWin {
 	min-width: 160px;
 	font-weight: 700;
 	background: #dfdfdf;
@@ -760,10 +760,10 @@
 		inset -1px -1px #fff,
 		inset 2px 2px #808080;
 }
-.pv-w-spacer {
+.pvWSpacer {
 	flex: 1 1 auto;
 }
-.pv-w-clock {
+.pvWClock {
 	padding: 0 10px;
 	box-shadow:
 		inset 1px 1px #808080,
@@ -772,8 +772,8 @@
 
 /* ---------------- Afterglow and Neutral ---------------- */
 
-.pv-afterglow,
-.pv-neutral {
+.pvAfterglow,
+.pvNeutral {
 	width: 1024px;
 	height: 720px;
 	font:
@@ -782,7 +782,7 @@
 		'Segoe UI',
 		sans-serif;
 }
-.pv-afterglow {
+.pvAfterglow {
 	--bg: #050507;
 	--panel: #0c0c10;
 	--bar: #0c0c10;
@@ -803,7 +803,7 @@
 	background: var(--bg);
 	color: var(--text);
 }
-.pv-neutral {
+.pvNeutral {
 	--bg: #e9e8e4;
 	--panel: #fff;
 	--bar: #f6f5f2;
@@ -824,7 +824,7 @@
 	background: var(--bg);
 	color: var(--text);
 }
-.pv-m-glow {
+.pvMGlow {
 	position: absolute;
 	inset: -80px;
 	filter: blur(40px);
@@ -833,10 +833,10 @@
 		radial-gradient(circle at 90% 60%, rgba(244, 63, 94, 0.16), transparent 40%),
 		radial-gradient(circle at 50% 95%, rgba(34, 211, 238, 0.12), transparent 45%);
 }
-.pv-neutral .pv-m-glow {
+.pvNeutral .pvMGlow {
 	display: none;
 }
-.pv-m-window {
+.pvMWindow {
 	position: absolute;
 	left: 112px;
 	top: 80px;
@@ -850,14 +850,14 @@
 	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
 	overflow: hidden;
 }
-.pv-neutral .pv-m-window {
+.pvNeutral .pvMWindow {
 	left: 172px;
 	top: 110px;
 	width: 680px;
 	height: 500px;
 	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
 }
-.pv-m-title {
+.pvMTitle {
 	height: 40px;
 	flex: 0 0 40px;
 	display: flex;
@@ -867,24 +867,24 @@
 	border-bottom: 1px solid var(--line);
 	background: var(--bar);
 }
-.pv-neutral .pv-m-title {
+.pvNeutral .pvMTitle {
 	padding-left: 16px;
 }
-.pv-m-name {
+.pvMName {
 	display: flex;
 	align-items: center;
 	gap: 10px;
 	font: 600 14px var(--head);
 	color: var(--strong);
 }
-.pv-neutral .pv-m-name {
+.pvNeutral .pvMName {
 	font:
 		500 13px Inter,
 		system-ui,
 		sans-serif;
 	color: #44403c;
 }
-.pv-m-close {
+.pvMClose {
 	width: 28px;
 	height: 28px;
 	display: flex;
@@ -892,21 +892,21 @@
 	justify-content: center;
 	color: var(--muted);
 }
-.pv-m-main {
+.pvMMain {
 	flex: 1 1 auto;
 	display: flex;
 	min-height: 0;
 }
-.pv-m-side {
+.pvMSide {
 	width: 200px;
 	flex: 0 0 200px;
 	padding: 24px 16px;
 	border-right: 1px solid var(--line);
 }
-.pv-m-side .pv-stack {
+.pvMSide .pvStack {
 	gap: 4px;
 }
-.pv-m-content {
+.pvMContent {
 	flex: 1 1 auto;
 	min-width: 0;
 	padding: 24px 28px;
@@ -915,14 +915,14 @@
 	gap: 14px;
 	overflow: hidden;
 }
-.pv-neutral .pv-m-content {
+.pvNeutral .pvMContent {
 	padding: 32px 40px;
 	gap: 20px;
 }
-.pv-m-content > .pv-stack {
+.pvMContent > .pvStack {
 	gap: 14px;
 }
-.pv-m-footer {
+.pvMFooter {
 	height: 64px;
 	flex: 0 0 64px;
 	display: flex;
@@ -933,36 +933,36 @@
 	border-top: 1px solid var(--line);
 	background: var(--bar);
 }
-.pv-afterglow .pv-m-footer {
+.pvAfterglow .pvMFooter {
 	background: transparent;
 }
-.pv-m-note {
+.pvMNote {
 	font-size: 12px;
 	color: var(--dim);
 }
-.pv-neutral .pv-m-note {
+.pvNeutral .pvMNote {
 	font-size: 13px;
 	color: var(--muted);
 }
-.pv-m-buttons {
+.pvMButtons {
 	display: flex;
 	gap: 8px;
 }
-.pv-m-caption {
+.pvMCaption {
 	position: absolute;
 	left: 112px;
 	top: 656px;
 	font-size: 12px;
 	color: var(--dim);
 }
-.pv-neutral .pv-m-caption {
+.pvNeutral .pvMCaption {
 	left: 172px;
 	top: 640px;
 	font-size: 13px;
 	color: var(--muted);
 }
-.pv-afterglow .pv-step-item,
-.pv-neutral .pv-step-item {
+.pvAfterglow .pvStepItem,
+.pvNeutral .pvStepItem {
 	display: flex;
 	align-items: center;
 	gap: 10px;
@@ -971,54 +971,54 @@
 	color: var(--muted);
 	border-radius: 6px;
 }
-.pv-m-side .pv-state-done {
+.pvMSide .pvStateDone {
 	color: var(--dim);
 }
-.pv-m-side .pv-state-done .pv-mark {
+.pvMSide .pvStateDone .pvMark {
 	color: var(--ok);
 }
-.pv-m-side .pv-state-current {
+.pvMSide .pvStateCurrent {
 	color: var(--accent);
 	background: var(--accent-soft);
 }
-.pv-m-side .pv-state-todo .pv-mark {
+.pvMSide .pvStateTodo .pvMark {
 	color: var(--dim);
 }
-.pv-m-content .pv-heading {
+.pvMContent .pvHeading {
 	font: 600 22px var(--head);
 	letter-spacing: -0.01em;
 	color: var(--strong);
 }
-.pv-neutral .pv-m-content .pv-heading {
+.pvNeutral .pvMContent .pvHeading {
 	font-size: 20px;
 }
-.pv-m-content .pv-heading.pv-has-icon {
+.pvMContent .pvHeading.pvHasIcon {
 	display: flex;
 	align-items: center;
 	gap: 16px;
 }
-.pv-neutral .pv-has-icon .pv-art {
+.pvNeutral .pvHasIcon .pvArt {
 	width: 48px;
 	height: 48px;
 	padding: 12px;
 	border-radius: 12px;
 	background: #dbeafe;
 }
-.pv-m-content .pv-g-lead > .pv-body {
+.pvMContent .pvGLead > .pvBody {
 	color: var(--muted);
 	margin-top: 4px;
 }
-.pv-afterglow .pv-caption,
-.pv-neutral .pv-caption {
+.pvAfterglow .pvCaption,
+.pvNeutral .pvCaption {
 	color: var(--dim);
 	font-size: 12px;
 }
-.pv-afterglow .pv-error,
-.pv-neutral .pv-error {
+.pvAfterglow .pvError,
+.pvNeutral .pvError {
 	color: #f87171;
 }
-.pv-afterglow .pv-document,
-.pv-neutral .pv-document {
+.pvAfterglow .pvDocument,
+.pvNeutral .pvDocument {
 	background: var(--input);
 	border: 1px solid var(--line);
 	border-radius: 8px;
@@ -1033,8 +1033,8 @@
 		monospace;
 	color: var(--muted);
 }
-.pv-afterglow .pv-summary,
-.pv-neutral .pv-summary {
+.pvAfterglow .pvSummary,
+.pvNeutral .pvSummary {
 	background: var(--input);
 	border: 1px solid var(--line);
 	border-radius: 8px;
@@ -1042,68 +1042,68 @@
 	font: inherit;
 	white-space: pre-wrap;
 }
-.pv-afterglow .pv-choice-list,
-.pv-neutral .pv-choice-list {
+.pvAfterglow .pvChoiceList,
+.pvNeutral .pvChoiceList {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
 }
-.pv-afterglow .pv-choice,
-.pv-neutral .pv-choice {
+.pvAfterglow .pvChoice,
+.pvNeutral .pvChoice {
 	display: flex;
 	gap: 12px;
 	align-items: flex-start;
 }
-.pv-afterglow .pv-cards .pv-choice,
-.pv-neutral .pv-cards .pv-choice {
+.pvAfterglow .pvCards .pvChoice,
+.pvNeutral .pvCards .pvChoice {
 	padding: 12px 14px;
 	border-radius: 12px;
 	border: 1px solid var(--line);
 	background: var(--card);
 }
-.pv-afterglow .pv-cards .pv-choice.pv-sel {
+.pvAfterglow .pvCards .pvChoice.pvSel {
 	border-color: var(--accent);
 	background: var(--accent-soft);
 }
-.pv-neutral .pv-cards .pv-choice.pv-sel {
+.pvNeutral .pvCards .pvChoice.pvSel {
 	border-color: var(--accent);
 }
-.pv-m-content .pv-choice-label {
+.pvMContent .pvChoiceLabel {
 	color: var(--strong);
 	font-weight: 500;
 }
-.pv-m-content .pv-choice-body {
+.pvMContent .pvChoiceBody {
 	display: flex;
 	flex-direction: column;
 	flex: 1;
 }
-.pv-m-content .pv-req {
+.pvMContent .pvReq {
 	color: var(--dim);
 	font-size: 12px;
 }
-.pv-m-content .pv-choice-body {
+.pvMContent .pvChoiceBody {
 	display: block;
 }
-.pv-m-content .pv-desc {
+.pvMContent .pvDesc {
 	display: block;
 	font-size: 12px;
 	color: var(--muted);
 }
-.pv-m-content .pv-badges {
+.pvMContent .pvBadges {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
 	margin-top: 8px;
 }
-.pv-m-content .pv-badge {
+.pvMContent .pvBadge {
 	padding: 2px 10px;
 	border-radius: 999px;
 	background: rgba(255, 170, 64, 0.15);
 	color: var(--accent);
 	font-size: 12px;
 }
-.pv-m-content .pv-box,
-.pv-m-content .pv-dot {
+.pvMContent .pvBox,
+.pvMContent .pvDot {
 	width: 14px;
 	height: 14px;
 	border: 1.5px solid var(--dim);
@@ -1111,18 +1111,18 @@
 	flex: none;
 	position: relative;
 }
-.pv-m-content .pv-box {
+.pvMContent .pvBox {
 	border-radius: 4px;
 }
-.pv-m-content .pv-dot {
+.pvMContent .pvDot {
 	border-radius: 50%;
 }
-.pv-m-content .pv-box.on,
-.pv-m-content .pv-dot.on {
+.pvMContent .pvBox.on,
+.pvMContent .pvDot.on {
 	background: var(--accent);
 	border-color: var(--accent);
 }
-.pv-m-content .pv-box.on::after {
+.pvMContent .pvBox.on::after {
 	content: '';
 	position: absolute;
 	left: 3.5px;
@@ -1133,25 +1133,25 @@
 	border-width: 0 2px 2px 0;
 	transform: rotate(40deg);
 }
-.pv-afterglow .pv-field,
-.pv-neutral .pv-field,
-.pv-afterglow .pv-path,
-.pv-neutral .pv-path {
+.pvAfterglow .pvField,
+.pvNeutral .pvField,
+.pvAfterglow .pvPath,
+.pvNeutral .pvPath {
 	display: grid;
 	grid-template-columns: 150px 1fr auto;
 	gap: 8px;
 	align-items: center;
 }
-.pv-afterglow .pv-input,
-.pv-neutral .pv-input {
+.pvAfterglow .pvInput,
+.pvNeutral .pvInput {
 	padding: 6px 10px;
 	border-radius: 8px;
 	background: var(--input);
 	border: 1px solid var(--edge);
 	color: var(--strong);
 }
-.pv-afterglow .pv-button,
-.pv-neutral .pv-button {
+.pvAfterglow .pvButton,
+.pvNeutral .pvButton {
 	height: 36px;
 	padding: 0 16px;
 	border-radius: 8px;
@@ -1160,22 +1160,22 @@
 	color: var(--text);
 	font-weight: 500;
 }
-.pv-neutral .pv-button {
+.pvNeutral .pvButton {
 	background: #fff;
 }
-.pv-afterglow .pv-button.pv-default,
-.pv-neutral .pv-button.pv-default {
+.pvAfterglow .pvButton.pvDefault,
+.pvNeutral .pvButton.pvDefault {
 	background: var(--accent);
 	color: var(--on-accent);
 	border: 0;
 	font-weight: 600;
 	padding: 0 18px;
 }
-.pv-afterglow .pv-button.pv-default {
+.pvAfterglow .pvButton.pvDefault {
 	box-shadow: 0 0 20px rgba(255, 170, 64, 0.15);
 }
-.pv-afterglow .pv-meter,
-.pv-neutral .pv-meter {
+.pvAfterglow .pvMeter,
+.pvNeutral .pvMeter {
 	display: grid;
 	grid-template-columns: 170px 1fr 150px;
 	gap: 12px;
@@ -1183,51 +1183,51 @@
 	font-size: 12px;
 	color: var(--muted);
 }
-.pv-afterglow .pv-bar,
-.pv-neutral .pv-bar {
+.pvAfterglow .pvBar,
+.pvNeutral .pvBar {
 	display: block;
 	height: 8px;
 	border-radius: 999px;
 	background: var(--track);
 	overflow: hidden;
 }
-.pv-afterglow .pv-bar-fill,
-.pv-neutral .pv-bar-fill {
+.pvAfterglow .pvBarFill,
+.pvNeutral .pvBarFill {
 	display: block;
 	height: 100%;
 	background: var(--accent);
 	border-radius: 999px;
 }
-.pv-afterglow .pv-bar-fill.pv-warn,
-.pv-neutral .pv-bar-fill.pv-warn {
+.pvAfterglow .pvBarFill.pvWarn,
+.pvNeutral .pvBarFill.pvWarn {
 	background: #f87171;
 }
-.pv-m-content .pv-meter-caption {
+.pvMContent .pvMeterCaption {
 	color: var(--dim);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
-.pv-m-content .pv-g-tasks {
+.pvMContent .pvGTasks {
 	gap: 8px;
 }
-.pv-m-content .pv-task {
+.pvMContent .pvTask {
 	display: flex;
 	gap: 10px;
 	color: var(--muted);
 }
-.pv-m-content .pv-task.pv-state-done .pv-mark {
+.pvMContent .pvTask.pvStateDone .pvMark {
 	color: var(--ok);
 }
-.pv-m-content .pv-task.pv-state-current {
+.pvMContent .pvTask.pvStateCurrent {
 	color: var(--strong);
 	font-weight: 500;
 }
-.pv-m-content .pv-task.pv-state-current .pv-mark {
+.pvMContent .pvTask.pvStateCurrent .pvMark {
 	color: var(--accent);
 }
-.pv-afterglow .pv-billboard,
-.pv-neutral .pv-billboard {
+.pvAfterglow .pvBillboard,
+.pvNeutral .pvBillboard {
 	display: flex;
 	gap: 14px;
 	align-items: center;
@@ -1237,57 +1237,39 @@
 	background: var(--card);
 	position: relative;
 }
-.pv-m-content .pv-bb-title {
+.pvMContent .pvBbTitle {
 	color: var(--strong);
 	font-weight: 600;
 }
-.pv-m-content .pv-bb-text {
+.pvMContent .pvBbText {
 	color: var(--muted);
 	font-size: 12px;
 }
-.pv-m-content .pv-bb-dots {
+.pvMContent .pvBbDots {
 	position: absolute;
 	right: 12px;
 	bottom: 8px;
 	display: flex;
 	gap: 4px;
 }
-.pv-m-content .pv-bb-dots i {
+.pvMContent .pvBbDots i {
 	width: 6px;
 	height: 6px;
 	border-radius: 50%;
 	background: var(--track);
 }
-.pv-m-content .pv-bb-dots i.pv-on {
+.pvMContent .pvBbDots i.pvOn {
 	background: var(--accent);
 }
-.pv-m-content .pv-g-meters {
+.pvMContent .pvGMeters {
 	gap: 6px;
 }
 
-/* The Dry-run screen gives the rich screen the width; the plan sits under it. */
-.preview-grid {
-	grid-template-columns: 200px minmax(0, 1fr);
-}
-.preview-grid > [aria-label='Plan'] {
-	grid-column: 1 / -1;
-}
-.text-version {
-	margin-top: 12px;
-}
-.text-version summary {
-	cursor: pointer;
-	color: var(--lh-text-muted, inherit);
-}
-.chip.warn {
-	background: rgba(248, 113, 113, 0.15);
-	color: #f87171;
-}
-.pv-box,
-.pv-dot {
+.pvBox,
+.pvDot {
 	display: inline-block;
 }
-.pv-glyph {
+.pvGlyph {
 	display: inline-flex;
 	flex: none;
 }
