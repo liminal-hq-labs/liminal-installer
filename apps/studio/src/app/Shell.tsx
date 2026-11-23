@@ -10,6 +10,7 @@ import { t, type MessageId } from '../i18n/messages';
 import { errorCount, historyRows, problemSummary } from '../lib/format';
 import { SCREEN_TITLE } from '../stores/studio';
 import { cx } from '../ui/cx';
+import { ICON_PATHS } from '../ui/iconPaths';
 import text from '../ui/text.module.css';
 import ui from '../ui/ui.module.css';
 import { useProject, useStudio, useToast } from './StudioContext';
@@ -18,14 +19,11 @@ import { useScreen } from './screens';
 import styles from './Shell.module.css';
 
 const NAV: { route: Screen; icon: string }[] = [
-	{ route: 'project', icon: 'M2 4.5h4l1.5 1.5H14v6.5H2z' },
-	{ route: 'flow', icon: 'M3 3h4v3H3zM9 10h4v3H9zM7 4.5h2.5V10' },
-	{ route: 'layouts', icon: 'M2 3h12v10H2zM2 6h12M6 6v7' },
-	{ route: 'script', icon: 'M5 4L2 8l3 4M11 4l3 4-3 4M9 3l-2 10' },
-	{
-		route: 'preview',
-		icon: 'M8 3C4 3 2 8 2 8s2 5 6 5 6-5 6-5-2-5-6-5zM8 6a2 2 0 100 4 2 2 0 000-4z',
-	},
+	{ route: 'project', icon: ICON_PATHS.folder },
+	{ route: 'flow', icon: ICON_PATHS.flow },
+	{ route: 'layouts', icon: ICON_PATHS.layouts },
+	{ route: 'script', icon: ICON_PATHS.code },
+	{ route: 'preview', icon: ICON_PATHS.eye },
 ];
 
 function NavIcon({ d }: { d: string }) {
