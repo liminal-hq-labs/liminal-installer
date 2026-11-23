@@ -225,3 +225,29 @@ describe('the full-screen preview command', () => {
 		expect(actionForEvent(key('F11'), on, false)).toBe('view.fullScreenPreview');
 	});
 });
+
+describe('menu icons', () => {
+	const state: MenuState = {
+		...initialMenuState,
+		hasProject: true,
+		canUndo: true,
+		canRedo: true,
+		scriptDirty: true,
+		recent: ['/a/b'],
+	};
+
+	it('gives the chosen items an icon in both menus and leaves the rest without', () => {
+		const { flat, bar } = buildMenus(state);
+		const rows = selectableItems(flat);
+		const byId = new Map(rows.map((row) => [row.id, row]));
+		for (const id of ['file.open', 'file.save', 'edit.undo', 'project.check', 'help.about']) {
+			expect(byId.get(id)?.icon, id).toBeTruthy();
+		}
+		// The menu bar toggle shows a tick, not a drawing, and the recent rows are plain.
+		expect(byId.get('view.menuBar')?.icon).toBeUndefined();
+		const recent = bar
+			.flatMap((m) => (m.type === 'submenu' ? m.items : []))
+			.find((m) => m.type === 'submenu' && m.id === 'menu:recent');
+		expect(recent && 'icon' in recent ? recent.icon : null).toBeTruthy();
+	});
+});

@@ -5,6 +5,8 @@
 
 import type { MenuItem, SelectableMenuItem } from '@liminal-hq/studio-chrome/ContextMenu/types';
 import { t, type MessageId } from '../i18n/messages';
+import type { IconName } from '../ui/iconPaths';
+import { menuIcon } from './menuIcons';
 
 export type Screen = 'project' | 'flow' | 'layouts' | 'script' | 'preview';
 
@@ -57,6 +59,8 @@ export const initialMenuState: MenuState = {
 interface Action {
 	/** The catalogue message that labels the item. */
 	label: MessageId;
+	/** The drawing beside the label. Items without one leave the slot empty so labels still line up. */
+	icon?: IconName;
 	/** Shown beside the item and matched against key presses. The first is the one displayed. */
 	keys?: string[];
 	enabled?: (s: MenuState) => boolean;
@@ -76,53 +80,67 @@ export const SCREEN_ACTIONS: Record<Screen, ActionId> = {
 	preview: 'view.preview',
 };
 
-const screenAction = (screen: Screen, label: MessageId, key: string): Action => ({
+const screenAction = (screen: Screen, label: MessageId, key: string, icon: IconName): Action => ({
 	label,
+	icon,
 	keys: [`Ctrl+${key}`],
 	enabled: needsProject,
 	checked: (s) => s.screen === screen,
 });
 
 export const ACTIONS: Record<ActionId, Action> = {
-	'file.new': { label: 'menu.newProject', keys: ['Ctrl+N'] },
-	'file.open': { label: 'menu.openProject', keys: ['Ctrl+O'] },
-	'file.reload': { label: 'menu.reload', keys: ['F5'], enabled: needsProject },
-	'file.clearRecent': { label: 'menu.clearRecent', enabled: (s) => s.recent.length > 0 },
+	'file.new': { label: 'menu.newProject', icon: 'newProject', keys: ['Ctrl+N'] },
+	'file.open': { label: 'menu.openProject', icon: 'folder', keys: ['Ctrl+O'] },
+	'file.reload': { label: 'menu.reload', icon: 'reload', keys: ['F5'], enabled: needsProject },
+	'file.clearRecent': {
+		label: 'menu.clearRecent',
+		icon: 'clear',
+		enabled: (s) => s.recent.length > 0,
+	},
 	'file.save': {
 		label: 'menu.save',
+		icon: 'save',
 		keys: ['Ctrl+S'],
 		enabled: (s) => s.hasProject && s.scriptDirty,
 	},
-	'app.preferences': { label: 'menu.preferences', keys: ['Ctrl+,'] },
-	'file.quit': { label: 'menu.quit', keys: ['Ctrl+Q'] },
+	'app.preferences': { label: 'menu.preferences', icon: 'preferences', keys: ['Ctrl+,'] },
+	'file.quit': { label: 'menu.quit', icon: 'quit', keys: ['Ctrl+Q'] },
 	'edit.undo': {
 		label: 'menu.undo',
+		icon: 'undo',
 		keys: ['Ctrl+Z'],
 		enabled: (s) => s.hasProject && s.canUndo,
 		textFieldOwnsKey: true,
 	},
 	'edit.redo': {
 		label: 'menu.redo',
+		icon: 'redo',
 		keys: ['Ctrl+Shift+Z', 'Ctrl+Y'],
 		enabled: (s) => s.hasProject && s.canRedo,
 		textFieldOwnsKey: true,
 	},
-	'view.project': screenAction('project', 'menu.viewProject', '1'),
-	'view.flow': screenAction('flow', 'menu.viewFlow', '2'),
-	'view.layouts': screenAction('layouts', 'menu.viewLayouts', '3'),
-	'view.script': screenAction('script', 'menu.viewScripts', '4'),
-	'view.preview': screenAction('preview', 'menu.viewDryRun', '5'),
+	'view.project': screenAction('project', 'menu.viewProject', '1', 'folder'),
+	'view.flow': screenAction('flow', 'menu.viewFlow', '2', 'flow'),
+	'view.layouts': screenAction('layouts', 'menu.viewLayouts', '3', 'layouts'),
+	'view.script': screenAction('script', 'menu.viewScripts', '4', 'code'),
+	'view.preview': screenAction('preview', 'menu.viewDryRun', '5', 'eye'),
 	'view.fullScreenPreview': {
 		label: 'menu.fullScreenPreview',
+		icon: 'fullScreen',
 		keys: ['F11'],
 		enabled: (s) => s.hasProject && s.screen === 'preview',
 	},
 	'view.menuBar': { label: 'menu.showMenuBar', keys: ['Ctrl+Shift+M'], checked: (s) => s.menuBar },
-	'project.check': { label: 'menu.runCheck', keys: ['F7'], enabled: needsProject },
-	'project.preview': { label: 'menu.runPreview', keys: ['F8'], enabled: needsProject },
-	'help.shortcuts': { label: 'menu.shortcuts', keys: ['Ctrl+/'] },
-	'help.agent': { label: 'menu.connectAgent' },
-	'help.about': { label: 'menu.about', keys: ['F1'] },
+	'project.check': { label: 'menu.runCheck', icon: 'check', keys: ['F7'], enabled: needsProject },
+	'project.preview': {
+		label: 'menu.runPreview',
+		icon: 'play',
+		keys: ['F8'],
+		enabled: needsProject,
+	},
+	'help.shortcuts': { label: 'menu.shortcuts', icon: 'keyboard', keys: ['Ctrl+/'] },
+	'help.agent': { label: 'menu.connectAgent', icon: 'agent' },
+	'help.about': { label: 'menu.about', icon: 'info', keys: ['F1'] },
 };
 
 /** In a group, this stands for the submenu of recent projects. */
@@ -205,6 +223,7 @@ function item(id: ActionId, state: MenuState): SelectableMenuItem {
 		label: t(action.label),
 		disabled: !isEnabled(id, state),
 		...(shortcut ? { shortcut } : {}),
+		...(action.icon ? { icon: menuIcon(action.icon) } : {}),
 	};
 	return action.checked
 		? { type: 'checkbox', ...base, checked: action.checked(state) }
@@ -249,7 +268,13 @@ function recentMenu(state: MenuState): MenuItem {
 					{ type: 'separator', id: 'separator:recent' },
 					item('file.clearRecent', state),
 				];
-	return { type: 'submenu', id: 'menu:recent', label: t('menu.openRecent'), items: rows };
+	return {
+		type: 'submenu',
+		id: 'menu:recent',
+		label: t('menu.openRecent'),
+		icon: menuIcon('recent'),
+		items: rows,
+	};
 }
 
 /** Items of several groups, one separator between neighbouring groups. */
