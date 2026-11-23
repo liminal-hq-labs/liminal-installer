@@ -1,33 +1,56 @@
-// Tests the tokens-to-CSS converter.
+// Tests the tokens-to-CSS converter against the design system export.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain JavaScript module without types
-import { flatten, toCss } from './tokens-to-css.mjs';
+import { resolveRefs, toCss, valueIn } from './tokens-to-css.mjs';
 import tokens from '../src/styles/tokens.json';
 
 describe('tokens to CSS', () => {
-	it('flattens nested groups into prefixed names', () => {
-		expect(flatten({ color: { bg: '#000', 'text-strong': '#fff' }, radius: { sm: '6px' } })).toEqual([
-			['--lh-color-bg', '#000'],
-			['--lh-color-text-strong', '#fff'],
-			['--lh-radius-sm', '6px'],
-		]);
+	it('turns references into variable lookups so themes carry through', () => {
+		expect(resolveRefs('{brand-purple}')).toBe('var(--lh-brand-purple)');
+		expect(resolveRefs('1px solid {border-subtle}')).toBe('1px solid var(--lh-border-subtle)');
 	});
 
-	it('makes dark the default and light an opt-in theme', () => {
-		const css: string = toCss(tokens);
-		expect(css).toMatch(/:root,\n:root\[data-theme="dark"\] \{/);
-		expect(css).toContain('--lh-color-bg: #050507;');
-		const light = css.slice(css.indexOf('[data-theme="light"] {'));
-		expect(light).toContain('--lh-color-bg: #fbfaf6;');
-		expect(light).not.toContain('--lh-font');
+	it('reads a token per theme, and only overrides where a theme says so', () => {
+		const orange = { name: 'x', value: { afterglow: '#ffaa40', 'afterglow-light': '#b45309' } };
+		expect(valueIn(orange, 'afterglow')).toBe('#ffaa40');
+		expect(valueIn(orange, 'afterglow-light')).toBe('#b45309');
+		expect(valueIn(orange, 'afterglow-dark')).toBeUndefined();
+		expect(valueIn({ name: 'y', value: '#fff' }, 'afterglow')).toBe('#fff');
+		expect(valueIn({ name: 'y', value: '#fff' }, 'afterglow-light')).toBeUndefined();
 	});
 
-	it('does not leak the themes group into the base variables', () => {
+	it('makes the base theme the default and the others opt-in', () => {
 		const css: string = toCss(tokens);
-		expect(css).not.toContain('--lh-themes');
+		expect(css).toMatch(/:root,\n:root\[data-theme="afterglow"\] \{/);
+		expect(css).toContain('--lh-bg-app: #050507;');
+		expect(css).toContain('--lh-brand-orange: #ffaa40;');
+		const light = css.slice(css.indexOf('[data-theme="afterglow-light"] {'));
+		expect(light).toContain('color-scheme: light;');
+		expect(light).toContain('--lh-bg-app: #fbfaf6;');
+		expect(light).toContain('--lh-brand-orange: #b45309;');
+		expect(light).not.toContain('--lh-font-body');
+	});
+
+	it('emits the layout, type and spacing groups', () => {
+		const css: string = toCss(tokens);
+		expect(css).toContain('--lh-topbar-height: 40px;');
+		expect(css).toContain('--lh-statusbar-height: 28px;');
+		expect(css).toContain('--lh-sidebar-width: 220px;');
+		expect(css).toContain('--lh-space-2: 0.5rem;');
+		expect(css).toMatch(/--lh-font-heading: 'Space Grotesk'/);
+	});
+
+	it('leaves other products’ palettes out', () => {
+		const css: string = toCss(tokens);
+		expect(css).not.toContain('--lh-wp-');
+		expect(css).not.toContain('--lh-cadence-');
+	});
+
+	it('resolves accent through the brand colour', () => {
+		expect(toCss(tokens)).toContain('--lh-accent: var(--lh-brand-orange);');
 	});
 });
