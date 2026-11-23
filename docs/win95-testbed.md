@@ -7,6 +7,8 @@ A real Windows 95 OSR2.5 under DOSBox-X, built from the owner's CD image, for ch
 - [What you get](#what-you-get)
 - [Building the base image](#building-the-base-image)
 - [Running a program](#running-a-program)
+- [The Internet Explorer 4 base](#the-internet-explorer-4-base)
+- [The mouse](#the-mouse)
 - [Screenshots and keys](#screenshots-and-keys)
 - [How it works](#how-it-works)
 - [What this Windows 95 is](#what-this-windows-95-is)
@@ -18,7 +20,8 @@ A real Windows 95 OSR2.5 under DOSBox-X, built from the owner's CD image, for ch
 
 - `win95-base.img`: a 1 GB raw disk with one FAT32 partition, Windows 95 OSR2.5 (4.00.950 C) installed, never booted again after its verification boot, mode 0444.
 - `run-win95.sh`: copies the base to a working disk, puts your program on a small FAT16 disk that Windows 95 sees as `D:`, boots, lets the shell start the program from `WIN.INI`'s `run=` line, takes screenshots, shuts Windows down from the Start menu, and copies everything the program wrote to `D:` back to the host.
-- `screenshot.sh` and `type-keys.sh`: helpers for driving a guest that is already up.
+- `build-ie4.sh`: a second base, `win95-ie4-base.img`, with Internet Explorer 4 and the Windows Desktop Update on top (see below). `run-win95.sh -b ie4` picks it.
+- `screenshot.sh`, `type-keys.sh` and `mouse.sh`: helpers for driving a guest that is already up; `mouse.sh` also backs `run-win95.sh -m`.
 
 Everything lives under `$W95_HOME` (default `$HOME/win95-testbed`). Keep it outside the repository: the images, the logs and the runs are not committed.
 
@@ -47,11 +50,53 @@ W95_HOME=/mnt/games/media/win95-testbed scripts/win95/run-win95.sh [options] PRO
 | `-d DIR` | Also put the contents of a host directory on `D:` (a payload, say). |
 | `-g COMMAND` | Run a program already in Windows 95, such as `C:\WINDOWS\WINVER.EXE`, instead of a host file. |
 | `-K` | Keep `work.img` and `exchange.img` in the run folder. |
+| `-b plain\|ie4` | Which base to copy: plain OSR2.5 (default) or the Internet Explorer 4 one. |
+| `-m SCRIPT` | A mouse script run once the desktop is up, for example `"click 24 466; wait 1; shot start.png"`; see [The mouse](#the-mouse). |
 | `-n NAME` | Label for the run folder. |
 
 The run folder is `$W95_HOME/runs/<time>-<name>/` and its path is printed last: `shot-NN.png`, `final.png`, and `out/` holding what ended up on `D:`. A run takes about a minute. Windows 95 boots to the desktop in 7 to 20 seconds, DOSBox-X being fast.
 
 A program that needs a different working directory or a closing key can be steered with `-k`; a longer script can source `lib.sh` and call `w95_key`, `w95_type` and `w95_shot` directly.
+
+## The Internet Explorer 4 base
+
+```sh
+W95_HOME=/mnt/games/media/win95-testbed scripts/win95/build-ie4.sh
+```
+
+The CD's `WIN95` folder, copied to `C:\WIN95` on the plain base, already holds `IE4SETUP.EXE` and its cabinets, so this needs neither the ISO nor the key. The script copies the plain base, starts Setup from the Start menu's Run box, and drives the wizard by keys: licence accepted, Standard Installation, the Windows Desktop Update (the IE4 shell) on, the default channel region, the default folder. Nothing connects to a network. Setup restarts Windows once; the script then merges a `.reg` file that sets the Explorer policies `NoActiveDesktop`, `NoActiveDesktopChanges` and `NoChannelUI`. That removes the Active Desktop wallpaper (the desktop is plain teal again). The floating channel bar still shows on the right of the screen, because the policy does not remove it; Setup offers no option to leave it out.
+
+It judges success by the version resources of the installed files and by a boot to the desktop, then freezes the disk as `win95-ie4-base.img` (mode 0444). Measured: 462 seconds for the install, plus a verification boot.
+
+| File | Version |
+| --- | --- |
+| `COMCTL32.DLL` | 4.72.2106.4 |
+| `SHDOCVW.DLL` | 4.72.2106.7 |
+| `WININET.DLL` | 4.72.2106.5 |
+| `SHELL32.DLL` | 4.72.2106.4 |
+
+This CD carries Internet Explorer 4.01 SP2, so `COMCTL32.DLL` is 4.72, a little newer than the 4.71 of the first Internet Explorer 4.0 release. It is the IE4 shell and common controls level; there is no 4.71 on this disc. The stages are `install` and `verify`; `--force` starts again.
+
+## The mouse
+
+Windows 95 detects DOSBox-X's emulated PS/2 mouse during Setup (`DETLOG.TXT` records "Standard PS/2 Port Mouse") and uses it; the pointer follows and clicks land, shown by the screenshots from `run-win95.sh -m`.
+
+DOSBox-X gives a PS/2 mouse only relative motion, and only while it holds the pointer grab, so the host pointer cannot be placed at a guest position. `mouse.sh` therefore does three things:
+
+- **Grab.** `ctrl+F10` toggles DOSBox-X's pointer grab. `mouse.sh capture` moves the pointer, compares screenshots, and toggles if nothing moved. The profile sets `autolock=false` and `mouse_emulation=always`; a plain click on the window does not grab under Xvfb.
+- **Mapping.** The guest screen is the 640 by 480 window, so a guest pixel is a window pixel. Windows 95 accelerates fast motion: steps of one pixel arrive one for one (checked by differencing screenshots at several targets), steps of two or three come out about 1.4 and 2 times too far, and one-pixel steps sent faster than every 20 ms are coalesced into larger packets and overshoot. So the pointer is homed against the top-left corner and walked in one-pixel steps every 20 ms, remembering where it is in `$W95_HOME/run/mouse.pos`. A move across the whole screen takes about ten seconds.
+- **Buttons.** `xdotool click` sends the buttons; a double click is two clicks 90 ms apart.
+
+```sh
+scripts/win95/mouse.sh capture
+scripts/win95/mouse.sh click 24 466                 # the Start button
+scripts/win95/mouse.sh dblclick 50 77
+scripts/win95/mouse.sh rclick 300 200
+scripts/win95/mouse.sh drag 10 10 200 100
+scripts/win95/mouse.sh script "click 24 466; wait 1; key Escape; shot start.png"
+```
+
+With `-m`, the script runs after the desktop is up and the grab is made; `shot NAME.png` writes into the run folder. Proofs from a run on this machine: Start menu, Programs submenu, and Quill's File and Help menus opened by mouse on the plain base; a double click in `me-files.exe` that opened a folder on the IE4 base.
 
 ## Screenshots and keys
 
@@ -78,7 +123,7 @@ Screenshots capture the DOSBox-X window, so Windows 95's 640 by 480 screen comes
 The CD is OSR2.5 (4.00.950 C). What matters for what we test:
 
 - **It is not bare retail Windows 95.** It has FAT32, the OSR2 kernel and shell (`KERNEL32.DLL` and `SHELL32.DLL` 4.00.1111, newer than retail's 4.00.950), USB support and a newer `COMCTL32.DLL`. Programs built against the retail floor can behave differently here.
-- **It is also not the IE4 floor.** The disc carries `IE4SETUP.EXE` (Internet Explorer 4.0 and the Active Desktop shell), but Setup does not install it: the installed system has `COMCTL32.DLL` 4.70 (the Internet Explorer 3 level, dated 1996-08-24), `EXPLORER.EXE` 4.00.950, and no `SHDOCVW.DLL` or `WININET.DLL`. So this base is the OSR2 floor, below IE4's comctl32 4.71 and the integrated shell. A test that needs the IE4 shell should install it from `C:\WIN95\IE4SETUP.EXE` (not scripted yet) and be built as a second base.
+- **The plain base is not the IE4 floor.** The disc carries `IE4SETUP.EXE` (Internet Explorer 4.01 and the Desktop Update shell), but Setup does not install it, and `build-ie4.sh` does that into a second base: the installed system has `COMCTL32.DLL` 4.70 (the Internet Explorer 3 level, dated 1996-08-24), `EXPLORER.EXE` 4.00.950, and no `SHDOCVW.DLL` or `WININET.DLL`. So the plain base is the OSR2 floor, below IE4's comctl32 and the integrated shell; `-b ie4` is the IE4 level (comctl32 4.72).
 - **It is not Windows 95 with Winsock 2 or DCOM.** Nothing beyond the CD is installed.
 
 ## What was hit on the way
@@ -95,7 +140,7 @@ The CD is OSR2.5 (4.00.950 C). What matters for what we test:
 
 - Windows 95 runs at 640 by 480 in 16 colours on the standard VGA driver. Setup did not pick the S3 driver; getting 256 colours or 800 by 600 needs the S3 Trio64 driver set up by hand (not done).
 - No sound, no network, no CD in the guest.
-- The mouse is relative under DOSBox-X and was not used; everything is driven by keyboard.
+- Mouse moves are slow (see above) and the pointer must be grabbed first; positions are only as good as the last `home`, so a script that clicks many places should `home` now and then.
 - One guest at a time (a lock in `$W95_HOME/run`), and the display is the fixed Xvfb `:95`.
 - A program that quits Windows 95 itself leaves the shutdown keys typing into a black screen; the run still returns.
 

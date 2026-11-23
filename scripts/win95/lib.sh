@@ -76,7 +76,7 @@ w95_xvfb_stop() {
 w95_conf() {
 	local f="$1" c="$2" d="${3:-}"
 	{
-		printf '[sdl]\noutput=surface\n\n'
+		printf '[sdl]\noutput=surface\nautolock=false\nmouse_emulation=always\n\n'
 		printf '[dosbox]\nmachine=svga_s3\nmemsize=64\n\n'
 		printf '[cpu]\ncore=normal\ncputype=pentium\ncycles=max\n\n'
 		printf '[sblaster]\nsbtype=none\n\n[gus]\ngus=false\n\n'

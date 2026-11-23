@@ -11,6 +11,8 @@
 #   -d DIR       also copy the contents of this host directory to the exchange disk (the program is copied there too)
 #   -K           keep the working images (the run folder keeps work.img and exchange.img)
 #   -g COMMAND   run a program already inside Windows 95 (for example 'C:\WINDOWS\WINVER.EXE') instead of a host PROGRAM.EXE
+#   -b plain|ie4 which base to copy: plain Windows 95 OSR2.5 (default) or the one with Internet Explorer 4 and the Desktop Update on top
+#   -m SCRIPT    a mouse script run once the desktop is up, e.g. "click 24 466; wait 1; shot start.png; dblclick 50 60" (see mouse.sh)
 #   -n NAME      a label for the run folder (default: the program name)
 #
 # What happens: the base image is copied to $W95_HOME/runs/<time>-<name>/work.img (a sparse copy; the base is never opened for writing). The
@@ -20,8 +22,8 @@
 # to itself returns them there). The folder's path is printed last. Exit status 0 means the guest reached the desktop and shut down.
 # Environment: W95_HOME (default $HOME/win95-testbed), W95_DISPLAY, W95_IMAGE; see lib.sh.
 set -euo pipefail
-# shellcheck source=lib.sh
-. "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+# shellcheck source=mouse.sh
+. "$(dirname "${BASH_SOURCE[0]}")/mouse.sh"
 
 WAIT=30
 EVERY=5
@@ -30,7 +32,9 @@ XDIR=""
 NAME=""
 KEYS=()
 GUEST=""
-while getopts "w:i:k:d:Kn:g:" o; do
+BASEKIND=plain
+MOUSE=""
+while getopts "w:i:k:d:Kn:g:b:m:" o; do
 	case "$o" in
 	w) WAIT="$OPTARG" ;;
 	i) EVERY="$OPTARG" ;;
@@ -39,6 +43,8 @@ while getopts "w:i:k:d:Kn:g:" o; do
 	K) KEEP=1 ;;
 	n) NAME="$OPTARG" ;;
 	g) GUEST="$OPTARG" ;;
+	b) BASEKIND="$OPTARG" ;;
+	m) MOUSE="$OPTARG" ;;
 	*) w95_die "bad option (see the header of run-win95.sh)" ;;
 	esac
 done
@@ -51,8 +57,12 @@ else
 	[ -f "$PROG" ] || w95_die "no such program: $PROG"
 fi
 [ -z "$XDIR" ] || [ -d "$XDIR" ] || w95_die "no such directory: $XDIR"
-BASE="$W95_HOME/win95-base.img"
-[ -f "$BASE" ] || w95_die "no base image at $BASE; run build-base.sh first"
+case "$BASEKIND" in
+plain) BASE="$W95_HOME/win95-base.img" ;;
+ie4) BASE="$W95_HOME/win95-ie4-base.img" ;;
+*) w95_die "-b takes plain or ie4" ;;
+esac
+[ -f "$BASE" ] || w95_die "no base image at $BASE; run build-base.sh (and build-ie4.sh for -b ie4) first"
 w95_need docker Xvfb xdotool import convert sfdisk mkfs.fat mcopy mdir truncate flock md5sum
 w95_lock
 
@@ -84,6 +94,11 @@ RC=0
 if w95_wait_desktop 300; then
 	w95_log "desktop after $(($(date +%s) - T0)) seconds; running $CMD for ${WAIT}s"
 	n=0
+	if [ -n "$MOUSE" ]; then
+		sleep 5
+		w95_mouse_capture
+		W95_SHOT_DIR="$RUN" w95_mouse_script "$MOUSE"
+	fi
 	end=$(($(date +%s) + WAIT))
 	while [ "$(date +%s)" -lt "$end" ]; do
 		n=$((n + 1))
