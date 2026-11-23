@@ -353,10 +353,14 @@ fn detect_target(project: &Project, m: &dyn Machine) -> Option<String> {
 	})
 }
 
+/// Where the payload is when none is named: beside the runner (a staged bundle), or one folder up
+/// from it (the `.run`'s `engine/` folder).
 fn default_from() -> Option<PathBuf> {
 	let exe = std::env::current_exe().ok()?;
-	let from = exe.parent()?.parent()?.to_path_buf();
-	from.join(stash::PAYLOAD).is_file().then_some(from)
+	let beside = exe.parent()?.to_path_buf();
+	[beside.clone(), beside.parent()?.to_path_buf()]
+		.into_iter()
+		.find(|d| d.join(stash::PAYLOAD).is_file())
 }
 
 fn plain_target(full: &str) -> &str {

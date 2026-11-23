@@ -492,6 +492,7 @@ impl WebProvider {
 					required: c.required,
 				})
 				.collect(),
+			stage: project.stage_for(cx.target).map(|l| l.root.clone()),
 		};
 		let base = Arc::new(Base {
 			info: info.clone(),

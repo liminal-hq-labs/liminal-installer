@@ -8,6 +8,32 @@
         "prettier": "^3.10.1",
       },
     },
+    "apps/runner": {
+      "name": "liminal-installer-runner",
+      "version": "0.1.0",
+      "dependencies": {
+        "@liminal-hq/installer-protocol": "workspace:*",
+        "@liminal-hq/installer-renderer": "workspace:*",
+        "@tauri-apps/api": "^2",
+        "@tauri-apps/plugin-dialog": "^2",
+        "react": "^19.3.1",
+        "react-dom": "^19.3.1",
+        "zustand": "^5",
+      },
+      "devDependencies": {
+        "@tauri-apps/cli": "^2.12.6",
+        "@testing-library/dom": "^10.4.2",
+        "@testing-library/react": "^16.3.3",
+        "@types/node": "^22",
+        "@types/react": "^19.3.0",
+        "@types/react-dom": "^19.3.0",
+        "@vitejs/plugin-react": "^4.7.0",
+        "happy-dom": "^21.0.4",
+        "typescript": "^5.6",
+        "vite": "^6",
+        "vitest": "^3",
+      },
+    },
     "apps/studio": {
       "name": "liminal-installer-studio",
       "version": "0.1.0",
@@ -437,6 +463,8 @@
     "jsesc": ["jsesc@3.1.0", "", { "bin": { "jsesc": "bin/jsesc" } }, "sha512-/sM3dO2FOzXjKQhJuo0Q173wf2KOo8t4I8vHy6lF9poUp7bKT0/NHE8fPX23PwfhnykfqnC2xRxOnVw5XuGIaA=="],
 
     "json5": ["json5@2.2.3", "", { "bin": { "json5": "lib/cli.js" } }, "sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg=="],
+
+    "liminal-installer-runner": ["liminal-installer-runner@workspace:apps/runner"],
 
     "liminal-installer-studio": ["liminal-installer-studio@workspace:apps/studio"],
 

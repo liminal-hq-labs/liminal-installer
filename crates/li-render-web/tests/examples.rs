@@ -183,6 +183,27 @@ fn the_examples_install_headless_and_uninstall() {
 		);
 		assert!(matches!(seen.last(), Some(RunEvent::Done)));
 
+		// The licence page shows the licence's own text, read from the bundled project.
+		let licence = seen.iter().find_map(|e| match e {
+			RunEvent::Page { page } if page.step == "licence" => page.layout.as_ref(),
+			_ => None,
+		});
+		let mut documents = Vec::new();
+		fn collect(n: &li_model::Node, out: &mut Vec<String>) {
+			if n.props.get("role").and_then(|r| r.as_str()) == Some("document")
+				&& let Some(t) = n.props.get("text").and_then(|t| t.as_str())
+			{
+				out.push(t.to_owned());
+			}
+			n.children.iter().for_each(|c| collect(c, out));
+		}
+		collect(licence.expect("a licence page"), &mut documents);
+		assert!(
+			documents.iter().any(|t| t.len() > 100),
+			"{}: the licence text is on the page",
+			case.name
+		);
+
 		s.runner()
 			.args(["--headless", "--install-dir"])
 			.arg(s.path("app"))

@@ -13,6 +13,7 @@
 //! _project/installer/layouts/…           layouts shared by every theme
 //! _project/installer/themes/…            theme files, their layouts and their assets
 //! _project/installer/scripts/…           Lua hooks
+//! _project/installer/<licence>           the licence file `product.licence` names
 //! _project/feed.pub                      the pinned feed key, as hex
 //! _project/version                       the product version this build is
 //! _project/target                        the target id the payload was packed for
@@ -59,7 +60,9 @@ pub fn bundle_project(
 	}
 	let dir = DirPayload::new(&project.dir)?;
 	for path in dir.list() {
+		// The licence is a project file too: the pages that show it read it from the bundle.
 		let wanted = PROJECT_FILES.contains(&path.as_str())
+			|| project.installer.product.licence.as_deref() == Some(path.as_str())
 			|| PROJECT_TREES.iter().any(|t| path.starts_with(t));
 		if wanted {
 			let data = dir.read(&path)?;

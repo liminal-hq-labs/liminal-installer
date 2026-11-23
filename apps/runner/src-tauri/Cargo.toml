@@ -1,0 +1,36 @@
+# The Tauri shell for the web runner. A workspace of its own: it needs system WebKit libraries.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[package]
+name = "liminal-installer-runner"
+description = "Liminal Installer web runner: installs, updates, repairs and uninstalls a product in a window drawn by the web renderer"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0 OR MIT"
+repository = "https://github.com/liminal-hq-labs/liminal-installer"
+rust-version = "1.90"
+publish = false
+
+[lib]
+name = "liminal_installer_runner_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+# The binary a bundle carries and an installed product keeps in `.liminal/runner/`.
+[[bin]]
+name = "liminal-runner"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+li-render-web = { path = "../../../crates/li-render-web" }
+li-runner = { path = "../../../crates/li-runner" }
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[workspace]

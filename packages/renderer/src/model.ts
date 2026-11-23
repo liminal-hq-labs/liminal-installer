@@ -77,6 +77,8 @@ export interface Interact {
 	onSelect?: (key: string) => void;
 	onChange?: (key: string, value: unknown) => void;
 	onAction?: (action: string) => void;
+	/** Whether a node is switched off, such as a Next whose `enabled_when` does not hold; only buttons read it. */
+	isDisabled?: (node: LayoutNode) => boolean;
 }
 
 /** Readings that override the page's meters and billboard while a preview plays. */

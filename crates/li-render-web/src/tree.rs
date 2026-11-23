@@ -91,7 +91,11 @@ pub fn prepare_tree(node: &Node, cx: &TreeCtx) -> Node {
 		}
 	}
 	if props.get("role").and_then(Value::as_str) == Some("document")
-		&& !props.contains_key("text")
+		// A layout names the file and leaves `text` empty for the renderer to fill.
+		&& props
+			.get("text")
+			.and_then(Value::as_str)
+			.is_none_or(str::is_empty)
 		&& let Some(source) = props.get("source").and_then(Value::as_str)
 		&& let Ok(text) = std::fs::read_to_string(cx.root.join(source))
 	{

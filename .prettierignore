@@ -20,3 +20,4 @@ retro/
 examples/
 assets/
 apps/studio/src-tauri/
+apps/runner/src-tauri/

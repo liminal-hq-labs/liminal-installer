@@ -298,6 +298,7 @@ function Node({ cx, node }: { cx: Ctx; node: LayoutNode }): ReactNode {
 					data-kind="button"
 					data-action={str(node, 'action')}
 					type="button"
+					disabled={running(cx) && cx.interact?.isDisabled?.(node) === true}
 					tabIndex={running(cx) ? 0 : -1}
 					onClick={
 						running(cx) ? () => cx.interact?.onAction?.(str(node, 'action') || 'next') : undefined

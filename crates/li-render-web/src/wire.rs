@@ -61,7 +61,7 @@ pub struct WindowSize {
 
 /// What the webview learns first: who is being installed, how, and how large the window should be.
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RunInfo {
 	pub mode: RunMode,
 	pub product: RunProduct,
@@ -74,6 +74,10 @@ pub struct RunInfo {
 	pub window: WindowSize,
 	pub install_dir: String,
 	pub components: Vec<RunComponent>,
+	/// The root of the theme's `stage` layout (its `slot` marks where a page goes), for the screens
+	/// the renderer makes itself: progress with no flow, the end of a run, an error.
+	#[cfg_attr(feature = "ts", ts(optional))]
+	pub stage: Option<Node>,
 }
 
 /// What kind of screen a page is. A `commit` page does not wait for an answer: progress events
@@ -165,4 +169,33 @@ pub struct PageAnswer {
 pub struct PageUpdate {
 	pub disabled: Vec<String>,
 	pub vars: BTreeMap<String, String>,
+}
+
+/// Why a runner command failed.
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ShellErrorKind {
+	/// A command that needs the run came before `runner_start`.
+	NotStarted,
+	/// The webview sent something the command cannot use.
+	InvalidInput,
+	Internal,
+}
+
+/// What every runner command returns on failure, as `{ kind, message }`.
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ShellError {
+	pub kind: ShellErrorKind,
+	pub message: String,
+}
+
+impl ShellError {
+	pub fn new(kind: ShellErrorKind, message: impl ToString) -> Self {
+		ShellError {
+			kind,
+			message: message.to_string(),
+		}
+	}
 }

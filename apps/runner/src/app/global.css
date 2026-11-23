@@ -1,0 +1,18 @@
+/*
+ * (c) Copyright 2026 Liminal HQ, Scott Morris
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ */
+
+html,
+body,
+#root {
+	margin: 0;
+	height: 100%;
+	background: #000;
+	overflow: hidden;
+}
+
+:focus-visible {
+	outline: 2px solid #6aa9ff;
+	outline-offset: 2px;
+}

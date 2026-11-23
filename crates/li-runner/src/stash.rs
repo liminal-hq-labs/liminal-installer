@@ -106,6 +106,10 @@ pub fn clean_bootstrap(from: &Path, install_dir: &Path) {
 	let name = std::env::current_exe()
 		.ok()
 		.map_or_else(|| BINARY.into(), |e| exe_name(&e));
+	// Only what the `.run` stub extracted goes: a folder with no `engine/` is a bundle someone keeps.
+	if !from.join("engine").join(&name).is_file() {
+		return;
+	}
 	let _ = std::fs::remove_file(from.join("engine").join(name));
 	let _ = std::fs::remove_dir(from.join("engine"));
 	let _ = std::fs::remove_file(from.join(PAYLOAD));

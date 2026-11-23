@@ -33,5 +33,5 @@ pub use session::{HeadlessReport, Session, run_headless};
 pub use ui::{WebProvider, WebUi, next_is_disabled, walk};
 pub use wire::{
 	PageAnswer, PageKind, PageUpdate, PageView, ProgressView, RunComponent, RunEvent, RunInfo,
-	RunMode, RunProduct, WindowSize,
+	RunMode, RunProduct, ShellError, ShellErrorKind, WindowSize,
 };
