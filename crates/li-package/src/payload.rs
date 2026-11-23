@@ -50,8 +50,13 @@ pub(crate) fn receipt_entry(info: &PackageInfo) -> Result<Entry> {
 /// A gzip tar of the payload, byte-for-byte reproducible: entries are sorted, owned by root and
 /// carry a zero modification time. With `top`, every path sits under that directory.
 pub fn payload_tar_gz(info: &PackageInfo, top: Option<&str>) -> Result<Vec<u8>> {
+	entries_tar_gz(&info.payload()?, top)
+}
+
+/// The same archive for an explicit list of entries, with no receipt added.
+pub fn entries_tar_gz(entries: &[Entry], top: Option<&str>) -> Result<Vec<u8>> {
 	let mut builder = tar::Builder::new(Vec::new());
-	for e in info.payload()? {
+	for e in entries {
 		let data = e.read()?;
 		let mut header = tar::Header::new_gnu();
 		header.set_size(data.len() as u64);

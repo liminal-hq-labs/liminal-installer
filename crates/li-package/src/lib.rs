@@ -32,7 +32,7 @@ pub mod wix;
 mod xml;
 
 pub use info::{Arch, Content, Entry, PackageInfo, resolve_version};
-pub use payload::{payload_tar_gz, receipt_for};
+pub use payload::{entries_tar_gz, payload_tar_gz, receipt_for};
 
 /// Failures while collecting inputs or writing outputs.
 #[derive(Debug, thiserror::Error)]

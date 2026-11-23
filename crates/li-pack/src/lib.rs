@@ -37,7 +37,7 @@ pub use feed::{
 };
 pub use hash::{sha256_file, sha256_hex};
 pub use keys::{
-	SigningKey, VerifyingKey, generate_keypair, read_public_key, read_signing_key, sign, verify,
-	write_public_key, write_signing_key,
+	SigningKey, VerifyingKey, generate_keypair, parse_public_key, public_key_hex, read_public_key,
+	read_signing_key, sign, verify, write_public_key, write_signing_key,
 };
 pub use lip::{Lip, LipBuilder, LipEntry};

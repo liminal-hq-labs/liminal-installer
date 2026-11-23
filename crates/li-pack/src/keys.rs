@@ -52,6 +52,20 @@ pub fn read_public_key(path: &Path) -> Result<VerifyingKey, PackError> {
 	VerifyingKey::from_bytes(&read_hex32(path)?).map_err(|e| PackError::BadKey(e.to_string()))
 }
 
+/// The public key as lowercase hex, the form key files and bundles use.
+pub fn public_key_hex(key: &VerifyingKey) -> String {
+	hex::encode(key.to_bytes())
+}
+
+/// Reads a public key from hex text such as a key file's contents.
+pub fn parse_public_key(text: &str) -> Result<VerifyingKey, PackError> {
+	let bytes = hex::decode(text.trim()).map_err(|e| PackError::BadKey(e.to_string()))?;
+	let bytes: [u8; 32] = bytes
+		.try_into()
+		.map_err(|_| PackError::BadKey("expected 32 bytes of hex".into()))?;
+	VerifyingKey::from_bytes(&bytes).map_err(|e| PackError::BadKey(e.to_string()))
+}
+
 /// Signs `data`; the signature is returned as hex.
 pub fn sign(key: &SigningKey, data: &[u8]) -> String {
 	hex::encode(key.sign(data).to_bytes())
@@ -76,6 +90,13 @@ mod tests {
 		verify(&vk, b"data", &sig).unwrap();
 		assert!(verify(&vk, b"other", &sig).is_err());
 		assert!(verify(&vk, b"data", "zz").is_err());
+	}
+
+	#[test]
+	fn public_keys_round_trip_as_hex() {
+		let (_, vk) = generate_keypair().unwrap();
+		assert_eq!(parse_public_key(&public_key_hex(&vk)).unwrap(), vk);
+		assert!(parse_public_key("abcd").is_err());
 	}
 
 	#[test]

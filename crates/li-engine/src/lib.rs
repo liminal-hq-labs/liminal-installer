@@ -30,6 +30,7 @@
 //! The receipt lists what each operation did in placeholder form. `uninstall` reads it and
 //! undoes the operations in reverse; `update`, `modify` and `repair` start from it.
 
+pub mod bundle;
 pub mod check;
 pub mod cond;
 pub mod error;

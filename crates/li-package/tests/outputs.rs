@@ -199,6 +199,35 @@ fn run_file_hands_over_to_the_engine() {
 	assert!(said.starts_with("engine install --from"));
 }
 
+#[cfg(unix)]
+#[test]
+fn run_file_passes_arguments_after_the_separator_to_the_engine() {
+	let mut info = fixture(Scope::User);
+	info.files.push(Entry::bytes(
+		"engine",
+		b"#!/bin/sh\necho \"$*\" > \"$3/engine.out\"\n",
+		true,
+	));
+	info.engine = Some("engine".into());
+	let dir = tempfile::tempdir().unwrap();
+	let out = dir.path().join("fizz.run");
+	run::build(&info, &out).unwrap();
+	let prefix = dir.path().join("p");
+	let o = Command::new("sh")
+		.arg(&out)
+		.arg("--prefix")
+		.arg(&prefix)
+		.args(["--", "--headless", "--answer", "a=b"])
+		.output()
+		.unwrap();
+	assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+	let said = std::fs::read_to_string(prefix.join("engine.out")).unwrap();
+	assert!(
+		said.trim_end().ends_with("--headless --answer a=b"),
+		"{said}"
+	);
+}
+
 #[test]
 fn deb_tree_layout() {
 	let dir = tempfile::tempdir().unwrap();
