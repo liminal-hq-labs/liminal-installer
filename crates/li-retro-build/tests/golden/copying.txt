@@ -1,0 +1,25 @@
+ Lieutenant Fizz - Episode One  Setup
+
+
+
+
+           ╔═════════════════════ Installing ═════════════════════╗
+           ║ Copying SOUND\SBPRO.DRV                              ║
+           ║                                                      ║
+           ║ ┌──────────────────────────────────────────┐         ║
+           ║ │ Meet Ben - Ten years old, bike helmet    │         ║
+           ║ │ on, red sneakers laced. His Fizz Stunner │         ║
+           ║ │ fires soda pop: it stuns, it never       │         ║
+           ║ │ hurts.                                   │         ║
+           ║ └──────────────────────────────────────────┘         ║
+           ║                                                      ║
+           ║ Current file [████████████████████████] 100%         ║
+           ║ Overall progre [██████████████████████] 100%         ║
+           ║ Free space aft [██████████████████████] 100%         ║
+           ║ [ Cancel ]                                           ║
+           ╚══════════════════════════════════════════════════════╝
+
+
+
+
+ Cancel, button  |  Tab move, Space toggle, Enter choose, Esc cancel

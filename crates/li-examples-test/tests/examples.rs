@@ -358,6 +358,9 @@ fn fizz_gates_the_sound_card_to_retro_renderers() {
 		.find(|c| c.id == "sound")
 		.expect("sound component");
 	assert!(sound.applies_to("dos-x86") && !sound.applies_to("windows-x86_64"));
+	// The retro runtime has no Lua, so the page names the built-in; the script remains for the
+	// runners that run scripts.
+	assert_eq!(step.on_enter.as_deref(), Some("builtin:detect-sound"));
 	let script = fs::read_to_string(ex.dir.join("scripts/sound-setup.lua")).expect("script");
 	assert!(script.contains("function detect(") && script.contains("function validate("));
 }

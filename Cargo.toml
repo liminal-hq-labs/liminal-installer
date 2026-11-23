@@ -37,6 +37,8 @@ ts-rs = { version = "12", features = ["serde-json-impl"] }
 li-render-tui = { path = "crates/li-render-tui" }
 li-package = { path = "crates/li-package" }
 li-studio = { path = "crates/li-studio" }
+li-retro = { path = "crates/li-retro" }
+li-retro-build = { path = "crates/li-retro-build" }
 
 # Third-party crates shared by more than one member.
 ratatui = "0.30"

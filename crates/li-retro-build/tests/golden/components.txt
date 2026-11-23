@@ -1,0 +1,25 @@
+ Lieutenant Fizz - Episode One  Setup
+
+
+
+
+
+
+           ╔═════════════════════ Components ═════════════════════╗
+           ║ Choose what to install.                              ║
+           ║                                                      ║
+           ║ Components                                           ║
+           ║  [x] Game program                                    ║
+           ║  [x] Sound drivers                                   ║
+           ║  [x] Episode one levels                              ║
+           ║                                                      ║
+           ║ Space required: 3 KB · Free: 64.0 MB                 ║
+           ║ [ Back ]  [ Next ]  [ Cancel ]                       ║
+           ╚══════════════════════════════════════════════════════╝
+
+
+
+
+
+
+ Next, button  |  Tab move, Space toggle, Enter choose, Esc cancel

@@ -1,0 +1,25 @@
+# The compiler from an installer project to the DOS runtime's `SETUP.DAT`.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[package]
+name = "li-retro-build"
+description = "Compiles an installer project for the tui-retro runtime: bytecode flows, flattened screens and a compressed payload"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+li-model.workspace = true
+li-engine.workspace = true
+li-render-tui.workspace = true
+li-retro.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+ratatui.workspace = true

@@ -1,0 +1,25 @@
+ Lieutenant Fizz - Episode One  Setup
+
+
+
+
+
+
+           ╔══════════════════════ Welcome ═══════════════════════╗
+           ║ Welcome to the Lieutenant Fizz setup.                ║
+           ║                                                      ║
+           ║ Help Lieutenant Fizz save the colony, one sector at  ║
+           ║ a time. This setup installs the game, the sound      ║
+           ║ drivers and the levels.                              ║
+           ║                                                      ║
+           ║ Version 1.0.0 · dos-x86                              ║
+           ║ [ Next ]  [ Cancel ]                                 ║
+           ╚══════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+ Next, button  |  Tab move, Space toggle, Enter choose, Esc cancel

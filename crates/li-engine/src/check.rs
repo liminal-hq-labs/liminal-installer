@@ -85,8 +85,18 @@ fn check_condition(project: &Project, src: &str, location: &str, out: &mut Vec<D
 	}
 }
 
-/// The actions a step may name as `builtin:<name>`; the lifecycle carries them out.
-pub const BUILTIN_ACTIONS: &[&str] = &["check-feed", "launch-app"];
+/// The actions a step may name as `builtin:<name>`. The lifecycle carries out `check-feed` and
+/// `launch-app`; the DOS runtime carries out `detect-sound` and `check-disk-space`, which are
+/// no-ops everywhere else.
+pub const BUILTIN_ACTIONS: &[&str] = &[
+	"check-feed",
+	"launch-app",
+	"detect-sound",
+	"check-disk-space",
+];
+
+/// The renderer whose runtime has no Lua interpreter, so a step on it can only name a built-in.
+pub const NO_SCRIPT_RENDERER: &str = "tui-retro";
 
 /// Validates a project for every target.
 pub fn check(project: &Project) -> Vec<Diagnostic> {
@@ -261,6 +271,33 @@ pub fn check(project: &Project) -> Vec<Diagnostic> {
 							),
 						));
 					}
+				}
+			}
+		}
+	}
+
+	// The DOS runtime does not run scripts: a hook there cannot work.
+	for t in project
+		.installer
+		.targets
+		.iter()
+		.filter(|t| t.renderer == NO_SCRIPT_RENDERER)
+	{
+		for (id, flow) in &project.flows {
+			for step in &flow.steps {
+				if let Some(spec) = step
+					.on_enter
+					.as_deref()
+					.filter(|s| !s.starts_with("builtin:"))
+				{
+					out.push(error(
+						"script-on-retro",
+						format!("flow {id}, step {}", step.id),
+						format!(
+							"on_enter `{spec}` runs a script, and target `{}` uses the `{NO_SCRIPT_RENDERER}` renderer, whose runtime has no Lua; use a built-in such as `builtin:detect-sound` or `builtin:check-disk-space`",
+							t.id
+						),
+					));
 				}
 			}
 		}

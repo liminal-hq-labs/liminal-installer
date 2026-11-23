@@ -32,13 +32,14 @@
 			"type": "page",
 			"layout": "sound-card",
 			"when": "target.renderer in ['tui-retro', 'win16']",
-			"on_enter": "scripts/sound-setup.lua#detect",
+			"on_enter": "builtin:detect-sound",
 			"next": "ready"
 		},
 		{
 			"id": "ready",
 			"type": "page",
 			"layout": "ready",
+			"on_enter": "builtin:check-disk-space",
 			"next": "copying"
 		},
 		{

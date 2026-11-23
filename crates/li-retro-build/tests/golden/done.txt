@@ -1,0 +1,25 @@
+ Lieutenant Fizz - Episode One  Setup
+
+
+
+
+
+
+
+
+           ╔═══════════════════ Setup complete ═══════════════════╗
+           ║ Lt. Fizz is installed. Thank you for installing it.  ║
+           ║                                                      ║
+           ║ After setup                                          ║
+           ║  [ ] Launch Lieutenant Fizz                          ║
+           ║ [ Finish ]                                           ║
+           ║                                                      ║
+           ╚══════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+ Finish, button  |  Tab move, Space toggle, Enter choose, Esc cancel
