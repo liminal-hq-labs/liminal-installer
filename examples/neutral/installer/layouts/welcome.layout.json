@@ -5,31 +5,56 @@
 	"root": {
 		"kind": "window",
 		"props": {
-			"title": "Neutral Sample Setup",
+			"title": "{product.name} Setup",
 			"label": "Welcome",
-			"style": "neutral"
+			"style": "neutral",
+			"caption": "Default theme · what a project gets before it has a theme of its own"
 		},
 		"children": [
 			{
 				"kind": "stack",
 				"props": {
 					"direction": "column",
-					"gap": 12
+					"gap": 1
 				},
 				"children": [
 					{
-						"kind": "text",
+						"kind": "stack",
 						"props": {
-							"text": "Welcome to the Neutral Sample setup",
-							"role": "heading"
-						}
-					},
-					{
-						"kind": "text",
-						"props": {
-							"text": "This is the default look: plain, readable and the same everywhere. A project that picks no theme gets this one.",
-							"role": "body"
-						}
+							"direction": "column",
+							"gap": 0,
+							"group": "lead"
+						},
+						"children": [
+							{
+								"kind": "text",
+								"props": {
+									"text": "Welcome to {product.name}",
+									"role": "heading",
+									"icon": {
+										"viewBox": [
+											24,
+											24
+										],
+										"shapes": [
+											{
+												"path": "M12 3l8 4v10l-8 4-8-4V7zM4 7l8 4 8-4M12 11v10",
+												"stroke": "#1d4ed8",
+												"width": 1.6,
+												"join": "round"
+											}
+										]
+									}
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"text": "This takes a minute or two. Setup puts everything back as it was if you cancel.",
+									"role": "body"
+								}
+							}
+						]
 					},
 					{
 						"kind": "text",
@@ -44,10 +69,18 @@
 				"kind": "stack",
 				"props": {
 					"direction": "row",
-					"gap": 8,
-					"align": "end"
+					"gap": 2,
+					"align": "end",
+					"region": "footer"
 				},
 				"children": [
+					{
+						"kind": "text",
+						"props": {
+							"text": "Installs for you only · no administrator needed",
+							"role": "note"
+						}
+					},
 					{
 						"kind": "button",
 						"props": {
@@ -65,73 +98,6 @@
 					}
 				]
 			}
-		],
-		"overrides": {
-			"tui": {
-				"kind": "window",
-				"props": {
-					"title": "Neutral Sample — Welcome",
-					"label": "Welcome",
-					"border": "rounded"
-				},
-				"children": [
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "column",
-							"gap": 1
-						},
-						"children": [
-							{
-								"kind": "text",
-								"props": {
-									"text": "Welcome to the Neutral Sample setup",
-									"role": "heading"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "This is the default look: plain, readable and the same everywhere. A project that picks no theme gets this one.",
-									"role": "body"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Version {product.version} · {target.id}",
-									"role": "caption"
-								}
-							}
-						]
-					},
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "row",
-							"gap": 8,
-							"align": "end"
-						},
-						"children": [
-							{
-								"kind": "button",
-								"props": {
-									"label": "Next",
-									"action": "next",
-									"default": true
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "Cancel",
-									"action": "cancel"
-								}
-							}
-						]
-					}
-				]
-			}
-		}
+		]
 	}
 }

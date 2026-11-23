@@ -141,6 +141,27 @@ A layout for a step is found in the target's theme (`themes/<name>/layouts/<id>.
 
 Table 2. Layout nodes.
 
+Nodes read these properties, all optional. A renderer ignores any it does not know.
+
+| Property | On | Meaning |
+|---|---|---|
+| `region` | any child of a `dialog`, `window` or `backdrop` | Where the node sits: `side` (art and step lists beside the content), `footer` (the button row, with a `note` text on `window` looks), `hints` (a key-hint bar of `text` nodes with a `key`), `status` (meters shown together on the backdrop). The `tui` renderer leaves out `side` and `hints`. |
+| `title`, `subtitle`, `credit`, `taskbar`, `fill` | `backdrop` | The wordmark and its second line, the credit line, the taskbar label of a classic look and the DOS fill character. |
+| `icon`, `caption` | `window` | A title-bar icon (an `art` value) and a line of text under the window. |
+| `art`, `panel`, `ground` | `image` | Pixel or vector art drawn as inline SVG, and the colours of a side panel behind it. |
+| `captions`, `slides` | `billboard` | `captions` are `{title, text, art}` slides shown in turn; `slides` names the theme assets. |
+| `source`, `caption`, `low_below` | `meter` | What it measures (`file`, `total` or `free_space`), its caption and the fraction under which free space is “Low”. `tui` reads `meter` too. |
+| `role`, `value`, `max`, `text` | `progress` | `role = "steps"` draws “Step n of m” with a block bar. |
+| `role`, `state`, `key` | `text` | Roles are `heading`, `body`, `caption`, `error`, `document`, `summary`, `title`, `subtitle`, `note`, `step-item` and `task`; `state` is `done`, `current` or `todo`; `key` marks a hint-bar key. |
+| `items` or `options`, `cards`, `sunken` | `checklist`, `radio` | A list of `{id, label, description, required, checked, badges}`, or the name of a list: `"components"` or a state field such as `"sound.cards"`. |
+| `hotkey`, `browse` | `button`, `path` | The access key underlined (classic) or coloured (DOS), and the label of a Browse button. |
+
+Table 3. Node properties.
+
+`art` is `{ width, height, scale, rects }` for pixel art, with each rect `[x, y, w, h, colour]`, or `{ viewBox, shapes }` for vector shapes (`rect`, `path`, `circle` with `fill`, `stroke`, `width`). Text properties may hold `{placeholders}` such as `{product.version}`, `{target.id}` and `{install.path}`; a screen fills them from the run's values, and a name with no value stays as written.
+
+Studio and design looks. A target's renderer and theme pick how the Studio draws a layout: `tui-retro` and `tui` the DOS text look (VT323, a cyan title bar, a `░` backdrop, a double-line dialog with its title in the border and a key-hint bar), `win32-classic` and `win16` the Windows 95 classic look (a blue gradient backdrop with an italic shadowed wordmark, a bevelled dialog with a navy title bar and a teal side panel, sunken lists and the status meters), and `canvas` and `web` the Afterglow look, or the Neutral look for the `neutral` theme or a root with `style = "neutral"`. The example themes are `fizz-dos` and `fizz-win95` (Lieutenant Fizz), `afterglow` (Planboard), `neutral` and `installshield-classic`, a product-agnostic InstallShield-style version of the classic look.
+
 Every control has an accessible name, and every renderer supports keyboard-only use. A theme can't turn either off.
 
 ## 7 · Scripts
@@ -271,7 +292,7 @@ The Studio serves MCP and GraphQL on `127.0.0.1`, protected by a token, as the P
 
 Table 8. MCP tools.
 
-The Studio runs the engine itself, not a stand-in. `check_project` is the Studio's own checks plus the engine's (condition syntax, components named in conditions, hooks and built-in actions), run over the files on disk, which every change writes through. `run_preview` takes a target as `os-arch:renderer` and returns the engine's Plan phase against a simulated machine, with the problems found and one screen per step. The flow is walked as that target would walk it: a step whose `when` is false is listed as skipped and has no screen, a `branch` takes the first branch whose condition holds (else `next`), and a page's `detect` hook runs first against sample state. A screen is the `tui` renderer's text dump set in an SVG (`tui-retro` targets use the retro look, others the plain look); a step with no layout for the target has none. `test_script` runs the source it is given, which may be unsaved, in the script sandbox against a sample page (`install.path`, `components`) and a sample plan, calling each hook the script defines. The report lists the hooks present, the modules the script's capabilities open, any capability denial or script error as a problem, and a line for each hook's result, each field `detect` set, each problem `validate` returned and each operation a hook added.
+The Studio runs the engine itself, not a stand-in. `check_project` is the Studio's own checks plus the engine's (condition syntax, components named in conditions, hooks and built-in actions), run over the files on disk, which every change writes through. `run_preview` takes a target as `os-arch:renderer` and returns the engine's Plan phase against a simulated machine, with the problems found and one screen per step. The flow is walked as that target would walk it: a step whose `when` is false is listed as skipped and has no screen, a `branch` takes the first branch whose condition holds (else `next`), and a page's `detect` hook runs first against sample state. Each step carries `layout_tree`, the layout as the target's renderer draws it (its `@renderer` overrides applied, list references such as `items = "components"` expanded, `LICENCE.TXT` read in) and the page `state`; the preview also carries the target's `renderer` and `theme`, the `product` and sample `vars` for `{placeholders}`. The Studio draws each step from these as the rich screen of the target's look. `tui` targets also carry the renderer's text dump as a SVG, shown as a collapsible text version, and that dump fills `{placeholders}` from the same values. A step with no layout for the target has none. A theme's own layouts, in `themes/<id>/layouts/`, are listed and edited as `theme/id`. `test_script` runs the source it is given, which may be unsaved, in the script sandbox against a sample page (`install.path`, `components`) and a sample plan, calling each hook the script defines. The report lists the hooks present, the modules the script's capabilities open, any capability denial or script error as a problem, and a line for each hook's result, each field `detect` set, each problem `validate` returned and each operation a hook added.
 
 ### The Studio window
 

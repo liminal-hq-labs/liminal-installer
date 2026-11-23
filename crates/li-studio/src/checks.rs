@@ -89,7 +89,7 @@ pub fn check_project(project: &Project) -> Vec<Problem> {
 		for step in &flow.steps {
 			let scope = format!("flow:{}", flow.id);
 			if let Some(layout) = &step.layout
-				&& !project.layouts.contains_key(layout)
+				&& project.find_layout(layout).is_none()
 			{
 				out.push(
 					Problem::error(&scope, format!("layout `{layout}` does not exist"))

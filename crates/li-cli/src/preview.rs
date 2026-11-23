@@ -59,7 +59,7 @@ fn seed(node: &Node, b: &mut MapBindings, slug: &str) {
 	if let Some(bind) = &node.bind {
 		match node.kind.as_str() {
 			"meter" | "progress" => b.set(bind, json!(0.5)),
-			"path" => b.set(bind, json!(format!("~/.local/share/{slug}"))),
+			"path" => b.set(bind, json!(slug)),
 			_ => {}
 		}
 	}
@@ -68,10 +68,51 @@ fn seed(node: &Node, b: &mut MapBindings, slug: &str) {
 	}
 }
 
-pub fn screen_text(layout: &Layout, look: Look, w: u16, h: u16, slug: &str) -> String {
-	let screen = Screen::new(layout, look);
+/// Sample values for the `{placeholders}` a screen shows.
+fn sample_vars(project: &Project, target: &Target, slug: &str, plan_ops: usize) -> MapBindings {
+	let p = &project.installer.product;
+	let (os, arch) = target.id.split_once('-').unwrap_or((&target.id, ""));
+	let version = match &p.version {
+		li_model::project::VersionSource::Literal(v) => v.clone(),
+		_ => "1.0.0".to_owned(),
+	};
+	let pairs = [
+		("product.id", p.id.clone()),
+		("product.name", p.name.clone()),
+		("product.publisher", p.publisher.clone()),
+		("product.version", version),
+		("target.id", target.id.clone()),
+		("target.renderer", target.renderer.clone()),
+		("target.os", os.to_owned()),
+		("target.arch", arch.to_owned()),
+		("install.path", format!("~/.local/share/{slug}")),
+		("install.size", "48 MB".to_owned()),
+		("system.free_space", "12.4 GB".to_owned()),
+		("system.free_space_after", "12.3 GB".to_owned()),
+		("progress.file", "data/level-03.lvl".to_owned()),
+		("progress.percent", "50".to_owned()),
+		("plan.summary", format!("{plan_ops} operations · 48 MB")),
+		("sound.detected", "Sound Blaster".to_owned()),
+		("feed.latest", "1.1.0".to_owned()),
+		("receipt.installed", "1.0.0".to_owned()),
+		("feed.notes", "Fixes and new levels.".to_owned()),
+		("validate.problems", String::new()),
+	];
 	let mut b = MapBindings::new();
-	seed(&layout.root, &mut b, slug);
+	for (k, v) in pairs {
+		b.set(k, json!(v));
+	}
+	b
+}
+
+pub fn screen_text(layout: &Layout, look: Look, w: u16, h: u16, vars: &MapBindings) -> String {
+	let screen = Screen::new(layout, look);
+	let mut b = vars.clone();
+	let slug = match vars.get("install.path").and_then(|v| v.as_str()) {
+		Some(p) => p.to_owned(),
+		None => String::new(),
+	};
+	seed(&layout.root, &mut b, &slug);
 	dump_with_controls(&screen, &b, w, h)
 }
 
@@ -98,6 +139,7 @@ pub fn preview(
 		.next()
 		.unwrap_or("app")
 		.to_owned();
+	let vars = sample_vars(project, target, &slug, plan.ops.len());
 	let steps = walk(flow);
 	if o.json {
 		let screens: Vec<_> = steps
@@ -111,7 +153,7 @@ pub fn preview(
 					"id": s.id,
 					"type": s.kind,
 					"layout": s.layout,
-					"screen": layout.map(|l| screen_text(l, o.look, o.width, o.height, &slug)),
+					"screen": layout.map(|l| screen_text(l, o.look, o.width, o.height, &vars)),
 				})
 			})
 			.collect();
@@ -148,7 +190,7 @@ pub fn preview(
 				None => out.push_str("(no page)\n"),
 				Some(l) => match project.layout_for(target, l) {
 					Some(layout) => {
-						out.push_str(&screen_text(layout, o.look, o.width, o.height, &slug))
+						out.push_str(&screen_text(layout, o.look, o.width, o.height, &vars))
 					}
 					None => out.push_str(&format!("(layout `{l}` not found)\n")),
 				},

@@ -1,6 +1,6 @@
 # Studio desktop shell
 
-How the Studio window is put together, and how to drive it while developing. `SPEC.md` has the behaviour and `decisions.md` the reasons (D15 to D21).
+How the Studio window is put together, and how to drive it while developing. `SPEC.md` has the behaviour and `decisions.md` the reasons (D15 to D23).
 
 ## What draws what
 
@@ -52,3 +52,11 @@ What keeps this out of release builds:
 - `ui/scripts/dev-automation.test.ts` fails the UI tests if any of those change, or if a child window is added to `windows.rs` without being added to both capability files.
 
 A new kind of child window needs its label in `capabilities/default.json` and `capabilities/dev-automation.json`. The Preferences window keeps the label `preferences`, so both already cover it.
+
+## How layouts are drawn
+
+`src/lib/previewRender.ts` turns a layout tree into HTML in one of four looks: `dos` (`tui-retro` and `tui`), `win95` (`win32-classic` and `win16`), `afterglow` and `neutral` (`canvas` and `web`, by theme). The Layouts screen and the Dry-run screen both call it, so they cannot drift. `src/styles/preview.css` holds the looks; each stage is composed at its artboard's pixel size (960 by 600 for DOS, 1024 by 768 for Windows 95, 1024 by 720 for the others) and `fitStages` scales it to the card. The DOS look uses VT323 from `@fontsource/vt323`, imported in `main.ts`, because the page's content security policy allows no remote fonts.
+
+Dry-run draws from `layout_tree`, `state`, `vars`, `renderer` and `theme` in the preview, and choosing a target runs the preview again. Picture art is the node's own `art` property drawn as inline SVG. A `tui` target also gets the text version, under the screen. The browser demo (`demoApi.ts`) builds the same payload from the `lt-fizz` example.
+
+A theme's own layouts, in `themes/<id>/layouts/`, show in the Layouts screen's picker under the theme, and the preview uses a renderer that theme supports. The looks are checked against the artboards in `Fizz-DOS`, `Fizz-Win95`, `Planboard-Afterglow` and `Neutral-Default`.

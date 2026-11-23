@@ -435,7 +435,7 @@ mod tests {
 		let (_, layout) = call(
 			&s,
 			"get_layout",
-			json!({"id": "welcome", "renderer": "tui-retro"}),
+			json!({"id": "fizz-dos/welcome", "renderer": "tui-retro"}),
 		);
 		assert_eq!(layout["root"]["props"]["style"], "text-mode");
 		assert!(layout["root"].get("overrides").is_none());

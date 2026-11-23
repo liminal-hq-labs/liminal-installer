@@ -1,0 +1,230 @@
+{
+	"$schema": "https://liminal-hq.github.io/installer/schema/layout.json",
+	"version": 1,
+	"id": "licence",
+	"root": {
+		"kind": "backdrop",
+		"props": {
+			"style": "text-mode",
+			"charset": "cp437",
+			"fill": "░",
+			"title": "{product.name}  Setup",
+			"credit": "Liminal Installer",
+			"label": "Lieutenant Fizz — Episode One setup"
+		},
+		"children": [
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "column",
+					"gap": 1,
+					"region": "side"
+				},
+				"children": [
+					{
+						"kind": "text",
+						"props": {
+							"text": "Lt. Fizz",
+							"role": "title"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Episode One",
+							"role": "subtitle"
+						}
+					},
+					{
+						"kind": "image",
+						"props": {
+							"label": "Lt. Fizz",
+							"alt": "Lt. Fizz",
+							"art": {
+								"width": 6,
+								"height": 10,
+								"scale": 12,
+								"rects": [
+									[
+										1,
+										0,
+										4,
+										1,
+										"#aaaaaa"
+									],
+									[
+										0,
+										1,
+										6,
+										8,
+										"#aa0000"
+									],
+									[
+										0,
+										4,
+										6,
+										2,
+										"#ffffff"
+									],
+									[
+										2,
+										4,
+										2,
+										2,
+										"#0000aa"
+									],
+									[
+										1,
+										9,
+										4,
+										1,
+										"#aaaaaa"
+									],
+									[
+										4,
+										2,
+										1,
+										1,
+										"#ff5555"
+									]
+								]
+							}
+						}
+					},
+					{
+						"kind": "progress",
+						"props": {
+							"label": "Setup steps",
+							"role": "steps",
+							"value": 2,
+							"max": 8,
+							"text": "Step 2 of 8"
+						}
+					}
+				]
+			},
+			{
+				"kind": "dialog",
+				"props": {
+					"title": "Licence",
+					"label": "Licence",
+					"border": "double",
+					"shadow": true,
+					"width": 56
+				},
+				"children": [
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "column",
+							"gap": 1
+						},
+						"children": [
+							{
+								"kind": "text",
+								"props": {
+									"text": "",
+									"role": "document",
+									"source": "LICENCE.TXT",
+									"scroll": true,
+									"label": "Licence text"
+								}
+							},
+							{
+								"kind": "radio",
+								"bind": "licence.accepted",
+								"props": {
+									"label": "Licence acceptance",
+									"options": [
+										{
+											"id": "yes",
+											"label": "I accept the agreement"
+										},
+										{
+											"id": "no",
+											"label": "I do not accept the agreement"
+										}
+									]
+								}
+							}
+						]
+					},
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "row",
+							"gap": 2,
+							"align": "centre",
+							"region": "footer"
+						},
+						"children": [
+							{
+								"kind": "button",
+								"props": {
+									"label": "Back",
+									"action": "back",
+									"hotkey": "B"
+								}
+							},
+							{
+								"kind": "button",
+								"props": {
+									"label": "Next",
+									"action": "next",
+									"default": true,
+									"hotkey": "N",
+									"enabled_when": "state.licence.accepted == 'yes'"
+								}
+							},
+							{
+								"kind": "button",
+								"props": {
+									"label": "Cancel",
+									"action": "cancel"
+								}
+							}
+						]
+					}
+				]
+			},
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "row",
+					"gap": 3,
+					"region": "hints"
+				},
+				"children": [
+					{
+						"kind": "text",
+						"props": {
+							"text": "Select",
+							"key": "↑↓"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Read more",
+							"key": "PgDn"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Accept",
+							"key": "Enter"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Back",
+							"key": "Esc"
+						}
+					}
+				]
+			}
+		]
+	}
+}

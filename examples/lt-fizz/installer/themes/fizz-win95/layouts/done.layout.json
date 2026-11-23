@@ -1,0 +1,181 @@
+{
+	"$schema": "https://liminal-hq.github.io/installer/schema/layout.json",
+	"version": 1,
+	"id": "done",
+	"root": {
+		"kind": "backdrop",
+		"props": {
+			"style": "classic",
+			"title": "Lieutenant Fizz",
+			"subtitle": "Episode One",
+			"credit": "Setup powered by Liminal Installer",
+			"taskbar": "Lieutenant Fizz Setup",
+			"label": "Lieutenant Fizz — Episode One setup"
+		},
+		"children": [
+			{
+				"kind": "dialog",
+				"props": {
+					"title": "Setup Complete",
+					"label": "Setup Complete",
+					"style": "win32-classic",
+					"width": 64
+				},
+				"children": [
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "column",
+							"gap": 0,
+							"region": "side"
+						},
+						"children": [
+							{
+								"kind": "image",
+								"props": {
+									"label": "Lieutenant Fizz",
+									"alt": "Lieutenant Fizz",
+									"art": {
+										"width": 10,
+										"height": 20,
+										"scale": 8,
+										"rects": [
+											[
+												2,
+												0,
+												6,
+												3,
+												"#ff5555"
+											],
+											[
+												1,
+												2,
+												8,
+												1,
+												"#ff5555"
+											],
+											[
+												3,
+												3,
+												4,
+												3,
+												"#ffaa55"
+											],
+											[
+												2,
+												6,
+												6,
+												6,
+												"#5555ff"
+											],
+											[
+												8,
+												7,
+												2,
+												2,
+												"#aaaaaa"
+											],
+											[
+												3,
+												12,
+												2,
+												5,
+												"#555555"
+											],
+											[
+												6,
+												12,
+												2,
+												5,
+												"#555555"
+											],
+											[
+												2,
+												17,
+												3,
+												2,
+												"#ff5555"
+											],
+											[
+												6,
+												17,
+												3,
+												2,
+												"#ff5555"
+											],
+											[
+												2,
+												19,
+												3,
+												1,
+												"#ffffff"
+											],
+											[
+												6,
+												19,
+												3,
+												1,
+												"#ffffff"
+											]
+										]
+									},
+									"panel": "#008080",
+									"ground": "#004040"
+								}
+							}
+						]
+					},
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "column",
+							"gap": 1
+						},
+						"children": [
+							{
+								"kind": "text",
+								"props": {
+									"text": "Setup has finished installing {product.name} on your computer.",
+									"role": "body"
+								}
+							},
+							{
+								"kind": "checklist",
+								"bind": "finish.launch",
+								"props": {
+									"label": "After setup",
+									"items": [
+										{
+											"id": "launch",
+											"label": "Launch Lieutenant Fizz"
+										}
+									]
+								}
+							}
+						]
+					},
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "row",
+							"gap": 1,
+							"align": "end",
+							"region": "footer"
+						},
+						"children": [
+							{
+								"kind": "button",
+								"props": {
+									"label": "Finish",
+									"action": "finish",
+									"default": true,
+									"hotkey": "F"
+								}
+							}
+						]
+					}
+				]
+			}
+		]
+	}
+}

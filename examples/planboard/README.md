@@ -8,6 +8,7 @@ Planboard installs an app, a command-line tool and documentation on Linux, Windo
 - `installer/flows/` holds one flow per lifecycle: install, update, modify, uninstall and launch.
 - `installer/layouts/` holds the page layouts the flows name. Each node may carry per-renderer overrides.
 - `installer/themes/` holds one folder per theme, each with a `theme.toml` and its assets.
+- The layouts in `installer/layouts/` draw the Afterglow design: a dark rounded window with a step list, component cards and an accent progress bar.
 - `installer/dist/` holds tiny payload stand-ins. The `.EXE` and Mach-O files are text, and the Linux executables are shell scripts.
 
 ## Checking it

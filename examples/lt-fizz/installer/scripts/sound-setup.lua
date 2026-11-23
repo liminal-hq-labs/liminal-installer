@@ -6,9 +6,11 @@
 -- capabilities: env, ui
 
 local CARDS = {
-	{ id = "sbpro", name = "Sound Blaster Pro" },
-	{ id = "adlib", name = "AdLib" },
 	{ id = "none", name = "No sound" },
+	{ id = "speaker", name = "PC speaker" },
+	{ id = "adlib", name = "AdLib music card" },
+	{ id = "sbpro", name = "Sound Blaster / Pro / 16" },
+	{ id = "gus", name = "Gravis UltraSound" },
 }
 
 -- Fills the sound-card page from the BLASTER variable, as the DOS sound drivers read it.
@@ -20,7 +22,8 @@ function detect(page)
 		fields["sound.detected"] = "Sound Blaster"
 		fields["sound.card"] = "sbpro"
 		fields["sound.port"] = string.match(blaster, "A(%x+)") or "220"
-		fields["sound.irq"] = string.match(blaster, "I(%d+)") or "7"
+		fields["sound.irq"] = string.match(blaster, "I(%d+)") or "5"
+		fields["sound.dma"] = string.match(blaster, "D(%d+)") or "1"
 	else
 		fields["sound.detected"] = "No sound card"
 		fields["sound.card"] = "none"

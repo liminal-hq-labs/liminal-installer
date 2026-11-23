@@ -16,6 +16,7 @@ pub mod mcp;
 pub mod mock;
 pub mod project;
 pub mod resolve;
+pub mod screens;
 pub mod studio;
 
 pub use backend::{

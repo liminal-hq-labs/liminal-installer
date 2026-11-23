@@ -5,37 +5,147 @@
 	"root": {
 		"kind": "window",
 		"props": {
-			"title": "Planboard Setup",
+			"title": "{product.name} Setup",
 			"label": "Ready to install",
-			"style": "afterglow"
+			"style": "afterglow",
+			"icon": {
+				"viewBox": [
+					20,
+					20
+				],
+				"shapes": [
+					{
+						"rect": [
+							1.5,
+							3,
+							17,
+							14
+						],
+						"rx": 3,
+						"stroke": "#e0e0e0",
+						"width": 1.5
+					},
+					{
+						"path": "M1.5 7h17",
+						"stroke": "#e0e0e0",
+						"width": 1.5
+					},
+					{
+						"rect": [
+							5,
+							9.5,
+							5,
+							5
+						],
+						"rx": 1,
+						"fill": "#ffaa40"
+					},
+					{
+						"path": "M11.5 10h4M11.5 13h3",
+						"stroke": "#a78bfa",
+						"width": 1.5,
+						"cap": "round"
+					}
+				]
+			},
+			"caption": "Theme: Afterglow · the same flow runs on Windows, Linux, macOS and FreeBSD"
 		},
 		"children": [
 			{
 				"kind": "stack",
 				"props": {
 					"direction": "column",
-					"gap": 12
+					"gap": 0,
+					"label": "Setup steps",
+					"region": "side"
 				},
 				"children": [
 					{
 						"kind": "text",
 						"props": {
-							"text": "Ready to install",
-							"role": "heading"
+							"text": "Welcome",
+							"role": "step-item",
+							"state": "done"
 						}
 					},
 					{
 						"kind": "text",
 						"props": {
-							"text": "Setup will copy the files below to {install.path}.",
-							"role": "body"
+							"text": "Licence",
+							"role": "step-item",
+							"state": "done"
 						}
 					},
 					{
 						"kind": "text",
 						"props": {
-							"role": "summary",
+							"text": "Location",
+							"role": "step-item",
+							"state": "done"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Components",
+							"role": "step-item",
+							"state": "done"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Install",
+							"role": "step-item",
+							"state": "current"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Done",
+							"role": "step-item",
+							"state": "todo"
+						}
+					}
+				]
+			},
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "column",
+					"gap": 1
+				},
+				"children": [
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "column",
+							"gap": 0,
+							"group": "lead"
+						},
+						"children": [
+							{
+								"kind": "text",
+								"props": {
+									"text": "Ready to install",
+									"role": "heading"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"text": "Setup will copy the files below to {install.path}.",
+									"role": "body"
+								}
+							}
+						]
+					},
+					{
+						"kind": "text",
+						"props": {
 							"text": "{plan.summary}",
+							"role": "summary",
 							"label": "Installation summary"
 						}
 					}
@@ -45,10 +155,18 @@
 				"kind": "stack",
 				"props": {
 					"direction": "row",
-					"gap": 8,
-					"align": "end"
+					"gap": 2,
+					"align": "end",
+					"region": "footer"
 				},
 				"children": [
+					{
+						"kind": "text",
+						"props": {
+							"text": "Cancel puts everything back as it was.",
+							"role": "note"
+						}
+					},
 					{
 						"kind": "button",
 						"props": {
@@ -73,81 +191,6 @@
 					}
 				]
 			}
-		],
-		"overrides": {
-			"tui": {
-				"kind": "window",
-				"props": {
-					"title": "Planboard — Ready to install",
-					"label": "Ready to install",
-					"border": "rounded"
-				},
-				"children": [
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "column",
-							"gap": 1
-						},
-						"children": [
-							{
-								"kind": "text",
-								"props": {
-									"text": "Ready to install",
-									"role": "heading"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Setup will copy the files below to {install.path}.",
-									"role": "body"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"role": "summary",
-									"text": "{plan.summary}",
-									"label": "Installation summary"
-								}
-							}
-						]
-					},
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "row",
-							"gap": 8,
-							"align": "end"
-						},
-						"children": [
-							{
-								"kind": "button",
-								"props": {
-									"label": "Back",
-									"action": "back"
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "Install",
-									"action": "commit",
-									"default": true
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "Cancel",
-									"action": "cancel"
-								}
-							}
-						]
-					}
-				]
-			}
-		}
+		]
 	}
 }

@@ -3,248 +3,85 @@
 	"version": 1,
 	"id": "components",
 	"root": {
-		"kind": "backdrop",
+		"kind": "window",
 		"props": {
-			"style": "classic",
 			"title": "Lieutenant Fizz — Episode One",
-			"label": "Lieutenant Fizz — Episode One setup"
+			"label": "Select Components"
 		},
 		"children": [
 			{
-				"kind": "dialog",
+				"kind": "stack",
 				"props": {
-					"title": "Choose components — Lt. Fizz",
-					"label": "Choose components",
-					"style": "win32-classic"
+					"direction": "column",
+					"gap": 1
 				},
 				"children": [
 					{
-						"kind": "stack",
+						"kind": "text",
 						"props": {
-							"direction": "column",
-							"gap": 12
-						},
-						"children": [
-							{
-								"kind": "text",
-								"props": {
-									"text": "Choose what to install",
-									"role": "heading"
-								}
-							},
-							{
-								"kind": "checklist",
-								"bind": "components.selected",
-								"props": {
-									"label": "Components",
-									"items": "components"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Space required: {install.size}",
-									"role": "caption"
-								}
-							}
-						]
+							"text": "Select Components",
+							"role": "heading"
+						}
 					},
 					{
-						"kind": "stack",
+						"kind": "text",
 						"props": {
-							"direction": "row",
-							"gap": 8,
-							"align": "end"
-						},
-						"children": [
-							{
-								"kind": "button",
-								"props": {
-									"label": "Back",
-									"action": "back"
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "Next",
-									"action": "next",
-									"default": true
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "Cancel",
-									"action": "cancel"
-								}
-							}
-						]
-					}
-				]
-			}
-		],
-		"overrides": {
-			"tui-retro": {
-				"kind": "backdrop",
-				"props": {
-					"style": "text-mode",
-					"charset": "cp437",
-					"fill": "░",
-					"title": "Lieutenant Fizz — Episode One",
-					"label": "Lieutenant Fizz — Episode One setup",
-					"palette": "blue-on-grey"
-				},
-				"children": [
+							"text": "Select the components you want to install, and clear the components you do not want to install.",
+							"role": "body"
+						}
+					},
 					{
-						"kind": "dialog",
+						"kind": "checklist",
+						"bind": "components.selected",
 						"props": {
-							"title": "Choose components",
-							"label": "Choose components",
-							"border": "double",
-							"shadow": true
-						},
-						"children": [
-							{
-								"kind": "stack",
-								"props": {
-									"direction": "column",
-									"gap": 1
-								},
-								"children": [
-									{
-										"kind": "text",
-										"props": {
-											"text": "Choose what to install",
-											"role": "heading"
-										}
-									},
-									{
-										"kind": "checklist",
-										"bind": "components.selected",
-										"props": {
-											"label": "Components",
-											"items": "components"
-										}
-									},
-									{
-										"kind": "text",
-										"props": {
-											"text": "Space required: {install.size}",
-											"role": "caption"
-										}
-									}
-								]
-							},
-							{
-								"kind": "stack",
-								"props": {
-									"direction": "row",
-									"gap": 8,
-									"align": "end"
-								},
-								"children": [
-									{
-										"kind": "button",
-										"props": {
-											"label": "Back",
-											"action": "back"
-										}
-									},
-									{
-										"kind": "button",
-										"props": {
-											"label": "Next",
-											"action": "next",
-											"default": true
-										}
-									},
-									{
-										"kind": "button",
-										"props": {
-											"label": "Cancel",
-											"action": "cancel"
-										}
-									}
-								]
-							}
-						]
+							"label": "Components",
+							"items": "components",
+							"sunken": true
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Space required: {install.size} · Free: {system.free_space}",
+							"role": "caption"
+						}
 					}
 				]
 			},
-			"tui": {
-				"kind": "window",
+			{
+				"kind": "stack",
 				"props": {
-					"title": "Lieutenant Fizz — Episode One — Choose components",
-					"label": "Choose components",
-					"border": "rounded"
+					"direction": "row",
+					"gap": 2,
+					"align": "end"
 				},
 				"children": [
 					{
-						"kind": "stack",
+						"kind": "button",
 						"props": {
-							"direction": "column",
-							"gap": 1
-						},
-						"children": [
-							{
-								"kind": "text",
-								"props": {
-									"text": "Choose what to install",
-									"role": "heading"
-								}
-							},
-							{
-								"kind": "checklist",
-								"bind": "components.selected",
-								"props": {
-									"label": "Components",
-									"items": "components"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Space required: {install.size}",
-									"role": "caption"
-								}
-							}
-						]
+							"label": "Back",
+							"action": "back",
+							"hotkey": "B"
+						}
 					},
 					{
-						"kind": "stack",
+						"kind": "button",
 						"props": {
-							"direction": "row",
-							"gap": 8,
-							"align": "end"
-						},
-						"children": [
-							{
-								"kind": "button",
-								"props": {
-									"label": "Back",
-									"action": "back"
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "Next",
-									"action": "next",
-									"default": true
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "Cancel",
-									"action": "cancel"
-								}
-							}
-						]
+							"label": "Next",
+							"action": "next",
+							"default": true,
+							"hotkey": "N"
+						}
+					},
+					{
+						"kind": "button",
+						"props": {
+							"label": "Cancel",
+							"action": "cancel"
+						}
 					}
 				]
 			}
-		}
+		]
 	}
 }

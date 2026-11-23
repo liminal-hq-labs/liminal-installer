@@ -254,6 +254,7 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		state.mcp = await api.mcpInfo();
 		if (!state.summary.targets.some((t) => t.full_id === state.previewTarget)) state.previewTarget = defaultTarget(state.summary.targets.map((t) => t.full_id));
 		state.preview = await api.getPreview();
+		if (state.preview) state.previewTarget = state.preview.target;
 		if (state.summary.flows.some((f) => f.id === state.flowId)) await ctx.loadFlow(state.flowId);
 		if (state.summary.layouts.includes(state.layoutId)) await ctx.loadLayout(state.layoutId).then(() => undefined);
 		if (state.scriptPath && !state.scriptDirty && state.summary.scripts.includes(state.scriptPath)) await ctx.loadScript(state.scriptPath);

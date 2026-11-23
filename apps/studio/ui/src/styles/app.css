@@ -277,54 +277,6 @@ ol.steps li.skipped { opacity: 0.55; }
 .op-name { color: var(--lh-brand-cyan); }
 .shot { max-width: 100%; margin-top: 12px; border: 1px solid var(--lh-border-subtle); border-radius: var(--lh-radius-sm); background: var(--lh-bg-sidebar); }
 
-/* Live layout preview: a retro text-mode look and a modern canvas look. */
-.preview-host { margin-top: 12px; overflow: auto; }
-.pv { font-size: 13px; padding: 16px; border-radius: var(--lh-radius-md); min-height: 260px; }
-.pv * { box-sizing: border-box; }
-.pv-stack { display: flex; gap: 8px; }
-.pv-col { flex-direction: column; }
-.pv-row { flex-direction: row; justify-content: flex-end; align-items: center; }
-.pv-grid { display: grid; gap: 8px; }
-.pv-heading { font-weight: 700; font-size: 1.15em; }
-.pv-caption { opacity: 0.7; font-size: 0.9em; }
-.pv-error { color: #c62828; }
-.pv-document { max-height: 90px; overflow: hidden; opacity: 0.75; }
-.pv-meter { display: grid; grid-template-columns: 11em 1fr; gap: 8px; align-items: center; }
-.pv-field { display: grid; grid-template-columns: 11em 1fr; gap: 8px; align-items: center; }
-.pv-billboard, .pv-image, .pv-custom { padding: 14px; text-align: center; }
-button.pv-button { font: inherit; cursor: default; }
-
-.pv-canvas { background: linear-gradient(160deg, #2a1f3d, #3d2430); color: #f1e9ff; font-family: var(--lh-font-body); }
-.pv-canvas .pv-window, .pv-canvas .pv-dialog { background: rgba(12, 12, 16, 0.85); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 12px; overflow: hidden; }
-.pv-canvas .pv-titlebar { padding: 10px 16px; font-weight: 600; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
-.pv-canvas .pv-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-.pv-canvas .pv-backdrop-title { font-weight: 700; margin-bottom: 8px; }
-.pv-canvas .pv-button { background: rgba(255, 255, 255, 0.1); color: inherit; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; padding: 6px 16px; }
-.pv-canvas .pv-button.pv-default { background: #ffaa40; color: #050507; border-color: transparent; font-weight: 600; }
-.pv-canvas .pv-bar { display: block; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.15); overflow: hidden; }
-.pv-canvas .pv-bar-fill { display: block; height: 100%; background: #ffaa40; }
-.pv-canvas .pv-bar-fill.pv-warn { background: #f87171; }
-.pv-canvas .pv-input { padding: 4px 8px; border-radius: 6px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); }
-.pv-canvas .pv-box, .pv-canvas .pv-dot { display: inline-block; width: 12px; height: 12px; border: 1.5px solid #b4bfce; vertical-align: -2px; margin-right: 4px; }
-.pv-canvas .pv-box { border-radius: 3px; }
-.pv-canvas .pv-dot { border-radius: 50%; }
-.pv-canvas .on { background: #ffaa40; border-color: #ffaa40; }
-.pv-canvas .pv-billboard, .pv-canvas .pv-image, .pv-canvas .pv-custom { border: 1px dashed rgba(255, 255, 255, 0.3); border-radius: 8px; }
-
-.pv-retro { background: #0000aa; color: #aaaaaa; font-family: var(--lh-font-mono); line-height: 1.3; }
-.pv-retro .pv-backdrop { background: repeating-linear-gradient(45deg, #0000aa, #0000aa 3px, #0000c0 3px, #0000c0 4px); padding: 12px; min-height: 230px; }
-.pv-retro .pv-backdrop-title { color: #ffffff; font-weight: 700; margin-bottom: 10px; }
-.pv-retro .pv-window, .pv-retro .pv-dialog { background: #aaaaaa; color: #000000; border: 4px double #ffffff; box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.6); }
-.pv-retro .pv-titlebar { background: #ffffff; color: #0000aa; text-align: center; font-weight: 700; }
-.pv-retro .pv-body { padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; }
-.pv-retro .pv-button { background: #00aaaa; color: #000; border: 0; padding: 0 4px; font: inherit; }
-.pv-retro .pv-button.pv-default { background: #ffff55; }
-.pv-retro .pv-bar-text { color: #0000aa; }
-.pv-retro .pv-bar-text.pv-warn { color: #aa0000; }
-.pv-retro .pv-input { background: #0000aa; color: #fff; padding: 0 4px; }
-.pv-retro .pv-meter, .pv-retro .pv-field { grid-template-columns: 14em 1fr; }
-.pv-retro .pv-error { color: #aa0000; }
-
 @media (max-width: 1100px) {
 	.flow-layout, .layout-grid, .script-grid, .preview-grid { grid-template-columns: minmax(0, 1fr); }
 }

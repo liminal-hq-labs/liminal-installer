@@ -53,13 +53,20 @@ pub fn to_tab_json<T: Serialize>(value: &T) -> Result<String, serde_json::Error>
 	Ok(String::from_utf8(buf).expect("serde_json writes UTF-8"))
 }
 
-fn safe_id(id: &str) -> bool {
+fn safe_segment(id: &str) -> bool {
 	!id.is_empty()
 		&& id != "."
 		&& !id.contains("..")
 		&& id
 			.chars()
 			.all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+}
+
+/// A document id: one safe name, or for a layout `theme/name`.
+fn safe_id(id: &str) -> bool {
+	let mut parts = id.split('/');
+	let (a, b) = (parts.next(), parts.next());
+	parts.next().is_none() && a.is_some_and(safe_segment) && b.is_none_or(safe_segment)
 }
 
 fn safe_script(path: &str) -> bool {
@@ -73,7 +80,8 @@ fn safe_script(path: &str) -> bool {
 impl DocKey {
 	pub fn validate(&self) -> Result<(), StudioError> {
 		let ok = match self {
-			DocKey::Flow(id) | DocKey::Layout(id) => safe_id(id),
+			DocKey::Flow(id) => safe_id(id) && !id.contains('/'),
+			DocKey::Layout(id) => safe_id(id),
 			DocKey::Script(path) => safe_script(path),
 		};
 		if ok {
@@ -86,7 +94,10 @@ impl DocKey {
 	fn relative_path(&self) -> String {
 		match self {
 			DocKey::Flow(id) => format!("flows/{id}.flow.json"),
-			DocKey::Layout(id) => format!("layouts/{id}.layout.json"),
+			DocKey::Layout(id) => match id.split_once('/') {
+				Some((theme, name)) => format!("themes/{theme}/layouts/{name}.layout.json"),
+				None => format!("layouts/{id}.layout.json"),
+			},
 			DocKey::Script(path) => path.clone(),
 		}
 	}
@@ -154,7 +165,14 @@ impl Project {
 				if file.is_file() {
 					let theme: ThemeFile = toml::from_str(&read(&file)?)
 						.map_err(|e| StudioError::invalid(file.display().to_string(), e))?;
-					themes.insert(theme.theme.id.clone(), theme);
+					let theme_id = theme.theme.id.clone();
+					themes.insert(theme_id.clone(), theme);
+					for p in dir_files(&entry.path().join("layouts"), ".layout.json") {
+						let mut layout: Layout = serde_json::from_str(&read(&p)?)
+							.map_err(|e| StudioError::invalid(p.display().to_string(), e))?;
+						layout.id = format!("{theme_id}/{}", layout.id);
+						layouts.insert(layout.id.clone(), layout);
+					}
 				}
 			}
 		}
@@ -174,6 +192,16 @@ impl Project {
 		})
 	}
 
+	/// The layout a flow step names: the shared one, else the first theme's.
+	pub fn find_layout(&self, id: &str) -> Option<&Layout> {
+		self.layouts.get(id).or_else(|| {
+			self.layouts
+				.iter()
+				.find(|(k, _)| k.split_once('/').is_some_and(|(_, n)| n == id))
+				.map(|(_, l)| l)
+		})
+	}
+
 	pub fn get(&self, key: &DocKey) -> Option<Doc> {
 		match key {
 			DocKey::Flow(id) => self.flows.get(id).cloned().map(Doc::Flow),
@@ -190,7 +218,14 @@ impl Project {
 			Some(doc) => {
 				let text = match (&doc, key) {
 					(Doc::Flow(f), DocKey::Flow(id)) if &f.id == id => to_tab_json(f),
-					(Doc::Layout(l), DocKey::Layout(id)) if &l.id == id => to_tab_json(l),
+					(Doc::Layout(l), DocKey::Layout(id)) if &l.id == id => {
+						// A theme's layout is stored under its own short id.
+						let mut file = l.clone();
+						if let Some((_, name)) = id.split_once('/') {
+							file.id = name.to_owned();
+						}
+						to_tab_json(&file)
+					}
 					(Doc::Script(s), DocKey::Script(_)) => Ok(s.clone()),
 					_ => {
 						return Err(StudioError::invalid(
@@ -291,7 +326,10 @@ mod tests {
 	fn rejects_unsafe_names() {
 		assert!(DocKey::Flow("install".into()).validate().is_ok());
 		assert!(DocKey::Flow("../x".into()).validate().is_err());
-		assert!(DocKey::Layout("a/b".into()).validate().is_err());
+		assert!(DocKey::Layout("a/b/c".into()).validate().is_err());
+		assert!(DocKey::Layout("a/../b".into()).validate().is_err());
+		assert!(DocKey::Layout("theme/welcome".into()).validate().is_ok());
+		assert!(DocKey::Flow("a/b".into()).validate().is_err());
 		assert!(DocKey::Script("scripts/a.lua".into()).validate().is_ok());
 		assert!(
 			DocKey::Script("scripts/../a.lua".into())

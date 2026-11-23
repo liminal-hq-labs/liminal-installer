@@ -3,7 +3,9 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use li_model::Plan;
+use std::collections::BTreeMap;
+
+use li_model::{Node, Plan};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -68,7 +70,25 @@ pub struct PreviewStep {
 	pub layout: Option<String>,
 	/// True when the step's `when` condition is false for this target.
 	pub skipped: bool,
+	/// The tui text version of the screen, as an image. Only the `tui` renderers draw it; the
+	/// Studio draws every other renderer from `layout_tree`.
 	pub screenshot: Option<Screenshot>,
+	/// The layout as the target's renderer draws it: its `@renderer` overrides applied, string
+	/// references such as `items = "components"` expanded and document `source` files read in.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub layout_tree: Option<Node>,
+	/// The page state when the step is shown, including seeded meter readings.
+	#[serde(default, skip_serializing_if = "serde_json::Map::is_empty")]
+	pub state: serde_json::Map<String, serde_json::Value>,
+}
+
+/// The product a preview was run for, for the placeholders a screen shows.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct PreviewProduct {
+	pub id: String,
+	pub name: String,
+	pub version: String,
+	pub publisher: String,
 }
 
 /// The result of a dry run of one target.
@@ -76,6 +96,18 @@ pub struct PreviewStep {
 pub struct Preview {
 	/// The `os-arch:renderer` target that was run.
 	pub target: String,
+	/// The target's renderer, which picks the look the Studio draws.
+	#[serde(default)]
+	pub renderer: String,
+	/// The target's theme.
+	#[serde(default)]
+	pub theme: Option<String>,
+	#[serde(default)]
+	pub product: PreviewProduct,
+	/// Sample values for the `{placeholders}` a screen shows, such as `product.version`,
+	/// `target.id` and `install.size`.
+	#[serde(default)]
+	pub vars: BTreeMap<String, String>,
 	pub plan: Plan,
 	pub problems: Vec<Problem>,
 	pub steps: Vec<PreviewStep>,

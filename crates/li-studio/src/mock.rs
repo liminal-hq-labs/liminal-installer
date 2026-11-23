@@ -207,8 +207,7 @@ impl StudioBackend for MockBackend {
 				.is_some_and(|w| !eval_when(w, &t.renderer));
 			let screenshot = match (&step.layout, skipped) {
 				(Some(l), false) => project
-					.layouts
-					.get(l)
+					.find_layout(l)
 					.map(|layout| render_svg(&layout.root, &t.renderer)),
 				_ => None,
 			};
@@ -218,6 +217,13 @@ impl StudioBackend for MockBackend {
 				layout: step.layout.clone(),
 				skipped,
 				screenshot,
+				layout_tree: match (&step.layout, skipped) {
+					(Some(l), false) => project
+						.find_layout(l)
+						.map(|layout| resolve_for_renderer(&layout.root, &t.renderer)),
+					_ => None,
+				},
+				state: Default::default(),
 			});
 			cursor = if step.kind == StepType::Finish {
 				None
@@ -234,8 +240,18 @@ impl StudioBackend for MockBackend {
 					|| p.scope.starts_with("layout:")
 			})
 			.collect();
+		let product = &project.installer.product;
 		Ok(Preview {
 			target: target.to_owned(),
+			renderer: t.renderer.clone(),
+			theme: t.theme.clone().or(project.installer.defaults.theme.clone()),
+			product: crate::backend::PreviewProduct {
+				id: product.id.clone(),
+				name: product.name.clone(),
+				version: "1.0.0".into(),
+				publisher: product.publisher.clone(),
+			},
+			vars: Default::default(),
 			plan: build_plan(project, &t.id),
 			problems,
 			steps,

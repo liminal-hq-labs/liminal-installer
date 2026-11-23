@@ -29,5 +29,11 @@ id       = "windows-x86_64"
 renderer = "canvas"
 outputs  = ["setup-exe"]
 
+[[target]]
+id       = "windows-x86_64"
+renderer = "win32-classic"
+theme    = "installshield-classic"
+outputs  = ["setup-exe"]
+
 [signing]
 feed_key = "keys/feed.pub"

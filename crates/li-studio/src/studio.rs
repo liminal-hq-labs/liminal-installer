@@ -761,6 +761,21 @@ mod tests {
 	}
 
 	#[test]
+	fn a_themes_own_layout_is_listed_and_saved_in_its_theme_folder() {
+		let (_d, s, root) = open_example("lt-fizz");
+		let ids = s.project_summary().unwrap().layouts;
+		assert!(ids.contains(&"fizz-win95/welcome".to_owned()));
+		assert!(ids.contains(&"welcome".to_owned()));
+		let mut layout = s.get_layout("fizz-win95/welcome", None).unwrap();
+		layout.root.props.insert("title".into(), "Edited".into());
+		s.set_layout("fizz-win95/welcome", layout, "Edit", Source::Ui)
+			.unwrap();
+		let file =
+			fs::read_to_string(root.join("themes/fizz-win95/layouts/welcome.layout.json")).unwrap();
+		assert!(file.contains("Edited") && file.contains("\"id\": \"welcome\""));
+	}
+
+	#[test]
 	fn preview_is_dropped_when_the_project_changes() {
 		let (_d, s, _r) = open_example("lt-fizz");
 		s.run_preview("dos-x86:tui-retro").unwrap();

@@ -237,3 +237,55 @@ fn custom_nodes_are_skipped() {
 	assert!(out.contains("Shown") && !out.contains("Hidden"));
 	assert_eq!(screen.controls().len(), 1);
 }
+
+fn inline(json: serde_json::Value) -> Layout {
+	serde_json::from_value(json).unwrap()
+}
+
+#[test]
+fn placeholders_are_filled_from_bound_values_and_unknown_ones_stay() {
+	let l = inline(json!({
+		"version": 1, "id": "p",
+		"root": { "kind": "backdrop", "props": {}, "children": [
+			{ "kind": "dialog", "props": { "title": "Setup {product.name}", "width": 50 }, "children": [
+				{ "kind": "stack", "children": [
+					{ "kind": "text", "props": { "text": "v{product.version} {target.id} {missing.name}" } },
+					{ "kind": "button", "props": { "label": "Install {product.name}" } }
+				] }
+			] }
+		] }
+	}));
+	let b = MapBindings::new()
+		.with("product.name", json!("Fizz"))
+		.with("product.version", json!("1.2.0"))
+		.with("target.id", json!("dos-x86"));
+	let out = dump_with_controls(&Screen::new(&l, Look::Plain), &b, 70, 14);
+	assert!(out.contains("Setup Fizz"), "{out}");
+	assert!(out.contains("v1.2.0 dos-x86 {missing.name}"), "{out}");
+	assert!(out.contains("1. Install Fizz (Button)"), "{out}");
+	assert!(!out.contains("{product."), "{out}");
+}
+
+#[test]
+fn the_dump_accepts_source_row_options_and_leaves_out_side_art() {
+	let l = inline(json!({
+		"version": 1, "id": "p",
+		"root": { "kind": "window", "props": { "title": "T" }, "children": [
+			{ "kind": "stack", "props": { "region": "side" }, "children": [
+				{ "kind": "text", "props": { "text": "SIDE ART" } } ] },
+			{ "kind": "radio", "bind": "scope", "props": { "label": "Install for",
+				"options": [ { "id": "u", "label": "Only me" }, { "id": "m", "label": "Everyone" } ] } },
+			{ "kind": "meter", "bind": "m.total", "props": { "label": "Total", "source": "free_space" } },
+			{ "kind": "stack", "props": { "direction": "row", "gap": 2 }, "children": [
+				{ "kind": "button", "props": { "label": "Back" } },
+				{ "kind": "button", "props": { "label": "Next" } } ] }
+		] }
+	}));
+	let b = MapBindings::new().with("m.total", json!(0.04));
+	let out = dump(&Screen::new(&l, Look::Plain), &b, 60, 14);
+	assert!(!out.contains("SIDE ART"), "{out}");
+	assert!(out.contains("Only me") && out.contains("Everyone"), "{out}");
+	assert!(out.contains("LOW"), "{out}");
+	let row = out.lines().find(|l| l.contains("Back")).unwrap();
+	assert!(row.contains("Next"), "{out}");
+}

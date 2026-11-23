@@ -5,42 +5,141 @@
 	"root": {
 		"kind": "window",
 		"props": {
-			"title": "Planboard Setup",
+			"title": "{product.name} Setup",
 			"label": "Installing",
-			"style": "afterglow"
+			"style": "afterglow",
+			"icon": {
+				"viewBox": [
+					20,
+					20
+				],
+				"shapes": [
+					{
+						"rect": [
+							1.5,
+							3,
+							17,
+							14
+						],
+						"rx": 3,
+						"stroke": "#e0e0e0",
+						"width": 1.5
+					},
+					{
+						"path": "M1.5 7h17",
+						"stroke": "#e0e0e0",
+						"width": 1.5
+					},
+					{
+						"rect": [
+							5,
+							9.5,
+							5,
+							5
+						],
+						"rx": 1,
+						"fill": "#ffaa40"
+					},
+					{
+						"path": "M11.5 10h4M11.5 13h3",
+						"stroke": "#a78bfa",
+						"width": 1.5,
+						"cap": "round"
+					}
+				]
+			},
+			"caption": "Theme: Afterglow · the same flow runs on Windows, Linux, macOS and FreeBSD"
 		},
 		"children": [
 			{
 				"kind": "stack",
 				"props": {
 					"direction": "column",
-					"gap": 12
+					"gap": 0,
+					"label": "Setup steps",
+					"region": "side"
 				},
 				"children": [
 					{
 						"kind": "text",
 						"props": {
-							"text": "Installing {product.name}",
-							"role": "heading"
+							"text": "Welcome",
+							"role": "step-item",
+							"state": "done"
 						}
 					},
 					{
 						"kind": "text",
 						"props": {
-							"text": "Copying {progress.file}",
-							"role": "body"
+							"text": "Licence",
+							"role": "step-item",
+							"state": "done"
 						}
 					},
 					{
-						"kind": "billboard",
+						"kind": "text",
 						"props": {
-							"label": "Product highlights",
-							"slides": [
-								"billboard-1",
-								"billboard-2"
-							],
-							"interval_seconds": 6
+							"text": "Location",
+							"role": "step-item",
+							"state": "done"
 						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Components",
+							"role": "step-item",
+							"state": "done"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Install",
+							"role": "step-item",
+							"state": "current"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Done",
+							"role": "step-item",
+							"state": "todo"
+						}
+					}
+				]
+			},
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "column",
+					"gap": 1
+				},
+				"children": [
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "column",
+							"gap": 0,
+							"group": "lead"
+						},
+						"children": [
+							{
+								"kind": "text",
+								"props": {
+									"text": "Installing {product.name}",
+									"role": "heading"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"text": "This takes a minute or two. You can keep working.",
+									"role": "body"
+								}
+							}
+						]
 					},
 					{
 						"kind": "meter",
@@ -67,9 +166,80 @@
 							"label": "Free space after install",
 							"source": "free_space",
 							"warn_label": "Low",
-							"warn_below_percent": 5,
+							"low_below": 0.05,
 							"caption": "{system.free_space_after}"
 						}
+					},
+					{
+						"kind": "billboard",
+						"props": {
+							"label": "Product highlights",
+							"slides": [
+								"billboard-1",
+								"billboard-2"
+							],
+							"captions": [
+								{
+									"title": "Boards that keep up with you",
+									"text": "Stickies, frames and pages that stay in step across your devices and your agents."
+								},
+								{
+									"title": "Local first",
+									"text": "Your boards live on your computer, with a token-protected server only when you ask for one."
+								}
+							],
+							"interval_seconds": 6
+						}
+					},
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "column",
+							"gap": 0,
+							"group": "tasks"
+						},
+						"children": [
+							{
+								"kind": "text",
+								"props": {
+									"text": "Checked the download’s signature",
+									"role": "task",
+									"state": "done"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"text": "Made room in your apps folder",
+									"role": "task",
+									"state": "done"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"text": "Copying files",
+									"role": "task",
+									"state": "current"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"text": "Adding shortcuts and file types",
+									"role": "task",
+									"state": "todo"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"text": "Registering with the system, so you can update or remove it later",
+									"role": "task",
+									"state": "todo"
+								}
+							}
+						]
 					}
 				]
 			},
@@ -77,10 +247,18 @@
 				"kind": "stack",
 				"props": {
 					"direction": "row",
-					"gap": 8,
-					"align": "end"
+					"gap": 2,
+					"align": "end",
+					"region": "footer"
 				},
 				"children": [
+					{
+						"kind": "text",
+						"props": {
+							"text": "Cancel puts everything back as it was.",
+							"role": "note"
+						}
+					},
 					{
 						"kind": "button",
 						"props": {
@@ -90,98 +268,6 @@
 					}
 				]
 			}
-		],
-		"overrides": {
-			"tui": {
-				"kind": "window",
-				"props": {
-					"title": "Planboard — Installing",
-					"label": "Installing",
-					"border": "rounded"
-				},
-				"children": [
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "column",
-							"gap": 1
-						},
-						"children": [
-							{
-								"kind": "text",
-								"props": {
-									"text": "Installing {product.name}",
-									"role": "heading"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Copying {progress.file}",
-									"role": "body"
-								}
-							},
-							{
-								"kind": "billboard",
-								"props": {
-									"label": "Product highlights",
-									"slides": [
-										"billboard-1",
-										"billboard-2"
-									],
-									"interval_seconds": 6
-								}
-							},
-							{
-								"kind": "meter",
-								"bind": "engine.meter.file",
-								"props": {
-									"label": "Current file",
-									"source": "file",
-									"caption": "{progress.file}"
-								}
-							},
-							{
-								"kind": "meter",
-								"bind": "engine.meter.total",
-								"props": {
-									"label": "Overall progress",
-									"source": "total",
-									"caption": "{progress.percent}%"
-								}
-							},
-							{
-								"kind": "meter",
-								"bind": "engine.meter.free_space",
-								"props": {
-									"label": "Free space after install",
-									"source": "free_space",
-									"warn_label": "Low",
-									"warn_below_percent": 5,
-									"caption": "{system.free_space_after}"
-								}
-							}
-						]
-					},
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "row",
-							"gap": 8,
-							"align": "end"
-						},
-						"children": [
-							{
-								"kind": "button",
-								"props": {
-									"label": "Cancel",
-									"action": "cancel"
-								}
-							}
-						]
-					}
-				]
-			}
-		}
+		]
 	}
 }

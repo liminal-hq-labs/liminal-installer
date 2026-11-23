@@ -3,224 +3,82 @@
 	"version": 1,
 	"id": "welcome",
 	"root": {
-		"kind": "backdrop",
+		"kind": "window",
 		"props": {
-			"style": "classic",
 			"title": "Lieutenant Fizz — Episode One",
-			"label": "Lieutenant Fizz — Episode One setup"
+			"label": "Welcome"
 		},
 		"children": [
 			{
-				"kind": "dialog",
+				"kind": "stack",
 				"props": {
-					"title": "Welcome — Lt. Fizz",
-					"label": "Welcome",
-					"style": "win32-classic"
+					"direction": "column",
+					"gap": 1
 				},
 				"children": [
 					{
-						"kind": "stack",
+						"kind": "text",
 						"props": {
-							"direction": "column",
-							"gap": 12
-						},
-						"children": [
-							{
-								"kind": "text",
-								"props": {
-									"text": "Welcome to the Lieutenant Fizz — Episode One setup",
-									"role": "heading"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Help Lieutenant Fizz save the colony, one sector at a time. This setup installs the game, the sound drivers and the levels.",
-									"role": "body"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Version {product.version} · {target.id}",
-									"role": "caption"
-								}
-							}
-						]
+							"text": "Welcome",
+							"role": "heading"
+						}
 					},
 					{
-						"kind": "stack",
+						"kind": "text",
 						"props": {
-							"direction": "row",
-							"gap": 8,
-							"align": "end"
-						},
-						"children": [
-							{
-								"kind": "button",
-								"props": {
-									"label": "Next",
-									"action": "next",
-									"default": true
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "Cancel",
-									"action": "cancel"
-								}
-							}
-						]
-					}
-				]
-			}
-		],
-		"overrides": {
-			"tui-retro": {
-				"kind": "backdrop",
-				"props": {
-					"style": "text-mode",
-					"charset": "cp437",
-					"fill": "░",
-					"title": "Lieutenant Fizz — Episode One",
-					"label": "Lieutenant Fizz — Episode One setup",
-					"palette": "blue-on-grey"
-				},
-				"children": [
+							"text": "Welcome to the {product.name} Setup program. This program will install the game on your computer.",
+							"role": "body"
+						}
+					},
 					{
-						"kind": "dialog",
+						"kind": "text",
 						"props": {
-							"title": "Welcome",
-							"label": "Welcome",
-							"border": "double",
-							"shadow": true
-						},
-						"children": [
-							{
-								"kind": "stack",
-								"props": {
-									"direction": "column",
-									"gap": 1
-								},
-								"children": [
-									{
-										"kind": "text",
-										"props": {
-											"text": "Welcome to the Lieutenant Fizz — Episode One setup",
-											"role": "heading"
-										}
-									},
-									{
-										"kind": "text",
-										"props": {
-											"text": "Help Lieutenant Fizz save the colony, one sector at a time. This setup installs the game, the sound drivers and the levels.",
-											"role": "body"
-										}
-									},
-									{
-										"kind": "text",
-										"props": {
-											"text": "Version {product.version} · {target.id}",
-											"role": "caption"
-										}
-									}
-								]
-							},
-							{
-								"kind": "stack",
-								"props": {
-									"direction": "row",
-									"gap": 8,
-									"align": "end"
-								},
-								"children": [
-									{
-										"kind": "button",
-										"props": {
-											"label": "Next",
-											"action": "next",
-											"default": true
-										}
-									},
-									{
-										"kind": "button",
-										"props": {
-											"label": "Cancel",
-											"action": "cancel"
-										}
-									}
-								]
-							}
-						]
+							"text": "It is strongly recommended that you exit all other programs before running this Setup program.",
+							"role": "body"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Click Cancel to quit Setup and close any programs you have running. Click Next to continue with the Setup program.",
+							"role": "body"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Version {product.version} · {target.id}",
+							"role": "caption"
+						}
 					}
 				]
 			},
-			"tui": {
-				"kind": "window",
+			{
+				"kind": "stack",
 				"props": {
-					"title": "Lieutenant Fizz — Episode One — Welcome",
-					"label": "Welcome",
-					"border": "rounded"
+					"direction": "row",
+					"gap": 2,
+					"align": "end"
 				},
 				"children": [
 					{
-						"kind": "stack",
+						"kind": "button",
 						"props": {
-							"direction": "column",
-							"gap": 1
-						},
-						"children": [
-							{
-								"kind": "text",
-								"props": {
-									"text": "Welcome to the Lieutenant Fizz — Episode One setup",
-									"role": "heading"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Help Lieutenant Fizz save the colony, one sector at a time. This setup installs the game, the sound drivers and the levels.",
-									"role": "body"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Version {product.version} · {target.id}",
-									"role": "caption"
-								}
-							}
-						]
+							"label": "Next",
+							"action": "next",
+							"default": true,
+							"hotkey": "N"
+						}
 					},
 					{
-						"kind": "stack",
+						"kind": "button",
 						"props": {
-							"direction": "row",
-							"gap": 8,
-							"align": "end"
-						},
-						"children": [
-							{
-								"kind": "button",
-								"props": {
-									"label": "Next",
-									"action": "next",
-									"default": true
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "Cancel",
-									"action": "cancel"
-								}
-							}
-						]
+							"label": "Cancel",
+							"action": "cancel"
+						}
 					}
 				]
 			}
-		}
+		]
 	}
 }

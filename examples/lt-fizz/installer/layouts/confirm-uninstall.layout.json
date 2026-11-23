@@ -1,244 +1,85 @@
 {
-	"$schema": "https://liminal-hq.github.io/installer/schema/layout.json",
-	"version": 1,
-	"id": "confirm-uninstall",
-	"root": {
-		"kind": "backdrop",
-		"props": {
-			"style": "classic",
-			"title": "Lieutenant Fizz — Episode One",
-			"label": "Lieutenant Fizz — Episode One setup"
-		},
-		"children": [
-			{
-				"kind": "dialog",
-				"props": {
-					"title": "Remove — Lt. Fizz",
-					"label": "Remove",
-					"style": "win32-classic"
-				},
-				"children": [
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "column",
-							"gap": 12
-						},
-						"children": [
-							{
-								"kind": "text",
-								"props": {
-									"text": "Remove Lieutenant Fizz — Episode One?",
-									"role": "heading"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Setup will undo each change it recorded, in reverse order.",
-									"role": "body"
-								}
-							},
-							{
-								"kind": "checklist",
-								"bind": "uninstall.options",
-								"props": {
-									"label": "Uninstall options",
-									"options": [
-										{
-											"id": "keep_data",
-											"label": "Keep my settings and documents"
-										}
-									]
-								}
-							}
-						]
-					},
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "row",
-							"gap": 8,
-							"align": "end"
-						},
-						"children": [
-							{
-								"kind": "button",
-								"props": {
-									"label": "Remove",
-									"action": "commit",
-									"default": true
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "Cancel",
-									"action": "cancel"
-								}
-							}
-						]
-					}
-				]
-			}
-		],
-		"overrides": {
-			"tui-retro": {
-				"kind": "backdrop",
-				"props": {
-					"style": "text-mode",
-					"charset": "cp437",
-					"fill": "░",
-					"title": "Lieutenant Fizz — Episode One",
-					"label": "Lieutenant Fizz — Episode One setup",
-					"palette": "blue-on-grey"
-				},
-				"children": [
-					{
-						"kind": "dialog",
-						"props": {
-							"title": "Remove",
-							"label": "Remove",
-							"border": "double",
-							"shadow": true
-						},
-						"children": [
-							{
-								"kind": "stack",
-								"props": {
-									"direction": "column",
-									"gap": 1
-								},
-								"children": [
-									{
-										"kind": "text",
-										"props": {
-											"text": "Remove Lieutenant Fizz — Episode One?",
-											"role": "heading"
-										}
-									},
-									{
-										"kind": "text",
-										"props": {
-											"text": "Setup will undo each change it recorded, in reverse order.",
-											"role": "body"
-										}
-									},
-									{
-										"kind": "checklist",
-										"bind": "uninstall.options",
-										"props": {
-											"label": "Uninstall options",
-											"options": [
-												{
-													"id": "keep_data",
-													"label": "Keep my settings and documents"
-												}
-											]
-										}
-									}
-								]
-							},
-							{
-								"kind": "stack",
-								"props": {
-									"direction": "row",
-									"gap": 8,
-									"align": "end"
-								},
-								"children": [
-									{
-										"kind": "button",
-										"props": {
-											"label": "Remove",
-											"action": "commit",
-											"default": true
-										}
-									},
-									{
-										"kind": "button",
-										"props": {
-											"label": "Cancel",
-											"action": "cancel"
-										}
-									}
-								]
-							}
-						]
-					}
-				]
-			},
-			"tui": {
-				"kind": "window",
-				"props": {
-					"title": "Lieutenant Fizz — Episode One — Remove",
-					"label": "Remove",
-					"border": "rounded"
-				},
-				"children": [
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "column",
-							"gap": 1
-						},
-						"children": [
-							{
-								"kind": "text",
-								"props": {
-									"text": "Remove Lieutenant Fizz — Episode One?",
-									"role": "heading"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Setup will undo each change it recorded, in reverse order.",
-									"role": "body"
-								}
-							},
-							{
-								"kind": "checklist",
-								"bind": "uninstall.options",
-								"props": {
-									"label": "Uninstall options",
-									"options": [
-										{
-											"id": "keep_data",
-											"label": "Keep my settings and documents"
-										}
-									]
-								}
-							}
-						]
-					},
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "row",
-							"gap": 8,
-							"align": "end"
-						},
-						"children": [
-							{
-								"kind": "button",
-								"props": {
-									"label": "Remove",
-									"action": "commit",
-									"default": true
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "Cancel",
-									"action": "cancel"
-								}
-							}
-						]
-					}
-				]
-			}
-		}
-	}
+  "$schema": "https://liminal-hq.github.io/installer/schema/layout.json",
+  "version": 1,
+  "id": "confirm-uninstall",
+  "root": {
+    "kind": "backdrop",
+    "props": {
+      "title": "Lieutenant Fizz — Episode One",
+      "label": "Lieutenant Fizz — Episode One setup"
+    },
+    "children": [
+      {
+        "kind": "dialog",
+        "props": {
+          "title": "Remove — Lt. Fizz",
+          "label": "Remove",
+          "style": "win32-classic"
+        },
+        "children": [
+          {
+            "kind": "stack",
+            "props": {
+              "direction": "column",
+              "gap": 12
+            },
+            "children": [
+              {
+                "kind": "text",
+                "props": {
+                  "text": "Remove Lieutenant Fizz — Episode One?",
+                  "role": "heading"
+                }
+              },
+              {
+                "kind": "text",
+                "props": {
+                  "text": "Setup will undo each change it recorded, in reverse order.",
+                  "role": "body"
+                }
+              },
+              {
+                "kind": "checklist",
+                "bind": "uninstall.options",
+                "props": {
+                  "label": "Uninstall options",
+                  "options": [
+                    {
+                      "id": "keep_data",
+                      "label": "Keep my settings and documents"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "kind": "stack",
+            "props": {
+              "direction": "row",
+              "gap": 8,
+              "align": "end"
+            },
+            "children": [
+              {
+                "kind": "button",
+                "props": {
+                  "label": "Remove",
+                  "action": "commit",
+                  "default": true
+                }
+              },
+              {
+                "kind": "button",
+                "props": {
+                  "label": "Cancel",
+                  "action": "cancel"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
 }
