@@ -1,0 +1,59 @@
+/* The real terminal view: a canvas of cells in a focusable frame. */
+/*
+ * (c) Copyright 2026 Liminal HQ, Scott Morris
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ */
+
+.wrap {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-top: 12px;
+}
+.terminal {
+	width: 100%;
+	max-width: 960px;
+	background: #0c0c10;
+	border-radius: 6px;
+	border: 1px solid var(--lis-border, #444);
+	outline-offset: 2px;
+	line-height: 0;
+	overflow: hidden;
+}
+.terminal:focus-visible {
+	outline: 2px solid var(--lis-brand-purple, #a78bfa);
+}
+.canvas {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+.sr {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: pre;
+}
+.opening,
+.error {
+	margin: 0;
+	padding: 12px;
+	line-height: 1.4;
+}
+.error {
+	color: var(--lis-colour-error, #f87171);
+}
+.hint {
+	margin: 0;
+	font-size: 12px;
+	color: var(--lis-text-muted, #888);
+}
+.viewSwitch {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}

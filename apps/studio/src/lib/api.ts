@@ -18,9 +18,41 @@ import type {
 	ScriptDiagnostic,
 	ScriptReport,
 	TargetInfo,
+	TuiFrame,
+	TuiKey,
+	TuiKeyResult,
+	TuiOpened,
 } from './types';
 
-export interface Api {
+/** Live terminal sessions: the real `tui` screen, which the backend draws and the UI only shows. */
+export interface TuiApi {
+	/** Opens a session on a `tui` target's install-flow step or layout id, at `size` cells. */
+	tuiSessionOpen(
+		target: string,
+		stepId: string,
+		state?: Record<string, unknown>,
+		size?: { cols: number; rows: number },
+	): Promise<TuiOpened>;
+	tuiSessionKey(session: string, key: TuiKey): Promise<TuiKeyResult>;
+	tuiSessionResize(session: string, cols: number, rows: number): Promise<TuiFrame>;
+	tuiSessionClose(session: string): Promise<void>;
+}
+
+/** A terminal API for backends with no renderer to run, such as the browser demo and test fakes. */
+export const noTerminal: TuiApi = {
+	tuiSessionOpen: async () => {
+		throw new StudioError('backend', t('terminal.demoUnavailable'));
+	},
+	tuiSessionKey: async () => {
+		throw new StudioError('backend', t('terminal.demoUnavailable'));
+	},
+	tuiSessionResize: async () => {
+		throw new StudioError('backend', t('terminal.demoUnavailable'));
+	},
+	tuiSessionClose: async () => undefined,
+};
+
+export interface Api extends TuiApi {
 	openProject(path: string): Promise<ProjectSummary>;
 	projectSummary(): Promise<ProjectSummary>;
 	listTargets(): Promise<TargetInfo[]>;
@@ -130,6 +162,18 @@ async function tauriApi(): Promise<Api> {
 		checkScriptSyntax: (source) => invoke('check_script_syntax', { source }),
 		runPreview: (target) => invoke('run_preview', { target }),
 		getPreview: () => invoke('get_preview'),
+		tuiSessionOpen: (target, stepId, state, size) =>
+			invoke('tui_session_open', {
+				target,
+				stepId,
+				pageState: state ?? null,
+				cols: size?.cols ?? null,
+				rows: size?.rows ?? null,
+			}),
+		tuiSessionKey: (session, key) => invoke('tui_session_key', { session, key }),
+		tuiSessionResize: (session, cols, rows) =>
+			invoke('tui_session_resize', { session, cols, rows }),
+		tuiSessionClose: (session) => invoke('tui_session_close', { session }),
 		checkProject: () => invoke('check_project'),
 		history: () => invoke('history'),
 		undo: () => invoke('undo'),

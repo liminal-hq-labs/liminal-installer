@@ -8,7 +8,7 @@ import { act } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createChromeStore } from '../chrome/chromeStore';
 import { SCREEN_ACTIONS } from '../chrome/menuModel';
-import type { Api } from '../lib/api';
+import { noTerminal, type Api } from '../lib/api';
 import { browserSettings } from '../lib/settings';
 import type { Flow, Layout, Preview, ProjectSummary } from '../lib/types';
 import { startApp, type App } from './startApp';
@@ -92,6 +92,7 @@ function fake() {
 		checkScriptSyntax: async () => [],
 		runPreview: async () => preview,
 		getPreview: async () => null,
+		...noTerminal,
 		checkProject: async () => [],
 		history: async () => ({ entries: [], can_undo: false, can_redo: false }),
 		undo: async () => ({ entries: [], can_undo: false, can_redo: false }),

@@ -187,6 +187,17 @@ export const enMessages = {
 	'flow.valid': 'Valid',
 	'flow.problems': 'Problems ({count})',
 	'flow.passes': 'The flow passes validation.',
+	// translator: Label of the control that picks how a terminal-style screen is drawn.
+	'terminal.view': 'View',
+	// translator: The Studio's own drawing of a screen, as opposed to the renderer's real terminal output.
+	'terminal.viewRich': 'Rich',
+	'terminal.viewReal': 'Terminal (real)',
+	'terminal.opening': 'Opening the terminal…',
+	// translator: Hint under the real terminal. F6 is a key name, not translated.
+	'terminal.hint':
+		'This is the real terminal output, and the keyboard plays it: Tab, arrows, Space, Enter and Esc. Press F6 to leave it.',
+	'terminal.demoUnavailable':
+		'The real terminal needs the Studio app. The browser demo cannot run it.',
 	'layouts.title': 'Layouts',
 	'layouts.intro':
 		'A tree of nodes. A renderer uses its override where one exists and the base node otherwise.',

@@ -7,7 +7,7 @@ import { lex } from '../editor/luaLex';
 import { validateFlow } from './flowEdit';
 import { resolveForRenderer } from './layoutEdit';
 import { composeScreen } from './stage';
-import type { Api } from './api';
+import { noTerminal, type Api } from './api';
 import type {
 	ChangeEvent,
 	Flow,
@@ -338,6 +338,8 @@ export function demoApi(): Api {
 			return next;
 		},
 		getPreview: async () => preview,
+		// The renderer is Rust, so the browser demo has no terminal to open.
+		...noTerminal,
 		checkProject: async () => [...flows.values()].flatMap((f) => validateFlow(f)),
 		history: async () => view(),
 		undo: async () => step(-1),
