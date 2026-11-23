@@ -1,0 +1,19 @@
+{
+	"name": "liminal-installer",
+	"private": true,
+	"version": "0.1.0",
+	"license": "Apache-2.0 OR MIT",
+	"packageManager": "bun@1.4.4",
+	"workspaces": [
+		"apps/studio/ui"
+	],
+	"scripts": {
+		"dev": "bun run --cwd apps/studio/ui dev",
+		"build": "bun run --cwd apps/studio/ui build",
+		"typecheck": "bun run --cwd apps/studio/ui typecheck",
+		"test:js": "bun run --cwd apps/studio/ui test",
+		"tauri": "bun run --cwd apps/studio/ui tauri",
+		"tauri:dev": "bun run --cwd apps/studio/ui tauri:dev",
+		"check:headers": "bash scripts/check-headers.sh"
+	}
+}

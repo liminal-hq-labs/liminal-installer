@@ -20,6 +20,6 @@ Left out: the tests and test setup (`src/**/*.test.*`, `src/test/`), `src/Contex
 2. Replace `src/` here with `packages/chrome/src`, then delete `*.test.*` files, `src/test/` and `src/ContextMenu/expectEveryItemHasIcon.ts`.
 3. Re-run the rename: `grep -rlE "wp-" src README.md | xargs sed -i -E 's/--wp-/--lic-/g; s/data-wp-/data-lic-/g'`.
 4. Copy the licence files, update the commit above, and add any new files to the `exports` map in `package.json`.
-5. Run `pnpm typecheck && pnpm test && pnpm build` in `apps/studio/ui`.
+5. Run `bun run typecheck && bun run test:js && bun run build` from the repository root.
 
 Do not edit the files in place. A fix belongs upstream and comes back through a refresh.

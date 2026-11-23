@@ -4,9 +4,9 @@
 	"version": "0.1.0",
 	"identifier": "hq.liminal.installer-studio",
 	"build": {
-		"beforeDevCommand": "pnpm --dir ../ui dev",
+		"beforeDevCommand": "bun run --cwd ../ui dev",
 		"devUrl": "http://localhost:1420",
-		"beforeBuildCommand": "pnpm --dir ../ui build",
+		"beforeBuildCommand": "bun run --cwd ../ui build",
 		"frontendDist": "../ui/dist"
 	},
 	"app": {

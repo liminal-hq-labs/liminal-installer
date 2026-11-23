@@ -76,7 +76,7 @@ Liminal Installer is a [Liminal HQ Labs](https://github.com/liminal-hq-labs) exp
 - **Single local gate:** `make validate` runs `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo nextest run --workspace --locked` and the header check. `make markdown` and `make e2e-linux` run the other checks.
 - **End to end:** `bash scripts/e2e-linux.sh` builds a themed `.run` and a signed feed, then installs, updates, repairs and uninstalls it in a clean Debian container (needs `docker`). `scripts/e2e-linux-container.sh` is its in-container half.
 - **Docker-based tools:** markdownlint, shellcheck and actionlint run from pinned images (see Testing), so nothing but `docker` is installed locally for them.
-- **Studio UI:** `apps/studio/ui` is a pnpm project (`pnpm install`, `pnpm typecheck`, `pnpm test`); the Tauri shell in `apps/studio/src-tauri` has its own `Cargo.lock` and is built with `cargo check` there.
+- **Studio UI:** `apps/studio/ui` is a Bun workspace member (root `package.json`, `packageManager` pinned, `bun install`, `bun run typecheck`, `bun run test:js`); use Bun, not pnpm or npm; the Tauri shell in `apps/studio/src-tauri` has its own `Cargo.lock` and is built with `cargo check` there.
 
 ## Licence headers
 
@@ -104,7 +104,7 @@ Use `#` comments for shell, YAML, TOML and Dockerfiles, and an XML comment for S
 
 - `make validate` — the single local gate (format, clippy, `cargo nextest`, headers)
 - `bash scripts/check-headers.sh` — SPDX headers
-- `cd apps/studio/ui && pnpm typecheck && pnpm test` — the Studio UI
+- `bun run typecheck && bun run test:js` — the Studio UI
 - `cd apps/studio/src-tauri && cargo check && cargo clippy -- -D warnings` — the Tauri shell
 - `bash scripts/e2e-linux.sh` (or `make e2e-linux`) — install, update, repair and uninstall in a Debian container
 - `bash scripts/check-banner.sh` — hero banner rules and text fit (needs `xmllint`, `rsvg-convert`, `python3` and Chromium; `--shots DIR` writes frames to look at)

@@ -2,7 +2,7 @@
 
 A hands-on tour: build the two example installers, install, update, repair and remove them, then open the Studio. Every command here was run on Linux; Windows and macOS targets build only in CI.
 
-You need Rust (the version pinned in `rust-toolchain.toml`), pnpm and Node for the Studio, and Docker for the container check.
+You need Rust (the version pinned in `rust-toolchain.toml`), and Bun (the version in `package.json`) for the Studio, and Docker for the container check.
 
 ## 1. Build the tools
 
@@ -111,9 +111,8 @@ This builds a project, then installs, updates, repairs and uninstalls it in `deb
 ## 9. Open the Studio
 
 ```sh
-cd apps/studio/ui
-pnpm install
-pnpm tauri:dev
+bun install
+bun run tauri:dev
 ```
 
 The first run compiles the Tauri shell, which takes a few minutes. Then:

@@ -6,12 +6,13 @@
 	"license": "Apache-2.0 OR MIT",
 	"scripts": {
 		"tokens": "node scripts/tokens-to-css.mjs",
-		"dev": "pnpm tokens && vite",
-		"build": "pnpm tokens && tsc --noEmit && vite build",
+		"dev": "bun run tokens && vite",
+		"build": "bun run tokens && tsc --noEmit && vite build",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
 		"tauri": "tauri",
-		"tauri:dev": "cd .. && tauri dev --config src-tauri/tauri.conf.dev.json"
+		"tauri:dev": "cd .. && tauri dev --config src-tauri/tauri.conf.dev.json",
+		"tauri:build": "cd .. && tauri build"
 	},
 	"dependencies": {
 		"@liminal-hq/plugin-system-appearance": "^0.1.0",
