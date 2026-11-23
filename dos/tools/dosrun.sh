@@ -55,6 +55,7 @@ DOSBOX=("$VENDOR"/dosbox/*/dosbox)
 [ -x "${DOSBOX[0]}" ] || { echo "dosrun: no DOSBox in $VENDOR; run dos/tools/fetch-tools.sh" >&2; exit 125; }
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/li-dosrun.XXXXXX")"
+# shellcheck disable=SC2329 # run by the trap
 cleanup() {
   if [ -n "${DOS_KEEP:-}" ]; then
     mkdir -p "$DOS_KEEP"

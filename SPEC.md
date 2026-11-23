@@ -7,8 +7,8 @@ The file formats, operations and interfaces behind the [architecture](docs/archi
 Everything in this specification is in progress. Nothing is released, and any part may change between commits.
 
 - **Engine** (plan, stage, commit, record): in progress. Install, update, modify, repair, uninstall and launch work end to end on Linux through the runner (§14).
-- **CLI** (`check`, `preview`, `build`, `keygen`, `feed`, `theme`, `studio`): in progress. `check`, `preview` and the Linux `build` (themed `.run` and `.lip`) work, and feeds and themes are signed.
-- **Renderers**: `tui` is in progress; `tui-retro`, `win16`, `win32-classic`, `canvas` and `web` are in progress as scaffolds or designs.
+- **CLI** (`check`, `preview`, `build`, `keygen`, `feed`, `theme`, `studio`): in progress. `check`, `preview`, the Linux `build` (themed `.run` and `.lip`) and the DOS `build` (`SETUP.DAT`, `zip`, `floppy-1440`) work, and feeds and themes are signed.
+- **Renderers**: `tui` is in progress; `tui-retro` works for DOS (`SETUP.EXE` in Rust, see [docs/retro-dos.md](docs/retro-dos.md)); `win16`, `win32-classic`, `canvas` and `web` are in progress as scaffolds or designs.
 - **Studio** and its MCP server: in progress. GraphQL is deferred (D26).
 - **Example installers** for Planboard and Lt. Fizz: in progress.
 - **Feeds, the web stub and the Hub**: in progress.
@@ -96,7 +96,7 @@ A flow is a directed graph of steps. Every path must reach a `finish` step, and 
 | Type | What it does |
 |---|---|
 | `page` | Shows a layout and collects fields into the flow's state. |
-| `action` | Runs a script or a built-in action without a page, such as launching the app. A built-in is written `"on_enter": "builtin:<name>"`; the names are `check-feed` and `launch-app`, and `check` refuses any other. The lifecycle carries them out, so the flow runner does not run a script for them. |
+| `action` | Runs a script or a built-in action without a page, such as launching the app. A built-in is written `"on_enter": "builtin:<name>"`; the names are `check-feed`, `launch-app`, `detect-sound` and `check-disk-space`, and `check` refuses any other. The lifecycle carries out the first two, so the flow runner does not run a script for them. The DOS runtime carries out the last two (`detect-sound` fills `sound.card`, `sound.port`, `sound.irq` and `sound.dma` from `BLASTER` or a port probe; `check-disk-space` on a page refuses Next when the install does not fit the drive); every other runner skips them. The DOS runtime has no scripts: a step on a `tui-retro` target may name only a built-in, `check` reports any script hook as `script-on-retro`, and `build` refuses it. |
 | `branch` | Chooses the next step from a condition. |
 | `commit` | Turns the plan into changes. Its page shows progress and any theme billboards. |
 | `finish` | Ends the flow and writes the receipt. |
@@ -155,7 +155,12 @@ Nodes read these properties, all optional. A renderer ignores any it does not kn
 | `captions`, `slides` | `billboard` | `captions` are `{title, text, art}` slides shown in turn; `slides` names the theme assets. |
 | `source`, `label`, `caption`, `low_below`, `warn_label`, `place` | `meter` | What it measures (`file`, `total` or `free_space`), its label and caption, the fraction of the drive under which free space is “Low” (default 0.05) and the word shown then (default “Low”), and where it is drawn: `backdrop` (the default for a meter in the stage or with `region = "status"`) or `dialog`, inline in the page. `tui` reads `meter` too. |
 | `show_on`, `hide_on` | any node in a stage | Step ids or step types the node is drawn on, or left out of. |
-| `role`, `value`, `max`, `text` | `progress` | `role = "steps"` draws “Step n of m” with a block bar. |
+
+| `role`, `value`, `max`, `text` | `progress` | `role = "steps"` draws “Step n of m” with a block bar. On the DOS artboard the side column draws the `text` and a block bar of `value` in `max`. |
+| `art` (pixel form) | `image` | On the DOS artboard each `[x, y, w, h, "#rrggbb"]` rect becomes cells: the nearest of the 16 VGA colours, two pixel rows to a text row in half and full blocks. |
+| `source`, `scroll`, `lines` | `text` | `source` names a project file shown as scrolling text (the DOS runtime reads it at build time; `lines`, default 8, is its height). |
+| `enabled_when` | `button` | A condition (§5); the button is disabled until it holds. The DOS runtime honours it. |
+| `key`, `text` | `text` in a `hints` region | One hint: `key` (shown in red on the DOS hint bar) and its `text`. |
 | `role`, `state`, `key` | `text` | Roles are `heading`, `body`, `caption`, `error`, `document`, `summary`, `title`, `subtitle`, `note`, `step-item` and `task`; `state` is `done`, `current` or `todo`; `key` marks a hint-bar key. |
 | `items` or `options`, `cards`, `sunken` | `checklist`, `radio` | A list of `{id, label, description, required, checked, badges}`, or the name of a list: `"components"` or a state field such as `"sound.cards"`. |
 | `hotkey`, `browse` | `button`, `path` | The access key underlined (classic) or coloured (DOS), and the label of a Browse button. |
@@ -203,6 +208,8 @@ A plan is an ordered list of operations. Each records enough to undo itself befo
 
 Table 4. Operations.
 
+The DOS runtime performs `mkdir`, `copy`, `write_ini` and `shortcut` (a launcher batch file), then writes the receipt. File types, URL schemes and `PATH` entries are skipped with a build warning.
+
 ## 9 · Lifecycle and receipts
 
 | Command | Starts from | Does |
@@ -226,7 +233,7 @@ Example 1. A receipt, shortened.
 	"operations": [ { "op": "copy", "to": "{install}/FIZZ.EXE", "sha256": "…" } ] }
 ```
 
-Receipts are kept in `{install}/.liminal/receipt.json` and indexed per user and per machine, so the Hub can find every installed product. The retro runtime writes the same data as `INSTALL.LIR`.
+Receipts are kept in `{install}/.liminal/receipt.json` and indexed per user and per machine, so the Hub can find every installed product. The retro runtime writes the same data as `INSTALL.LIR`: a text file of `LIR 1`, `product=`, `version=`, `target=`, `dir=`, `components=` lines and one `D` (directory made), `F name size crc` (file, with a CRC-32), `I` (INI) or `B` (launcher batch) record per line. It records CRC-32, not SHA-256; uninstall removes the files, then the directories it made when they are empty. See [docs/retro-dos.md](docs/retro-dos.md).
 
 ## 10 · Platform integration
 
@@ -273,7 +280,7 @@ Table 7. `liminst` commands.
 
 `check` loads the project with the engine and reports the CLI's checks (flows, themes, layouts, accessible names, components) with the engine's condition, component and hook checks. `preview` prints the engine's Plan phase against a simulated machine, so it shows the same operations, hashes and script hooks an install runs. Exit codes: 0 success, 1 the project has errors, 2 the command could not run.
 
-`build` outputs, by name: `lip` (the payload and bundled project, §14), `run` (with `--engine PATH`, a themed self-extracting installer that carries the runner and the `.lip`; without it, a `.run` that only extracts the files and a receipt), and the native formats `deb`, `rpm`, `arch`, `msi`, `msix` and `pkg`. A themed `run` also writes its `.lip`, which is what `feed add` publishes. `feed add --sign-key FILE` writes `<feed>.sig`; without a key it removes a signature that no longer matches. `theme pack --sign-key FILE` writes `<archive>.sig`, the hex signature over the archive.
+`build` outputs, by name: for a `tui-retro` target, `zip` and `floppy-1440` (`SETUP.EXE`, `SETUP.DAT` and `README.TXT`, also written loose under `dos/`; `--dos-runtime PATH` names a prebuilt `SETUP.EXE`, else one is found or built from `dos/`; a payload too big for a floppy is reported, and disks do not span); for the others, `lip` (the payload and bundled project, §14), `run` (with `--engine PATH`, a themed self-extracting installer that carries the runner and the `.lip`; without it, a `.run` that only extracts the files and a receipt), and the native formats `deb`, `rpm`, `arch`, `msi`, `msix` and `pkg`. A themed `run` also writes its `.lip`, which is what `feed add` publishes. `feed add --sign-key FILE` writes `<feed>.sig`; without a key it removes a signature that no longer matches. `theme pack --sign-key FILE` writes `<archive>.sig`, the hex signature over the archive.
 
 Example 2. A CI job.
 

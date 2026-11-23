@@ -3,7 +3,7 @@
 # (c) Copyright 2026 Liminal HQ, Scott Morris
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 
-.PHONY: validate fmt clippy test headers js i18n bindings markdown e2e-linux
+.PHONY: validate fmt clippy test headers js i18n bindings markdown e2e-linux dos
 
 validate: fmt clippy test headers js bindings
 
@@ -38,3 +38,10 @@ markdown:
 
 e2e-linux:
 	bash scripts/e2e-linux.sh
+
+# The DOS runtime: fetch DOSBox Staging and CWSDPMI (DOS_VENDOR, default dos/vendor), check, build and run it headless, then install
+# and uninstall Lt. Fizz under DOSBox. Not part of `validate`, which needs no DOS tools. Without the tools the DOSBox steps skip.
+dos:
+	bash dos/tools/fetch-tools.sh || echo "dos: the DOS tools could not be fetched; the DOSBox steps are skipped"
+	bash dos/check.sh
+	bash dos/tools/e2e.sh

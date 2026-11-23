@@ -1,4 +1,6 @@
-# Retro runtime spike
+# Retro runtime spike (Windows 3.1 and the C toolchain)
+
+The DOS `tui-retro` runtime is no longer written in C: it is Rust, in [`dos/`](../dos) and `crates/li-retro` (see [docs/retro-dos.md](../docs/retro-dos.md) and D37). This folder keeps the Open Watcom spike for the Windows 3.1 (`win16`) runtime, which stays C.
 
 A feasibility check for the DOS runtime in [SPEC.md](../SPEC.md) (target `dos-x86`, floor set by D4): can CI build a 386 protected-mode `SETUP.EXE` and run it headless?
 

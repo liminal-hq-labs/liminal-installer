@@ -76,9 +76,9 @@ A theme describes an experience; a renderer draws it with whatever is native to 
 
 | Renderer | Runs on | Built with | Good for |
 |---|---|---|---|
-| `tui-retro` | DOS 5+ on a 386 or later, with a DOS extender | Retro runtime (C), text-mode video | Blue-screen setup, real period installs |
+| `tui-retro` | DOS 5+ on a 386 or later, with a DOS extender | Retro runtime (Rust on Desk's DOS foundation), text-mode video | Blue-screen setup, real period installs |
 | `tui` | Any terminal | Rust, crossterm | Servers, SSH, headless installs |
-| `win16` | Windows 3.1 | Retro runtime (C), GDI and USER | Floppy-era Windows setup |
+| `win16` | Windows 3.1 | Retro runtime (C, Open Watcom), GDI and USER | Floppy-era Windows setup |
 | `win32-classic` | Windows 95 to 11 | Rust, plain Win32 controls | Bevelled 90s dialogs, tiny downloads |
 | `canvas` | Windows 10/11, Linux, macOS, FreeBSD | Rust, its own drawing (winit with a 2D renderer), no webview | Rich custom windows with a small binary |
 | `web` | Modern desktops | Tauri webview, HTML, CSS and JS | Anything goes: video, games, wild layouts |
@@ -87,11 +87,12 @@ Table 1. Renderers in the first version.
 
 ## 4 · Two runtimes
 
-Modern targets use the Rust engine. DOS and Windows 3.1 can't run it, so they get a **retro runtime**: a small C program built with Open Watcom that reads a compiled form of the same project.
+Modern targets use the Rust engine. DOS and Windows 3.1 can't run it, so they get a **retro runtime** that reads a compiled form of the same project. DOS is Rust; Windows 3.1 stays a small C program built with Open Watcom.
 
-- The CLI compiles the flow to a compact bytecode, flattens layouts into text-cell screens (DOS) or dialog templates (Win16), and converts assets to the target's palette and formats.
-- Scripts run on a small Lua-compatible interpreter. The Studio checks scripts against the retro subset and warns before a build fails.
-- The retro runtime writes its receipt in 8.3 form (`INSTALL.LIR`), so the same uninstall and repair logic applies.
+- **DOS (`tui-retro`).** `SETUP.EXE` is Rust with no C compiler or C library, on the foundation copied from Desk (`dos/`, see D40 and [retro-dos.md](retro-dos.md)). A `no_std` plus `alloc` core, `li-retro`, holds the compiled format, the flow VM, the text-mode renderer and the installer engine, and runs on the host as well as on DOS; a thin DOS crate supplies the screen, the keys and the files.
+- The CLI compiles the flow to a compact bytecode, flattens layouts into 80 by 25 text-cell screens (DOS) or dialog templates (Win16), and converts assets to the target's palette and formats. A DOS build writes `SETUP.DAT`, a zip and a 1.44 MB floppy image.
+- **Scripts.** The DOS runtime has no Lua (D41): a step names a `builtin:` action, and the checker flags a script hook on a `tui-retro` target. The Windows 3.1 runtime is meant to run a small Lua-compatible interpreter, and the Studio checks scripts against that subset.
+- The retro runtime writes its receipt in 8.3 form (`INSTALL.LIR`), so the same uninstall logic applies.
 
 ## 5 · Themes
 
