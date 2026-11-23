@@ -128,6 +128,8 @@ intro = { layout = "intro", before = "welcome", skippable = true }
 music = "assets/theme.mod"  # the engine always adds a mute control
 ```
 
+A theme may also carry a **stage**, `themes/<name>/layouts/stage.layout.json`: the screen around every page, with a `slot` node where the page's own layout is drawn. The stage holds what every page of the theme shares (the `backdrop` and its wordmark, the status meters, the taskbar label) and a page's layout is only its `dialog` or `window`. A screen is composed when a step is shown: the stage of the target's theme (or of the nearest theme on its `fallback` chain) with the page in its slot, or appended to the stage's root when it has no slot. A page whose root is a `backdrop` draws itself and the stage does not apply to it, which is how one page gets its own copy of the stage. A stage node with `show_on` or `hide_on`, each a list of step ids or step types (`page`, `action`, `branch`, `commit`, `finish`), is drawn only on the steps it names, or on every step but those. Every renderer, `liminst preview` and the Studio see the composed screen.
+
 A layout for a step is found in the target's theme (`themes/<name>/layouts/<id>.layout.json`), then in each theme on its `fallback` chain that the project has, then in the project's shared `layouts/`. `fallback = "plain"` names the built-in plain look every renderer has, so the project need not carry a theme of that name. A layout is a tree of nodes. Each node may carry `@renderer` overrides; a renderer uses its override where one exists and the base node otherwise.
 
 | Node | Notes |
@@ -136,6 +138,7 @@ A layout for a step is found in the target's theme (`themes/<name>/layouts/<id>.
 | `stack`, `grid` | Layout in rows, columns or cells. |
 | `text`, `image`, `billboard` | Content. Billboards rotate while files copy. |
 | `meter` | A live gauge fed by the engine: `file` (the file being copied right now), `total` (progress across the whole package) or `free_space` (free space left on the target drive, with a “Low” warning when the install would leave it nearly full). Classic themes show all three together on the backdrop, as 90s setups did; each theme can switch them off. |
+| `slot` | In a theme's stage only: where the page's layout goes. |
 | `button`, `checklist`, `radio`, `field`, `path`, `progress` | Controls, bound to state with `bind`. |
 | `custom` | `web` and `canvas` only: theme-drawn content such as a game. Other renderers skip it. |
 
@@ -150,13 +153,16 @@ Nodes read these properties, all optional. A renderer ignores any it does not kn
 | `icon`, `caption` | `window` | A title-bar icon (an `art` value) and a line of text under the window. |
 | `art`, `panel`, `ground` | `image` | Pixel or vector art drawn as inline SVG, and the colours of a side panel behind it. |
 | `captions`, `slides` | `billboard` | `captions` are `{title, text, art}` slides shown in turn; `slides` names the theme assets. |
-| `source`, `caption`, `low_below` | `meter` | What it measures (`file`, `total` or `free_space`), its caption and the fraction under which free space is “Low”. `tui` reads `meter` too. |
+| `source`, `label`, `caption`, `low_below`, `warn_label`, `place` | `meter` | What it measures (`file`, `total` or `free_space`), its label and caption, the fraction of the drive under which free space is “Low” (default 0.05) and the word shown then (default “Low”), and where it is drawn: `backdrop` (the default for a meter in the stage or with `region = "status"`) or `dialog`, inline in the page. `tui` reads `meter` too. |
+| `show_on`, `hide_on` | any node in a stage | Step ids or step types the node is drawn on, or left out of. |
 | `role`, `value`, `max`, `text` | `progress` | `role = "steps"` draws “Step n of m” with a block bar. |
 | `role`, `state`, `key` | `text` | Roles are `heading`, `body`, `caption`, `error`, `document`, `summary`, `title`, `subtitle`, `note`, `step-item` and `task`; `state` is `done`, `current` or `todo`; `key` marks a hint-bar key. |
 | `items` or `options`, `cards`, `sunken` | `checklist`, `radio` | A list of `{id, label, description, required, checked, badges}`, or the name of a list: `"components"` or a state field such as `"sound.cards"`. |
 | `hotkey`, `browse` | `button`, `path` | The access key underlined (classic) or coloured (DOS), and the label of a Browse button. |
 
 Table 3. Node properties.
+
+The Studio's add-node palette offers every node kind, grouped (containers, content, controls, status meters, other) with a short description, and presets for the usual combinations: a footer button row, side art, a billboard, a checklist of the components, a radio group, a field, a path with Browse, step progress, key hints and the three status meters together. The meters are added to the theme's stage when the theme has one, so every page shows them; a stage node is shared by all pages of the theme and the Layouts screen says so. A meter's `bind` is `engine.meter.<source>`; the engine's progress events feed it, and the Dry-run preview animates the three (free space follows the chosen folder and components, and reads “Low” when the install would leave the drive nearly full).
 
 `art` is `{ width, height, scale, rects }` for pixel art, with each rect `[x, y, w, h, colour]`, or `{ viewBox, shapes }` for vector shapes (`rect`, `path`, `circle` with `fill`, `stroke`, `width`). Text properties may hold `{placeholders}` such as `{product.version}`, `{target.id}` and `{install.path}`; a screen fills them from the run's values, and a name with no value stays as written.
 
