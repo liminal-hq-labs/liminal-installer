@@ -21,7 +21,7 @@
 
 
  Free space [#####################################-----------------------]  62%
- Next, button  |  Tab next, Shift-Tab previous, Space toggle, Enter choose, Esc
+ Next, button  |  Tab move, Space toggle, Enter choose, Esc cancel
 Controls, in tab order:
   1. Folder (Path)
   2. Components (Checklist)

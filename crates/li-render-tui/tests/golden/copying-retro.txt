@@ -21,4 +21,4 @@
  SOUND/SBPRO.DRV [████████████████████████████████████████████░░░░░░░░░░░]  80%
  Total [███████████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]  42%
  Free space [███░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]   6% LOW
-   |  Tab next, Shift-Tab previous, Space toggle, Enter choose, Esc cancel
+   |  Tab move, Space toggle, Enter choose, Esc cancel

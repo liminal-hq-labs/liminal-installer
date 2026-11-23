@@ -790,7 +790,7 @@ impl Screen {
 			pt.clip = row;
 			pt.fill(row, cx.p.status);
 			let line = format!(
-				" {}  |  Tab next, Shift-Tab previous, Space toggle, Enter choose, Esc cancel",
+				" {}  |  Tab move, Space toggle, Enter choose, Esc cancel",
 				self.describe_focus(b)
 			);
 			pt.put(
