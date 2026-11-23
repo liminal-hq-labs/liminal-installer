@@ -63,4 +63,4 @@ pub use format::{
 	VERSION_MINOR, entry_len, flags, safe_path, short_path, targets,
 };
 pub use inflate::INBUF;
-pub use reader::{Reader, SINK_PIECE, Sink, SinkError, SliceSource, Source};
+pub use reader::{Extract, Reader, SINK_PIECE, Sink, SinkError, SliceSource, Source};

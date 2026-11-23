@@ -23,7 +23,7 @@ pub struct HostPlatform {
 	pub env: BTreeMap<String, String>,
 	/// The size of the pretend drive, in bytes.
 	pub capacity: u64,
-	/// `SETUP.DAT`.
+	/// `SETUP.LPK`.
 	pub data: Vec<u8>,
 	/// The focus descriptions announced, in order.
 	pub announcements: Vec<String>,

@@ -1197,7 +1197,7 @@ dependencies = [
 name = "li-retro"
 version = "0.1.0"
 dependencies = [
- "miniz_oxide 0.8.9",
+ "li-lpk",
  "postcard",
  "serde",
  "tempfile",
@@ -1208,6 +1208,7 @@ name = "li-retro-build"
 version = "0.1.0"
 dependencies = [
  "li-engine",
+ "li-lpk",
  "li-model",
  "li-render-tui",
  "li-retro",

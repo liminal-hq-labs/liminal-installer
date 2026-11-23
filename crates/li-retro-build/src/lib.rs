@@ -1,16 +1,16 @@
-// Compiles an installer project into the DOS runtime's `SETUP.DAT`.
+// Compiles an installer project into the DOS runtime's `SETUP.LPK`.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 //! [`compile`] turns a project and a `tui-retro` target into a [`li_retro::model::Project`] and
-//! its payload:
+//! the contents of its files:
 //!
 //! - the `install` and `uninstall` flows become steps with bytecode conditions ([`expr`]);
 //! - each layout the flows use is drawn once by li-render-tui's Retro look at 80 by 25 and
 //!   flattened into cells plus the widgets that need live values ([`screens`]);
-//! - the target's component files become 8.3 destinations, each stored or deflated, with its
-//!   CRC-32 ([`payload`]);
+//! - the target's component files become 8.3 destinations, each with its size and
+//!   CRC-32 ([`payload`]); [`Compiled::lpk`] packs the project and the files into `SETUP.LPK`;
 //! - shortcuts become launcher batch files, and the answers the sound page collects become a
 //!   `SETUP.INI`.
 //!
@@ -23,8 +23,11 @@ mod payload;
 mod screens;
 
 use li_engine::Project;
+use li_lpk::targets;
+use li_lpk::writer::{FileSpec, Options, pack};
 use li_model::{Flow, StepType};
 use li_retro::model::{self, Builtin, Kind, Op};
+use li_retro::pack::{PROJECT_FILE, Pack};
 
 pub use payload::dos_rel;
 pub use screens::{Context, ScreenKey, tui_layout};
@@ -43,19 +46,43 @@ pub(crate) fn err<T>(m: impl Into<String>) -> Result<T, CompileError> {
 /// The result of a compile.
 pub struct Compiled {
 	pub project: model::Project,
-	/// The payload bytes the `FileEntry` offsets point into.
-	pub payload: Vec<u8>,
+	/// The files' contents, in the order of `project.files`.
+	pub data: Vec<Vec<u8>>,
 	pub warnings: Vec<String>,
 }
 
 impl Compiled {
-	/// The `SETUP.DAT` file.
-	pub fn dat(&self) -> Result<Vec<u8>, CompileError> {
+	/// The `SETUP.LPK` file as one volume: the compiled project first, then the files in install
+	/// order, in chunks of 32 KiB that are stored or deflated.
+	pub fn lpk(&self) -> Result<Vec<u8>, CompileError> {
+		let mut set = self.lpk_set(&[u32::MAX])?;
+		Ok(set.remove(0))
+	}
+
+	/// The pack as a set of volumes, each at most the matching size in `volume_sizes` (the last
+	/// size repeats). One volume when the sizes allow it.
+	pub fn lpk_set(&self, volume_sizes: &[u32]) -> Result<Vec<Vec<u8>>, CompileError> {
 		let project = self
 			.project
 			.encode()
 			.map_err(|e| CompileError::Message(e.to_string()))?;
-		Ok(model::dat::write(&project, &self.payload))
+		let mut specs = vec![FileSpec {
+			attr: 0x02,
+			targets: targets::DOS,
+			..FileSpec::new(PROJECT_FILE, project)
+		}];
+		for (f, data) in self.project.files.iter().zip(&self.data) {
+			specs.push(FileSpec {
+				targets: targets::DOS,
+				..FileSpec::new(Pack::name_of(&f.dest), data.clone())
+			});
+		}
+		let opts = Options {
+			volume_sizes: volume_sizes.to_vec(),
+			..Options::default()
+		};
+		let packed = pack(&specs, &opts).map_err(|e| CompileError::Message(e.to_string()))?;
+		Ok(packed.volumes)
 	}
 
 	/// The bytes the install needs on disk, counting every component.
@@ -100,8 +127,7 @@ pub fn compile(
 		})
 		.collect();
 
-	let (files, payload_bytes, mut ops) =
-		payload::build(project, target, &components, &mut warnings)?;
+	let (files, data, mut ops) = payload::build(project, target, &components, &mut warnings)?;
 
 	// Flows and the screens their steps show.
 	let mut screen_keys: Vec<screens::ScreenKey> = Vec::new();
@@ -198,7 +224,7 @@ pub fn compile(
 		.map_err(|e| CompileError::Message(e.to_string()))?;
 	Ok(Compiled {
 		project: out,
-		payload: payload_bytes,
+		data,
 		warnings,
 	})
 }

@@ -1,4 +1,4 @@
-// The compiled project: what `SETUP.DAT` carries besides the payload.
+// The compiled project: what `SETUP.LPK` carries besides the payload.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -76,13 +76,7 @@ pub struct FileEntry {
 	/// The destination below the install directory, in 8.3 form with `\` separators.
 	pub dest: String,
 	pub size: u32,
-	/// The stored length in the payload.
-	pub packed: u32,
-	/// Where the stored bytes start in the payload.
-	pub offset: u32,
 	pub crc: u32,
-	/// 0 stored, 1 raw deflate.
-	pub method: u8,
 }
 
 /// The kinds of step, as in a flow file.
@@ -391,53 +385,7 @@ impl Project {
 			if usize::from(f.component) >= self.components.len() {
 				return bad("a file belongs to a component that does not exist");
 			}
-			if f.method > 1 {
-				return bad("a file uses an unknown storage method");
-			}
 		}
 		Ok(())
-	}
-}
-
-/// The container: a header, the compiled project and the payload.
-pub mod dat {
-	use alloc::vec::Vec;
-
-	use crate::Error;
-
-	pub const MAGIC: &[u8; 8] = b"LIRDAT1\0";
-	/// Magic, then the project offset and length and the payload offset and length, as `u32`.
-	pub const HEADER: usize = 24;
-
-	pub struct Header {
-		pub project_off: u32,
-		pub project_len: u32,
-		pub payload_off: u32,
-		pub payload_len: u32,
-	}
-
-	pub fn write(project: &[u8], payload: &[u8]) -> Vec<u8> {
-		let mut out = Vec::with_capacity(HEADER + project.len() + payload.len());
-		out.extend_from_slice(MAGIC);
-		out.extend_from_slice(&(HEADER as u32).to_le_bytes());
-		out.extend_from_slice(&(project.len() as u32).to_le_bytes());
-		out.extend_from_slice(&((HEADER + project.len()) as u32).to_le_bytes());
-		out.extend_from_slice(&(payload.len() as u32).to_le_bytes());
-		out.extend_from_slice(project);
-		out.extend_from_slice(payload);
-		out
-	}
-
-	pub fn parse_header(bytes: &[u8]) -> Result<Header, Error> {
-		if bytes.len() < HEADER || &bytes[..8] != MAGIC {
-			return Err(Error::Format("not a SETUP.DAT file".into()));
-		}
-		let u = |i: usize| u32::from_le_bytes([bytes[i], bytes[i + 1], bytes[i + 2], bytes[i + 3]]);
-		Ok(Header {
-			project_off: u(8),
-			project_len: u(12),
-			payload_off: u(16),
-			payload_len: u(20),
-		})
 	}
 }

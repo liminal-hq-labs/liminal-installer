@@ -154,6 +154,16 @@ impl Reader {
 		Ok(Directory::new(buf, &self.first))
 	}
 
+	/// The directory in `bytes`, which the caller read earlier with [`Reader::read_directory`] and
+	/// kept, so a long-lived buffer need not stay borrowed by the [`Directory`]. The checksum is
+	/// not checked again; every entry is still checked as it is reached.
+	pub fn directory<'b>(&self, bytes: &'b [u8]) -> Result<Directory<'b>, Error> {
+		let bytes = bytes
+			.get(..self.first.dir_len as usize)
+			.ok_or(Error::BufferTooSmall)?;
+		Ok(Directory::new(bytes, &self.first))
+	}
+
 	/// Starts unpacking `e`: asks the source for the volume it begins in. Call
 	/// [`Reader::step`] until it returns `None`.
 	pub fn begin(&mut self, src: &mut dyn Source, e: &Entry) -> Result<Extract, Error> {

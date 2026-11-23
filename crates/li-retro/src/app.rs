@@ -9,7 +9,7 @@
 //! actions replace the Lua hooks the host runner has.
 //!
 //! The exit codes are the runner's: 0 done, 1 failed (everything rolled back), 2 bad arguments or
-//! a damaged `SETUP.DAT`, 3 the person cancelled.
+//! a damaged `SETUP.LPK`, 3 the person cancelled.
 
 use alloc::format;
 use alloc::string::{String, ToString};
@@ -18,7 +18,8 @@ use alloc::vec::Vec;
 use crate::Error;
 use crate::expr;
 use crate::install::{self, Progress, Receipt};
-use crate::model::{Builtin, Flow, Kind, Project, Step, dat};
+use crate::model::{Builtin, Flow, Kind, Project, Step};
+use crate::pack::Pack;
 use crate::platform::{Key, Platform};
 use crate::text::human;
 use crate::ui::{Cells, Outcome, Page, Value, Values};
@@ -61,27 +62,15 @@ pub enum Outcome2 {
 struct Session<'a, P: Platform> {
 	p: &'a mut P,
 	project: &'a Project,
-	payload_off: u32,
+	pack: Pack,
 	v: Values,
 }
 
-/// Reads the compiled project from `SETUP.DAT` through the platform.
-pub fn load_project<P: Platform>(p: &mut P) -> Result<(Project, u32), Error> {
-	let mut head = [0u8; dat::HEADER];
-	let n = p.data_read(0, &mut head)?;
-	let h = dat::parse_header(&head[..n])?;
-	let mut bytes = alloc::vec![0u8; h.project_len as usize];
-	let mut at = 0usize;
-	while at < bytes.len() {
-		let got = p.data_read(h.project_off + at as u32, &mut bytes[at..])?;
-		if got == 0 {
-			return Err(Error::Format(
-				"SETUP.DAT ends inside the project".to_string(),
-			));
-		}
-		at += got;
-	}
-	Ok((Project::decode(&bytes)?, h.payload_off))
+/// Opens `SETUP.LPK` through the platform and reads the compiled project, its first entry.
+pub fn load_project<P: Platform>(p: &mut P) -> Result<(Project, Pack), Error> {
+	let mut pack = Pack::open(p)?;
+	let bytes = pack.project_bytes(p)?;
+	Ok((Project::decode(&bytes)?, pack))
 }
 
 /// Runs `SETUP.EXE`'s work and returns the exit code. `args` is the command tail.
@@ -103,17 +92,17 @@ pub fn run<P: Platform>(p: &mut P, args: &str) -> i32 {
 		}
 		return 0;
 	}
-	let (project, payload_off) = match load_project(p) {
+	let (project, pack) = match load_project(p) {
 		Ok(x) => x,
 		Err(e) => {
-			p.report(&format!("SETUP.DAT: {e}\n"));
+			p.report(&format!("SETUP.LPK: {e}\n"));
 			return 2;
 		}
 	};
 	let mut s = Session {
 		p,
 		project: &project,
-		payload_off,
+		pack,
 		v: Values::default(),
 	};
 	s.seed(&mode);
@@ -468,7 +457,6 @@ impl<P: Platform> Session<'_, P> {
 			.map(|s| Page::new(self.project, usize::from(s), &mut self.v, now));
 		self.refresh();
 		let project = self.project;
-		let payload_off = self.payload_off;
 		let values = self.v.clone();
 		let mut live = Live {
 			project,
@@ -483,7 +471,7 @@ impl<P: Platform> Session<'_, P> {
 			install::install(
 				p,
 				project,
-				payload_off,
+				&mut self.pack,
 				&dir,
 				&sel,
 				&values,

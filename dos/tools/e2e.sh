@@ -7,7 +7,7 @@
 # usage: dos/tools/e2e.sh
 #
 # Needs the DOS tools (dos/tools/fetch-tools.sh) and a built runtime (dos/build.sh); exits 0 with a note when the tools are missing, so a
-# checkout without them is not failed. The run: `liminst build -t dos-x86` writes SETUP.EXE and SETUP.DAT; DOSBox mounts them as C:; the keys
+# checkout without them is not failed. The run: `liminst build -t dos-x86` writes SETUP.EXE and SETUP.LPK; DOSBox mounts them as C:; the keys
 # of the install flow are typed with AUTOTYPE; the runtime writes every screen it shows to D:\DUMP.TXT (LI_DUMP); the welcome, components and
 # copying screens are compared with crates/li-retro-build/tests/golden/, the host simulator's goldens, so the DOS runtime and the host agree
 # to the character. LIMINST names the CLI (default: cargo run).
@@ -31,7 +31,7 @@ cat "$WORK/build.log"
 
 DISK="$WORK/disk"
 mkdir -p "$DISK"
-cp "$WORK/out/dos/SETUP.EXE" "$WORK/out/dos/SETUP.DAT" "$DISK/"
+cp "$WORK/out/dos/SETUP.EXE" "$WORK/out/dos/SETUP.LPK" "$DISK/"
 GOLDEN="$ROOT/crates/li-retro-build/tests/golden"
 
 fail() { echo "e2e: FAIL: $*" >&2; exit 1; }

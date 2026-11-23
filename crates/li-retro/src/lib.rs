@@ -10,14 +10,14 @@
 //!
 //! | Module | Does |
 //! |---|---|
-//! | [`model`] | The compiled project, its container (`SETUP.DAT`) and the validator |
+//! | [`model`] | The compiled project and its validator |
 //! | [`expr`] | The `when` bytecode and its VM |
 //! | [`ui`] | The cell buffer, the retro renderer for a flattened screen, keyboard handling |
 //! | [`install`] | Install, uninstall and the `INSTALL.LIR` receipt |
 //! | [`app`] | The flow VM that ties them together (`run`) |
 //! | [`platform`] | What the runtime needs from the machine |
 //! | [`sound`] | The `detect-sound` built-in |
-//! | [`pack`] | CRC-32 and the streaming decompressor |
+//! | [`pack`] | `SETUP.LPK`: the Liminal Pack that holds the project and the files, read through `li-lpk` |
 //! | [`cp437`], [`text`] | The PC character set, wrapping, `{placeholders}` and sizes |
 //! | `sim` (`std` only) | A `Platform` over a host directory, for tests |
 #![no_std]
@@ -46,7 +46,7 @@ pub use platform::{Key, Platform};
 /// What can go wrong in the runtime.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
-	/// `SETUP.DAT` is damaged or from another version.
+	/// `SETUP.LPK` is not a pack this runtime reads.
 	Format(String),
 	/// The machine refused a file or directory operation.
 	Io(String),

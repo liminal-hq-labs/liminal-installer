@@ -71,9 +71,9 @@ pub trait Platform {
 	fn remove_file(&mut self, path: &str) -> Result<(), Error>;
 	/// Removes an empty directory.
 	fn remove_dir(&mut self, path: &str) -> Result<(), Error>;
-	/// The length of `SETUP.DAT`.
+	/// The length of `SETUP.LPK`.
 	fn data_len(&mut self) -> u32;
-	/// Reads `SETUP.DAT` at `offset`.
+	/// Reads `SETUP.LPK` at `offset`; fewer bytes than asked for are allowed, and 0 means the end.
 	fn data_read(&mut self, offset: u32, buf: &mut [u8]) -> Result<usize, Error>;
 	fn port_in(&mut self, port: u16) -> u8;
 	fn port_out(&mut self, port: u16, value: u8);
