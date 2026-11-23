@@ -38,7 +38,7 @@ export interface Api {
 	/** Calls `handler` after every change from any source; resolves to an unsubscribe function. */
 	onChange(handler: (e: ChangeEvent) => void): Promise<() => void>;
 	/** Asks the person for a project folder; null if cancelled or unsupported. */
-	pickProject(): Promise<string | null>;
+	pickProject(startIn?: string): Promise<string | null>;
 }
 
 export const CHANGE_EVENT = 'studio://changed';
@@ -65,9 +65,9 @@ async function tauriApi(): Promise<Api> {
 		redo: () => invoke('redo'),
 		mcpInfo: () => invoke('mcp_info'),
 		onChange: async (handler) => listen<ChangeEvent>(CHANGE_EVENT, (e) => handler(e.payload)),
-		pickProject: async () => {
+		pickProject: async (startIn) => {
 			const { open } = await import('@tauri-apps/plugin-dialog');
-			const picked = await open({ directory: true, title: 'Open installer project' });
+			const picked = await open({ directory: true, title: 'Open installer project', ...(startIn ? { defaultPath: startIn } : {}) });
 			return typeof picked === 'string' ? picked : null;
 		},
 	};

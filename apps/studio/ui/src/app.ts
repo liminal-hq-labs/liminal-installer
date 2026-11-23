@@ -19,11 +19,13 @@ import type {
 } from './lib/types';
 import { SCREEN_ACTIONS, type ActionId, type Screen } from './chrome/menuModel';
 import type { ChromeStore } from './chrome/chromeStore';
+import { formatScript } from './lib/scriptText';
+import type { Settings } from './lib/settings';
 import { layoutView } from './views/layouts';
 import { flowView } from './views/flow';
 import { previewView } from './views/preview';
 import { projectView } from './views/project';
-import { scriptView } from './views/script';
+import { applyEditorSettings, scriptView } from './views/script';
 
 export type Route = Screen;
 
@@ -70,6 +72,10 @@ export interface Ctx {
 	testScript(source?: string): Promise<void>;
 	runPreview(target: string): Promise<void>;
 	openProject(): Promise<void>;
+	/** Opens the project in a folder, and remembers it as a recent one. */
+	openPath(path: string): Promise<void>;
+	/** The settings in force. */
+	settings(): Settings;
 	/** Tells the window chrome what the menus and title need to know. */
 	syncChrome(): void;
 }
@@ -78,6 +84,8 @@ export interface Ctx {
 export interface App {
 	/** Runs the action a menu item or shortcut names. */
 	dispatch(id: ActionId): void;
+	/** Opens the project in a folder, as the Open recent menu does. Errors show as a toast. */
+	openPath(path: string): Promise<void>;
 }
 
 const NAV: { route: Route; label: string; icon: string }[] = [
@@ -111,7 +119,7 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		api = await createApi();
 	} catch (e) {
 		mount(root, h('p', { class: 'fatal' }, String(e)));
-		return { dispatch: () => undefined };
+		return { dispatch: () => undefined, openPath: async () => undefined };
 	}
 	const state: State = {
 		route: 'project',
@@ -195,6 +203,12 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 			state.report = await api.testScript(path);
 		},
 		async saveScript(source) {
+			if (chrome.get().settings.formatOnSave) {
+				const formatted = formatScript(source);
+				const area = document.getElementById('script-editor') as HTMLTextAreaElement | null;
+				if (area && area.value !== formatted) area.value = formatted;
+				source = formatted;
+			}
 			await api.writeScript(state.scriptPath, source, `Edit ${state.scriptPath}`);
 			state.scriptSource = source;
 			state.scriptDirty = false;
@@ -209,13 +223,28 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 			state.previewStep = Math.max(0, state.preview.steps.findIndex((s) => !s.skipped));
 		},
 		async openProject() {
-			const path = await api.pickProject();
-			if (path) {
-				state.summary = await api.openProject(path);
-				await refresh();
-			}
+			const path = await api.pickProject(chrome.get().settings.projectsFolder || undefined);
+			if (path) await ctx.openPath(path);
 		},
+		async openPath(path) {
+			try {
+				state.summary = await api.openProject(path);
+			} catch (e) {
+				// A project that has moved or gone should not stay in the menu.
+				await chrome.forgetProject(path).catch(() => undefined);
+				throw e;
+			}
+			await refresh();
+			await chrome.recordProject(state.summary.root).catch(() => undefined);
+		},
+		settings: () => chrome.get().settings,
 	};
+
+	/** The target a dry run starts on: the one the Preview setting names when the project has it, else the first. */
+	function defaultTarget(ids: string[]): string {
+		const wanted = chrome.get().settings.previewTarget;
+		return ids.includes(wanted) ? wanted : (ids[0] ?? '');
+	}
 
 	/** Reloads whatever the current project and screen show. A dirty script is kept. */
 	async function refresh(): Promise<void> {
@@ -223,7 +252,7 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		state.history = await api.history();
 		state.problems = await api.checkProject();
 		state.mcp = await api.mcpInfo();
-		if (!state.previewTarget) state.previewTarget = state.summary.targets[0]?.full_id ?? '';
+		if (!state.summary.targets.some((t) => t.full_id === state.previewTarget)) state.previewTarget = defaultTarget(state.summary.targets.map((t) => t.full_id));
 		state.preview = await api.getPreview();
 		if (state.summary.flows.some((f) => f.id === state.flowId)) await ctx.loadFlow(state.flowId);
 		if (state.summary.layouts.includes(state.layoutId)) await ctx.loadLayout(state.layoutId).then(() => undefined);
@@ -242,7 +271,41 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 					state.overrideRenderer = keepOverride;
 				}
 				if (event.source === 'mcp') showToast(`Agent: ${event.label}`, false, 4000);
+				if (chrome.get().settings.previewAutoRun && (event.doc?.type === 'flow' || event.doc?.type === 'layout')) scheduleAutoRun();
 			});
+	});
+
+	let autoRunTimer: number | undefined;
+	/** Runs the dry run again shortly after the last flow or layout change, for the Preview setting. */
+	function scheduleAutoRun(): void {
+		window.clearTimeout(autoRunTimer);
+		autoRunTimer = window.setTimeout(() => {
+			if (!state.summary || !state.previewTarget || !chrome.get().settings.previewAutoRun) return;
+			void ctx.run(() => ctx.runPreview(state.previewTarget));
+		}, 250);
+	}
+
+	// Settings that change what is on screen take effect without a reload, and without losing unsaved script text.
+	let seen = chrome.get().settings;
+	chrome.subscribe(() => {
+		const next = chrome.get().settings;
+		const was = seen;
+		seen = next;
+		if (state.route === 'script') applyEditorSettings(root, next);
+		if (next.mcpEnabled !== was.mcpEnabled || next.mcpPort !== was.mcpPort) {
+			// Only the card changes, so text typed in the script editor stays as it is.
+			void api.mcpInfo().then((info) => {
+				state.mcp = info;
+				root.querySelector('.agent-card')?.replaceWith(agentCard());
+			}, () => undefined);
+		}
+		if (next.previewTarget !== was.previewTarget && state.summary) {
+			const wanted = defaultTarget(state.summary.targets.map((t) => t.full_id));
+			if (wanted !== state.previewTarget) state.previewTarget = wanted;
+		}
+		if (next.showSkippedSteps !== was.showSkippedSteps || next.previewTarget !== was.previewTarget) {
+			if (state.route === 'preview') render();
+		}
 	});
 
 	function syncChrome(): void {
@@ -285,6 +348,10 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		},
 	};
 	for (const [route, id] of Object.entries(SCREEN_ACTIONS) as [Route, ActionId][]) actions[id] = async () => ctx.go(route);
+
+	function agentCard(): HTMLElement {
+		return h('div', { class: 'agent-card' }, h('span', { class: `dot ${state.mcp ? 'on' : ''}` }), state.mcp ? 'Agent endpoint ready' : 'Agent endpoint off', state.mcp ? h('code', {}, state.mcp.url) : null);
+	}
 
 	function historyPopover(): HTMLElement {
 		const rows = historyRows(state.history.entries);
@@ -337,7 +404,7 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 					NAV.map((n) =>
 						h('a', { href: '#', class: s.route === n.route ? 'active' : '', 'aria-current': s.route === n.route ? 'page' : undefined, on: { click: (e) => { e.preventDefault(); ctx.go(n.route); } } }, icon(n.icon), n.label),
 					),
-					h('div', { class: 'agent-card' }, h('span', { class: `dot ${s.mcp ? 'on' : ''}` }), s.mcp ? 'Agent endpoint ready' : 'Agent endpoint off', s.mcp ? h('code', {}, s.mcp.url) : null),
+					agentCard(),
 				),
 				h('main', { class: 'main' }, s.error ? h('p', { class: 'fatal' }, s.error) : body),
 				h(
@@ -354,7 +421,10 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 				s.toast ? h('div', { class: `toast ${s.toast.error ? 'error' : ''}`, role: 'status' }, s.toast.text) : null,
 			),
 		);
-		if (s.route === 'script') document.getElementById('script-editor')?.focus({ preventScroll: true });
+		if (s.route === 'script') {
+			applyEditorSettings(root, chrome.get().settings);
+			document.getElementById('script-editor')?.focus({ preventScroll: true });
+		}
 		syncChrome();
 	}
 
@@ -367,10 +437,18 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		}
 		await refresh();
 	});
+	if (state.summary) {
+		// A project given on the command line counts as a recent one.
+		await chrome.recordProject(state.summary.root).catch(() => undefined);
+	} else {
+		const last = chrome.get().settings.lastProject;
+		if (chrome.get().settings.reopenLastProject && last) await ctx.run(() => ctx.openPath(last));
+	}
 	return {
 		dispatch(id) {
 			const action = actions[id];
 			if (action) void ctx.run(action);
 		},
+		openPath: (path) => ctx.run(() => ctx.openPath(path)),
 	};
 }

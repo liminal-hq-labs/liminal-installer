@@ -79,7 +79,11 @@ body {
 }
 .dlg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: auto; padding-top: 12px; }
 .prefs-host { display: flex; flex-direction: column; }
-.prefs-inline { height: 360px; display: flex; flex-direction: column; }
+.prefs-screen { height: 100%; min-height: 0; display: flex; flex-direction: column; }
+.prefs-screen > * { flex: 1 1 auto; min-height: 0; }
+.prefs-screen[aria-busy="true"] { opacity: 0.4; }
+.prefs-screen code { word-break: break-all; }
+.prefs-inline { height: 460px; display: flex; flex-direction: column; }
 /* The wordmark: the brand gradient on the app name, as in the designs. */
 .wordmark button span:last-child {
 	font-family: var(--lh-font-heading); font-weight: 700; font-size: 14px;
@@ -257,7 +261,13 @@ ul.tree li.selected { background: var(--lh-accent-soft); color: var(--lh-accent)
 .chip { font: 11px var(--lh-font-mono); padding: 0 6px; border-radius: var(--lh-radius-pill); background: rgba(167, 139, 250, 0.15); color: var(--lh-brand-purple); }
 
 .script-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; align-items: start; }
-textarea.code { width: 100%; min-height: 62vh; resize: vertical; tab-size: 4; line-height: 1.5; font-size: 13px; white-space: pre; background: var(--lh-bg-sidebar); }
+/* The editor is a textarea beside a gutter of line numbers; the Editor settings set the variables on `.editor`. */
+.editor { display: flex; min-width: 0; min-height: 62vh; border: 1px solid var(--lh-border-default); border-radius: var(--lh-radius-sm); background: var(--lh-bg-sidebar); overflow: hidden; }
+.editor-gutter { flex: 0 0 auto; overflow: hidden; padding: 4px 8px 4px 10px; text-align: right; color: var(--lh-text-muted); border-right: 1px solid var(--lh-border-subtle); user-select: none; font: var(--editor-font-size, 13px)/1.5 var(--lh-font-mono); }
+.editor-gutter div { white-space: pre; }
+.editor[data-numbers="off"] .editor-gutter { display: none; }
+textarea.code { flex: 1 1 auto; width: 100%; min-height: 62vh; resize: none; border: 0; border-radius: 0; background: transparent; tab-size: var(--editor-tab, 4); line-height: 1.5; font-size: var(--editor-font-size, 13px); white-space: pre; overflow: auto; }
+.editor[data-wrap="on"] textarea.code { white-space: pre-wrap; overflow-wrap: anywhere; }
 pre.output { background: var(--lh-bg-sidebar); padding: 8px; border-radius: var(--lh-radius-sm); white-space: pre-wrap; margin: 0; }
 
 .preview-grid { display: grid; grid-template-columns: 220px minmax(0, 1fr) 360px; gap: 12px; align-items: start; }
@@ -319,3 +329,17 @@ button.pv-button { font: inherit; cursor: default; }
 	.flow-layout, .layout-grid, .script-grid, .preview-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/*
+ * Appearance settings. The text scale zooms the app and the settings pane, not the title bar. Density tightens the spacing of lists and tables.
+ */
+.shell, .prefs-screen { zoom: var(--text-scale, 1); }
+[data-density="compact"] .card { padding: 8px 10px; }
+[data-density="compact"] td, [data-density="compact"] th { padding-top: 3px; padding-bottom: 3px; }
+[data-density="compact"] .sidebar a { height: 26px; }
+[data-density="compact"] .toolbar, [data-density="compact"] ol.steps, [data-density="compact"] ol.ops { gap: 4px; }
+[data-density="compact"] ul.tree li { padding-top: 1px; padding-bottom: 1px; }
+[data-density="compact"] .screen { gap: 10px; }
+[data-motion="reduced"] *, [data-motion="reduced"] *::before, [data-motion="reduced"] *::after {
+	animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important;
+}
