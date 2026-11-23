@@ -25,6 +25,8 @@ li-model = { path = "../../../crates/li-model" }
 li-studio = { path = "../../../crates/li-studio" }
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
+# Writes the log file and takes the webview's `console` output through `src/services/logger.ts`.
+tauri-plugin-log = "2"
 # Follows the system colour scheme and reduced-motion setting, so the theme and motion settings can follow the system.
 tauri-plugin-system-appearance = "0.1"
 # Remembers the size of the main and Preferences windows between runs (see `src/windows.rs`).

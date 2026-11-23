@@ -232,6 +232,15 @@ pub fn run() {
 		builder = builder.plugin(tauri_plugin_mcp_bridge::init());
 	}
 	builder
+		.plugin(
+			tauri_plugin_log::Builder::new()
+				.level(if cfg!(debug_assertions) {
+					tauri_plugin_log::log::LevelFilter::Trace
+				} else {
+					tauri_plugin_log::log::LevelFilter::Info
+				})
+				.build(),
+		)
 		.plugin(tauri_plugin_dialog::init())
 		.plugin(tauri_plugin_system_appearance::init())
 		.plugin(windows::window_state_plugin())
