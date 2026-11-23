@@ -1,21 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-	Liminal Installer hero banner: the Liminal HQ Labs placeholder, a small flask bubbling on a bench.
+	Liminal Installer hero banner: a retro DOS setup and a modern Afterglow window, side by side across a doorway.
 
 	(c) Copyright 2026 Liminal HQ, Scott Morris
 	SPDX-License-Identifier: Apache-2.0 OR MIT
 
-	How to edit: scripts/init-project.sh fills in the title and description. Keep the title under
-	about 16 characters and the description under about 60, or shrink their font-size. Replace the
-	flask with a scene for the project when it has one: keep the 1200 x 320 viewBox, SMIL only, the
+	Scene: both windows fill their progress bars in step. Keep the 1200 x 320 viewBox, SMIL only, the
 	.motion and .static pairs for reduced motion, data-loop on the root and animations whose dur
-	divides it. For a final wordmark, outline the title with Inkscape (export text to path) and
-	keep the paths. Check every change with scripts/check-banner.sh and its shots option, and look
-	at the frames (docs/new-project.md has the commands).
+	divides it. Check every change with scripts/check-banner.sh and its shots option, and look at
+	the frames.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320" role="img" aria-labelledby="hero-title hero-desc" data-loop="9">
 	<title id="hero-title">Liminal Installer</title>
-	<desc id="hero-desc">Liminal Installer: Themeable installers, updaters and launchers for every platform, from one project. A Liminal HQ Labs experiment. An animated banner shows a flask of glowing lime liquid bubbling on a lab bench.</desc>
+	<desc id="hero-desc">Liminal Installer: Themeable installers, updaters and launchers for every platform, from one project. A Liminal HQ Labs experiment. An animated banner shows a blue DOS text-mode setup window and a modern dark Afterglow window, each filling a progress bar in step, with a glowing doorway between them.</desc>
 
 	<style>
 		.ui { font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'Adwaita Sans', Inter, sans-serif; }
@@ -45,20 +42,22 @@
 			<stop offset="0.55" stop-color="#ffaa40"/>
 			<stop offset="1" stop-color="#f43f5e"/>
 		</linearGradient>
-		<linearGradient id="liquid" x1="0" y1="0" x2="0" y2="1">
-			<stop offset="0" stop-color="#bef264"/>
-			<stop offset="0.25" stop-color="#a3e635"/>
-			<stop offset="1" stop-color="#4ade80"/>
+		<linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+			<stop offset="0" stop-color="#ffaa40"/>
+			<stop offset="1" stop-color="#f43f5e"/>
+		</linearGradient>
+		<linearGradient id="door" x1="0" y1="1" x2="0" y2="0">
+			<stop offset="0" stop-color="#f43f5e" stop-opacity="0.75"/>
+			<stop offset="1" stop-color="#ffaa40" stop-opacity="0.2"/>
 		</linearGradient>
 		<radialGradient id="wash">
 			<stop offset="0" stop-color="#a78bfa" stop-opacity="0.16"/>
 			<stop offset="1" stop-color="#a78bfa" stop-opacity="0"/>
 		</radialGradient>
-		<filter id="haze" x="-60%" y="-60%" width="220%" height="220%">
-			<feGaussianBlur stdDeviation="20"/>
+		<filter id="haze" x="-80%" y="-40%" width="260%" height="180%">
+			<feGaussianBlur stdDeviation="14"/>
 		</filter>
 		<clipPath id="frame"><rect width="1200" height="320" rx="18"/></clipPath>
-		<clipPath id="flask-in"><path d="M966 104V156L916 236Q910 248 924 248H1036Q1050 248 1044 236L994 156V104Z"/></clipPath>
 	</defs>
 
 	<g clip-path="url(#frame)">
@@ -69,50 +68,90 @@
 		<!-- hero-text:start (system font; outline it for the final wordmark) -->
 		<text class="ui" x="56" y="128" font-size="60" font-weight="800" letter-spacing="-1" fill="url(#afterglow)">Liminal Installer</text>
 		<!-- hero-text:end -->
-		<text class="ui" x="56" y="172" font-size="18" font-weight="500" fill="#e0e0e0">Themeable installers, updaters and launchers for every platform, from one project</text>
+		<text class="ui" x="56" y="172" font-size="16" font-weight="500" fill="#e0e0e0">Themeable installers, updaters and launchers for every platform, from one project</text>
 		<g class="ui" font-size="13" font-weight="600" fill="#b4bfce">
 			<rect id="chip-status" data-box="" x="56" y="200" width="134" height="28" rx="14" fill="#a3e635" fill-opacity="0.08" stroke="#a3e635" stroke-opacity="0.45"/>
 			<circle class="motion" cx="74" cy="214" r="4" fill="#a3e635">
-				<animate attributeName="opacity" dur="3s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" values="1;0.35;1"/>
+				<animate attributeName="opacity" dur="3s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1" values="1;0.35;1"/>
 			</circle>
 			<circle class="static" cx="74" cy="214" r="4" fill="#a3e635"/>
 			<text data-for="chip-status" x="86" y="219">experimental</text>
 		</g>
 		<text class="mono" x="56" y="266" font-size="12" fill="#8a96aa">Liminal HQ Labs</text>
 
-		<!-- Right: a flask bubbling on the bench -->
-		<rect x="860" y="257" width="300" height="2" fill="#b4bfce" opacity="0.35"/>
+		<!-- Right: a DOS setup, a doorway and an Afterglow window -->
+		<rect x="730" y="256" width="430" height="2" fill="#b4bfce" opacity="0.35"/>
+
+		<!-- DOS text-mode window -->
+		<rect x="746" y="70" width="150" height="176" fill="#000000" opacity="0.5"/>
+		<rect x="740" y="64" width="150" height="176" fill="#0000aa"/>
+		<text class="mono" x="750" y="76" font-size="11" font-weight="700" fill="#ffffff">SETUP</text>
+		<rect x="746" y="88" width="138" height="146" fill="none" stroke="#ffffff" stroke-width="1.5"/>
+		<text class="mono" x="754" y="112" font-size="11" fill="#ffffff">Copying files...</text>
+		<rect x="754" y="124" width="96" height="3" fill="#ffffff" opacity="0.7"/>
+		<rect x="754" y="132" width="64" height="3" fill="#ffffff" opacity="0.7"/>
+		<rect x="752" y="148" width="124" height="18" fill="none" stroke="#ffffff" stroke-width="1.5"/>
+		<g class="motion" fill="#ffffff">
+			<rect x="754" y="150" width="7" height="14" opacity="0"><animate attributeName="opacity" dur="9s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.09;0.95;1" values="0;1;0;0"/></rect>
+			<rect x="762" y="150" width="7" height="14" opacity="0"><animate attributeName="opacity" dur="9s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.13;0.95;1" values="0;1;0;0"/></rect>
+			<rect x="770" y="150" width="7" height="14" opacity="0"><animate attributeName="opacity" dur="9s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.17;0.95;1" values="0;1;0;0"/></rect>
+			<rect x="778" y="150" width="7" height="14" opacity="0"><animate attributeName="opacity" dur="9s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.21;0.95;1" values="0;1;0;0"/></rect>
+			<rect x="786" y="150" width="7" height="14" opacity="0"><animate attributeName="opacity" dur="9s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.25;0.95;1" values="0;1;0;0"/></rect>
+			<rect x="794" y="150" width="7" height="14" opacity="0"><animate attributeName="opacity" dur="9s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.29;0.95;1" values="0;1;0;0"/></rect>
+			<rect x="802" y="150" width="7" height="14" opacity="0"><animate attributeName="opacity" dur="9s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.33;0.95;1" values="0;1;0;0"/></rect>
+			<rect x="810" y="150" width="7" height="14" opacity="0"><animate attributeName="opacity" dur="9s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.37;0.95;1" values="0;1;0;0"/></rect>
+			<rect x="818" y="150" width="7" height="14" opacity="0"><animate attributeName="opacity" dur="9s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.41;0.95;1" values="0;1;0;0"/></rect>
+			<rect x="826" y="150" width="7" height="14" opacity="0"><animate attributeName="opacity" dur="9s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.45;0.95;1" values="0;1;0;0"/></rect>
+			<rect x="834" y="150" width="7" height="14" opacity="0"><animate attributeName="opacity" dur="9s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.49;0.95;1" values="0;1;0;0"/></rect>
+			<rect x="842" y="150" width="7" height="14" opacity="0"><animate attributeName="opacity" dur="9s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.53;0.95;1" values="0;1;0;0"/></rect>
+			<rect x="850" y="150" width="7" height="14" opacity="0"><animate attributeName="opacity" dur="9s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.57;0.95;1" values="0;1;0;0"/></rect>
+			<rect x="858" y="150" width="7" height="14" opacity="0"><animate attributeName="opacity" dur="9s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.61;0.95;1" values="0;1;0;0"/></rect>
+			<rect x="866" y="150" width="7" height="14" opacity="0"><animate attributeName="opacity" dur="9s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.65;0.95;1" values="0;1;0;0"/></rect>
+		</g>
+		<g class="static" fill="#ffffff">
+			<rect x="754" y="150" width="7" height="14"/>
+			<rect x="762" y="150" width="7" height="14"/>
+			<rect x="770" y="150" width="7" height="14"/>
+			<rect x="778" y="150" width="7" height="14"/>
+			<rect x="786" y="150" width="7" height="14"/>
+			<rect x="794" y="150" width="7" height="14"/>
+			<rect x="802" y="150" width="7" height="14"/>
+			<rect x="810" y="150" width="7" height="14"/>
+			<rect x="818" y="150" width="7" height="14"/>
+			<rect x="826" y="150" width="7" height="14"/>
+			<rect x="834" y="150" width="7" height="14"/>
+		</g>
+		<rect x="754" y="206" width="48" height="16" fill="none" stroke="#ffffff" stroke-width="1.5"/>
+		<text class="mono" x="762" y="218" font-size="11" fill="#ffffff">Esc</text>
+
+		<!-- Doorway between the two -->
 		<g class="motion">
-			<ellipse cx="980" cy="212" rx="90" ry="56" fill="#4ade80" opacity="0.2" filter="url(#haze)">
-				<animate attributeName="opacity" dur="4.5s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.5;1" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" values="0.16;0.32;0.16"/>
+			<ellipse cx="918" cy="200" rx="24" ry="52" fill="#f43f5e" opacity="0.3" filter="url(#haze)">
+				<animate attributeName="opacity" dur="3s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1" values="0.2;0.42;0.2"/>
 			</ellipse>
 		</g>
-		<ellipse class="static" cx="980" cy="212" rx="90" ry="56" fill="#4ade80" opacity="0.24" filter="url(#haze)"/>
-		<g clip-path="url(#flask-in)">
-			<path fill="url(#liquid)" d="M900 200H1060V260H900Z"/>
-			<g class="motion" fill="#ecfccb">
-				<circle cx="962" cy="244" r="3" opacity="0">
-					<animate attributeName="cy" dur="3s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.05;0.7;1" keySplines="0 0 1 1;0.5 0 0.8 1;0 0 1 1" values="244;244;204;204"/>
-					<animate attributeName="opacity" dur="3s" repeatCount="indefinite" keyTimes="0;0.05;0.15;0.6;0.7;1" values="0;0;0.85;0.85;0;0"/>
-				</circle>
-				<circle cx="990" cy="244" r="4" opacity="0">
-					<animate attributeName="cy" dur="4.5s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.3;0.9;1" keySplines="0 0 1 1;0.5 0 0.8 1;0 0 1 1" values="244;244;204;204"/>
-					<animate attributeName="opacity" dur="4.5s" repeatCount="indefinite" keyTimes="0;0.3;0.4;0.8;0.9;1" values="0;0;0.8;0.8;0;0"/>
-				</circle>
-				<circle cx="1010" cy="242" r="2.5" opacity="0">
-					<animate attributeName="cy" dur="3s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.4;0.95;1" keySplines="0 0 1 1;0.5 0 0.8 1;0 0 1 1" values="242;242;205;205"/>
-					<animate attributeName="opacity" dur="3s" repeatCount="indefinite" keyTimes="0;0.4;0.5;0.85;0.95;1" values="0;0;0.85;0.85;0;0"/>
-				</circle>
-			</g>
-			<g class="static" fill="#ecfccb" opacity="0.8">
-				<circle cx="962" cy="226" r="3"/>
-				<circle cx="990" cy="214" r="4"/>
-				<circle cx="1010" cy="236" r="2.5"/>
-			</g>
-		</g>
-		<path d="M966 104V156L916 236Q910 248 924 248H1036Q1050 248 1044 236L994 156V104" fill="#ffffff" fill-opacity="0.05" stroke="#e0e0e0" stroke-opacity="0.65" stroke-width="2.5" stroke-linejoin="round"/>
-		<rect x="959" y="95" width="42" height="10" rx="4" fill="#161a26" stroke="#e0e0e0" stroke-opacity="0.65" stroke-width="2.5"/>
-		<path d="M936 222L970 168" stroke="#ffffff" stroke-opacity="0.22" stroke-width="5" stroke-linecap="round"/>
+		<ellipse class="static" cx="918" cy="200" rx="24" ry="52" fill="#f43f5e" opacity="0.3" filter="url(#haze)"/>
+		<path d="M906 256V150Q906 124 918 124Q930 124 930 150V256Z" fill="url(#door)"/>
+		<path d="M906 256V150Q906 124 918 124Q930 124 930 150V256" fill="none" stroke="#e0e0e0" stroke-opacity="0.7" stroke-width="2.5" stroke-linejoin="round"/>
+		<circle class="motion" cy="196" r="3" fill="#ffffff">
+			<animate attributeName="cx" dur="3s" repeatCount="indefinite" keyTimes="0;1" values="896;940"/>
+			<animate attributeName="opacity" dur="3s" repeatCount="indefinite" keyTimes="0;0.2;0.8;1" values="0;0.9;0.9;0"/>
+		</circle>
+		<circle class="static" cx="918" cy="196" r="3" fill="#ffffff" opacity="0.9"/>
+
+		<!-- Afterglow window -->
+		<rect x="946" y="76" width="204" height="164" rx="12" fill="#161a28" stroke="#2a3040" stroke-width="1.5"/>
+		<circle cx="962" cy="92" r="3.5" fill="#f43f5e"/>
+		<circle cx="974" cy="92" r="3.5" fill="#ffaa40"/>
+		<circle cx="986" cy="92" r="3.5" fill="#a3e635"/>
+		<rect x="962" y="116" width="96" height="9" rx="4.5" fill="url(#accent)"/>
+		<rect x="962" y="138" width="150" height="5" rx="2.5" fill="#b4bfce" opacity="0.4"/>
+		<rect x="962" y="152" width="112" height="5" rx="2.5" fill="#b4bfce" opacity="0.4"/>
+		<rect x="962" y="196" width="172" height="6" rx="3" fill="#2a3040"/>
+		<rect class="motion" x="962" y="196" width="0" height="6" rx="3" fill="url(#accent)">
+			<animate attributeName="width" dur="9s" repeatCount="indefinite" keyTimes="0;0.05;0.65;0.9;0.95;1" values="0;0;172;172;172;0"/>
+		</rect>
+		<rect class="static" x="962" y="196" width="126" height="6" rx="3" fill="url(#accent)"/>
 	</g>
 	<rect class="edge" x="0.5" y="0.5" width="1199" height="319" rx="18"/>
 </svg>
