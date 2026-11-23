@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "id": "install",
+  "steps": [
+    { "id": "welcome", "type": "page", "layout": "welcome", "next": "choose" },
+    { "id": "choose", "type": "page", "layout": "choose", "on_enter": "scripts/setup.lua#detect", "next": "route" },
+    { "id": "route", "type": "branch", "branches": [{ "when": "'sound' in components", "next": "sound-info" }], "next": "ready" },
+    { "id": "sound-info", "type": "page", "layout": "sound-info", "next": "ready" },
+    { "id": "ready", "type": "page", "layout": "ready", "when": "not state.skip_ready", "next": "copy" },
+    { "id": "copy", "type": "commit", "layout": "progress", "next": "done" },
+    { "id": "done", "type": "finish", "layout": "done" }
+  ]
+}

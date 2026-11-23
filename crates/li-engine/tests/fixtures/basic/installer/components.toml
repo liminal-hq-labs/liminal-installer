@@ -1,0 +1,26 @@
+# The fixture's components.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[[component]]
+id       = "game"
+name     = "Game program"
+required = true
+files    = [
+  { from = "dist/{target}/APP", to = "{install}/" },
+  { from = "dist/shared/*.dat", to = "{install}/data/" },
+]
+shortcut   = [{ name = "Fixture App", target = "{install}/APP", in = "start_menu" }]
+file_types = [{ extension = ".fix", name = "Fixture file", open_with = "{install}/APP" }]
+
+[[component]]
+id    = "sound"
+name  = "Sound drivers"
+files = [{ from = "dist/sound/", to = "{install}/sound/" }]
+
+[[component]]
+id      = "winhelper"
+name    = "Windows helper"
+targets = ["windows-x86_64"]
+files   = [{ from = "dist/windows-x86_64/helper.exe", to = "{install}/helper.exe" }]

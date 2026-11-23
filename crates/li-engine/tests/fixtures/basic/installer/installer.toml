@@ -1,0 +1,24 @@
+# A tiny installer project for the engine tests.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[product]
+id        = "hq.liminal.fixture"
+name      = "Fixture"
+publisher = "Liminal HQ"
+version   = "1.0.0"
+
+[defaults]
+scope = "user"
+theme = "fixture"
+
+[[target]]
+id       = "linux-x86_64"
+renderer = "canvas"
+outputs  = ["lip"]
+
+[[target]]
+id       = "windows-x86_64"
+renderer = "canvas"
+outputs  = ["lip"]
