@@ -1,0 +1,33 @@
+/*
+ * (c) Copyright 2026 Liminal HQ, Scott Morris
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ */
+
+.body {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	background: #000;
+}
+.bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+	padding: 8px 12px;
+	background: var(--lis-bg-raised, #1c1c1f);
+	color: var(--lis-text, #eee);
+}
+.spacer {
+	flex: 1 1 auto;
+}
+.stage {
+	position: relative;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+.empty {
+	margin: 24px;
+	color: #bbb;
+}

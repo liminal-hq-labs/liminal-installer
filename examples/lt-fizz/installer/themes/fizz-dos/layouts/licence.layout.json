@@ -3,16 +3,87 @@
 	"version": 1,
 	"id": "licence",
 	"root": {
-		"kind": "backdrop",
+		"kind": "dialog",
 		"props": {
-			"style": "text-mode",
-			"charset": "cp437",
-			"fill": "░",
-			"title": "{product.name}  Setup",
-			"credit": "Liminal Installer",
-			"label": "Lieutenant Fizz — Episode One setup"
+			"title": "Licence",
+			"label": "Licence",
+			"border": "double",
+			"shadow": true,
+			"width": 56
 		},
 		"children": [
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "column",
+					"gap": 1
+				},
+				"children": [
+					{
+						"kind": "text",
+						"props": {
+							"text": "",
+							"role": "document",
+							"source": "LICENCE.TXT",
+							"scroll": true,
+							"label": "Licence text"
+						}
+					},
+					{
+						"kind": "radio",
+						"bind": "licence.accepted",
+						"props": {
+							"label": "Licence acceptance",
+							"options": [
+								{
+									"id": "yes",
+									"label": "I accept the agreement"
+								},
+								{
+									"id": "no",
+									"label": "I do not accept the agreement"
+								}
+							]
+						}
+					}
+				]
+			},
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "row",
+					"gap": 2,
+					"align": "centre",
+					"region": "footer"
+				},
+				"children": [
+					{
+						"kind": "button",
+						"props": {
+							"label": "Back",
+							"action": "back",
+							"hotkey": "B"
+						}
+					},
+					{
+						"kind": "button",
+						"props": {
+							"label": "Next",
+							"action": "next",
+							"default": true,
+							"hotkey": "N",
+							"enabled_when": "state.licence.accepted == 'yes'"
+						}
+					},
+					{
+						"kind": "button",
+						"props": {
+							"label": "Cancel",
+							"action": "cancel"
+						}
+					}
+				]
+			},
 			{
 				"kind": "stack",
 				"props": {
@@ -100,90 +171,6 @@
 							"max": 8,
 							"text": "Step 2 of 8"
 						}
-					}
-				]
-			},
-			{
-				"kind": "dialog",
-				"props": {
-					"title": "Licence",
-					"label": "Licence",
-					"border": "double",
-					"shadow": true,
-					"width": 56
-				},
-				"children": [
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "column",
-							"gap": 1
-						},
-						"children": [
-							{
-								"kind": "text",
-								"props": {
-									"text": "",
-									"role": "document",
-									"source": "LICENCE.TXT",
-									"scroll": true,
-									"label": "Licence text"
-								}
-							},
-							{
-								"kind": "radio",
-								"bind": "licence.accepted",
-								"props": {
-									"label": "Licence acceptance",
-									"options": [
-										{
-											"id": "yes",
-											"label": "I accept the agreement"
-										},
-										{
-											"id": "no",
-											"label": "I do not accept the agreement"
-										}
-									]
-								}
-							}
-						]
-					},
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "row",
-							"gap": 2,
-							"align": "centre",
-							"region": "footer"
-						},
-						"children": [
-							{
-								"kind": "button",
-								"props": {
-									"label": "Back",
-									"action": "back",
-									"hotkey": "B"
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "Next",
-									"action": "next",
-									"default": true,
-									"hotkey": "N",
-									"enabled_when": "state.licence.accepted == 'yes'"
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "Cancel",
-									"action": "cancel"
-								}
-							}
-						]
 					}
 				]
 			},

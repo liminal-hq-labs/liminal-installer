@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use li_model::{
 	Component, ComponentsFile, Flow, InstallerFile, Layout, Target, ThemeFile,
-	project::VersionSource,
+	project::VersionSource, theme::STAGE_LAYOUT,
 };
 
 use crate::error::{EngineError, Result};
@@ -210,6 +210,41 @@ impl Project {
 			next = theme.file.theme.fallback.as_deref();
 		}
 		self.layouts.get(layout_id)
+	}
+
+	/// The whole screen for a step: the page's layout, drawn inside the stage of the first theme on the
+	/// target's chain that has one (see `Layout::composed`). Without a stage, or when the page draws
+	/// its own backdrop, it is the page's layout.
+	pub fn screen_for(
+		&self,
+		target: &Target,
+		layout_id: &str,
+		step_id: &str,
+		step_kind: &str,
+	) -> Option<Layout> {
+		let page = self.layout_for(target, layout_id)?;
+		match self.stage_for(target) {
+			Some(stage) => Some(Layout::composed(stage, page, step_id, step_kind)),
+			None => Some(page.clone()),
+		}
+	}
+
+	/// The `stage` layout of the target's theme, or of the nearest theme on its `fallback` chain.
+	pub fn stage_for(&self, target: &Target) -> Option<&Layout> {
+		let mut next = self.theme_id_for(target);
+		let mut seen = Vec::new();
+		while let Some(id) = next {
+			if seen.contains(&id) {
+				break;
+			}
+			seen.push(id);
+			let theme = self.themes.get(id)?;
+			if let Some(l) = theme.layouts.get(STAGE_LAYOUT) {
+				return Some(l);
+			}
+			next = theme.file.theme.fallback.as_deref();
+		}
+		None
 	}
 
 	/// The literal version, or `None` when it is read from the build (`{ from = "git-tag" }`).

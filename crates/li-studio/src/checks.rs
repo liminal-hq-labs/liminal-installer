@@ -24,6 +24,7 @@ pub const NODE_KINDS: &[&str] = &[
 	"field",
 	"path",
 	"progress",
+	"slot",
 	"custom",
 ];
 const NEEDS_NAME: &[&str] = &[

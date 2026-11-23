@@ -10,9 +10,16 @@ export interface PreviewState {
 	previewTarget: string;
 	preview: Preview | null;
 	previewStep: number;
+	/** The in-page full-viewport preview, for a browser tab that has no windows to open. */
+	fullscreen: boolean;
 }
 
 export type PreviewStore = StoreApi<PreviewState>;
 
 export const createPreviewStore = (): PreviewStore =>
-	createStore<PreviewState>(() => ({ previewTarget: '', preview: null, previewStep: 0 }));
+	createStore<PreviewState>(() => ({
+		previewTarget: '',
+		preview: null,
+		previewStep: 0,
+		fullscreen: false,
+	}));

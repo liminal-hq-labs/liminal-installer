@@ -5,7 +5,10 @@
 
 import { t, tn } from '../i18n/messages';
 import { formatOp, screenshotSrc } from '../lib/format';
-import { PreviewTree } from '../preview/PreviewTree';
+import { FullScreenBody, type FullScreenBodyProps } from '../preview/FullScreenBody';
+import { PlaybackBar, RunStage } from '../preview/RunStage';
+import { useRun } from '../preview/useRun';
+import { useEffect, useState } from 'react';
 import { lookFor } from '../preview/model';
 import preview from '../preview/preview.module.css';
 import { useChromeState, usePreview, useProject, useStudio } from '../app/StudioContext';
@@ -13,6 +16,43 @@ import { cx } from '../ui/cx';
 import text from '../ui/text.module.css';
 import ui from '../ui/ui.module.css';
 import styles from './PreviewScreen.module.css';
+
+type OverlayBody = Omit<FullScreenBodyProps, 'fullscreen' | 'onToggleFullscreen' | 'onClose'>;
+
+/**
+ * The browser tab's full-screen preview: the page itself is the only window, so the preview fills the
+ * viewport and asks the browser to go full screen too. Escape closes it. The desktop shell opens a
+ * window of its own instead.
+ */
+function FullscreenOverlay({ body, onClose }: { body: OverlayBody; onClose: () => void }) {
+	const [native, setNative] = useState(false);
+	useEffect(() => {
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === 'Escape' && (e.target as HTMLElement | null)?.tagName !== 'SELECT') onClose();
+		};
+		const onChange = () => setNative(document.fullscreenElement !== null);
+		window.addEventListener('keydown', onKey);
+		document.addEventListener('fullscreenchange', onChange);
+		return () => {
+			window.removeEventListener('keydown', onKey);
+			document.removeEventListener('fullscreenchange', onChange);
+			if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+		};
+	}, [onClose]);
+	return (
+		<div className={styles.overlay} role="dialog" aria-label={t('preview.closeFullScreen')}>
+			<FullScreenBody
+				{...body}
+				fullscreen={native}
+				onToggleFullscreen={() => {
+					if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+					else void document.documentElement.requestFullscreen?.().catch(() => undefined);
+				}}
+				onClose={onClose}
+			/>
+		</div>
+	);
+}
 
 export function PreviewScreen() {
 	const studio = useStudio();
@@ -24,13 +64,10 @@ export function PreviewScreen() {
 	const targets = summary.targets;
 	const shown = pv?.steps[previewStep];
 	const setStep = (i: number) => studio.preview.setState({ previewStep: i });
-	const go = (delta: number) => {
-		if (!pv) return;
-		let i = previewStep;
-		do i += delta;
-		while (pv.steps[i]?.skipped);
-		if (i >= 0 && i < pv.steps.length) setStep(i);
-	};
+	const run = useRun(pv, summary.components, previewStep, setStep);
+	const fullscreen = usePreview((s) => s.fullscreen);
+	const closeFullscreen = () => studio.preview.setState({ fullscreen: false });
+	const go = (delta: -1 | 1) => run.onAction(delta < 0 ? 'back' : 'next');
 	const targetInfo = targets.find((x) => x.full_id === previewTarget);
 	const stale = Boolean(pv && pv.target !== previewTarget);
 	const skippedCount = pv?.steps.filter((x) => x.skipped).length ?? 0;
@@ -118,23 +155,33 @@ export function PreviewScreen() {
 							<button type="button" className={ui.btn} onClick={() => go(1)}>
 								{t('preview.next')}
 							</button>
-						</div>
-						{shown?.layout_tree ? (
-							<div
-								className={preview.host}
-								aria-label={t('preview.screenOfStep', { id: shown.id })}
+							<button
+								type="button"
+								className={ui.btn}
+								onClick={() =>
+									void studio.run(() => studio.app().dispatch('view.fullScreenPreview'))
+								}
 							>
-								<PreviewTree
-									root={shown.layout_tree}
-									options={{
-										renderer,
-										theme: pv.theme ?? targetInfo?.theme,
-										vars: pv.vars,
-										state: shown.state,
-										components: summary.components,
-									}}
-								/>
-							</div>
+								{t('preview.fullScreen')}
+							</button>
+						</div>
+						{pv && shown?.layout_tree ? (
+							<>
+								<div
+									className={preview.host}
+									aria-label={t('preview.screenOfStep', { id: shown.id })}
+								>
+									<RunStage
+										pv={pv}
+										step={shown}
+										run={run}
+										components={summary.components}
+										renderer={renderer}
+										theme={pv.theme ?? targetInfo?.theme}
+									/>
+								</div>
+								<PlaybackBar run={run} step={shown} />
+							</>
 						) : (
 							<>
 								<div className={preview.host} aria-label={t('preview.screen')} />
@@ -157,6 +204,31 @@ export function PreviewScreen() {
 					</section>
 					<section className={cx(ui.card, styles.plan)} aria-label={t('preview.plan')}>
 						<h2>{t('preview.planOps', { count: pv.plan.ops.length })}</h2>
+						<p className={cx(text.dim, text.small)} data-testid="plan-summary">
+							{run.vars['plan.summary']}
+						</p>
+						<p className={cx(text.dim, text.small)} data-testid="space-summary">
+							{t('preview.spaceRequired', {
+								size: run.vars['install.size'] ?? '',
+								after: run.vars['system.free_space_after'] ?? '',
+							})}
+						</p>
+						{run.derived.fits ? null : (
+							<p className={text.err} role="alert">
+								{t('preview.notEnoughSpace')}
+							</p>
+						)}
+						<h3>{t('preview.selectedComponents', { count: run.selected.length })}</h3>
+						<ul className={styles.ops}>
+							{summary.components
+								.filter((c) => run.selected.includes(c.id))
+								.map((c) => (
+									<li key={c.id}>
+										<code className={styles.opName}>{c.id}</code>{' '}
+										<span className={cx(text.mono, text.small)}>{c.files}</span>
+									</li>
+								))}
+						</ul>
 						<ol className={styles.ops}>
 							{pv.plan.ops.map((op, i) => {
 								const f = formatOp(op);
@@ -183,6 +255,24 @@ export function PreviewScreen() {
 					</section>
 				</div>
 			)}
+			{fullscreen ? (
+				<FullscreenOverlay
+					onClose={closeFullscreen}
+					body={{
+						pv,
+						run,
+						components: summary.components,
+						targets,
+						target: previewTarget,
+						index: previewStep,
+						setIndex: setStep,
+						onTarget: (target) => {
+							studio.preview.setState({ previewTarget: target });
+							void studio.run(() => studio.runPreview(target));
+						},
+					}}
+				/>
+			) : null}
 		</div>
 	);
 }

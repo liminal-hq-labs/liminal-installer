@@ -3,6 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { previewWindowQuery } from '../preview/fullScreen';
+
 export interface DialogButton {
 	id: string;
 	label: string;
@@ -177,6 +179,12 @@ export function inPageDialogBackend(
 export async function openChildWindow(kind: 'preferences' | 'shortcuts' | 'agent'): Promise<void> {
 	const { invoke } = await import('@tauri-apps/api/core');
 	await invoke('open_window', { kind });
+}
+
+/** Opens the full-screen preview window for a target and step, or brings it forward when it is open. */
+export async function openPreviewWindow(target: string, step: number): Promise<void> {
+	const { invoke } = await import('@tauri-apps/api/core');
+	await invoke('open_window', { kind: 'preview', query: previewWindowQuery(target, step) });
 }
 
 export const openPreferencesWindow = () => openChildWindow('preferences');

@@ -23,6 +23,7 @@ export type ActionId =
 	| 'view.layouts'
 	| 'view.script'
 	| 'view.preview'
+	| 'view.fullScreenPreview'
 	| 'view.menuBar'
 	| 'project.check'
 	| 'project.preview'
@@ -111,6 +112,11 @@ export const ACTIONS: Record<ActionId, Action> = {
 	'view.layouts': screenAction('layouts', 'menu.viewLayouts', '3'),
 	'view.script': screenAction('script', 'menu.viewScripts', '4'),
 	'view.preview': screenAction('preview', 'menu.viewDryRun', '5'),
+	'view.fullScreenPreview': {
+		label: 'menu.fullScreenPreview',
+		keys: ['F11'],
+		enabled: (s) => s.hasProject && s.screen === 'preview',
+	},
 	'view.menuBar': { label: 'menu.showMenuBar', keys: ['Ctrl+Shift+M'], checked: (s) => s.menuBar },
 	'project.check': { label: 'menu.runCheck', keys: ['F7'], enabled: needsProject },
 	'project.preview': { label: 'menu.runPreview', keys: ['F8'], enabled: needsProject },
@@ -161,7 +167,7 @@ export const MENUS: Menu[] = [
 		mnemonic: 'v',
 		groups: [
 			{ items: ['view.project', 'view.flow', 'view.layouts', 'view.script', 'view.preview'] },
-			{ items: ['view.menuBar'] },
+			{ items: ['view.fullScreenPreview', 'view.menuBar'] },
 		],
 	},
 	{

@@ -6,6 +6,7 @@
 // Screens read the stores and call the actions here. The backend arrives as `api`, so a test
 // hands in a fake one. An action that can fail runs through `run`, which shows its error as a toast.
 
+import { isStageId, stageIdFor } from '../lib/stage';
 import type { ChromeStore } from '../chrome/chromeStore';
 import { SCREEN_ACTIONS, type ActionId, type Screen } from '../chrome/menuModel';
 import type { ScriptEditor } from '../editor/scriptEditor';
@@ -51,6 +52,8 @@ export interface StudioOptions {
 	nav: Navigator;
 	/** Settles unsaved script edits before they would be lost: true to go on. Without it they are discarded. */
 	settleUnsaved?: () => Promise<boolean>;
+	/** Opens the full-screen preview in a window of its own (the desktop shell). Without it the preview fills the page. */
+	openPreviewWindow?: (target: string, step: number) => Promise<void>;
 }
 
 export interface Studio {
@@ -277,7 +280,17 @@ export function createStudio(options: StudioOptions): Studio {
 	}
 	async function loadLayout(id: string): Promise<void> {
 		const layout = await api.getLayout(id);
-		project.setState({ layoutId: id, layout, layoutPath: [], overrideRenderer: null });
+		const stageId = stageIdFor(id);
+		const hasStage = stageId !== null && stageId !== id && p().summary?.layouts.includes(stageId);
+		const stageLayout = hasStage ? await api.getLayout(stageId) : null;
+		project.setState({
+			layoutId: id,
+			layout,
+			stageLayout,
+			layoutScope: 'page',
+			layoutPath: [],
+			overrideRenderer: null,
+		});
 	}
 
 	async function runPreview(target: string): Promise<void> {
@@ -307,6 +320,8 @@ export function createStudio(options: StudioOptions): Studio {
 			connectFrom: null,
 			layoutId: '',
 			layout: null,
+			stageLayout: null,
+			layoutScope: 'page',
 			layoutPath: [],
 			overrideRenderer: null,
 			problems: [],
@@ -419,6 +434,12 @@ export function createStudio(options: StudioOptions): Studio {
 				4000,
 			);
 		},
+		'view.fullScreenPreview': async () => {
+			if (!pv().preview) await runPreview(pv().previewTarget);
+			if (options.openPreviewWindow)
+				await options.openPreviewWindow(pv().previewTarget, pv().previewStep);
+			else preview.setState({ fullscreen: true });
+		},
 		'project.preview': async () => {
 			await runPreview(pv().previewTarget);
 			await nav.go('preview');
@@ -441,11 +462,16 @@ export function createStudio(options: StudioOptions): Studio {
 		const off = await api.onChange((event) => {
 			// Keep the layout selection when the change came from elsewhere.
 			const keepPath = p().layoutPath;
+			const keepScope = p().layoutScope;
 			const keepOverride = p().overrideRenderer;
 			void run(async () => {
 				await refresh();
-				if (event.doc?.type === 'layout' && event.doc.id === p().layoutId)
-					project.setState({ layoutPath: keepPath, overrideRenderer: keepOverride });
+				if (event.doc?.type === 'layout')
+					project.setState({
+						layoutPath: keepPath,
+						layoutScope: keepScope,
+						overrideRenderer: keepOverride,
+					});
 				if (event.source === 'mcp')
 					toasts.show(t('toast.agent', { label: event.label }), false, 4000);
 				if (
@@ -515,7 +541,11 @@ export function createStudio(options: StudioOptions): Studio {
 		},
 		loadLayout,
 		saveLayout: async (layout, label) => {
-			project.setState({ layout: await api.setLayout(layout.id, layout, label) });
+			const saved = await api.setLayout(layout.id, layout, label);
+			// A stage is saved from the page that shows it; the open layout stays the page.
+			if (layout.id !== p().layoutId && isStageId(layout.id))
+				project.setState({ stageLayout: saved });
+			else project.setState({ layout: saved });
 		},
 		runPreview,
 		openProject: async () => {

@@ -3,191 +3,178 @@
 	"version": 1,
 	"id": "welcome",
 	"root": {
-		"kind": "backdrop",
+		"kind": "dialog",
 		"props": {
-			"style": "classic",
-			"title": "Lieutenant Fizz",
-			"subtitle": "Episode One",
-			"credit": "Setup powered by Liminal Installer",
-			"taskbar": "Lieutenant Fizz Setup",
-			"label": "Lieutenant Fizz — Episode One setup"
+			"title": "Welcome",
+			"label": "Welcome",
+			"style": "win32-classic",
+			"width": 64
 		},
 		"children": [
 			{
-				"kind": "dialog",
+				"kind": "stack",
 				"props": {
-					"title": "Welcome",
-					"label": "Welcome",
-					"style": "win32-classic",
-					"width": 64
+					"direction": "column",
+					"gap": 0,
+					"region": "side"
 				},
 				"children": [
 					{
-						"kind": "stack",
+						"kind": "image",
 						"props": {
-							"direction": "column",
-							"gap": 0,
-							"region": "side"
-						},
-						"children": [
-							{
-								"kind": "image",
-								"props": {
-									"label": "Lieutenant Fizz",
-									"alt": "Lieutenant Fizz",
-									"art": {
-										"width": 10,
-										"height": 20,
-										"scale": 8,
-										"rects": [
-											[
-												2,
-												0,
-												6,
-												3,
-												"#ff5555"
-											],
-											[
-												1,
-												2,
-												8,
-												1,
-												"#ff5555"
-											],
-											[
-												3,
-												3,
-												4,
-												3,
-												"#ffaa55"
-											],
-											[
-												2,
-												6,
-												6,
-												6,
-												"#5555ff"
-											],
-											[
-												8,
-												7,
-												2,
-												2,
-												"#aaaaaa"
-											],
-											[
-												3,
-												12,
-												2,
-												5,
-												"#555555"
-											],
-											[
-												6,
-												12,
-												2,
-												5,
-												"#555555"
-											],
-											[
-												2,
-												17,
-												3,
-												2,
-												"#ff5555"
-											],
-											[
-												6,
-												17,
-												3,
-												2,
-												"#ff5555"
-											],
-											[
-												2,
-												19,
-												3,
-												1,
-												"#ffffff"
-											],
-											[
-												6,
-												19,
-												3,
-												1,
-												"#ffffff"
-											]
-										]
-									},
-									"panel": "#008080",
-									"ground": "#004040"
-								}
-							}
-						]
+							"label": "Lieutenant Fizz",
+							"alt": "Lieutenant Fizz",
+							"art": {
+								"width": 10,
+								"height": 20,
+								"scale": 8,
+								"rects": [
+									[
+										2,
+										0,
+										6,
+										3,
+										"#ff5555"
+									],
+									[
+										1,
+										2,
+										8,
+										1,
+										"#ff5555"
+									],
+									[
+										3,
+										3,
+										4,
+										3,
+										"#ffaa55"
+									],
+									[
+										2,
+										6,
+										6,
+										6,
+										"#5555ff"
+									],
+									[
+										8,
+										7,
+										2,
+										2,
+										"#aaaaaa"
+									],
+									[
+										3,
+										12,
+										2,
+										5,
+										"#555555"
+									],
+									[
+										6,
+										12,
+										2,
+										5,
+										"#555555"
+									],
+									[
+										2,
+										17,
+										3,
+										2,
+										"#ff5555"
+									],
+									[
+										6,
+										17,
+										3,
+										2,
+										"#ff5555"
+									],
+									[
+										2,
+										19,
+										3,
+										1,
+										"#ffffff"
+									],
+									[
+										6,
+										19,
+										3,
+										1,
+										"#ffffff"
+									]
+								]
+							},
+							"panel": "#008080",
+							"ground": "#004040"
+						}
+					}
+				]
+			},
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "column",
+					"gap": 1
+				},
+				"children": [
+					{
+						"kind": "text",
+						"props": {
+							"text": "Welcome to the {product.name} Setup program. This program will install the game on your computer.",
+							"role": "body"
+						}
 					},
 					{
-						"kind": "stack",
+						"kind": "text",
 						"props": {
-							"direction": "column",
-							"gap": 1
-						},
-						"children": [
-							{
-								"kind": "text",
-								"props": {
-									"text": "Welcome to the {product.name} Setup program. This program will install the game on your computer.",
-									"role": "body"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "It is strongly recommended that you exit all other programs before running this Setup program.",
-									"role": "body"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Click Cancel to quit Setup and close any programs you have running. Click Next to continue with the Setup program.",
-									"role": "body"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Version {product.version} · {target.id}",
-									"role": "caption"
-								}
-							}
-						]
+							"text": "It is strongly recommended that you exit all other programs before running this Setup program.",
+							"role": "body"
+						}
 					},
 					{
-						"kind": "stack",
+						"kind": "text",
 						"props": {
-							"direction": "row",
-							"gap": 1,
-							"align": "end",
-							"region": "footer"
-						},
-						"children": [
-							{
-								"kind": "button",
-								"props": {
-									"label": "Next",
-									"action": "next",
-									"default": true,
-									"hotkey": "N"
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "Cancel",
-									"action": "cancel"
-								}
-							}
-						]
+							"text": "Click Cancel to quit Setup and close any programs you have running. Click Next to continue with the Setup program.",
+							"role": "body"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Version {product.version} · {target.id}",
+							"role": "caption"
+						}
+					}
+				]
+			},
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "row",
+					"gap": 1,
+					"align": "end",
+					"region": "footer"
+				},
+				"children": [
+					{
+						"kind": "button",
+						"props": {
+							"label": "Next",
+							"action": "next",
+							"default": true,
+							"hotkey": "N"
+						}
+					},
+					{
+						"kind": "button",
+						"props": {
+							"label": "Cancel",
+							"action": "cancel"
+						}
 					}
 				]
 			}

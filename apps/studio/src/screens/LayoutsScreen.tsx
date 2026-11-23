@@ -1,19 +1,18 @@
-// The Layouts screen: a node tree editor, per-renderer overrides and a live preview.
+// The Layouts screen: the whole composed screen of a page (theme stage and page), a node tree editor and a live preview.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { useEffect, useState } from 'react';
-import { t } from '../i18n/messages';
+import { useEffect, useMemo, useState } from 'react';
+import { t, tn } from '../i18n/messages';
 import {
 	NODE_KINDS,
 	RENDERERS,
-	addChild,
 	describeNode,
 	effectiveNode,
-	flattenTree,
 	getNode,
 	hasOverride,
+	insertNodes,
 	moveNode,
 	parsePropValue,
 	propToText,
@@ -23,7 +22,19 @@ import {
 	setProp,
 	toggleOverride,
 } from '../lib/layoutEdit';
-import type { Layout } from '../lib/types';
+import { GROUPS, METER_SOURCES, PALETTE, meterLabel, paletteItem } from '../lib/palette';
+import {
+	attachStage,
+	detachStage,
+	isStageId,
+	parseRef,
+	refKey,
+	screenRows,
+	type Ref,
+	type Scope,
+	type StepInfo,
+} from '../lib/stage';
+import type { Layout, LayoutNode } from '../lib/types';
 import { LayoutPreview } from '../preview/PreviewTree';
 import { lookFor } from '../preview/model';
 import { useProject, useStudio } from '../app/StudioContext';
@@ -34,59 +45,141 @@ import styles from './LayoutsScreen.module.css';
 
 const same = (a: number[], b: number[]) => a.length === b.length && a.every((v, i) => v === b[i]);
 
-function Tree({ layout }: { layout: Layout }) {
+/** The layouts a screen is made of: the open layout, and the stage of its theme when it has one. */
+function useScreenParts() {
+	const layout = useProject((s) => s.layout);
+	const stageLayout = useProject((s) => s.stageLayout);
+	const layoutId = useProject((s) => s.layoutId);
+	const scope = useProject((s) => s.layoutScope);
+	const flow = useProject((s) => s.flow);
+	const openIsStage = isStageId(layoutId);
+	const stage = openIsStage ? layout : stageLayout;
+	const page = openIsStage ? null : layout;
+	const name = layoutId.includes('/') ? layoutId.split('/')[1]! : layoutId;
+	const step: StepInfo = useMemo(() => {
+		const s = flow?.flow.steps.find((x) => x.layout === name);
+		return { id: s?.id ?? name, kind: s?.type ?? 'page' };
+	}, [flow, name]);
+	// What an edit applies to: the stage when a stage node is selected, else the page.
+	const active = scope === 'stage' && stage ? stage : (page ?? stage);
+	const activeScope: Scope = active === stage && stage ? 'stage' : 'page';
+	return { layout, stage, page, step, openIsStage, active, activeScope };
+}
+
+function Tree() {
 	const studio = useStudio();
 	const layoutPath = useProject((s) => s.layoutPath);
-	const [addKind, setAddKind] = useState('text');
+	const { stage, page, step, openIsStage, active, activeScope } = useScreenParts();
+	const [addId, setAddId] = useState('text');
+	const item = paletteItem(addId) ?? PALETTE[0]!;
+	const [scopeChoice, setScopeChoice] = useState<Scope | null>(null);
+	const canStage = Boolean(stage) && !openIsStage;
+	const target: Scope =
+		scopeChoice && (scopeChoice === 'page' || canStage)
+			? scopeChoice
+			: item.scope === 'stage' && canStage
+				? 'stage'
+				: openIsStage
+					? 'stage'
+					: 'page';
 	const save = (next: Layout, label: string) =>
 		void studio.run(() => studio.saveLayout(next, label));
-	const node = getNode(layout.root, layoutPath);
-	const select = (path: number[]) => studio.project.setState({ layoutPath: path });
+	const select = (ref: Ref) =>
+		studio.project.setState({ layoutScope: ref.scope, layoutPath: ref.path });
+	const node = active ? getNode(active.root, layoutPath) : undefined;
+	const rows = screenRows(stage?.root ?? null, page?.root ?? null, step);
+	const targetLayout = target === 'stage' ? stage : (page ?? stage);
 	return (
 		<div>
 			<ul className={styles.tree} role="tree" aria-label={t('layouts.nodes')}>
-				{flattenTree(layout.root).map(({ path, depth, node: n }) => (
-					<li
-						key={path.join('.')}
-						role="treeitem"
-						aria-selected={same(path, layoutPath)}
-						className={same(path, layoutPath) ? styles.selected : undefined}
-						style={{ paddingInlineStart: 8 + depth * 16 }}
-						tabIndex={0}
-						onClick={() => select(path)}
-						onKeyDown={(e) => {
-							if (e.key === 'Enter') select(path);
+				{rows.map(({ ref, depth, node: n }) => {
+					const selected = ref.scope === activeScope && same(ref.path, layoutPath);
+					const shared = ref.scope === 'stage' && !openIsStage && canStage;
+					return (
+						<li
+							key={refKey(ref)}
+							role="treeitem"
+							aria-selected={selected}
+							className={cx(selected && styles.selected, shared && styles.shared)}
+							style={{ paddingInlineStart: 8 + depth * 16 }}
+							tabIndex={0}
+							data-scope={ref.scope}
+							onClick={() => select(ref)}
+							onKeyDown={(e) => {
+								if (e.key === 'Enter') select(ref);
+							}}
+						>
+							<span className={styles.kind}>{describeNode(n)}</span>
+							{shared ? (
+								<span className={cx(ui.chip, styles.scopeChip)} title={t('layouts.scopeStageHint')}>
+									{t('layouts.scopeStage')}
+								</span>
+							) : null}
+							{Object.keys(n.overrides ?? {}).map((r) => (
+								<span key={r} className={ui.chip} title={t('layouts.hasOverride', { renderer: r })}>
+									{r}
+								</span>
+							))}
+						</li>
+					);
+				})}
+			</ul>
+			<div className={styles.palette}>
+				<label className={ui.field}>
+					<span className={ui.fieldLabel}>{t('layouts.kindToAdd')}</span>
+					<select
+						aria-label={t('layouts.kindToAdd')}
+						value={addId}
+						onChange={(e) => {
+							setAddId(e.target.value);
+							setScopeChoice(null);
 						}}
 					>
-						<span className={styles.kind}>{describeNode(n)}</span>
-						{Object.keys(n.overrides ?? {}).map((r) => (
-							<span key={r} className={ui.chip} title={t('layouts.hasOverride', { renderer: r })}>
-								{r}
-							</span>
+						{GROUPS.map((g) => (
+							<optgroup key={g.id} label={g.label()}>
+								{PALETTE.filter((p) => p.group === g.id).map((p) => (
+									<option key={p.id} value={p.id}>
+										{p.label()}
+									</option>
+								))}
+							</optgroup>
 						))}
-					</li>
-				))}
-			</ul>
+					</select>
+				</label>
+				<p className={cx(text.dim, text.small)} data-testid="palette-hint">
+					{item.hint()}
+				</p>
+				{canStage ? (
+					<div role="radiogroup" aria-label={t('layouts.addTo')} className={styles.scopePick}>
+						{(['page', 'stage'] as const).map((sc) => (
+							<label key={sc} className={ui.check}>
+								<input
+									type="radio"
+									name="add-scope"
+									checked={target === sc}
+									onChange={() => setScopeChoice(sc)}
+								/>
+								{sc === 'page' ? t('layouts.addToPage') : t('layouts.addToStage')}
+							</label>
+						))}
+					</div>
+				) : null}
+			</div>
 			<div className={ui.toolbar}>
-				<select
-					aria-label={t('layouts.kindToAdd')}
-					value={addKind}
-					onChange={(e) => setAddKind(e.target.value)}
-				>
-					{NODE_KINDS.map((k) => (
-						<option key={k} value={k}>
-							{k}
-						</option>
-					))}
-				</select>
 				<button
 					type="button"
 					className={ui.btn}
-					disabled={!node}
+					disabled={!targetLayout}
 					onClick={() => {
-						const r = addChild(layout, layoutPath, addKind);
-						select(r.path);
-						save(r.layout, t('history.addNode', { kind: addKind, id: layout.id }));
+						if (!targetLayout) return;
+						// Inside the selection when it is in the layout being added to, else at that layout's root.
+						const at = targetLayout === active ? layoutPath : [];
+						const r = insertNodes(targetLayout, at, item.build());
+						select({ scope: targetLayout === stage ? 'stage' : 'page', path: r.path });
+						save(
+							r.layout,
+							t('history.addNode', { kind: item.label().toLowerCase(), id: targetLayout.id }),
+						);
 					}}
 				>
 					{t('layouts.addChild')}
@@ -97,9 +190,10 @@ function Tree({ layout }: { layout: Layout }) {
 					disabled={layoutPath.length === 0}
 					aria-label={t('layouts.moveUp')}
 					onClick={() => {
-						const r = moveNode(layout, layoutPath, -1);
-						select(r.path);
-						save(r.layout, t('history.moveNode', { id: layout.id }));
+						if (!active) return;
+						const r = moveNode(active, layoutPath, -1);
+						select({ scope: activeScope, path: r.path });
+						save(r.layout, t('history.moveNode', { id: active.id }));
 					}}
 				>
 					↑
@@ -110,9 +204,10 @@ function Tree({ layout }: { layout: Layout }) {
 					disabled={layoutPath.length === 0}
 					aria-label={t('layouts.moveDown')}
 					onClick={() => {
-						const r = moveNode(layout, layoutPath, 1);
-						select(r.path);
-						save(r.layout, t('history.moveNode', { id: layout.id }));
+						if (!active) return;
+						const r = moveNode(active, layoutPath, 1);
+						select({ scope: activeScope, path: r.path });
+						save(r.layout, t('history.moveNode', { id: active.id }));
 					}}
 				>
 					↓
@@ -120,11 +215,12 @@ function Tree({ layout }: { layout: Layout }) {
 				<button
 					type="button"
 					className={cx(ui.btn, ui.danger)}
-					disabled={layoutPath.length === 0}
+					disabled={layoutPath.length === 0 || node?.kind === 'slot'}
 					onClick={() => {
+						if (!active) return;
 						const p = layoutPath;
-						select(p.slice(0, -1));
-						save(removeNode(layout, p), t('history.removeNode', { id: layout.id }));
+						select({ scope: activeScope, path: p.slice(0, -1) });
+						save(removeNode(active, p), t('history.removeNode', { id: active.id }));
 					}}
 				>
 					{t('layouts.remove')}
@@ -134,13 +230,24 @@ function Tree({ layout }: { layout: Layout }) {
 	);
 }
 
-function Inspector({ layout }: { layout: Layout }) {
+function Inspector() {
 	const studio = useStudio();
 	const layoutPath = useProject((s) => s.layoutPath);
+	const summary = useProject((s) => s.summary)!;
+	const layoutId = useProject((s) => s.layoutId);
+	const { page, stage, step, openIsStage, active, activeScope } = useScreenParts();
+	const layout = active;
 	const r = useProject((s) => s.overrideRenderer);
 	const [newKey, setNewKey] = useState('');
+	if (!layout) return <p className={text.muted}>{t('layouts.selectNode')}</p>;
 	const base = getNode(layout.root, layoutPath);
 	if (!base) return <p className={text.muted}>{t('layouts.selectNode')}</p>;
+	const theme = layoutId.includes('/') ? layoutId.split('/')[0]! : '';
+	const pagesAffected = summary.layouts.filter(
+		(id) => id.startsWith(`${theme}/`) && !isStageId(id),
+	).length;
+	const hasStage = Boolean(stage) && !openIsStage;
+	const ownBackdrop = page?.root.kind === 'backdrop' && hasStage;
 	const overridden = r ? hasOverride(base, r) : false;
 	const node = effectiveNode(base, overridden ? r : null);
 	const editR = overridden ? r : null;
@@ -149,6 +256,38 @@ function Inspector({ layout }: { layout: Layout }) {
 	const props = Object.entries(node.props ?? {});
 	return (
 		<div>
+			{hasStage && activeScope === 'stage' ? (
+				<div className={styles.notice} role="note" data-testid="stage-notice">
+					<strong>{t('layouts.scopeStageHint')}</strong>
+					<span>{tn('layouts.stageNotice', pagesAffected, { theme })}</span>
+					{page ? (
+						<button
+							type="button"
+							className={ui.btn}
+							onClick={() =>
+								save(detachStage(stage!, page, step), t('history.detachStage', { id: page.id }))
+							}
+						>
+							{t('layouts.detach')}
+						</button>
+					) : null}
+				</div>
+			) : null}
+			{hasStage && activeScope === 'page' ? (
+				<p className={cx(text.dim, text.small)}>{t('layouts.scopePage')}</p>
+			) : null}
+			{ownBackdrop && page ? (
+				<div className={styles.notice} role="note">
+					<span>{t('layouts.ownBackdrop')}</span>
+					<button
+						type="button"
+						className={ui.btn}
+						onClick={() => save(attachStage(page), t('history.attachStage', { id: page.id }))}
+					>
+						{t('layouts.useStage')}
+					</button>
+				</div>
+			) : null}
 			<h3>{t('layouts.node')}</h3>
 			<label className={ui.field}>
 				<span className={ui.fieldLabel}>{t('layouts.editFor')}</span>
@@ -218,6 +357,13 @@ function Inspector({ layout }: { layout: Layout }) {
 					}}
 				/>
 			</label>
+			{node.kind === 'meter' ? (
+				<MeterFields
+					node={node}
+					onChange={(next, key) => save(next(layout, layoutPath, editR), key)}
+					id={layout.id}
+				/>
+			) : null}
 			<h3>{t('layouts.properties')}</h3>
 			{props.map(([k, v]) => (
 				<div key={k} className={ui.propRow}>
@@ -286,6 +432,86 @@ function Inspector({ layout }: { layout: Layout }) {
 	);
 }
 
+/** The settings of a status meter: what it measures, its label, the free-space warning level and where it is drawn. */
+function MeterFields({
+	node,
+	onChange,
+	id,
+}: {
+	node: LayoutNode;
+	onChange: (
+		next: (layout: Layout, path: number[], r: string | null) => Layout,
+		label: string,
+	) => void;
+	id: string;
+}) {
+	const p = node.props ?? {};
+	const source = typeof p.source === 'string' ? p.source : 'total';
+	const set = (key: string, value: unknown, extra?: [string, unknown]) =>
+		onChange(
+			(l, path, r) => {
+				const a = setProp(l, path, key, value, r);
+				return extra ? setProp(a, path, extra[0], extra[1], r) : a;
+			},
+			t('history.editProp', { prop: key, id }),
+		);
+	return (
+		<fieldset className={styles.meterFields}>
+			<legend>{t('layouts.meterSettings')}</legend>
+			<label className={ui.field}>
+				<span className={ui.fieldLabel}>{t('layouts.meterSource')}</span>
+				<select value={source} onChange={(e) => set('source', e.target.value)}>
+					{METER_SOURCES.map((x) => (
+						<option key={x} value={x}>
+							{meterLabel(x)}
+						</option>
+					))}
+				</select>
+			</label>
+			<label className={ui.field}>
+				<span className={ui.fieldLabel}>{t('layouts.meterLabel')}</span>
+				<input
+					key={String(p.label ?? '')}
+					type="text"
+					defaultValue={String(p.label ?? '')}
+					onBlur={(e) => e.target.value !== p.label && set('label', e.target.value)}
+				/>
+			</label>
+			{source === 'free_space' ? (
+				<label className={ui.field}>
+					<span className={ui.fieldLabel}>{t('layouts.meterWarn')}</span>
+					<input
+						key={String(p.low_below ?? '')}
+						type="number"
+						min={0}
+						max={1}
+						step={0.01}
+						defaultValue={typeof p.low_below === 'number' ? p.low_below : 0.05}
+						onBlur={(e) => {
+							const v = Number(e.target.value);
+							if (Number.isFinite(v) && v !== p.low_below) set('low_below', v);
+						}}
+					/>
+				</label>
+			) : null}
+			<label className={ui.field}>
+				<span className={ui.fieldLabel}>{t('layouts.meterPlace')}</span>
+				<select
+					value={p.place === 'dialog' ? 'dialog' : 'backdrop'}
+					onChange={(e) =>
+						e.target.value === 'dialog'
+							? set('place', 'dialog', ['region', undefined])
+							: set('place', 'backdrop', ['region', 'status'])
+					}
+				>
+					<option value="backdrop">{t('layouts.placeBackdrop')}</option>
+					<option value="dialog">{t('layouts.placeDialog')}</option>
+				</select>
+			</label>
+		</fieldset>
+	);
+}
+
 function LayoutPicker() {
 	const studio = useStudio();
 	const ids = useProject((s) => s.summary!.layouts);
@@ -326,6 +552,9 @@ export function LayoutsScreen() {
 	const layout = useProject((s) => s.layout);
 	const layoutId = useProject((s) => s.layoutId);
 	const layoutRenderer = useProject((s) => s.layoutRenderer);
+	const { stage, step } = useScreenParts();
+	const selected = useProject((s) => s.layoutPath);
+	const scope = useProject((s) => s.layoutScope);
 	// A theme's own layout is previewed by a renderer that theme supports.
 	const themeId = layoutId.includes('/') ? layoutId.split('/')[0]! : null;
 	const theme = summary.themes.find((x) => x.id === themeId) ?? null;
@@ -348,10 +577,10 @@ export function LayoutsScreen() {
 			<LayoutPicker />
 			<div className={styles.layoutGrid}>
 				<section className={ui.card} aria-label={t('layouts.nodeTree')}>
-					<Tree layout={layout} />
+					<Tree />
 				</section>
 				<section className={ui.card} aria-label={t('layouts.nodeProperties')}>
-					<Inspector layout={layout} />
+					<Inspector />
 				</section>
 				<section className={ui.card} aria-label={t('layouts.livePreview')}>
 					<div className={ui.toolbar}>
@@ -377,8 +606,25 @@ export function LayoutsScreen() {
 					<div className={styles.host}>
 						<LayoutPreview
 							layout={layout}
+							stage={isStageId(layoutId) ? null : stage}
+							step={step}
 							renderer={renderer}
-							options={{ theme: themeId, components: summary.components }}
+							options={{
+								theme: themeId,
+								components: summary.components,
+								interact: {
+									mode: 'edit',
+									selected: refKey({
+										scope: isStageId(layoutId) ? 'stage' : scope,
+										path: selected,
+									}),
+									onSelect: (key) => {
+										const ref = parseRef(key);
+										if (ref)
+											studio.project.setState({ layoutScope: ref.scope, layoutPath: ref.path });
+									},
+								},
+							}}
 						/>
 					</div>
 				</section>

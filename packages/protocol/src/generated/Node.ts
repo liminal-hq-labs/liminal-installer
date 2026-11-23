@@ -2,8 +2,8 @@
 
 /**
  * One layout node. `kind` is one of `window`, `backdrop`, `dialog`, `stack`, `grid`, `text`,
- * `image`, `billboard`, `meter`, `button`, `checklist`, `radio`, `field`, `path`, `progress`
- * or `custom`. Properties are open so renderers can read what they understand.
+ * `image`, `billboard`, `meter`, `button`, `checklist`, `radio`, `field`, `path`, `progress`,
+ * `slot` (in a theme's stage) or `custom`. Properties are open so renderers can read what they understand.
  */
 export type Node = { kind: string, bind?: string, props?: Record<string, unknown>, children?: Array<Node>, 
 /**

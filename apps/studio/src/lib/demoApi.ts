@@ -6,6 +6,7 @@
 import { lex } from '../editor/luaLex';
 import { validateFlow } from './flowEdit';
 import { resolveForRenderer } from './layoutEdit';
+import { composeScreen } from './stage';
 import type { Api } from './api';
 import type {
 	ChangeEvent,
@@ -289,6 +290,7 @@ export function demoApi(): Api {
 					{ id: 'gus', name: 'Gravis UltraSound' },
 				],
 			};
+			const stageLayout = layouts.get(`${theme}/stage`);
 			const steps = flow.steps.map((s) => {
 				const skipped = Boolean(s.when && !s.when.includes(`'${renderer}'`));
 				const layout = s.layout
@@ -300,7 +302,14 @@ export function demoApi(): Api {
 					layout: s.layout ?? null,
 					skipped,
 					screenshot: null,
-					layout_tree: layout && !skipped ? resolveForRenderer(layout.root, renderer) : undefined,
+					layout_tree:
+						layout && !skipped
+							? composeScreen(
+									stageLayout ? resolveForRenderer(stageLayout.root, renderer) : null,
+									resolveForRenderer(layout.root, renderer),
+									{ id: s.id, kind: s.type },
+								).root
+							: undefined,
 					state,
 				};
 			});

@@ -1,6 +1,6 @@
 # Studio desktop shell
 
-How the Studio window is put together, and how to drive it while developing. `SPEC.md` has the behaviour and `decisions.md` the reasons (D15 to D28).
+How the Studio window is put together, and how to drive it while developing. `SPEC.md` has the behaviour and `decisions.md` the reasons (D15 to D38).
 
 ## What draws what
 
@@ -94,3 +94,15 @@ A new kind of child window needs its label in `capabilities/default.json` and `c
 Dry-run draws from `layout_tree`, `state`, `vars`, `renderer` and `theme` in the preview, and choosing a target runs the preview again. Picture art is the node's own `art` property drawn as inline SVG. A `tui` target also gets the text version, under the screen. The browser demo (`demoApi.ts`) builds the same payload from the `lt-fizz` example.
 
 A theme's own layouts, in `themes/<id>/layouts/`, show in the Layouts screen's picker under the theme, and the preview uses a renderer that theme supports. The looks are checked against the artboards in `Fizz-DOS`, `Fizz-Win95`, `Planboard-Afterglow` and `Neutral-Default`.
+
+### Stages, the whole screen and the palette
+
+A theme's `stage` layout (`SPEC.md` section 6) holds the backdrop, wordmark, status meters and taskbar every page of the theme shares, and its pages are only a `dialog` or `window`. `src/lib/stage.ts` composes the same screen the Rust side does (`Layout::composed`): `composeScreen` returns the tree and a map from each composed node to its layout (`stage` or `page`) and path, `screenRows` lists it for the tree, and `detachStage` and `attachStage` give a page its own copy of the stage or take it back. The Layouts screen draws and edits that whole screen. Stage rows are tinted and tagged "Theme"; selecting one shows a notice with the number of pages a change reaches and a "Make this page's own copy" button. The project store keeps `stageLayout` and `layoutScope` beside `layout` and `layoutPath`, and `saveLayout` writes whichever layout an edit belongs to.
+
+`src/lib/palette.ts` is the add-node palette: every node kind in groups, each with a hint, plus presets (button row, side art, billboard, checklist, radio, field, path, step progress, key hints, the three status meters). A preset has a default scope, the stage for meters and the page otherwise, and the Add control lets the person choose. The inspector shows a meter's source, label, warning level and placement as fields.
+
+### Clicking and running the preview
+
+`PreviewTree` takes an `interact` option. In `edit` mode (the Layouts screen) every element that comes from a node carries `data-node-path`, one delegated click handler selects the nearest one, the pointer's node is outlined (`data-hover`) and the selected node too (`data-selected`). In `run` mode (the Dry-run screen and the full-screen view) the controls answer: `useRun` (`src/preview/useRun.ts`) holds the choices over the step's state, `sim.ts` turns the chosen components and folder into the space, plan summary and free-space meter (sample sizes: 16 MB per file, and sample drives `C:` roomy, `D:` nearly full, `A:` a floppy), and `usePlayback.ts` is the clock for the Play, Pause, Reset and speed controls that animate the copy meters and the billboard.
+
+Full screen is the `preview` child window (`PreviewWindow.tsx`, `FullScreenBody.tsx`). `open_window` opens it from View > Full-screen preview (`F11` on the Dry-run screen) with `?window=preview&target=…&step=…`; it sizes itself with `fitWindow` to the look's natural stage size, scaled to the screen with the aspect ratio kept, and has the stepper, target selector and play controls. F11 or its button toggles real full screen, and Escape leaves full screen and then closes. `preview` is in both capability files, with the window size and full-screen permissions in `default.json`. A browser tab, with no windows to open, shows the same view fixed over the page and asks the browser to go full screen too.

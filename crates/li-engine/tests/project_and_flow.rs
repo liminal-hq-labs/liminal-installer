@@ -267,3 +267,46 @@ fn the_commit_step_reports_progress_and_can_cancel() {
 	runner.run(&mut ui, &mut commit).unwrap();
 	assert_eq!(ui.0, vec![0.25, 0.25]);
 }
+
+#[test]
+fn a_screen_is_the_page_inside_the_themes_stage() {
+	let mut p = project();
+	let target = p.installer.targets[0].clone();
+	let theme = p.theme_id_for(&target).unwrap().to_owned();
+	assert!(p.stage_for(&target).is_none());
+	let page = p.layout_for(&target, "welcome").unwrap().clone();
+	assert_eq!(
+		p.screen_for(&target, "welcome", "welcome", "page"),
+		Some(page.clone())
+	);
+
+	let stage: Layout = serde_json::from_value(json!({
+		"version": 1,
+		"id": "stage",
+		"root": { "kind": "backdrop", "children": [
+			{ "kind": "text", "props": { "text": "Setup", "show_on": ["commit"] } },
+			{ "kind": "slot" }
+		] }
+	}))
+	.unwrap();
+	p.themes
+		.get_mut(&theme)
+		.unwrap()
+		.layouts
+		.insert("stage".into(), stage);
+	let mut page = page;
+	page.root.kind = "dialog".into();
+	p.themes
+		.get_mut(&theme)
+		.unwrap()
+		.layouts
+		.insert("welcome".into(), page);
+	let screen = p.screen_for(&target, "welcome", "welcome", "page").unwrap();
+	assert_eq!(screen.root.kind, "backdrop");
+	assert_eq!(screen.root.children.len(), 1);
+	assert_eq!(screen.root.children[0].kind, "dialog");
+	let screen = p
+		.screen_for(&target, "welcome", "copying", "commit")
+		.unwrap();
+	assert_eq!(screen.root.children.len(), 2);
+}

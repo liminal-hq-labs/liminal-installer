@@ -23,6 +23,8 @@ export interface StartOptions {
 	api?: Api;
 	/** Settles unsaved script edits before they would be lost: true to go on. */
 	settleUnsaved?: () => Promise<boolean>;
+	/** Opens the full-screen preview in a window of its own. */
+	openPreviewWindow?: (target: string, step: number) => Promise<void>;
 }
 
 /**
@@ -49,6 +51,7 @@ export async function startApp(
 		chrome,
 		nav: routerNavigator(router),
 		...(options.settleUnsaved ? { settleUnsaved: options.settleUnsaved } : {}),
+		...(options.openPreviewWindow ? { openPreviewWindow: options.openPreviewWindow } : {}),
 	});
 	reactRoot.render(
 		<StrictMode>

@@ -14,10 +14,12 @@ import {
 	createDialogs,
 	inPageDialogBackend,
 	openChildWindow,
+	openPreviewWindow,
 	tauriDialogBackend,
 	type DialogBackend,
 } from './chrome/dialogWindow';
 import { mountInfoWindow } from './chrome/InfoWindow';
+import { mountPreviewWindow } from './preview/PreviewWindow';
 import { actionForEvent, isActionId, recentPath } from './chrome/menuModel';
 import { createWindowControls, inTauri } from './chrome/windowControls';
 import { applyAppearance, defaultSystem, followSystem } from './lib/appearance';
@@ -69,6 +71,11 @@ async function boot(): Promise<void> {
 
 	// A child window is this same page with `?window=<kind>`.
 	if (new URLSearchParams(location.search).has('window')) {
+		if (
+			new URLSearchParams(location.search).get('window') === 'preview' &&
+			mountPreviewWindow(container, location.search, controls)
+		)
+			return;
 		if (mountInfoWindow(container, location.search, store, host, controls)) return;
 	}
 
@@ -153,7 +160,11 @@ async function boot(): Promise<void> {
 		onAction: perform,
 		...(chrome ? { controls } : {}),
 	});
-	app = await startApp(appHost, store, { header: !chrome, settleUnsaved });
+	app = await startApp(appHost, store, {
+		header: !chrome,
+		settleUnsaved,
+		...(inTauri() ? { openPreviewWindow } : {}),
+	});
 
 	if (inTauri()) {
 		const { getCurrentWindow } = await import('@tauri-apps/api/window');

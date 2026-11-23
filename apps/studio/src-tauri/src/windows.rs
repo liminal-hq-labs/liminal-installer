@@ -1,4 +1,4 @@
-// The Studio's child windows: About, Preferences and confirmation questions.
+// The Studio's child windows: About, Preferences, the full-screen preview and confirmation questions.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -58,6 +58,13 @@ pub fn spec(kind: &str, id: Option<&str>) -> Option<Spec> {
 			size: (500.0, 420.0),
 			min_size: (500.0, 420.0),
 			modal: true,
+		}),
+		"preview" => Some(Spec {
+			label: "preview".into(),
+			title: "Full-Screen Preview",
+			size: (1100.0, 800.0),
+			min_size: (720.0, 480.0),
+			modal: false,
 		}),
 		"confirm" => {
 			let id = id.filter(|s| {
@@ -180,6 +187,14 @@ mod tests {
 		assert!(spec("shortcuts", None).is_some_and(|s| !s.modal));
 		assert!(spec("agent", None).is_some_and(|s| !s.modal));
 		assert!(spec("new-project", None).is_some_and(|s| s.modal));
+	}
+
+	#[test]
+	fn the_full_screen_preview_is_a_resizable_window_of_its_own() {
+		let spec = spec("preview", None).unwrap();
+		assert_eq!(spec.label, "preview");
+		assert!(!spec.modal);
+		assert!(spec.min_size.0 <= spec.size.0 && spec.min_size.1 <= spec.size.1);
 	}
 
 	#[test]

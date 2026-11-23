@@ -23,6 +23,7 @@ export const NODE_KINDS = [
 	'field',
 	'path',
 	'progress',
+	'slot',
 	'custom',
 ] as const;
 
@@ -118,6 +119,30 @@ export function addChild(
 	const out = editNode(layout, path, (node) => {
 		(node.children ??= []).push(newNode(kind));
 		added = [...path, node.children.length - 1];
+	});
+	return { layout: out, path: added };
+}
+
+const CONTAINERS = new Set(['window', 'backdrop', 'dialog', 'stack', 'grid']);
+
+/**
+ * Inserts `nodes` at the selected node: inside it when it holds children, otherwise just after it.
+ * Returns the layout and the path of the first node added.
+ */
+export function insertNodes(
+	layout: Layout,
+	path: NodePath,
+	nodes: LayoutNode[],
+): { layout: Layout; path: NodePath } {
+	const target = getNode(layout.root, path);
+	const inside = !target || CONTAINERS.has(target.kind) || path.length === 0;
+	const parent = inside ? path : path.slice(0, -1);
+	let added: NodePath = path;
+	const out = editNode(layout, parent, (node) => {
+		const kids = (node.children ??= []);
+		const at = inside ? kids.length : path[path.length - 1]! + 1;
+		kids.splice(at, 0, ...clone(nodes));
+		added = [...parent, at];
 	});
 	return { layout: out, path: added };
 }
