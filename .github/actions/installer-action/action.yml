@@ -1,0 +1,146 @@
+# Installs liminst, checks the project, builds each target and adds the results to a signed feed.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+name: Liminal Installer
+description: Check an installer project, build its targets and publish them to a signed feed.
+
+inputs:
+  targets:
+    description: Comma-separated target ids, for example windows-x86_64,linux-x86_64,dos-x86.
+    required: true
+  sign-key:
+    description: The feed signing key. Pass a secret. When empty, the feed is updated but not signed.
+    required: false
+    default: ''
+  feed:
+    description: The feed file to create or update, for example feed/stable.json. When empty, no feed is written.
+    required: false
+    default: ''
+  feed-url:
+    description: The URL prefix where built files will be hosted; the file name is appended. Required with feed.
+    required: false
+    default: ''
+  project-dir:
+    description: The folder that holds installer/.
+    required: false
+    default: '.'
+  version:
+    description: The liminst release to download, for example v0.1.0. Ignored when liminst is already on the path or is built from source.
+    required: false
+    default: latest
+  from-source:
+    description: Build liminst from the checked-out repository with cargo instead of downloading it. For use inside the Liminal Installer repository.
+    required: false
+    default: 'false'
+  output-dir:
+    description: Where build outputs are written, one folder per target.
+    required: false
+    default: build
+
+outputs:
+  output-dir:
+    description: The folder that holds the build outputs.
+    value: ${{ inputs.output-dir }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install liminst
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        LIMINST_VERSION: ${{ inputs.version }}
+        FROM_SOURCE: ${{ inputs.from-source }}
+        ACTION_PATH: ${{ github.action_path }}
+        RUNNER_OS_NAME: ${{ runner.os }}
+        RUNNER_ARCH_NAME: ${{ runner.arch }}
+      run: |
+        set -euo pipefail
+        if command -v liminst >/dev/null 2>&1; then
+          echo "liminst is already on the path"
+        elif [ "$FROM_SOURCE" = "true" ]; then
+          repo="$(cd "$ACTION_PATH/../../.." && pwd)"
+          cargo install --path "$repo/crates/li-cli" --locked --root "$RUNNER_TEMP/liminst"
+          echo "$RUNNER_TEMP/liminst/bin" >> "$GITHUB_PATH"
+        else
+          case "$RUNNER_OS_NAME-$RUNNER_ARCH_NAME" in
+            Linux-X64) platform=linux-x86_64 ;;
+            Linux-ARM64) platform=linux-aarch64 ;;
+            Windows-X64) platform=windows-x86_64 ;;
+            macOS-ARM64) platform=macos-aarch64 ;;
+            macOS-X64) platform=macos-x86_64 ;;
+            *) echo "::error::No liminst build for $RUNNER_OS_NAME-$RUNNER_ARCH_NAME"; exit 1 ;;
+          esac
+          dest="$RUNNER_TEMP/liminst"
+          mkdir -p "$dest"
+          if [ "$LIMINST_VERSION" = latest ]; then
+            gh release download --repo liminal-hq-labs/liminal-installer --pattern "liminal-installer-${platform}.tar.gz" --dir "$dest"
+          else
+            gh release download "$LIMINST_VERSION" --repo liminal-hq-labs/liminal-installer --pattern "liminal-installer-${platform}.tar.gz" --dir "$dest"
+          fi
+          tar -xzf "$dest/liminal-installer-${platform}.tar.gz" -C "$dest"
+          echo "$dest" >> "$GITHUB_PATH"
+        fi
+
+    - name: Check the project
+      shell: bash
+      env:
+        PROJECT_DIR: ${{ inputs.project-dir }}
+      run: |
+        set -euo pipefail
+        liminst -C "$PROJECT_DIR" check
+
+    - name: Build each target
+      shell: bash
+      env:
+        PROJECT_DIR: ${{ inputs.project-dir }}
+        TARGETS: ${{ inputs.targets }}
+        OUTPUT_DIR: ${{ inputs.output-dir }}
+      run: |
+        set -euo pipefail
+        IFS=',' read -r -a targets <<<"$TARGETS"
+        for target in "${targets[@]}"; do
+          target="${target//[[:space:]]/}"
+          [ -n "$target" ] || continue
+          liminst -C "$PROJECT_DIR" build --target "$target" --out "$OUTPUT_DIR/$target"
+        done
+
+    - name: Add the builds to the feed
+      if: inputs.feed != ''
+      shell: bash
+      env:
+        PROJECT_DIR: ${{ inputs.project-dir }}
+        TARGETS: ${{ inputs.targets }}
+        OUTPUT_DIR: ${{ inputs.output-dir }}
+        FEED: ${{ inputs.feed }}
+        FEED_URL: ${{ inputs.feed-url }}
+        SIGN_KEY: ${{ inputs.sign-key }}
+      run: |
+        set -euo pipefail
+        if [ -z "$FEED_URL" ]; then
+          echo "::error::feed-url is required when feed is set"
+          exit 1
+        fi
+        key_args=()
+        if [ -n "$SIGN_KEY" ]; then
+          # The key goes to a file with owner-only access; it is never echoed.
+          key_file="$RUNNER_TEMP/feed-sign.key"
+          umask 077
+          printf '%s' "$SIGN_KEY" > "$key_file"
+          key_args=(--sign-key "$key_file")
+        fi
+        mkdir -p "$(dirname "$FEED")"
+        IFS=',' read -r -a targets <<<"$TARGETS"
+        for target in "${targets[@]}"; do
+          target="${target//[[:space:]]/}"
+          [ -n "$target" ] || continue
+          # The self-extracting installer is the feed artefact; targets without one are skipped.
+          for file in "$OUTPUT_DIR/$target"/*.run "$OUTPUT_DIR/$target"/*.lip; do
+            [ -f "$file" ] || continue
+            liminst -C "$PROJECT_DIR" feed add --feed "$FEED" --target "$target" --file "$file" \
+              --url "${FEED_URL%/}/$(basename "$file")" "${key_args[@]}"
+          done
+        done
+        rm -f "${key_file:-}"
