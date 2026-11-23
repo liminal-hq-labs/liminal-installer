@@ -5,7 +5,7 @@
 
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { Preview } from '../lib/types';
-import type { Scheme } from '../preview/model';
+import type { Scheme } from '@liminal-hq/installer-renderer';
 import type { TerminalView } from '../preview/TerminalPreview';
 
 export interface PreviewState {

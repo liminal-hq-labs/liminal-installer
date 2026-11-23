@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { LayoutNode } from '../lib/types';
+import type { LayoutNode } from './types';
 
 /** The five looks the Studio draws. The renderer and theme pick one. */
 export type Look = 'dos' | 'win95' | 'afterglow' | 'neutral' | 'win11';

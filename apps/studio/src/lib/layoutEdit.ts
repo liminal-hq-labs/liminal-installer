@@ -51,14 +51,7 @@ export function effectiveNode(node: LayoutNode, renderer: string | null): Layout
 }
 
 /** The whole tree as one renderer draws it: overrides applied, override tables removed. */
-export function resolveForRenderer(node: LayoutNode, renderer: string): LayoutNode {
-	const base = node.overrides?.[renderer] ?? node;
-	const out: LayoutNode = { kind: base.kind };
-	if (base.bind) out.bind = base.bind;
-	if (base.props) out.props = base.props;
-	if (base.children) out.children = base.children.map((c) => resolveForRenderer(c, renderer));
-	return out;
-}
+export { resolveForRenderer } from '@liminal-hq/installer-renderer';
 
 export function setProp(
 	layout: Layout,

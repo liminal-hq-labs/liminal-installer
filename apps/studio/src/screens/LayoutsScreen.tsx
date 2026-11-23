@@ -33,11 +33,13 @@ import {
 	type Ref,
 	type Scope,
 	type StepInfo,
-} from '../lib/stage';
+	LayoutPreview,
+	hasSchemes,
+	lookFor,
+	type Scheme,
+} from '@liminal-hq/installer-renderer';
 import type { Layout, LayoutNode } from '../lib/types';
-import { LayoutPreview } from '../preview/PreviewTree';
 import { TerminalPreview, TerminalViewSwitch, type TerminalView } from '../preview/TerminalPreview';
-import { hasSchemes, lookFor, type Scheme } from '../preview/model';
 import { SchemeSwitch } from '../preview/SchemeSwitch';
 import { usePreview, useProject, useStudio } from '../app/StudioContext';
 import { cx } from '../ui/cx';

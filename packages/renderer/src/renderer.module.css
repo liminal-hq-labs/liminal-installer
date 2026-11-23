@@ -6,9 +6,6 @@
 
 /* Each stage is composed at its artboard's pixel size and scaled to fit by `fitStages`. */
 
-.host {
-	margin-top: 12px;
-}
 .pvFit {
 	position: relative;
 	width: 100%;

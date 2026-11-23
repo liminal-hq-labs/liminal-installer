@@ -9,7 +9,8 @@ import accented from '../src/i18n/catalogues/en-XA';
 import mirrored from '../src/i18n/catalogues/ar-XB';
 import { parityFailures } from '../src/i18n/catalogueParity';
 import { enMessages } from '../src/i18n/messages';
-import { findJsxLiterals } from './jsx-literals';
+import { findJsxLiterals } from '@liminal-hq/installer-renderer/scripts/jsx-literals';
+import { rendererMessages } from '@liminal-hq/installer-renderer';
 
 // Run with `bun scripts/check-i18n.ts` from `apps/studio` (`bun run check:i18n`). Three checks:
 //
@@ -50,6 +51,8 @@ for (const [locale, catalogue] of [
 	problems.push(...parityFailures(locale, catalogue));
 }
 const english = Object.keys(enMessages);
+// The renderer's own messages are checked where they are used, by `packages/renderer`'s check.
+const shared = new Set(Object.keys(rendererMessages));
 for (const key of english) {
 	if (key.endsWith('.one') && !(`${key.slice(0, -4)}.other` in enMessages))
 		problems.push(`${key} has no .other form`);
@@ -59,7 +62,7 @@ const text = files
 	.filter((f) => !f.includes(`${join('src', 'i18n')}`) || f.includes('chromeLabels'))
 	.map((f) => readFileSync(f, 'utf8'))
 	.join('\n');
-for (const key of english) {
+for (const key of english.filter((k) => !shared.has(k))) {
 	const base = key.replace(/\.(zero|one|two|few|many|other)$/, '');
 	if (!text.includes(`'${key}'`) && !text.includes(`'${base}'`))
 		problems.push(`${key} is never used`);

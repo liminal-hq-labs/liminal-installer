@@ -64,3 +64,7 @@
 	z-index: 1000;
 	background: #000;
 }
+
+.host {
+	margin-top: 12px;
+}

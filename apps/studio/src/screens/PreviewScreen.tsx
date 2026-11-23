@@ -15,9 +15,8 @@ import {
 	TerminalViewSwitch,
 	type TerminalView,
 } from '../preview/TerminalPreview';
-import { hasSchemes, lookFor, type Scheme } from '../preview/model';
+import { hasSchemes, lookFor, type Scheme } from '@liminal-hq/installer-renderer';
 import { SchemeSwitch } from '../preview/SchemeSwitch';
-import preview from '../preview/preview.module.css';
 import { useChromeState, usePreview, useProject, useStudio } from '../app/StudioContext';
 import { cx } from '../ui/cx';
 import text from '../ui/text.module.css';
@@ -204,7 +203,7 @@ export function PreviewScreen() {
 						) : pv && shown?.layout_tree ? (
 							<>
 								<div
-									className={preview.host}
+									className={styles.host}
 									aria-label={t('preview.screenOfStep', { id: shown.id })}
 								>
 									<RunStage
@@ -221,7 +220,7 @@ export function PreviewScreen() {
 							</>
 						) : (
 							<>
-								<div className={preview.host} aria-label={t('preview.screen')} />
+								<div className={styles.host} aria-label={t('preview.screen')} />
 								<p className={text.muted}>{shown ? t('preview.noScreen') : ''}</p>
 							</>
 						)}

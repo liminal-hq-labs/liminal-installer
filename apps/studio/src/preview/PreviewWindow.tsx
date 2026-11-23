@@ -18,7 +18,7 @@ import { createApi, errorMessage, type Api } from '../lib/api';
 import type { Preview, ProjectSummary } from '../lib/types';
 import { FullScreenBody } from './FullScreenBody';
 import { fitWindow, parsePreviewQuery } from './fullScreen';
-import { lookFor, type Scheme } from './model';
+import { lookFor, type Scheme } from '@liminal-hq/installer-renderer';
 import { stepFrom } from './sim';
 import type { TerminalView } from './TerminalPreview';
 import { useRun } from './useRun';

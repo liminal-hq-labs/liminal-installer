@@ -4,10 +4,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { useLayoutEffect, useMemo, useRef, type CSSProperties, type ReactNode } from 'react';
-import { t } from '../i18n/messages';
-import { resolveForRenderer } from '../lib/layoutEdit';
-import { composeScreen, isStageId, refKey, type StepInfo } from '../lib/stage';
-import type { Layout, LayoutNode } from '../lib/types';
+import { t } from './i18n/messages';
+import { resolveForRenderer } from './resolve';
+import { composeScreen, isStageId, refKey, type StepInfo } from './stage';
+import type { Layout, LayoutNode } from './types';
 import {
 	SAMPLE,
 	STAGE,
@@ -27,7 +27,7 @@ import {
 	type Option,
 	type RenderOptions,
 } from './model';
-import styles from './preview.module.css';
+import styles from './renderer.module.css';
 
 /** A sample clock for the Windows taskbar. It is part of the artwork, not a message. */
 const SAMPLE_CLOCK = '4:15 PM';
@@ -182,7 +182,7 @@ function Bar({ cx, node, pct }: { cx: Ctx; node: LayoutNode; pct: number }): Rea
 			<span className={pv('pv-bar-text', warn && 'pv-warn')}>
 				<span className={pv('pv-on')}>{'█'.repeat(on)}</span>
 				<span className={pv('pv-off')}>{'░'.repeat(cells - on)}</span> {pct}%
-				{warn ? ` ${t('preview.low').toUpperCase()}` : ''}
+				{warn ? ` ${t('renderer.low').toUpperCase()}` : ''}
 			</span>
 		);
 	}
@@ -248,7 +248,7 @@ function Node({ cx, node }: { cx: Ctx; node: LayoutNode }): ReactNode {
 		case 'text':
 			return <TextNode cx={cx} node={node} />;
 		case 'image': {
-			const alt = text(cx, str(node, 'alt') || str(node, 'label') || t('preview.image'));
+			const alt = text(cx, str(node, 'alt') || str(node, 'label') || t('renderer.image'));
 			const art = <ArtSvg art={p.art} label={str(node, 'alt') || str(node, 'label')} />;
 			const hasArt = typeof p.art === 'object' && p.art !== null;
 			const panel = typeof p.panel === 'string';
@@ -335,13 +335,13 @@ function Node({ cx, node }: { cx: Ctx; node: LayoutNode }): ReactNode {
 		case 'custom':
 			return cx.renderer === 'canvas' || cx.renderer === 'web' ? (
 				<div className={pv('pv-custom')} data-kind="custom" {...at(cx, node)}>
-					{t('preview.customContent')}
+					{t('renderer.customContent')}
 				</div>
 			) : null;
 		case 'slot':
 			return (
 				<div className={pv('pv-unknown')} data-kind="slot" {...at(cx, node)}>
-					{t('preview.slot')}
+					{t('renderer.slot')}
 				</div>
 			);
 		default:
@@ -535,7 +535,7 @@ function Meter({ cx, node, label }: { cx: Ctx; node: LayoutNode; label: string }
 				aria-label={label}
 			>
 				<div className={pv('pv-steps-text')}>
-					{text(cx, str(node, 'text') || t('preview.stepOf', { value, max }))}
+					{text(cx, str(node, 'text') || t('renderer.stepOf', { value, max }))}
 				</div>
 				<div className={pv('pv-steps-bar')}>
 					{Array.from({ length: max }, (_, i) => (
@@ -562,7 +562,7 @@ function Meter({ cx, node, label }: { cx: Ctx; node: LayoutNode; label: string }
 			<span className={pv('pv-meter-label')}>
 				{label}
 				{cx.look === 'win11' && isLow(node, pct) ? (
-					<span className={pv('pv-low')}>{str(node, 'warn_label') || t('preview.low')}</span>
+					<span className={pv('pv-low')}>{str(node, 'warn_label') || t('renderer.low')}</span>
 				) : null}
 			</span>
 			<Bar cx={cx} node={node} pct={pct} />
@@ -652,7 +652,7 @@ function Choices({ cx, node, label }: { cx: Ctx; node: LayoutNode; label: string
 								{o.required && cards ? (
 									<>
 										{' '}
-										<span className={pv('pv-req')}>· {t('preview.required')}</span>
+										<span className={pv('pv-req')}>· {t('renderer.required')}</span>
 									</>
 								) : null}
 								{o.description ? (
@@ -731,7 +731,7 @@ function DosFrame({ cx, pt }: { cx: Ctx; pt: Parts }): ReactNode {
 		<div className={pv('pv-stage')} {...at(cx, pt.backdrop)}>
 			<div className={pv('pv-dos-bar')}>
 				<span>{text(cx, String(bd.title ?? fp.title ?? ''))}</span>
-				<span>{text(cx, String(bd.credit ?? t('preview.credit')))}</span>
+				<span>{text(cx, String(bd.credit ?? t('renderer.credit')))}</span>
 			</div>
 			<div className={pv('pv-dos-fill')} aria-hidden="true">
 				{rows}
@@ -831,7 +831,7 @@ const LowIcon = ({ low, label }: { low: boolean; label: string }): ReactNode => 
 function WinStatus({ cx, meters }: { cx: Ctx; meters: LayoutNode[] }): ReactNode {
 	if (meters.length === 0) return null;
 	return (
-		<div className={pv('pv-status')} role="group" aria-label={t('preview.setupStatus')}>
+		<div className={pv('pv-status')} role="group" aria-label={t('renderer.setupStatus')}>
 			{meters.map((m, mi) => {
 				const pct = Math.round(fraction(cx, m) * 100);
 				const source = meterSource(m);
@@ -869,7 +869,7 @@ function WinStatus({ cx, meters }: { cx: Ctx; meters: LayoutNode[] }): ReactNode
 								<>
 									<DriveIcon />
 									<span style={{ height: 14 }} />
-									<LowIcon low={low} label={str(m, 'warn_label') || t('preview.low')} />
+									<LowIcon low={low} label={str(m, 'warn_label') || t('renderer.low')} />
 								</>
 							)}
 						</span>
@@ -896,7 +896,7 @@ function WinFrame({ cx, pt }: { cx: Ctx; pt: Parts }): ReactNode {
 						className={pv('pv-w-close')}
 						type="button"
 						tabIndex={-1}
-						aria-label={t('preview.close')}
+						aria-label={t('renderer.close')}
 					>
 						<svg {...SVG_PIXEL} width="8" height="7" viewBox="0 0 8 7">
 							<path
@@ -930,9 +930,9 @@ function WinFrame({ cx, pt }: { cx: Ctx; pt: Parts }): ReactNode {
 						<rect x="1" y="7" width="6" height="5" fill="#00f" />
 						<rect x="8" y="7" width="6" height="5" fill="#ff0" />
 					</svg>
-					{t('preview.start')}
+					{t('renderer.start')}
 				</span>
-				<span className={pv('pv-w-win')}>{text(cx, String(bd.taskbar ?? t('preview.setup')))}</span>
+				<span className={pv('pv-w-win')}>{text(cx, String(bd.taskbar ?? t('renderer.setup')))}</span>
 				<span className={pv('pv-w-spacer')} />
 				<span className={pv('pv-w-clock')}>{SAMPLE_CLOCK}</span>
 			</div>
@@ -1055,7 +1055,7 @@ function Win11Frame({ cx, pt }: { cx: Ctx; pt: Parts }): ReactNode {
 					</div>
 				</div>
 				{pt.status.length ? (
-					<div className={pv('pv-k-status')} role="group" aria-label={t('preview.setupStatus')}>
+					<div className={pv('pv-k-status')} role="group" aria-label={t('renderer.setupStatus')}>
 						<List cx={cx} nodes={pt.status} />
 					</div>
 				) : null}

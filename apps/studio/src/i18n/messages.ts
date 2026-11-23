@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { rendererMessages } from '@liminal-hq/installer-renderer';
 import { activeMessages, formatLocale, pluralLocale } from './active';
 
 /**
@@ -12,6 +13,7 @@ import { activeMessages, formatLocale, pluralLocale } from './active';
  * and an `.other` message, chosen by `tn` with `Intl.PluralRules`.
  */
 export const enMessages = {
+	...rendererMessages,
 	// translator: Accessible name of the script editor. {path} is the script's path in the project, such as scripts/detect.lua.
 	'editor.label': 'Lua source of {path}',
 	// translator: Hint shown under the editor after Esc is pressed: the next Tab press leaves the editor.
@@ -95,16 +97,7 @@ export const enMessages = {
 	// translator: {label} is the description of an edit an agent made.
 	'toast.agent': 'Agent: {label}',
 	'preview.low': 'Low',
-	'preview.image': 'image',
-	'preview.customContent': 'custom content',
-	// translator: Sample caption of a step progress bar. {value} is the current step, {max} the number of steps.
-	'preview.stepOf': 'Step {value} of {max}',
-	'preview.required': 'required',
 	'preview.credit': 'Liminal Installer',
-	'preview.setupStatus': 'Setup status',
-	'preview.close': 'Close',
-	'preview.start': 'Start',
-	'preview.setup': 'Setup',
 	'project.status.ok': 'Checks pass',
 	'project.status.warning': 'Needs review',
 	'project.status.error': 'Has errors',
@@ -359,7 +352,6 @@ export const enMessages = {
 	'preview.closeFullScreen': 'Close full-screen preview',
 	'dialog.fullScreenPreview': 'Full-Screen Preview',
 	'menu.fullScreenPreview': 'Full-screen preview',
-	'preview.slot': 'The page’s layout is drawn here',
 	'history.addNode': 'Add {kind} to {id}',
 	'history.moveNode': 'Move node in {id}',
 	'history.removeNode': 'Remove node from {id}',

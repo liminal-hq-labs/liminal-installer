@@ -5,7 +5,7 @@
 
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import type { Layout, LayoutNode } from '../lib/types';
+import type { Layout, LayoutNode } from './types';
 import { fill, lookFor, type RenderOptions } from './model';
 import { ArtSvg, LayoutPreview, PreviewTree } from './PreviewTree';
 

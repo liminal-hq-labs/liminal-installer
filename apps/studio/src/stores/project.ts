@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { createStore, type StoreApi } from 'zustand/vanilla';
-import type { Scope } from '../lib/stage';
+import type { Scope } from '@liminal-hq/installer-renderer';
 import type { FlowView, HistoryView, Layout, McpInfo, Problem, ProjectSummary } from '../lib/types';
 
 export interface ProjectState {
