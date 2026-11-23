@@ -3,6 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { invokeCommand } from './api';
+
 /** The file format version this build writes. Matches `VERSION` in `src-tauri/src/settings.rs`. */
 export const SETTINGS_VERSION = 1;
 
@@ -220,18 +222,10 @@ export interface SettingsPort {
 	onChange(listener: (settings: Settings) => void): Promise<() => void>;
 }
 
-const reasonOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
-
 export async function tauriSettings(): Promise<SettingsPort> {
-	const { invoke } = await import('@tauri-apps/api/core');
 	const { listen } = await import('@tauri-apps/api/event');
-	const call = async (command: string, args?: Record<string, unknown>) => {
-		try {
-			return normalizeSettings(await invoke(command, args));
-		} catch (e) {
-			throw new Error(reasonOf(e));
-		}
-	};
+	const call = async (command: string, args?: Record<string, unknown>) =>
+		normalizeSettings(await invokeCommand(command, args));
 	return {
 		read: () => call('read_settings'),
 		write: (patch) => call('write_settings', { patch }),

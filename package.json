@@ -5,7 +5,8 @@
 	"license": "Apache-2.0 OR MIT",
 	"packageManager": "bun@1.4.4",
 	"workspaces": [
-		"apps/studio/ui"
+		"apps/studio/ui",
+		"packages/*"
 	],
 	"scripts": {
 		"dev": "bun run --cwd apps/studio/ui dev",
@@ -16,7 +17,9 @@
 		"tauri:dev": "bun run --cwd apps/studio/ui tauri:dev",
 		"check:headers": "bash scripts/check-headers.sh",
 		"format": "prettier --write --no-error-on-unmatched-pattern \"apps/studio/ui/**/*.{ts,tsx,css,json}\" \"packages/**/*.{ts,json}\"",
-		"format:check": "prettier --check --no-error-on-unmatched-pattern \"apps/studio/ui/**/*.{ts,tsx,css,json}\" \"packages/**/*.{ts,json}\""
+		"format:check": "prettier --check --no-error-on-unmatched-pattern \"apps/studio/ui/**/*.{ts,tsx,css,json}\" \"packages/**/*.{ts,json}\"",
+		"bindings": "bash scripts/generate-protocol-bindings.sh",
+		"check:bindings": "bash scripts/check-bindings-drift.sh"
 	},
 	"devDependencies": {
 		"prettier": "^3.10.1"

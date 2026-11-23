@@ -13,10 +13,10 @@ use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use li_model::{Flow, Layout, Node};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use crate::error::StudioError;
+use crate::error::{ErrorKind, StudioError};
 use crate::history::Source;
 use crate::studio::Studio;
 
@@ -45,6 +45,14 @@ pub fn tool_list() -> Value {
 		{"name": "get_preview", "description": "The last preview, or null if the project changed since it ran.", "inputSchema": schema(json!({}), &[])},
 		{"name": "check_project", "description": "The same checks as `liminst check`.", "inputSchema": schema(json!({}), &[])}
 	])
+}
+
+/// Where the agent server listens. The UI reads it to show the address; the token is a separate request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, ts_rs::TS)]
+#[ts(export)]
+pub struct McpInfo {
+	pub url: String,
+	pub port: u16,
 }
 
 fn str_arg<'a>(args: &'a Value, key: &str) -> Result<&'a str, StudioError> {
@@ -150,8 +158,13 @@ pub fn call_tool(studio: &Studio, name: &str, args: &Value) -> Result<Value, Stu
 	}
 }
 
-fn rpc_error(id: &Value, code: i64, message: &str) -> Value {
-	json!({"jsonrpc": "2.0", "id": id, "error": {"code": code, "message": message}})
+/// A JSON-RPC error. `data` carries the same `{ kind, message }` the Tauri commands reject with.
+fn rpc_error(id: &Value, code: i64, kind: ErrorKind, message: &str) -> Value {
+	json!({"jsonrpc": "2.0", "id": id, "error": {
+		"code": code,
+		"message": message,
+		"data": {"kind": kind, "message": message}
+	}})
 }
 
 /// Handles one JSON-RPC message. Returns `None` for notifications, which get no reply.
@@ -169,22 +182,32 @@ pub fn handle_rpc(studio: &Studio, request: &Value) -> Option<Value> {
 		"tools/list" => json!({"jsonrpc": "2.0", "id": id, "result": {"tools": tool_list()}}),
 		"tools/call" => {
 			let Some(name) = params.get("name").and_then(Value::as_str) else {
-				return Some(rpc_error(&id, -32602, "`name` is required"));
+				return Some(rpc_error(
+					&id,
+					-32602,
+					ErrorKind::InvalidInput,
+					"`name` is required",
+				));
 			};
 			let args = params
 				.get("arguments")
 				.cloned()
 				.unwrap_or_else(|| json!({}));
-			let (text, is_error) = match call_tool(studio, name, &args) {
-				Ok(v) => (serde_json::to_string_pretty(&v).unwrap_or_default(), false),
-				Err(e) => (e.to_string(), true),
-			};
-			json!({"jsonrpc": "2.0", "id": id, "result": {
-				"content": [{"type": "text", "text": text}],
-				"isError": is_error
-			}})
+			// A failed tool is a result with `isError`, as MCP has it, so the agent can read the
+			// message; `structuredContent` carries the same `{ kind, message }` as the JSON-RPC errors.
+			match call_tool(studio, name, &args) {
+				Ok(v) => json!({"jsonrpc": "2.0", "id": id, "result": {
+					"content": [{"type": "text", "text": serde_json::to_string_pretty(&v).unwrap_or_default()}],
+					"isError": false
+				}}),
+				Err(e) => json!({"jsonrpc": "2.0", "id": id, "result": {
+					"content": [{"type": "text", "text": e.to_string()}],
+					"structuredContent": e.payload(),
+					"isError": true
+				}}),
+			}
 		}
-		_ => rpc_error(&id, -32601, "method not found"),
+		_ => rpc_error(&id, -32601, ErrorKind::NotFound, "method not found"),
 	})
 }
 
@@ -242,7 +265,7 @@ async fn mcp_post(
 		return (StatusCode::UNAUTHORIZED, "missing or wrong token").into_response();
 	}
 	let Ok(request) = serde_json::from_str::<Value>(&body) else {
-		let err = rpc_error(&Value::Null, -32700, "parse error");
+		let err = rpc_error(&Value::Null, -32700, ErrorKind::InvalidInput, "parse error");
 		return (StatusCode::OK, axum::Json(err)).into_response();
 	};
 	let studio = state.studio.clone();
@@ -378,6 +401,49 @@ mod tests {
 		let text = res["content"][0]["text"].as_str().unwrap();
 		let value = serde_json::from_str(text).unwrap_or(Value::String(text.into()));
 		(res["isError"].as_bool().unwrap(), value)
+	}
+
+	#[test]
+	fn errors_carry_their_kind_in_data_and_in_structured_content() {
+		let (_d, s, _r) = open_example("neutral");
+		let r = handle_rpc(&s, &json!({"jsonrpc": "2.0", "id": 4, "method": "nope"})).unwrap();
+		assert_eq!(
+			r["error"]["data"],
+			json!({"kind": "not_found", "message": "method not found"})
+		);
+		let r = handle_rpc(
+			&s,
+			&json!({"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {}}),
+		)
+		.unwrap();
+		assert_eq!(r["error"]["data"]["kind"], "invalid_input");
+
+		let r = handle_rpc(
+			&s,
+			&json!({"jsonrpc": "2.0", "id": 6, "method": "tools/call",
+				"params": {"name": "get_flow", "arguments": {"id": "missing"}}}),
+		)
+		.unwrap();
+		assert_eq!(r["result"]["isError"], true);
+		assert_eq!(r["result"]["structuredContent"]["kind"], "not_found");
+		assert_eq!(
+			r["result"]["structuredContent"]["message"],
+			r["result"]["content"][0]["text"]
+		);
+		let r = handle_rpc(
+			&s,
+			&json!({"jsonrpc": "2.0", "id": 7, "method": "tools/call",
+				"params": {"name": "nope", "arguments": {}}}),
+		)
+		.unwrap();
+		assert_eq!(r["result"]["structuredContent"]["kind"], "not_found");
+		let r = handle_rpc(
+			&s,
+			&json!({"jsonrpc": "2.0", "id": 8, "method": "tools/call",
+				"params": {"name": "read_script", "arguments": {}}}),
+		)
+		.unwrap();
+		assert_eq!(r["result"]["structuredContent"]["kind"], "invalid_input");
 	}
 
 	#[test]

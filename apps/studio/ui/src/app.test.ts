@@ -7,7 +7,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { problemSummary, startApp } from './app';
 import { createChromeStore } from './chrome/chromeStore';
-import type { Api } from './lib/api';
+import { StudioError, type Api } from './lib/api';
 import { browserSettings } from './lib/settings';
 import type {
 	ChangeEvent,
@@ -111,6 +111,8 @@ function fakeApi(overrides: Partial<Api> = {}): Fake {
 			capabilities: [],
 			diagnostics: [],
 			output: [],
+			target: null,
+			tests: [],
 		}),
 		checkScriptSyntax: async () => [],
 		runPreview: async () => {
@@ -183,6 +185,36 @@ describe('opening another project', () => {
 		expect(await app.openPath('/missing')).toBe(false);
 		expect(root.querySelector('.toast.error')?.textContent).toContain('no project at /missing');
 		expect(root.querySelector('.statusbar-path')?.textContent).toBe('/a');
+	});
+});
+
+describe('a project that cannot be opened', () => {
+	const failing = (error: Error) =>
+		fakeApi({
+			openProject: async () => {
+				throw error;
+			},
+		});
+
+	it('is dropped from the recent list when it is missing, and shows only the message', async () => {
+		const { app, root, chrome } = await boot(
+			failing(new StudioError('not_found', 'no project at /gone')),
+		);
+		await chrome.recordProject('/gone');
+		expect(chrome.get().settings.recentProjects).toContain('/gone');
+		expect(await app.openPath('/gone')).toBe(false);
+		expect(root.querySelector('.toast.error')?.textContent).toBe('no project at /gone');
+		expect(chrome.get().settings.recentProjects).not.toContain('/gone');
+	});
+
+	it('stays in the recent list when it is there but invalid', async () => {
+		const { app, root, chrome } = await boot(
+			failing(new StudioError('invalid_input', 'invalid installer.toml: bad')),
+		);
+		await chrome.recordProject('/broken');
+		expect(await app.openPath('/broken')).toBe(false);
+		expect(root.querySelector('.toast.error')?.textContent).toBe('invalid installer.toml: bad');
+		expect(chrome.get().settings.recentProjects).toContain('/broken');
 	});
 });
 

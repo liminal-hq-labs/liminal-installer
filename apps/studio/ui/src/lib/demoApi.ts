@@ -300,11 +300,11 @@ export function demoApi(): Api {
 					layout: s.layout ?? null,
 					skipped,
 					screenshot: null,
-					layout_tree: layout && !skipped ? resolveForRenderer(layout.root, renderer) : null,
+					layout_tree: layout && !skipped ? resolveForRenderer(layout.root, renderer) : undefined,
 					state,
 				};
 			});
-			preview = {
+			const next: Preview = {
 				target,
 				renderer,
 				theme,
@@ -318,14 +318,15 @@ export function demoApi(): Api {
 				plan: {
 					ops: [
 						{ op: 'mkdir', path: '{install}' },
-						{ op: 'copy', from: 'dist/FIZZ.EXE', to: '{install}/FIZZ.EXE' },
+						{ op: 'copy', from: 'dist/FIZZ.EXE', to: '{install}/FIZZ.EXE', sha256: null },
 						{ op: 'receipt.write', path: '{install}/.liminal/receipt.json' },
 					],
 				},
 				problems: [],
 				steps,
 			};
-			return preview;
+			preview = next;
+			return next;
 		},
 		getPreview: async () => preview,
 		checkProject: async () => [...flows.values()].flatMap((f) => validateFlow(f)),

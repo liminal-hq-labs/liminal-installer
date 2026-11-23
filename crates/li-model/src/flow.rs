@@ -8,18 +8,22 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Flow {
 	#[serde(rename = "$schema", default, skip_serializing_if = "Option::is_none")]
+	#[cfg_attr(feature = "ts", ts(optional))]
 	pub schema: Option<String>,
 	pub version: u32,
 	pub id: String,
 	/// The first step; defaults to the first in `steps`.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[cfg_attr(feature = "ts", ts(optional))]
 	pub start: Option<String>,
 	pub steps: Vec<Step>,
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum StepType {
@@ -30,25 +34,32 @@ pub enum StepType {
 	Finish,
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Step {
 	pub id: String,
 	#[serde(rename = "type")]
 	pub kind: StepType,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[cfg_attr(feature = "ts", ts(optional))]
 	pub layout: Option<String>,
 	/// Condition over `target`, `components`, `state` and `system`; the step is skipped when false.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[cfg_attr(feature = "ts", ts(optional))]
 	pub when: Option<String>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[cfg_attr(feature = "ts", ts(optional))]
 	pub on_enter: Option<String>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[cfg_attr(feature = "ts", ts(optional))]
 	pub next: Option<String>,
 	/// For `branch` steps: first matching condition wins; `next` is the fallback.
 	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	#[cfg_attr(feature = "ts", ts(optional, as = "Option<Vec<Branch>>"))]
 	pub branches: Vec<Branch>,
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Branch {
 	pub when: String,

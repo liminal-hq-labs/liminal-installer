@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { createApi, type Api } from './lib/api';
+import { createApi, errorMessage, isStudioError, type Api } from './lib/api';
 import { h, mount } from './lib/dom';
 import { historyRows } from './lib/format';
 import type {
@@ -170,7 +170,7 @@ export async function startApp(
 	try {
 		api = options.api ?? (await createApi());
 	} catch (e) {
-		mount(root, h('p', { class: 'fatal' }, String(e)));
+		mount(root, h('p', { class: 'fatal' }, errorMessage(e)));
 		return { dispatch: async () => false, openPath: async () => false, discard: () => undefined };
 	}
 	const state: State = {
@@ -252,7 +252,7 @@ export async function startApp(
 				await action();
 			} catch (e) {
 				ok = false;
-				showToast(String(e instanceof Error ? e.message : e), true, 6000);
+				showToast(errorMessage(e), true, 6000);
 			}
 			render();
 			return ok;
@@ -296,8 +296,11 @@ export async function startApp(
 				if (opened.root !== previous) resetProjectState();
 				state.summary = opened;
 			} catch (e) {
-				// A project that has moved or gone should not stay in the menu.
-				await chrome.forgetProject(path).catch(() => undefined);
+				// A project that has moved or gone should not stay in the menu. One that is there but will not
+				// load (`invalid_input`) stays, so it can be fixed and opened again.
+				if (!isStudioError(e, 'invalid_input')) {
+					await chrome.forgetProject(path).catch(() => undefined);
+				}
 				throw e;
 			}
 			await refresh();

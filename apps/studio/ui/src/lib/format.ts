@@ -14,7 +14,8 @@ export function screenshotSrc(shot: Screenshot): string {
 
 /** One line describing a plan operation. */
 export function formatOp(op: Operation): { name: string; detail: string } {
-	const s = (k: string) => (typeof op[k] === 'string' ? (op[k] as string) : '');
+	const fields = op as Record<string, unknown>;
+	const s = (k: string) => (typeof fields[k] === 'string' ? (fields[k] as string) : '');
 	switch (op.op) {
 		case 'copy':
 			return { name: 'copy', detail: `${s('from')} → ${s('to')}` };

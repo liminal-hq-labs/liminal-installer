@@ -6,6 +6,7 @@
 use serde::{Deserialize, Serialize};
 
 /// One reversible change. Paths hold placeholders until the engine resolves them.
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum Operation {
@@ -75,6 +76,7 @@ pub enum Operation {
 }
 
 /// An ordered list of operations. `receipt.write` is always last.
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Plan {
 	pub ops: Vec<Operation>,

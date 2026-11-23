@@ -13,7 +13,8 @@ use serde::{Deserialize, Serialize};
 use crate::error::StudioError;
 
 /// Names one editable document.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export)]
 #[serde(tag = "type", content = "id", rename_all = "lowercase")]
 pub enum DocKey {
 	Flow(String),

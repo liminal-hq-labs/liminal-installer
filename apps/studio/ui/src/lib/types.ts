@@ -1,181 +1,40 @@
-// Types mirroring the Rust serde types the backend sends.
+// The types the UI shares with the Rust side, re-exported from the generated protocol package.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-export type StepType = 'page' | 'action' | 'branch' | 'commit' | 'finish';
-
-export interface Branch {
-	when: string;
-	next: string;
-}
-
-export interface Step {
-	id: string;
-	type: StepType;
-	layout?: string;
-	when?: string;
-	on_enter?: string;
-	next?: string;
-	branches?: Branch[];
-}
-
-export interface Flow {
-	$schema?: string;
-	version: number;
-	id: string;
-	start?: string;
-	steps: Step[];
-}
-
-export interface LayoutNode {
-	kind: string;
-	bind?: string;
-	props?: Record<string, unknown>;
-	children?: LayoutNode[];
-	overrides?: Record<string, LayoutNode>;
-}
-
-export interface Layout {
-	$schema?: string;
-	version: number;
-	id: string;
-	root: LayoutNode;
-}
-
-export type Severity = 'error' | 'warning';
-
-export interface Problem {
-	severity: Severity;
-	scope: string;
-	message: string;
-	step?: string;
-}
-
-export interface TargetInfo {
-	full_id: string;
-	id: string;
-	renderer: string;
-	theme: string | null;
-	outputs: string[];
-	components: string[];
-}
-
-export interface ProjectSummary {
-	root: string;
-	id: string;
-	name: string;
-	publisher: string;
-	version: string;
-	default_theme: string | null;
-	targets: TargetInfo[];
-	components: { id: string; name: string; required: boolean; targets: string[]; files: number }[];
-	themes: { id: string; name: string; renderers: string[] }[];
-	flows: { id: string; steps: number; errors: number }[];
-	layouts: string[];
-	scripts: string[];
-}
-
-export interface FlowView {
-	flow: Flow;
-	errors: Problem[];
-}
-
-export type Source = 'ui' | 'mcp';
-
-export interface HistoryEntry {
-	index: number;
-	label: string;
-	source: Source;
-	doc: { type: 'flow' | 'layout' | 'script'; id: string };
-	applied: boolean;
-}
-
-export interface HistoryView {
-	entries: HistoryEntry[];
-	can_undo: boolean;
-	can_redo: boolean;
-}
-
-export interface ChangeEvent {
-	kind: 'open' | 'edit' | 'undo' | 'redo';
-	doc: { type: 'flow' | 'layout' | 'script'; id: string } | null;
-	label: string;
-	source: Source;
-	can_undo: boolean;
-	can_redo: boolean;
-}
-
-export type Operation = { op: string; [key: string]: unknown };
-
-export interface Screenshot {
-	mime: string;
-	encoding: 'utf8' | 'base64';
-	data: string;
-}
-
-export interface PreviewStep {
-	id: string;
-	kind: string;
-	layout: string | null;
-	skipped: boolean;
-	/** The tui text version of the screen; only `tui` and `tui-retro` targets have one. */
-	screenshot: Screenshot | null;
-	/** The layout as the target's renderer draws it, overrides applied and references expanded. */
-	layout_tree?: LayoutNode | null;
-	/** The page state when the step is shown. */
-	state?: Record<string, unknown>;
-}
-
-export interface Preview {
-	target: string;
-	renderer?: string;
-	theme?: string | null;
-	product?: { id: string; name: string; version: string; publisher: string };
-	/** Sample values for `{placeholders}`. */
-	vars?: Record<string, string>;
-	plan: { ops: Operation[] };
-	problems: Problem[];
-	steps: PreviewStep[];
-}
-
-export interface HookInfo {
-	name: string;
-	when: string;
-	present: boolean;
-}
-
-export interface ScriptReport {
-	ok: boolean;
-	hooks: HookInfo[];
-	capabilities: string[];
-	diagnostics: Problem[];
-	output: string[];
-	/** The `os-arch:renderer` target the test ran against, if one was named. */
-	target?: string | null;
-	/** One result per hook that ran, in order. */
-	tests?: HookRun[];
-}
-
-export interface HookRun {
-	hook: string;
-	ok: boolean;
-	summary: string;
-	lines: string[];
-}
-
-/** A finding about a script's source, from `check_script_syntax`. Lines and columns start at 1. */
-export interface ScriptDiagnostic {
-	severity: 'error' | 'warning';
-	code: string;
-	message: string;
-	line: number;
-	column: number;
-	end_line: number;
-	end_column: number;
-}
-
-export interface McpInfo {
-	url: string;
-	port: number;
-}
+// Everything here comes from `@liminal-hq/installer-protocol`, which ts-rs writes from the Rust
+// types (`bash scripts/generate-protocol-bindings.sh`). Edit the Rust type, not a copy of it.
+// A few names keep the spelling the UI already used.
+export type { Branch } from '@liminal-hq/installer-protocol/generated/Branch';
+export type { ChangeEvent } from '@liminal-hq/installer-protocol/generated/ChangeEvent';
+export type { ComponentInfo } from '@liminal-hq/installer-protocol/generated/ComponentInfo';
+export type { DocKey } from '@liminal-hq/installer-protocol/generated/DocKey';
+export type { ErrorKind } from '@liminal-hq/installer-protocol/generated/ErrorKind';
+export type { ErrorPayload } from '@liminal-hq/installer-protocol/generated/ErrorPayload';
+export type { Flow } from '@liminal-hq/installer-protocol/generated/Flow';
+export type { FlowInfo } from '@liminal-hq/installer-protocol/generated/FlowInfo';
+export type { FlowView } from '@liminal-hq/installer-protocol/generated/FlowView';
+export type { HistoryView } from '@liminal-hq/installer-protocol/generated/HistoryView';
+export type { HookInfo } from '@liminal-hq/installer-protocol/generated/HookInfo';
+export type { HookRun } from '@liminal-hq/installer-protocol/generated/HookRun';
+export type { Layout } from '@liminal-hq/installer-protocol/generated/Layout';
+export type { McpInfo } from '@liminal-hq/installer-protocol/generated/McpInfo';
+export type { Operation } from '@liminal-hq/installer-protocol/generated/Operation';
+export type { Plan } from '@liminal-hq/installer-protocol/generated/Plan';
+export type { Preview } from '@liminal-hq/installer-protocol/generated/Preview';
+export type { PreviewProduct } from '@liminal-hq/installer-protocol/generated/PreviewProduct';
+export type { PreviewStep } from '@liminal-hq/installer-protocol/generated/PreviewStep';
+export type { Problem } from '@liminal-hq/installer-protocol/generated/Problem';
+export type { ProjectSummary } from '@liminal-hq/installer-protocol/generated/ProjectSummary';
+export type { Screenshot } from '@liminal-hq/installer-protocol/generated/Screenshot';
+export type { ScriptDiagnostic } from '@liminal-hq/installer-protocol/generated/ScriptDiagnostic';
+export type { ScriptReport } from '@liminal-hq/installer-protocol/generated/ScriptReport';
+export type { Severity } from '@liminal-hq/installer-protocol/generated/Severity';
+export type { Source } from '@liminal-hq/installer-protocol/generated/Source';
+export type { Step } from '@liminal-hq/installer-protocol/generated/Step';
+export type { StepType } from '@liminal-hq/installer-protocol/generated/StepType';
+export type { TargetInfo } from '@liminal-hq/installer-protocol/generated/TargetInfo';
+export type { ThemeInfo } from '@liminal-hq/installer-protocol/generated/ThemeInfo';
+export type { Node as LayoutNode } from '@liminal-hq/installer-protocol/generated/Node';
+export type { EntrySummary as HistoryEntry } from '@liminal-hq/installer-protocol/generated/EntrySummary';

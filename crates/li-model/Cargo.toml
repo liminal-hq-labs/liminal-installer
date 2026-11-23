@@ -17,3 +17,8 @@ serde.workspace = true
 serde_json.workspace = true
 toml.workspace = true
 thiserror.workspace = true
+# Generates the TypeScript the Studio UI imports (see `packages/protocol`).
+ts-rs = { workspace = true, optional = true }
+
+[features]
+ts = ["dep:ts-rs"]

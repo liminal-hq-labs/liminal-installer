@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { invokeCommand } from './api';
 import {
 	createDialogs,
 	tauriDialogBackend,
@@ -46,15 +47,8 @@ const copyText = async (text: string) => {
 };
 
 export async function tauriHost(): Promise<Host> {
-	const { invoke } = await import('@tauri-apps/api/core');
 	const dialogs = createDialogs(await tauriDialogBackend());
-	const call = async <T>(command: string, args?: Record<string, unknown>): Promise<T> => {
-		try {
-			return await invoke<T>(command, args);
-		} catch (e) {
-			throw new Error(e instanceof Error ? e.message : String(e));
-		}
-	};
+	const call = invokeCommand;
 	return {
 		appInfo: () => call('app_info'),
 		reveal: (what) => call('reveal', { what }),

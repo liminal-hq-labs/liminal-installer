@@ -8,7 +8,7 @@
 import type { State } from '../app';
 import { formatLua } from '../editor/format';
 import { peekEditor, refreshScriptStatus } from '../views/script';
-import type { Api } from './api';
+import { errorMessage, type Api } from './api';
 
 export interface ScriptDeps {
 	state: State;
@@ -143,7 +143,7 @@ export function scriptActions(d: ScriptDeps) {
 				if (report.ok) d.toast(`Test passed${target ? ` on ${target}` : ''}`, false, 3000);
 				else d.toast(`Test failed: ${failed} problem${failed === 1 ? '' : 's'}`, true, 5000);
 			} catch (e) {
-				const error = String(e instanceof Error ? e.message : e);
+				const error = errorMessage(e);
 				state.testRun = {
 					status: 'error',
 					target,

@@ -18,7 +18,10 @@ describe('format', () => {
 	});
 
 	it('describes plan operations', () => {
-		expect(formatOp({ op: 'copy', from: 'a', to: 'b' })).toEqual({ name: 'copy', detail: 'a → b' });
+		expect(formatOp({ op: 'copy', from: 'a', to: 'b', sha256: null })).toEqual({
+			name: 'copy',
+			detail: 'a → b',
+		});
 		expect(
 			formatOp({ op: 'shortcut', name: 'Fizz', target: 'x', place: 'start_menu' }).detail,
 		).toBe('Fizz → x (start_menu)');
@@ -26,7 +29,9 @@ describe('format', () => {
 			name: 'receipt.write',
 			detail: 'r',
 		});
-		expect(formatOp({ op: 'registry.set', key: 'K', name: 'N' }).detail).toBe('key=K name=N');
+		expect(formatOp({ op: 'registry.set', key: 'K', name: 'N', value: 'V' }).detail).toBe(
+			'key=K name=N value=V',
+		);
 	});
 
 	it('filters problems by scope prefix', () => {

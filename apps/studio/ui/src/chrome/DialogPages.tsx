@@ -4,12 +4,13 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { useEffect, useMemo, useState } from 'react';
+import { errorMessage } from '../lib/api';
 import type { Host } from '../lib/host';
 import type { Settings } from '../lib/settings';
 import { CREATED_PREFIX, type DialogResult } from './dialogWindow';
 import { shortcutTable } from './menuModel';
 
-const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+const message = errorMessage;
 
 /** Every command that has a key, grouped by menu. */
 export function ShortcutsBody() {

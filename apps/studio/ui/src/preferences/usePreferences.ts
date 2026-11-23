@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { errorMessage } from '../lib/api';
 import type { SettingKey, Settings, SettingsPort } from '../lib/settings';
 
 /** The reason the last write to each setting was refused, until the next change to it. */
@@ -22,7 +23,7 @@ export interface Preferences {
 	reset(): Promise<boolean>;
 }
 
-const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
+const messageOf = errorMessage;
 
 /** `Not saved` followed by the reason, as a row's error; nothing when the setting was not refused. */
 export function refusal(failures: Failures, key: SettingKey): { error?: string } {
