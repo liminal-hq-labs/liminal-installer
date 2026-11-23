@@ -38,6 +38,10 @@ export interface PageProps {
 	epoch: number;
 }
 
+/** The names the path boxes suggest. They are program names, not words to translate. */
+const RUNNER_BINARY = 'liminal-engine';
+const DOCKER_BINARY = 'docker';
+
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** A number box that applies when it is left or Enter is pressed, and drops what was typed on Escape. */
@@ -411,7 +415,7 @@ export function ProjectsPage(p: PageProps) {
 					label={t('prefs.runner.label')}
 					kind="file"
 					title={t('prefs.runner.title')}
-					placeholder="liminal-engine"
+					placeholder={RUNNER_BINARY}
 					description={t('prefs.runner.desc')}
 				/>
 				<PathRows
@@ -420,7 +424,7 @@ export function ProjectsPage(p: PageProps) {
 					label={t('prefs.docker.label')}
 					kind="file"
 					title={t('prefs.docker.title')}
-					placeholder="docker"
+					placeholder={DOCKER_BINARY}
 					description={t('prefs.docker.desc')}
 				/>
 			</SettingsGroup>

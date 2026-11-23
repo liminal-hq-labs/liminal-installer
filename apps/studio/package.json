@@ -9,7 +9,9 @@
 		"dev": "bun run tokens && vite",
 		"build": "bun run tokens && tsc --noEmit && vite build",
 		"typecheck": "tsc --noEmit",
+		"check:i18n": "bun scripts/check-i18n.ts",
 		"test": "vitest run",
+		"test:ci": "mkdir -p ../../test-results && vitest run --reporter=default --reporter=junit --outputFile.junit=../../test-results/studio-junit.xml",
 		"tauri": "tauri",
 		"tauri:dev": "tauri dev --config src-tauri/tauri.conf.dev.json",
 		"tauri:build": "tauri build"

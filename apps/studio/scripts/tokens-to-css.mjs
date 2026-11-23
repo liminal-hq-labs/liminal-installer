@@ -13,7 +13,17 @@ export const BASE_THEME = 'afterglow';
 export const SKIPPED_COLOUR_PREFIXES = ['wp-', 'cadence-', 'calm-', 'booth-', 'term-', 'traffic-'];
 
 /** Token groups that hold plain `{ name, value }` lists, each emitted as `--lis-<name>`. */
-const PLAIN_GROUPS = ['spacing', 'radius', 'shadow', 'blur', 'layout', 'font-size', 'font-weight', 'line-height', 'letter-spacing'];
+const PLAIN_GROUPS = [
+	'spacing',
+	'radius',
+	'shadow',
+	'blur',
+	'layout',
+	'font-size',
+	'font-weight',
+	'line-height',
+	'letter-spacing',
+];
 
 /** Turns `{brand-purple}` references into `var(--lis-brand-purple)` so a theme change follows them. */
 export function resolveRefs(value) {
@@ -23,13 +33,16 @@ export function resolveRefs(value) {
 /** The value a token has in `theme`, or undefined when that theme does not override it. */
 export function valueIn(token, theme) {
 	const v = token.value;
-	if (v !== null && typeof v === 'object') return v[theme] === undefined ? undefined : resolveRefs(v[theme]);
+	if (v !== null && typeof v === 'object')
+		return v[theme] === undefined ? undefined : resolveRefs(v[theme]);
 	return theme === BASE_THEME ? resolveRefs(v) : undefined;
 }
 
-const block = (selector, vars) => `${selector} {\n${vars.map(([k, v]) => `\t${k}: ${v};`).join('\n')}\n}\n`;
+const block = (selector, vars) =>
+	`${selector} {\n${vars.map(([k, v]) => `\t${k}: ${v};`).join('\n')}\n}\n`;
 
-const colourTokens = (tokens) => tokens.color.tokens.filter((t) => !SKIPPED_COLOUR_PREFIXES.some((p) => t.name.startsWith(p)));
+const colourTokens = (tokens) =>
+	tokens.color.tokens.filter((t) => !SKIPPED_COLOUR_PREFIXES.some((p) => t.name.startsWith(p)));
 
 /** The variables a theme sets: every colour it overrides, and for the base theme all other groups too. */
 export function themeVars(tokens, theme) {
@@ -39,8 +52,10 @@ export function themeVars(tokens, theme) {
 		if (v !== undefined) vars.push([`--lis-${t.name}`, v]);
 	}
 	if (theme === BASE_THEME) {
-		for (const group of PLAIN_GROUPS) for (const t of tokens[group].tokens) vars.push([`--lis-${t.name}`, String(t.value)]);
-		for (const [name, family] of Object.entries(tokens.type.families)) vars.push([`--lis-font-${name}`, family]);
+		for (const group of PLAIN_GROUPS)
+			for (const t of tokens[group].tokens) vars.push([`--lis-${t.name}`, String(t.value)]);
+		for (const [name, family] of Object.entries(tokens.type.families))
+			vars.push([`--lis-font-${name}`, family]);
 	}
 	return vars;
 }
@@ -49,11 +64,19 @@ export function themeVars(tokens, theme) {
 export function toCss(tokens, mapping = '') {
 	let css =
 		'/* Liminal HQ design tokens, generated from tokens.json by scripts/tokens-to-css.mjs. */\n/*\n * (c) Copyright 2026 Liminal HQ, Scott Morris\n * SPDX-License-Identifier: Apache-2.0 OR MIT\n */\n\n';
-	css += block(`:root,\n:root[data-theme="${BASE_THEME}"]`, [['color-scheme', 'dark'], ...themeVars(tokens, BASE_THEME)]);
+	css += block(`:root,\n:root[data-theme="${BASE_THEME}"]`, [
+		['color-scheme', 'dark'],
+		...themeVars(tokens, BASE_THEME),
+	]);
 	for (const theme of tokens.color.themes) {
 		if (theme.id === BASE_THEME) continue;
 		const scheme = theme.id.endsWith('-light') ? 'light' : 'dark';
-		css += '\n' + block(`:root[data-theme="${theme.id}"]`, [['color-scheme', scheme], ...themeVars(tokens, theme.id)]);
+		css +=
+			'\n' +
+			block(`:root[data-theme="${theme.id}"]`, [
+				['color-scheme', scheme],
+				...themeVars(tokens, theme.id),
+			]);
 	}
 	return mapping ? `${css}\n${mapping}` : css;
 }

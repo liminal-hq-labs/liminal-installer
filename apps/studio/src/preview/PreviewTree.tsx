@@ -269,11 +269,21 @@ function Node({ cx, node }: { cx: Ctx; node: LayoutNode }): ReactNode {
 					tabIndex={-1}
 				>
 					{cx.look === 'dos' ? (
-						<>&lt; {name} &gt;</>
+						<>
+							{'< '}
+							{name}
+							{' >'}
+						</>
 					) : cx.look === 'win95' && plain === 'Next' ? (
-						<>{name} &gt;</>
+						<>
+							{name}
+							{' >'}
+						</>
 					) : cx.look === 'win95' && plain === 'Back' ? (
-						<>&lt; {name}</>
+						<>
+							{'< '}
+							{name}
+						</>
 					) : (
 						name
 					)}

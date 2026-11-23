@@ -31,7 +31,6 @@ export const enMessages = {
 	// translator: {capability} is a capability name such as net.
 	'editor.doc.needs': 'Needs the `{capability}` capability',
 	'editor.doc.popup': 'Documentation',
-	'editor.lint.syntax': 'Syntax error: {message}',
 	// translator: Cursor position in the editor's status line.
 	'editor.status.position': 'Ln {line}, Col {column}',
 	'editor.status.lua': 'Lua 5.4 · retro subset checked',
@@ -73,7 +72,6 @@ export const enMessages = {
 	// translator: The dry-run screen shows the plan and the screens an install would show, without changing anything.
 	'nav.dryRun': 'Dry-run preview',
 	'nav.project': 'Project',
-	'nav.studio': 'Studio',
 	'nav.agentOn': 'Agent endpoint ready',
 	'nav.agentFailed': 'Agent endpoint did not start',
 	'nav.agentOff': 'Agent endpoint off',
@@ -432,7 +430,6 @@ export const enMessages = {
 	'prefs.group.recent': 'Recent projects',
 	'prefs.recentLimit.label': 'Projects to remember',
 	'prefs.recentLimit.desc': 'How many projects File > Open recent lists, from 5 to 20.',
-	'prefs.recent.label': 'Recent projects',
 	'prefs.recent.empty': 'The list is empty.',
 	'prefs.recent.clear': 'Clear recent projects',
 	'prefs.theme.dark': 'Afterglow dark',
@@ -440,7 +437,6 @@ export const enMessages = {
 	'prefs.theme.system': 'Follow system',
 	'prefs.theme.neutral': 'Afterglow dark, neutral',
 	'prefs.group.theme': 'Theme',
-	'prefs.theme.label': 'Theme',
 	'prefs.theme.desc':
 		'Applies to every Studio window at once. Follow system switches between Afterglow dark and light with the desktop.',
 	'prefs.group.layout': 'Layout',
@@ -507,7 +503,6 @@ export const enMessages = {
 	'prefs.regen.label': 'Regenerate token',
 	'prefs.regen.desc': 'Agents using the old token are refused from now on.',
 	'prefs.regen.action': 'Regenerate',
-	'prefs.regen.title': 'Regenerate token',
 	'prefs.regen.message': 'Regenerate the access token?',
 	'prefs.regen.detail':
 		'Agents using the current token are refused until you give them the new one.',
