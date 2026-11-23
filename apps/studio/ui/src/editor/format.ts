@@ -28,6 +28,11 @@ export function formatLua(source: string, unit = '\t'): string {
 		}
 		return `${unit.repeat(level)}${body}`;
 	});
-	while (out.length > 0 && out[out.length - 1]!.trim() === '' && !lines[out.length - 1]!.startsInside) out.pop();
+	while (
+		out.length > 0 &&
+		out[out.length - 1]!.trim() === '' &&
+		!lines[out.length - 1]!.startsInside
+	)
+		out.pop();
 	return out.length === 0 ? '' : `${out.join('\n')}\n`;
 }

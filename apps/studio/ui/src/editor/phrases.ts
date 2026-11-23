@@ -73,7 +73,9 @@ export function setLanguage(messages: Partial<Record<MessageId, string>>): void 
 /** The text for an id, with `{name}` placeholders filled from `vars`. */
 export function t(id: MessageId, vars: Record<string, string | number> = {}): string {
 	const text = language[id] ?? ENGLISH[id];
-	return text.replace(/\{(\w+)\}/g, (whole, name: string) => (name in vars ? String(vars[name]) : whole));
+	return text.replace(/\{(\w+)\}/g, (whole, name: string) =>
+		name in vars ? String(vars[name]) : whole,
+	);
 }
 
 /** The phrase table the editor library reads: its own English phrase to ours. */

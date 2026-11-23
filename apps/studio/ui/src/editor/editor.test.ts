@@ -17,7 +17,10 @@ import { ENGLISH, editorPhrases, setLanguage, t } from './phrases';
 /** A state over `text` with the caret at the `|` marker, which is removed. */
 function at(text: string): { state: EditorState; pos: number } {
 	const pos = text.indexOf('|');
-	return { state: EditorState.create({ doc: text.replace('|', ''), extensions: [luaSupport()] }), pos };
+	return {
+		state: EditorState.create({ doc: text.replace('|', ''), extensions: [luaSupport()] }),
+		pos,
+	};
 }
 
 const labels = (text: string, explicit = false) => {
@@ -27,7 +30,10 @@ const labels = (text: string, explicit = false) => {
 
 describe('language', () => {
 	it('is Lua, and folds a block from its opening line to the line before its end', () => {
-		const state = EditorState.create({ doc: 'function a()\n\tif x then\n\t\treturn 1\n\tend\nend\n', extensions: [luaSupport()] });
+		const state = EditorState.create({
+			doc: 'function a()\n\tif x then\n\t\treturn 1\n\tend\nend\n',
+			extensions: [luaSupport()],
+		});
 		expect(state.facet(EditorState.languageData).length).toBeGreaterThan(0);
 		const outer = foldable(state, state.doc.line(1).from, state.doc.line(1).to);
 		expect(outer).toEqual({ from: state.doc.line(1).to, to: state.doc.line(4).to });
@@ -37,7 +43,10 @@ describe('language', () => {
 	});
 
 	it('does not fold a block that opens and closes on one line', () => {
-		const state = EditorState.create({ doc: 'if a then b() end\nx = 1\n', extensions: [luaSupport()] });
+		const state = EditorState.create({
+			doc: 'if a then b() end\nx = 1\n',
+			extensions: [luaSupport()],
+		});
 		expect(foldable(state, 0, state.doc.line(1).to)).toBeNull();
 	});
 });
@@ -48,7 +57,12 @@ describe('documentation', () => {
 		expect(hookSignature('on_uninstall')).toBe('on_uninstall(plan)');
 		expect(hookSignature('detect')).toBe('detect(page)');
 		expect(hookSignature('validate')).toBe('validate(page)');
-		expect(Object.keys(HOOK_PARAMS).sort()).toEqual(['detect', 'on_commit', 'on_uninstall', 'validate']);
+		expect(Object.keys(HOOK_PARAMS).sort()).toEqual([
+			'detect',
+			'on_commit',
+			'on_uninstall',
+			'validate',
+		]);
 		expect(docFor('on_commit')?.syntax).toBe('function on_commit(plan)');
 	});
 
@@ -70,7 +84,7 @@ describe('completion', () => {
 		expect(labels('li.e|')).toContain('env');
 	});
 
-	it('offers a module\'s functions with the capability they need', () => {
+	it("offers a module's functions with the capability they need", () => {
 		expect(labels('li.env.|')).toEqual(['get', 'os', 'arch']);
 		const { state, pos } = at('li.ui.|');
 		const options = suggest(state, pos)!.options;
@@ -86,17 +100,33 @@ describe('completion', () => {
 
 	it('offers the hooks as snippets on a blank line, with their own parameter', () => {
 		const names = labels('|', true);
-		expect(names).toEqual(expect.arrayContaining(['detect', 'validate', 'on_commit', 'on_uninstall', 'li', 'local', 'string']));
+		expect(names).toEqual(
+			expect.arrayContaining([
+				'detect',
+				'validate',
+				'on_commit',
+				'on_uninstall',
+				'li',
+				'local',
+				'string',
+			]),
+		);
 		const { state, pos } = at('on_|');
 		const commit = suggest(state, pos)!.options.find((o) => o.label === 'on_commit')!;
 		expect(commit.detail).toBe('on_commit(plan)');
 		const after = at('local x = d|');
-		expect(suggest(after.state, after.pos)!.options.some((o) => o.label === 'detect' && o.detail === 'detect(page)')).toBe(false);
+		expect(
+			suggest(after.state, after.pos)!.options.some(
+				(o) => o.label === 'detect' && o.detail === 'detect(page)',
+			),
+		).toBe(false);
 	});
 
 	it('offers capability names in the header and leaves out those already named', () => {
 		expect(labels('-- capabilities: env, |')).toEqual(['fs.read', 'fs.write', 'net', 'ui', 'plan']);
-		expect(labels('-- capabilities: fs.|')).toEqual(expect.arrayContaining(['fs.read', 'fs.write']));
+		expect(labels('-- capabilities: fs.|')).toEqual(
+			expect.arrayContaining(['fs.read', 'fs.write']),
+		);
 	});
 
 	it('is quiet inside strings and comments', () => {
@@ -136,7 +166,9 @@ describe('diagnostics', () => {
 	const base = { severity: 'error' as const, code: 'syntax', message: 'bad' };
 
 	it('maps lines and columns to the span they mark', () => {
-		const [d] = toLintDiagnostics(doc, [{ ...base, line: 2, column: 13, end_line: 2, end_column: 14 }]);
+		const [d] = toLintDiagnostics(doc, [
+			{ ...base, line: 2, column: 13, end_line: 2, end_column: 14 },
+		]);
 		expect(doc.sliceString(d!.from, d!.to)).toBe('*');
 		expect(d).toMatchObject({ severity: 'error', source: 'syntax', message: 'bad' });
 	});
@@ -154,7 +186,12 @@ describe('diagnostics', () => {
 	});
 
 	it('counts errors and warnings', () => {
-		expect(countFindings([{ ...base, line: 1, column: 1, end_line: 1, end_column: 2 }, { ...base, severity: 'warning', line: 1, column: 1, end_line: 1, end_column: 2 }])).toEqual({ errors: 1, warnings: 1 });
+		expect(
+			countFindings([
+				{ ...base, line: 1, column: 1, end_line: 1, end_column: 2 },
+				{ ...base, severity: 'warning', line: 1, column: 1, end_line: 1, end_column: 2 },
+			]),
+		).toEqual({ errors: 1, warnings: 1 });
 	});
 });
 
@@ -163,7 +200,9 @@ describe('phrases', () => {
 		const phrases = editorPhrases();
 		expect(phrases['Find']).toBe('Find');
 		expect(phrases['Go to line']).toBe('Go to line');
-		expect(Object.keys(phrases).length).toBe(Object.keys(ENGLISH).filter((k) => k.startsWith('cm.')).length);
+		expect(Object.keys(phrases).length).toBe(
+			Object.keys(ENGLISH).filter((k) => k.startsWith('cm.')).length,
+		);
 	});
 
 	it('fills placeholders and lets a language replace a word', () => {
@@ -182,13 +221,18 @@ describe('phrases', () => {
 
 describe('formatter', () => {
 	it('indents by block and bracket depth with tabs', () => {
-		const src = 'function detect(page)\nlocal t = {\n1,\n2,\n}\nif a then\nx()\nelseif b then\ny()\nelse\nz()\nend\nfor i = 1, 3 do\nprint(i)\nend\nend\n';
-		expect(formatLua(src)).toBe('function detect(page)\n\tlocal t = {\n\t\t1,\n\t\t2,\n\t}\n\tif a then\n\t\tx()\n\telseif b then\n\t\ty()\n\telse\n\t\tz()\n\tend\n\tfor i = 1, 3 do\n\t\tprint(i)\n\tend\nend\n');
+		const src =
+			'function detect(page)\nlocal t = {\n1,\n2,\n}\nif a then\nx()\nelseif b then\ny()\nelse\nz()\nend\nfor i = 1, 3 do\nprint(i)\nend\nend\n';
+		expect(formatLua(src)).toBe(
+			'function detect(page)\n\tlocal t = {\n\t\t1,\n\t\t2,\n\t}\n\tif a then\n\t\tx()\n\telseif b then\n\t\ty()\n\telse\n\t\tz()\n\tend\n\tfor i = 1, 3 do\n\t\tprint(i)\n\tend\nend\n',
+		);
 	});
 
 	it('handles repeat, one-line blocks and strings or comments that hold keywords', () => {
 		const src = 'repeat\nlocal s = "end"  \n-- end\nuntil x\nif a then b() end\nc()\n';
-		expect(formatLua(src)).toBe('repeat\n\tlocal s = "end"\n\t-- end\nuntil x\nif a then b() end\nc()\n');
+		expect(formatLua(src)).toBe(
+			'repeat\n\tlocal s = "end"\n\t-- end\nuntil x\nif a then b() end\nc()\n',
+		);
 	});
 
 	it('leaves the inside of long strings and comments alone', () => {

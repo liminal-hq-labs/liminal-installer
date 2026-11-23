@@ -4,12 +4,32 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
-import { defaultKeymap, history, historyKeymap, indentLess, indentMore, insertTab } from '@codemirror/commands';
-import { bracketMatching, foldGutter, foldKeymap, indentOnInput, indentUnit } from '@codemirror/language';
+import {
+	defaultKeymap,
+	history,
+	historyKeymap,
+	indentLess,
+	indentMore,
+	insertTab,
+} from '@codemirror/commands';
+import {
+	bracketMatching,
+	foldGutter,
+	foldKeymap,
+	indentOnInput,
+	indentUnit,
+} from '@codemirror/language';
 import { lintKeymap } from '@codemirror/lint';
 import { highlightSelectionMatches, searchKeymap, search } from '@codemirror/search';
 import { Annotation, Compartment, EditorState, Prec, type Extension } from '@codemirror/state';
-import { EditorView, drawSelection, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from '@codemirror/view';
+import {
+	EditorView,
+	drawSelection,
+	highlightActiveLine,
+	highlightActiveLineGutter,
+	keymap,
+	lineNumbers,
+} from '@codemirror/view';
 import type { ScriptDiagnostic } from '../lib/types';
 import { apiCompletion } from './completion';
 import { checkExtension } from './diagnostics';
@@ -70,7 +90,10 @@ function settingsExtensions(s: EditorSettings): Extension[] {
 	];
 }
 
-export function createScriptEditor(initial: { doc: string; settings: EditorSettings; label: string }, hooks: EditorHooks): ScriptEditor {
+export function createScriptEditor(
+	initial: { doc: string; settings: EditorSettings; label: string },
+	hooks: EditorHooks,
+): ScriptEditor {
 	const configurable = new Compartment();
 	const labelled = new Compartment();
 	let tabLeaves = false;
@@ -80,7 +103,12 @@ export function createScriptEditor(initial: { doc: string; settings: EditorSetti
 		hooks.onTabFocus(v);
 	};
 
-	const label = (text: string) => EditorView.contentAttributes.of({ 'aria-label': text, 'aria-multiline': 'true', spellcheck: 'false' });
+	const label = (text: string) =>
+		EditorView.contentAttributes.of({
+			'aria-label': text,
+			'aria-multiline': 'true',
+			spellcheck: 'false',
+		});
 	const run = (fn: () => void) => () => {
 		fn();
 		return true;
@@ -120,7 +148,15 @@ export function createScriptEditor(initial: { doc: string; settings: EditorSetti
 			...foldKeymap,
 			...searchKeymap,
 			// Tab indents; Esc then Tab moves focus on, so the keyboard is never trapped.
-			{ key: 'Tab', run: (v) => (tabLeaves ? false : v.state.selection.ranges.some((r) => !r.empty) ? indentMore(v) : insertTab(v)) },
+			{
+				key: 'Tab',
+				run: (v) =>
+					tabLeaves
+						? false
+						: v.state.selection.ranges.some((r) => !r.empty)
+							? indentMore(v)
+							: insertTab(v),
+			},
 			{ key: 'Shift-Tab', run: (v) => (tabLeaves ? false : indentLess(v)) },
 			...lintKeymap.filter((b) => b.key !== 'Mod-Shift-m'),
 			...defaultKeymap,
@@ -134,7 +170,8 @@ export function createScriptEditor(initial: { doc: string; settings: EditorSetti
 		]),
 		EditorView.domEventHandlers({
 			keydown(event) {
-				if (event.key !== 'Tab' && event.key !== 'Escape' && event.key !== 'Shift') setTabLeaves(false);
+				if (event.key !== 'Tab' && event.key !== 'Escape' && event.key !== 'Shift')
+					setTabLeaves(false);
 				return false;
 			},
 			blur() {
@@ -143,7 +180,8 @@ export function createScriptEditor(initial: { doc: string; settings: EditorSetti
 			},
 		}),
 		EditorView.updateListener.of((update) => {
-			if (update.docChanged && !update.transactions.some((tr) => tr.annotation(external))) hooks.onChange(update.state.doc.toString());
+			if (update.docChanged && !update.transactions.some((tr) => tr.annotation(external)))
+				hooks.onChange(update.state.doc.toString());
 			if (update.selectionSet || update.docChanged) {
 				const head = update.state.selection.main.head;
 				const line = update.state.doc.lineAt(head);
@@ -154,7 +192,10 @@ export function createScriptEditor(initial: { doc: string; settings: EditorSetti
 
 	const el = document.createElement('div');
 	el.className = 'script-editor';
-	const view = new EditorView({ parent: el, state: EditorState.create({ doc: initial.doc, extensions: build() }) });
+	const view = new EditorView({
+		parent: el,
+		state: EditorState.create({ doc: initial.doc, extensions: build() }),
+	});
 
 	return {
 		el,
@@ -167,21 +208,32 @@ export function createScriptEditor(initial: { doc: string; settings: EditorSetti
 				view.setState(EditorState.create({ doc: text, extensions: build() }));
 				return;
 			}
-			view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text }, annotations: external.of(true) });
+			view.dispatch({
+				changes: { from: 0, to: view.state.doc.length, insert: text },
+				annotations: external.of(true),
+			});
 		},
 		format() {
 			const before = view.state.doc.toString();
 			const after = formatLua(before);
 			if (after !== before) {
 				const head = Math.min(view.state.selection.main.head, after.length);
-				view.dispatch({ changes: { from: 0, to: before.length, insert: after }, selection: { anchor: head } });
+				view.dispatch({
+					changes: { from: 0, to: before.length, insert: after },
+					selection: { anchor: head },
+				});
 			}
 			return after;
 		},
 		configure(next, text) {
 			settings = next;
 			ariaLabel = text;
-			view.dispatch({ effects: [configurable.reconfigure(settingsExtensions(next)), labelled.reconfigure(label(text))] });
+			view.dispatch({
+				effects: [
+					configurable.reconfigure(settingsExtensions(next)),
+					labelled.reconfigure(label(text)),
+				],
+			});
 			el.style.setProperty('--editor-font-size', `${next.fontSize}px`);
 		},
 		focus: () => view.focus(),

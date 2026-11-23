@@ -13,14 +13,24 @@ import type { Host } from '../lib/host';
 
 afterEach(cleanup);
 
-async function open(port: TestPort = testPort(), host: Host = testHost(), targets: string[] = ['dos-x86:tui-retro', 'linux-x64:canvas']) {
-	const view = render(<PreferencesScreen port={port} host={host} loadTargets={async () => targets} />);
+async function open(
+	port: TestPort = testPort(),
+	host: Host = testHost(),
+	targets: string[] = ['dos-x86:tui-retro', 'linux-x64:canvas'],
+) {
+	const view = render(
+		<PreferencesScreen port={port} host={host} loadTargets={async () => targets} />,
+	);
 	await screen.findByRole('navigation', { name: 'Preferences sections' });
 	return { port, host, ...view };
 }
 
 const go = async (name: string) => {
-	fireEvent.click(within(screen.getByRole('navigation', { name: 'Preferences sections' })).getByRole('button', { name }));
+	fireEvent.click(
+		within(screen.getByRole('navigation', { name: 'Preferences sections' })).getByRole('button', {
+			name,
+		}),
+	);
 	await screen.findByRole('heading', { level: 2, name });
 };
 
@@ -28,8 +38,20 @@ describe('sections', () => {
 	it('lists them in order, each with its label', async () => {
 		await open();
 		const nav = screen.getByRole('navigation', { name: 'Preferences sections' });
-		expect(within(nav).getAllByRole('button').map((b) => b.textContent)).toEqual(SECTION_IDS.map((id) => SECTION_LABELS[id]));
-		expect(SECTION_IDS).toEqual(['general', 'appearance', 'editor', 'preview', 'agents', 'projects', 'advanced']);
+		expect(
+			within(nav)
+				.getAllByRole('button')
+				.map((b) => b.textContent),
+		).toEqual(SECTION_IDS.map((id) => SECTION_LABELS[id]));
+		expect(SECTION_IDS).toEqual([
+			'general',
+			'appearance',
+			'editor',
+			'preview',
+			'agents',
+			'projects',
+			'advanced',
+		]);
 	});
 
 	it('draws every section without error and with a named control per row', async () => {
@@ -39,9 +61,17 @@ describe('sections', () => {
 			const main = screen.getByRole('main');
 			expect(within(main).getAllByRole('group').length).toBeGreaterThan(0);
 			expect(main.querySelectorAll('input, select, button').length).toBeGreaterThan(1);
-			for (const el of [...screen.queryAllByRole('switch'), ...screen.queryAllByRole('spinbutton'), ...screen.queryAllByRole('textbox'), ...screen.queryAllByRole('combobox')]) {
+			for (const el of [
+				...screen.queryAllByRole('switch'),
+				...screen.queryAllByRole('spinbutton'),
+				...screen.queryAllByRole('textbox'),
+				...screen.queryAllByRole('combobox'),
+			]) {
 				if (el.closest('nav')) continue;
-				const named = el.getAttribute('aria-labelledby') || el.getAttribute('aria-label') || document.querySelector(`label[for="${el.id}"]`);
+				const named =
+					el.getAttribute('aria-labelledby') ||
+					el.getAttribute('aria-label') ||
+					document.querySelector(`label[for="${el.id}"]`);
 				expect(named, `${id}: ${el.outerHTML}`).toBeTruthy();
 			}
 		}
@@ -58,9 +88,13 @@ describe('applying changes', () => {
 
 	it('follows a change made in another window', async () => {
 		const { port } = await open();
-		expect(screen.getByRole('switch', { name: 'Show menu bar' }).getAttribute('aria-checked')).toBe('false');
+		expect(screen.getByRole('switch', { name: 'Show menu bar' }).getAttribute('aria-checked')).toBe(
+			'false',
+		);
 		act(() => port.external({ menuBar: true }));
-		expect(screen.getByRole('switch', { name: 'Show menu bar' }).getAttribute('aria-checked')).toBe('true');
+		expect(screen.getByRole('switch', { name: 'Show menu bar' }).getAttribute('aria-checked')).toBe(
+			'true',
+		);
 	});
 
 	it('applies a number when the box is left, and not while it is typed', async () => {
@@ -94,7 +128,9 @@ describe('applying changes', () => {
 		const alert = await screen.findByRole('alert');
 		expect(alert.textContent).toBe('Not saved: port 80 is in use');
 		expect((screen.getByRole('spinbutton', { name: 'Port' }) as HTMLInputElement).value).toBe('0');
-		expect(screen.getByRole('spinbutton', { name: 'Port' }).getAttribute('aria-invalid')).toBe('true');
+		expect(screen.getByRole('spinbutton', { name: 'Port' }).getAttribute('aria-invalid')).toBe(
+			'true',
+		);
 	});
 
 	it('applies a text box when it is left and trims it', async () => {
@@ -131,7 +167,9 @@ describe('Escape', () => {
 		fireEvent.keyDown(box, { key: 'Escape' });
 		expect(onWindowKey).toHaveBeenCalled();
 		expect(onWindowKey.mock.results[0]!.value).toBe(false);
-		expect((screen.getByRole('textbox', { name: 'Projects folder' }) as HTMLInputElement).value).toBe('');
+		expect(
+			(screen.getByRole('textbox', { name: 'Projects folder' }) as HTMLInputElement).value,
+		).toBe('');
 		expect(port.writes).toEqual([]);
 		fireEvent.keyDown(screen.getByRole('textbox', { name: 'Projects folder' }), { key: 'Escape' });
 		expect(onWindowKey.mock.results[1]!.value).toBe(true);
@@ -146,7 +184,9 @@ describe('Escape', () => {
 		fireEvent.change(box, { target: { value: '7' } });
 		fireEvent.input(box, { target: { value: '7' } });
 		fireEvent.keyDown(box, { key: 'Escape' });
-		expect((screen.getByRole('spinbutton', { name: 'Tab width' }) as HTMLInputElement).value).toBe('4');
+		expect((screen.getByRole('spinbutton', { name: 'Tab width' }) as HTMLInputElement).value).toBe(
+			'4',
+		);
 		expect(port.writes).toEqual([]);
 	});
 });
@@ -157,14 +197,23 @@ describe('pages', () => {
 		expect(screen.getByText('2 projects in File > Open recent.')).toBeTruthy();
 		fireEvent.click(screen.getByRole('button', { name: 'Clear recent projects' }));
 		await waitFor(() => expect(port.current.recentProjects).toEqual([]));
-		await waitFor(() => expect((screen.getByRole('button', { name: 'Clear recent projects' }) as HTMLButtonElement).disabled).toBe(true));
+		await waitFor(() =>
+			expect(
+				(screen.getByRole('button', { name: 'Clear recent projects' }) as HTMLButtonElement)
+					.disabled,
+			).toBe(true),
+		);
 	});
 
 	it('offers the theme choices, including following the system', async () => {
 		const { port } = await open();
 		await go('Appearance');
 		const select = screen.getByRole('combobox', { name: 'Theme' });
-		expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(['Afterglow dark', 'Afterglow light', 'Follow system', 'Afterglow dark, neutral']);
+		expect(
+			within(select)
+				.getAllByRole('option')
+				.map((o) => o.textContent),
+		).toEqual(['Afterglow dark', 'Afterglow light', 'Follow system', 'Afterglow dark, neutral']);
 		fireEvent.change(select, { target: { value: 'system' } });
 		await waitFor(() => expect(port.current.theme).toBe('system'));
 	});
@@ -209,7 +258,9 @@ describe('pages', () => {
 		await open(testPort(), testHost({ agent: async () => null, agentToken: async () => null }));
 		await go('Agents');
 		await screen.findByText('The server is off.');
-		expect((screen.getByRole('button', { name: 'Show token' }) as HTMLButtonElement).disabled).toBe(true);
+		expect((screen.getByRole('button', { name: 'Show token' }) as HTMLButtonElement).disabled).toBe(
+			true,
+		);
 	});
 
 	it('browses for a folder and applies the pick', async () => {

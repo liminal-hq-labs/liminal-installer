@@ -3,7 +3,14 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent, type RefObject } from 'react';
+import {
+	useLayoutEffect,
+	useRef,
+	useState,
+	type FormEvent,
+	type KeyboardEvent,
+	type RefObject,
+} from 'react';
 
 export interface EscapeGuard {
 	/** Changes each time Escape puts back typed text; a row keyed by it drops a draft it keeps itself. */
@@ -49,7 +56,9 @@ export function useEscapeGuard(): EscapeGuard {
 				if (input.tagName === 'INPUT' && typing.current === input) {
 					event.preventDefault();
 					typing.current = null;
-					focusIndex.current = [...(containerRef.current?.querySelectorAll('input') ?? [])].indexOf(input);
+					focusIndex.current = [...(containerRef.current?.querySelectorAll('input') ?? [])].indexOf(
+						input,
+					);
 					setEpoch((e) => e + 1);
 				}
 			},

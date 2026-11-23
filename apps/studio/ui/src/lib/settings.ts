@@ -3,6 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { invokeCommand } from './api';
+
 /** The file format version this build writes. Matches `VERSION` in `src-tauri/src/settings.rs`. */
 export const SETTINGS_VERSION = 1;
 
@@ -98,9 +100,16 @@ export const defaultSettings: Settings = {
 
 const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v);
 const bool = (v: unknown): v is boolean => typeof v === 'boolean';
-const text = (v: unknown): v is string => typeof v === 'string' && !v.includes('\0') && !v.includes('\n');
-const oneOf = (list: readonly string[]) => (v: unknown): boolean => typeof v === 'string' && list.includes(v);
-const inRange = ([lo, hi]: readonly [number, number]) => (v: unknown): boolean => isInt(v) && v >= lo && v <= hi;
+const text = (v: unknown): v is string =>
+	typeof v === 'string' && !v.includes('\0') && !v.includes('\n');
+const oneOf =
+	(list: readonly string[]) =>
+	(v: unknown): boolean =>
+		typeof v === 'string' && list.includes(v);
+const inRange =
+	([lo, hi]: readonly [number, number]) =>
+	(v: unknown): boolean =>
+		isInt(v) && v >= lo && v <= hi;
 
 /** Whether a value is acceptable for a setting, and why not. */
 const CHECKS: { [K in Exclude<SettingKey, 'version'>]: [(v: unknown) => boolean, string] } = {
@@ -108,7 +117,10 @@ const CHECKS: { [K in Exclude<SettingKey, 'version'>]: [(v: unknown) => boolean,
 	reopenLastProject: [bool, 'must be on or off'],
 	confirmDiscard: [bool, 'must be on or off'],
 	recentLimit: [inRange(LIMITS.recentLimit), 'the recent projects limit must be between 5 and 20'],
-	recentProjects: [(v) => Array.isArray(v) && v.every((p) => text(p) && p !== ''), 'a recent project has no path'],
+	recentProjects: [
+		(v) => Array.isArray(v) && v.every((p) => text(p) && p !== ''),
+		'a recent project has no path',
+	],
 	lastProject: [(v) => v === null || (text(v) && v !== ''), 'the last project is not a valid path'],
 	theme: [oneOf(THEMES), 'unknown theme'],
 	density: [oneOf(DENSITIES), 'unknown density'],
@@ -131,7 +143,8 @@ const CHECKS: { [K in Exclude<SettingKey, 'version'>]: [(v: unknown) => boolean,
 
 /** The reason a patch cannot be applied, or null when it can. An unknown key or a bad value refuses the whole patch. */
 export function validatePatch(patch: unknown): string | null {
-	if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return 'settings must be an object';
+	if (!patch || typeof patch !== 'object' || Array.isArray(patch))
+		return 'settings must be an object';
 	for (const [key, value] of Object.entries(patch)) {
 		if (key === 'version') return 'the version is managed by the Studio';
 		const check = (CHECKS as Record<string, [(v: unknown) => boolean, string] | undefined>)[key];
@@ -147,7 +160,10 @@ export function normalizeRecent(list: readonly string[], limit: number): string[
 }
 
 /** The settings in `base` with `patch` over them, or the reason it was refused. The recent list is kept within its limit. */
-export function mergeSettings(base: Settings, patch: Partial<Settings>): { ok: true; settings: Settings } | { ok: false; reason: string } {
+export function mergeSettings(
+	base: Settings,
+	patch: Partial<Settings>,
+): { ok: true; settings: Settings } | { ok: false; reason: string } {
 	const reason = validatePatch(patch);
 	if (reason) return { ok: false, reason };
 	const next = { ...base, ...patch };
@@ -165,7 +181,10 @@ export function pushRecent(list: readonly string[], path: string, limit: number)
  * An older file with no version is migrated: the first file held only `menuBar` and `theme`, which keep their meaning.
  */
 export function normalizeSettings(value: unknown): Settings {
-	const v = (value && typeof value === 'object' && !Array.isArray(value) ? value : {}) as Record<string, unknown>;
+	const v = (value && typeof value === 'object' && !Array.isArray(value) ? value : {}) as Record<
+		string,
+		unknown
+	>;
 	let settings = { ...defaultSettings };
 	for (const key of Object.keys(CHECKS) as Exclude<SettingKey, 'version'>[]) {
 		if (key in v && CHECKS[key][0](v[key])) settings = { ...settings, [key]: v[key] };
@@ -178,12 +197,16 @@ export function normalizeSettings(value: unknown): Settings {
 /** The keys of `value` that are not settings this build knows, so they can be written back untouched. */
 export function unknownKeys(value: unknown): Record<string, unknown> {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-	return Object.fromEntries(Object.entries(value).filter(([k]) => k !== 'version' && !(k in CHECKS)));
+	return Object.fromEntries(
+		Object.entries(value).filter(([k]) => k !== 'version' && !(k in CHECKS)),
+	);
 }
 
 /** True when two settings are equal in every field. */
 export function sameSettings(a: Settings, b: Settings): boolean {
-	return (Object.keys(defaultSettings) as SettingKey[]).every((k) => JSON.stringify(a[k]) === JSON.stringify(b[k]));
+	return (Object.keys(defaultSettings) as SettingKey[]).every(
+		(k) => JSON.stringify(a[k]) === JSON.stringify(b[k]),
+	);
 }
 
 export const SETTINGS_EVENT = 'studio://settings-changed';
@@ -199,23 +222,16 @@ export interface SettingsPort {
 	onChange(listener: (settings: Settings) => void): Promise<() => void>;
 }
 
-const reasonOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
-
 export async function tauriSettings(): Promise<SettingsPort> {
-	const { invoke } = await import('@tauri-apps/api/core');
 	const { listen } = await import('@tauri-apps/api/event');
-	const call = async (command: string, args?: Record<string, unknown>) => {
-		try {
-			return normalizeSettings(await invoke(command, args));
-		} catch (e) {
-			throw new Error(reasonOf(e));
-		}
-	};
+	const call = async (command: string, args?: Record<string, unknown>) =>
+		normalizeSettings(await invokeCommand(command, args));
 	return {
 		read: () => call('read_settings'),
 		write: (patch) => call('write_settings', { patch }),
 		reset: () => call('reset_settings'),
-		onChange: (listener) => listen<Settings>(SETTINGS_EVENT, (e) => listener(normalizeSettings(e.payload))),
+		onChange: (listener) =>
+			listen<Settings>(SETTINGS_EVENT, (e) => listener(normalizeSettings(e.payload))),
 	};
 }
 

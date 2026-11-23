@@ -10,7 +10,14 @@ import './styles/preview.css';
 import { startApp, type App } from './app';
 import { mountShell } from './chrome/Chrome';
 import { createChromeStore, type ChromeStore } from './chrome/chromeStore';
-import { CREATED_PREFIX, createDialogs, inPageDialogBackend, openChildWindow, tauriDialogBackend, type DialogBackend } from './chrome/dialogWindow';
+import {
+	CREATED_PREFIX,
+	createDialogs,
+	inPageDialogBackend,
+	openChildWindow,
+	tauriDialogBackend,
+	type DialogBackend,
+} from './chrome/dialogWindow';
 import { mountInfoWindow } from './chrome/InfoWindow';
 import { actionForEvent, isActionId, recentPath } from './chrome/menuModel';
 import { createWindowControls, inTauri } from './chrome/windowControls';
@@ -42,7 +49,8 @@ async function followAppearance(store: ChromeStore): Promise<void> {
  * The desktop window draws the shared chrome. A browser tab keeps the page's own header, and
  * `?chrome` in a development server draws the chrome there too, for looking at it.
  */
-const wantsChrome = () => inTauri() || (import.meta.env.DEV && new URLSearchParams(location.search).has('chrome'));
+const wantsChrome = () =>
+	inTauri() || (import.meta.env.DEV && new URLSearchParams(location.search).has('chrome'));
 
 async function boot(): Promise<void> {
 	const container = document.getElementById('root');
@@ -62,7 +70,9 @@ async function boot(): Promise<void> {
 
 	const chrome = wantsChrome();
 	let app: App | undefined;
-	const backend: DialogBackend = inTauri() ? await tauriDialogBackend() : inPageDialogBackend((dialog) => store.setDialog(dialog));
+	const backend: DialogBackend = inTauri()
+		? await tauriDialogBackend()
+		: inPageDialogBackend((dialog) => store.setDialog(dialog));
 	const dialogs = createDialogs(backend);
 
 	/** Asks what to do with unsaved script edits. True when it is fine to go on. */
@@ -91,7 +101,10 @@ async function boot(): Promise<void> {
 	};
 
 	/** Its own window in the desktop shell, which does not hold up other dialogs; a dialog in the page elsewhere. */
-	const openInfoWindow = async (kind: 'preferences' | 'shortcuts' | 'agent', title: string): Promise<void> => {
+	const openInfoWindow = async (
+		kind: 'preferences' | 'shortcuts' | 'agent',
+		title: string,
+	): Promise<void> => {
 		if (inTauri()) await openChildWindow(kind);
 		else await dialogs.open({ kind, title }).result;
 	};
@@ -105,16 +118,21 @@ async function boot(): Promise<void> {
 			} else if (!isActionId(id)) return;
 			else if (id === 'view.menuBar') await store.toggleMenuBar();
 			else if (id === 'file.clearRecent') await store.updateSettings({ recentProjects: [] });
-			else if (id === 'help.about') await dialogs.open({ kind: 'about', title: 'About Liminal Installer Studio', buttons: [{ id: 'close', label: 'Close', primary: true }] }).result;
+			else if (id === 'help.about')
+				await dialogs.open({
+					kind: 'about',
+					title: 'About Liminal Installer Studio',
+					buttons: [{ id: 'close', label: 'Close', primary: true }],
+				}).result;
 			else if (id === 'app.preferences') await openInfoWindow('preferences', 'Preferences');
 			else if (id === 'help.shortcuts') await openInfoWindow('shortcuts', 'Keyboard Shortcuts');
 			else if (id === 'help.agent') await openInfoWindow('agent', 'Connect an Agent');
 			else if (id === 'file.new') {
 				if (!(await settleUnsaved())) return;
 				const answer = await dialogs.open({ kind: 'new-project', title: 'New Project' }).result;
-				if (answer?.startsWith(CREATED_PREFIX)) await app?.openPath(answer.slice(CREATED_PREFIX.length));
-			}
-			else if (id === 'file.quit') {
+				if (answer?.startsWith(CREATED_PREFIX))
+					await app?.openPath(answer.slice(CREATED_PREFIX.length));
+			} else if (id === 'file.quit') {
 				// In the desktop window the close request asks about unsaved edits; a tab has no such request.
 				if (inTauri() || (await settleUnsaved())) await controls.close();
 			} else if (id === 'file.open' || id === 'file.reload') {
@@ -123,7 +141,12 @@ async function boot(): Promise<void> {
 		})().catch(() => undefined);
 	};
 
-	const appHost = await mountShell(container, { store, host, onAction: perform, ...(chrome ? { controls } : {}) });
+	const appHost = await mountShell(container, {
+		store,
+		host,
+		onAction: perform,
+		...(chrome ? { controls } : {}),
+	});
 	app = await startApp(appHost, store, { header: !chrome, settleUnsaved });
 
 	if (inTauri()) {
@@ -138,7 +161,12 @@ async function boot(): Promise<void> {
 	window.addEventListener('keydown', (e) => {
 		if (e.defaultPrevented || store.get().dialog) return;
 		const target = e.target as HTMLElement | null;
-		const inTextField = !!target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT' || target.tagName === 'SELECT' || !!target.closest?.('.cm-editor'));
+		const inTextField =
+			!!target &&
+			(target.tagName === 'TEXTAREA' ||
+				target.tagName === 'INPUT' ||
+				target.tagName === 'SELECT' ||
+				!!target.closest?.('.cm-editor'));
 		const id = actionForEvent(e, store.get().menu, inTextField);
 		if (!id) return;
 		e.preventDefault();

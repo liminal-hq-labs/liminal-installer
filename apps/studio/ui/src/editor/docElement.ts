@@ -30,6 +30,7 @@ export function docElement(entry: ApiDoc, owner: Document = document): HTMLEleme
 		add(root, 'span', t('doc.example'), 'ed-doc-label');
 		add(root, 'code', entry.example);
 	}
-	if (entry.capability) add(root, 'span', t('doc.needs', { capability: entry.capability }), 'ed-doc-needs');
+	if (entry.capability)
+		add(root, 'span', t('doc.needs', { capability: entry.capability }), 'ed-doc-needs');
 	return root;
 }

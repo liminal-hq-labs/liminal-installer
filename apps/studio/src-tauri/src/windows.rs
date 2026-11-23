@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use li_studio::{ErrorKind, StudioError};
 use tauri::plugin::TauriPlugin;
 use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use tauri_plugin_window_state::{Builder as WindowStateBuilder, StateFlags};
@@ -97,6 +98,11 @@ pub fn window_state_plugin<R: Runtime>() -> TauriPlugin<R> {
 		.build()
 }
 
+/// A failure of the window system, not of the request.
+fn internal(e: impl ToString) -> StudioError {
+	StudioError::new(ErrorKind::Internal, e)
+}
+
 /// Opens a child window of the one that asked, or focuses it when a window with that label is open.
 /// `query` is appended to the page's query string, already encoded.
 #[tauri::command]
@@ -106,23 +112,25 @@ pub fn open_window(
 	kind: String,
 	id: Option<String>,
 	query: Option<String>,
-) -> Result<(), String> {
-	let spec = spec(&kind, id.as_deref()).ok_or_else(|| format!("unknown window `{kind}`"))?;
+) -> Result<(), StudioError> {
+	let spec = spec(&kind, id.as_deref()).ok_or_else(|| {
+		StudioError::new(ErrorKind::InvalidInput, format!("unknown window `{kind}`"))
+	})?;
 	if let Some(existing) = app.get_webview_window(&spec.label) {
-		return existing.set_focus().map_err(|e| e.to_string());
+		return existing.set_focus().map_err(internal);
 	}
 	let url = match query.as_deref() {
 		Some(q) if !q.is_empty() => format!("index.html?window={kind}&{q}"),
 		_ => format!("index.html?window={kind}"),
 	};
-	let scale = parent.scale_factor().map_err(|e| e.to_string())?;
+	let scale = parent.scale_factor().map_err(internal)?;
 	let origin = parent
 		.inner_position()
-		.map_err(|e| e.to_string())?
+		.map_err(internal)?
 		.to_logical::<f64>(scale);
 	let size = parent
 		.inner_size()
-		.map_err(|e| e.to_string())?
+		.map_err(internal)?
 		.to_logical::<f64>(scale);
 	let (x, y) = centred_on((origin.x, origin.y), (size.width, size.height), spec.size);
 
@@ -138,9 +146,9 @@ pub fn open_window(
 		.transparent(true)
 		.shadow(true)
 		.parent(&parent)
-		.map_err(|e| e.to_string())?
+		.map_err(internal)?
 		.build()
-		.map_err(|e| e.to_string())?;
+		.map_err(internal)?;
 
 	if spec.modal {
 		// A platform that cannot disable a window ignores this, and the child still stays on top of its parent.

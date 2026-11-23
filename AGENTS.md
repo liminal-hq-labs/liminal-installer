@@ -73,10 +73,10 @@ Liminal Installer is a [Liminal HQ Labs](https://github.com/liminal-hq-labs) exp
 - **Dependabot** is off. Add `.github/dependabot.yml` only when the project opts in (see `docs/new-project.md`).
 
 - **Toolchain:** `rust-toolchain.toml` pins Rust 1.98.0 with `rustfmt` and `clippy`. Use `cargo nextest` for tests.
-- **Single local gate:** `make validate` runs `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo nextest run --workspace --locked` and the header check. `make markdown` and `make e2e-linux` run the other checks.
+- **Single local gate:** `make validate` runs `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo nextest run --workspace --locked`, the header check and, when `bun` is installed, the Studio UI's format check, typecheck and tests (`make js`), then the bindings drift check (`make bindings`). `make markdown` and `make e2e-linux` run the other checks.
 - **End to end:** `bash scripts/e2e-linux.sh` builds a themed `.run` and a signed feed, then installs, updates, repairs and uninstalls it in a clean Debian container (needs `docker`). `scripts/e2e-linux-container.sh` is its in-container half.
 - **Docker-based tools:** markdownlint, shellcheck and actionlint run from pinned images (see Testing), so nothing but `docker` is installed locally for them.
-- **Studio UI:** `apps/studio/ui` is a Bun workspace member (root `package.json`, `packageManager` pinned, `bun install`, `bun run typecheck`, `bun run test:js`); use Bun, not pnpm or npm; the Tauri shell in `apps/studio/src-tauri` has its own `Cargo.lock` and is built with `cargo check` there.
+- **Studio UI:** `apps/studio/ui` and `packages/protocol` are Bun workspace members (root `package.json`, `packageManager` pinned, `bun install`, `bun run typecheck`, `bun run test:js`); use Bun, not pnpm or npm; the Tauri shell in `apps/studio/src-tauri` has its own `Cargo.lock` and is built with `cargo check` there.
 
 ## Licence headers
 
@@ -97,14 +97,18 @@ Use `#` comments for shell, YAML, TOML and Dockerfiles, and an XML comment for S
 - **Plan before commit.** An install builds a plan first, then stages, commits and records. Every operation records its own undo, so a failure or an uninstall can reverse it.
 - **Themes cannot add operations.** A theme draws pages and plays media. Only components and scripts put operations in a plan.
 - **Scripts get only declared capabilities.** A Lua script runs in a sandbox and holds only what its `-- capabilities:` header names. Writing files goes through the plan.
+- **Wire types are generated.** A Rust type the Studio UI or an MCP client receives derives `ts_rs::TS`, and its TypeScript is generated into `packages/protocol`, never written by hand. Failed commands and tools carry `{ kind, message }` (`StudioError`).
 - **Vendored chrome is refreshed by its recipe.** `apps/studio/ui/vendor/studio-chrome` changes only by the steps in its `PROVENANCE.md`, never by hand.
 - **SPEC first.** A change to behaviour, interfaces, settings or defaults updates `SPEC.md` in the same change.
 
 ## Testing
 
-- `make validate` — the single local gate (format, clippy, `cargo nextest`, headers)
+- `make validate` — the single local gate (format, clippy, `cargo nextest`, headers, UI checks)
 - `bash scripts/check-headers.sh` — SPDX headers
+- `bun run format:check` — Prettier over the Studio UI sources (`bun run format` fixes them; tabs, single quotes, 100 columns, `.prettierignore` leaves out the vendored chrome and generated files)
 - `bun run typecheck && bun run test:js` — the Studio UI
+- `bash scripts/check-bindings-drift.sh` (or `make bindings`) — regenerates the ts-rs bindings in `packages/protocol/src/generated/` and fails on a difference; fix with `bash scripts/generate-protocol-bindings.sh` and commit the result
+- `cargo nextest run --workspace --locked --profile ci` — what CI runs (`.config/nextest.toml`: one retry, no fail-fast, JUnit at `target/nextest/ci/junit.xml`)
 - `cd apps/studio/src-tauri && cargo check && cargo clippy -- -D warnings` — the Tauri shell
 - `bash scripts/e2e-linux.sh` (or `make e2e-linux`) — install, update, repair and uninstall in a Debian container
 - `bash scripts/check-banner.sh` — hero banner rules and text fit (needs `xmllint`, `rsvg-convert`, `python3` and Chromium; `--shots DIR` writes frames to look at)
@@ -128,10 +132,11 @@ README.md SPEC.md AGENTS.md CLAUDE.md LICENSE-APACHE LICENSE-MIT Makefile
 crates/        li-model, li-engine, li-script, li-render-tui, li-pack, li-package, li-cli (`liminst`),
                li-runner (`liminal-engine`), li-studio (the Studio's editing core), li-examples-test
 apps/studio/   ui/ (Vite page, vendored chrome in ui/vendor) and src-tauri/ (the desktop shell)
+packages/      protocol/ (`@liminal-hq/installer-protocol`: ts-rs bindings, generated, committed)
 examples/      lt-fizz, planboard and neutral projects
 retro/         the DOS runtime scaffold and its build container
 assets/        hero banner
 docs/          decisions and project notes
-scripts/       header check, banner check, packaging and end-to-end scripts
+scripts/       header check, banner check, bindings generation and drift check, packaging and end-to-end scripts
 .github/       CI workflow, the `installer-action` composite action, issue and pull request templates
 ```

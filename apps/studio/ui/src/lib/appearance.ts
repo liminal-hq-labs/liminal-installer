@@ -31,7 +31,11 @@ export interface AppearanceTarget {
 }
 
 /** Sets the theme, density, text scale and motion on `root`. */
-export function applyAppearance(root: AppearanceTarget, settings: Pick<Settings, 'theme' | 'density' | 'textSize' | 'reduceMotion'>, system: SystemAppearance): void {
+export function applyAppearance(
+	root: AppearanceTarget,
+	settings: Pick<Settings, 'theme' | 'density' | 'textSize' | 'reduceMotion'>,
+	system: SystemAppearance,
+): void {
 	root.dataset.theme = resolveTheme(settings.theme, system);
 	root.dataset.density = settings.density;
 	root.dataset.motion = resolveMotion(settings.reduceMotion, system) ? 'reduced' : 'full';
@@ -39,7 +43,9 @@ export function applyAppearance(root: AppearanceTarget, settings: Pick<Settings,
 }
 
 /** The browser's own answer, used outside the desktop shell and when the system gives none. */
-export function browserSystem(media: (query: string) => { matches: boolean } = (q) => window.matchMedia(q)): SystemAppearance {
+export function browserSystem(
+	media: (query: string) => { matches: boolean } = (q) => window.matchMedia(q),
+): SystemAppearance {
 	return {
 		dark: !media('(prefers-color-scheme: light)').matches,
 		reducedMotion: media('(prefers-reduced-motion: reduce)').matches,
@@ -50,7 +56,10 @@ export function browserSystem(media: (query: string) => { matches: boolean } = (
  * Follows the system's preferences: the desktop shell's appearance plugin where there is one, the browser's media
  * queries otherwise and where the plugin has no answer. Calls `listener` at once and on every change.
  */
-export async function followSystem(listener: (system: SystemAppearance) => void, inTauri: boolean): Promise<() => void> {
+export async function followSystem(
+	listener: (system: SystemAppearance) => void,
+	inTauri: boolean,
+): Promise<() => void> {
 	const stops: (() => void)[] = [];
 	let plugin: SystemAppearance | null = null;
 	const emit = () => listener(plugin ?? browserSystem());
@@ -66,7 +75,10 @@ export async function followSystem(listener: (system: SystemAppearance) => void,
 			const api = await import('@liminal-hq/plugin-system-appearance');
 			const take = (a: { colourScheme: string; reducedMotion: boolean }) => {
 				const fallback = browserSystem();
-				plugin = { dark: a.colourScheme === 'noPreference' ? fallback.dark : a.colourScheme !== 'light', reducedMotion: a.reducedMotion };
+				plugin = {
+					dark: a.colourScheme === 'noPreference' ? fallback.dark : a.colourScheme !== 'light',
+					reducedMotion: a.reducedMotion,
+				};
 				emit();
 			};
 			take(await api.getAppearance());

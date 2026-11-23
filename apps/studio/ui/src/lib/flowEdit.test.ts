@@ -4,7 +4,16 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { addStep, connect, disconnect, layoutGraph, removeStep, renameStep, updateStep, validateFlow } from './flowEdit';
+import {
+	addStep,
+	connect,
+	disconnect,
+	layoutGraph,
+	removeStep,
+	renameStep,
+	updateStep,
+	validateFlow,
+} from './flowEdit';
 import type { Flow } from './types';
 
 const base = (): Flow => ({

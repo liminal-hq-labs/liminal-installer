@@ -59,7 +59,13 @@ export function resolveForRenderer(node: LayoutNode, renderer: string): LayoutNo
 	return out;
 }
 
-export function setProp(layout: Layout, path: NodePath, key: string, value: unknown, renderer: string | null = null): Layout {
+export function setProp(
+	layout: Layout,
+	path: NodePath,
+	key: string,
+	value: unknown,
+	renderer: string | null = null,
+): Layout {
 	return editNode(layout, path, (node) => {
 		const target = effectiveNode(node, renderer);
 		const props = (target.props ??= {});
@@ -69,13 +75,23 @@ export function setProp(layout: Layout, path: NodePath, key: string, value: unkn
 	});
 }
 
-export function setKind(layout: Layout, path: NodePath, kind: string, renderer: string | null = null): Layout {
+export function setKind(
+	layout: Layout,
+	path: NodePath,
+	kind: string,
+	renderer: string | null = null,
+): Layout {
 	return editNode(layout, path, (node) => {
 		effectiveNode(node, renderer).kind = kind;
 	});
 }
 
-export function setBind(layout: Layout, path: NodePath, bind: string, renderer: string | null = null): Layout {
+export function setBind(
+	layout: Layout,
+	path: NodePath,
+	bind: string,
+	renderer: string | null = null,
+): Layout {
 	return editNode(layout, path, (node) => {
 		const target = effectiveNode(node, renderer);
 		if (bind) target.bind = bind;
@@ -93,7 +109,11 @@ export function newNode(kind: string): LayoutNode {
 	return node;
 }
 
-export function addChild(layout: Layout, path: NodePath, kind: string): { layout: Layout; path: NodePath } {
+export function addChild(
+	layout: Layout,
+	path: NodePath,
+	kind: string,
+): { layout: Layout; path: NodePath } {
 	let added: NodePath = path;
 	const out = editNode(layout, path, (node) => {
 		(node.children ??= []).push(newNode(kind));
@@ -114,7 +134,11 @@ export function removeNode(layout: Layout, path: NodePath): Layout {
 }
 
 /** Moves a node among its siblings; returns the layout and the node's new path. */
-export function moveNode(layout: Layout, path: NodePath, delta: -1 | 1): { layout: Layout; path: NodePath } {
+export function moveNode(
+	layout: Layout,
+	path: NodePath,
+	delta: -1 | 1,
+): { layout: Layout; path: NodePath } {
 	if (path.length === 0) return { layout, path };
 	const parent = path.slice(0, -1);
 	const from = path[path.length - 1]!;
@@ -135,7 +159,12 @@ export function hasOverride(node: LayoutNode, renderer: string): boolean {
 }
 
 /** Turns an override for `renderer` on (a copy of the node's current look) or off. */
-export function toggleOverride(layout: Layout, path: NodePath, renderer: string, on: boolean): Layout {
+export function toggleOverride(
+	layout: Layout,
+	path: NodePath,
+	renderer: string,
+	on: boolean,
+): Layout {
 	return editNode(layout, path, (node) => {
 		if (on && !hasOverride(node, renderer)) {
 			const copy: LayoutNode = { kind: node.kind };
@@ -153,12 +182,18 @@ export function toggleOverride(layout: Layout, path: NodePath, renderer: string,
 /** A short label for a node in the tree view. */
 export function describeNode(node: LayoutNode): string {
 	const p = node.props ?? {};
-	const text = [p.title, p.label, p.text, p.source].find((v) => typeof v === 'string' && v.length > 0);
-	return typeof text === 'string' ? `${node.kind} · ${text.length > 36 ? text.slice(0, 35) + '…' : text}` : node.kind;
+	const text = [p.title, p.label, p.text, p.source].find(
+		(v) => typeof v === 'string' && v.length > 0,
+	);
+	return typeof text === 'string'
+		? `${node.kind} · ${text.length > 36 ? text.slice(0, 35) + '…' : text}`
+		: node.kind;
 }
 
 /** Every node with its path and depth, in document order, for rendering a tree. */
-export function flattenTree(root: LayoutNode): { path: NodePath; depth: number; node: LayoutNode }[] {
+export function flattenTree(
+	root: LayoutNode,
+): { path: NodePath; depth: number; node: LayoutNode }[] {
 	const out: { path: NodePath; depth: number; node: LayoutNode }[] = [];
 	const walk = (node: LayoutNode, path: NodePath) => {
 		out.push({ path, depth: path.length, node });
@@ -177,7 +212,8 @@ export function propToText(value: unknown): string {
 export function parsePropValue(text: string, previous: unknown): unknown {
 	if (typeof previous === 'string') return text;
 	const t = text.trim();
-	if (previous === undefined && !/^(true|false|null|-?\d+(\.\d+)?|\[.*\]|\{.*\})$/s.test(t)) return text;
+	if (previous === undefined && !/^(true|false|null|-?\d+(\.\d+)?|\[.*\]|\{.*\})$/s.test(t))
+		return text;
 	try {
 		return JSON.parse(t);
 	} catch {

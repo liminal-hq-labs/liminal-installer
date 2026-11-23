@@ -44,7 +44,12 @@ export interface ChromeStore {
 }
 
 export function createChromeStore(port: SettingsPort): ChromeStore {
-	let state: ChromeState = { menu: { ...initialMenuState }, settings: { ...defaultSettings }, title: '', dialog: null };
+	let state: ChromeState = {
+		menu: { ...initialMenuState },
+		settings: { ...defaultSettings },
+		title: '',
+		dialog: null,
+	};
 	const listeners = new Set<() => void>();
 	const set = (next: ChromeState) => {
 		state = next;
@@ -52,7 +57,11 @@ export function createChromeStore(port: SettingsPort): ChromeStore {
 	};
 	const applySettings = (settings: Settings) => {
 		if (sameSettings(settings, state.settings)) return;
-		set({ ...state, settings, menu: { ...state.menu, menuBar: settings.menuBar, recent: settings.recentProjects } });
+		set({
+			...state,
+			settings,
+			menu: { ...state.menu, menuBar: settings.menuBar, recent: settings.recentProjects },
+		});
 	};
 	return {
 		port,
@@ -67,7 +76,8 @@ export function createChromeStore(port: SettingsPort): ChromeStore {
 		},
 		setMenu(patch) {
 			const menu = { ...state.menu, ...patch };
-			if ((Object.keys(menu) as (keyof MenuState)[]).every((k) => menu[k] === state.menu[k])) return;
+			if ((Object.keys(menu) as (keyof MenuState)[]).every((k) => menu[k] === state.menu[k]))
+				return;
 			set({ ...state, menu });
 		},
 		async recordProject(path) {
@@ -78,7 +88,9 @@ export function createChromeStore(port: SettingsPort): ChromeStore {
 		},
 		async forgetProject(path) {
 			if (!state.settings.recentProjects.includes(path)) return;
-			await this.updateSettings({ recentProjects: state.settings.recentProjects.filter((p) => p !== path) });
+			await this.updateSettings({
+				recentProjects: state.settings.recentProjects.filter((p) => p !== path),
+			});
 		},
 		setTitle(title) {
 			if (title !== state.title) set({ ...state, title });

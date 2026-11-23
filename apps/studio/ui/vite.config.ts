@@ -13,6 +13,8 @@ export default defineConfig({
 	server: {
 		port: 1420,
 		strictPort: true,
+		// The Rust build writes under src-tauri; a rebuild there is not a page change.
+		watch: { ignored: ['**/src-tauri/**'] },
 		// The browser demo reads the example projects from the repository.
 		fs: { allow: [repoRoot] },
 	},

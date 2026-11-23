@@ -12,7 +12,10 @@ import { t } from './phrases';
 const WORD = /[A-Za-z0-9_]/;
 
 /** The qualified name at `pos`, such as `li.env.get` when the pointer is on `get`, and the span of the word. */
-export function nameAt(state: EditorState, pos: number): { name: string; from: number; to: number } | null {
+export function nameAt(
+	state: EditorState,
+	pos: number,
+): { name: string; from: number; to: number } | null {
 	const line = state.doc.lineAt(pos);
 	const text = line.text;
 	let start = pos - line.from;
@@ -69,4 +72,5 @@ function tooltip(pos: number, end: number, doc: Parameters<typeof docElement>[0]
 	};
 }
 
-export const hoverDocs = (): Extension => hoverTooltip((view, pos) => docTooltip(view.state, pos), { hoverTime: 350 });
+export const hoverDocs = (): Extension =>
+	hoverTooltip((view, pos) => docTooltip(view.state, pos), { hoverTime: 350 });

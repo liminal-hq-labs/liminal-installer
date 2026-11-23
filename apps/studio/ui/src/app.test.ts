@@ -7,13 +7,30 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { problemSummary, startApp } from './app';
 import { createChromeStore } from './chrome/chromeStore';
-import type { Api } from './lib/api';
+import { StudioError, type Api } from './lib/api';
 import { browserSettings } from './lib/settings';
-import type { ChangeEvent, Flow, HistoryEntry, HistoryView, Problem, ProjectSummary } from './lib/types';
+import type {
+	ChangeEvent,
+	Flow,
+	HistoryEntry,
+	HistoryView,
+	Problem,
+	ProjectSummary,
+} from './lib/types';
 
-const flowOf = (id: string): Flow => ({ version: 1, id, start: 'a', steps: [{ id: 'a', type: 'finish' }] });
+const flowOf = (id: string): Flow => ({
+	version: 1,
+	id,
+	start: 'a',
+	steps: [{ id: 'a', type: 'finish' }],
+});
 
-function summary(root: string, flows: string[], layouts: string[], scripts: string[] = []): ProjectSummary {
+function summary(
+	root: string,
+	flows: string[],
+	layouts: string[],
+	scripts: string[] = [],
+): ProjectSummary {
 	return {
 		root,
 		id: `test.${root}`,
@@ -21,7 +38,16 @@ function summary(root: string, flows: string[], layouts: string[], scripts: stri
 		publisher: 'Test',
 		version: '1.0.0',
 		default_theme: null,
-		targets: [{ full_id: 'linux-x86_64:tui', id: 'linux-x86_64', renderer: 'tui', theme: null, outputs: [], components: [] }],
+		targets: [
+			{
+				full_id: 'linux-x86_64:tui',
+				id: 'linux-x86_64',
+				renderer: 'tui',
+				theme: null,
+				outputs: [],
+				components: [],
+			},
+		],
 		components: [],
 		themes: [],
 		flows: flows.map((id) => ({ id, steps: 1, errors: 0 })),
@@ -79,7 +105,15 @@ function fakeApi(overrides: Partial<Api> = {}): Fake {
 		setLayout: async (_id, layout) => layout,
 		readScript: async () => '',
 		writeScript: async () => undefined,
-		testScript: async () => ({ ok: true, hooks: [], capabilities: [], diagnostics: [], output: [] }),
+		testScript: async () => ({
+			ok: true,
+			hooks: [],
+			capabilities: [],
+			diagnostics: [],
+			output: [],
+			target: null,
+			tests: [],
+		}),
 		checkScriptSyntax: async () => [],
 		runPreview: async () => {
 			throw new Error('not used');
@@ -103,7 +137,11 @@ function fakeApi(overrides: Partial<Api> = {}): Fake {
 
 const memoryStorage = () => {
 	const data = new Map<string, string>();
-	return { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v), removeItem: (k: string) => void data.delete(k) };
+	return {
+		getItem: (k: string) => data.get(k) ?? null,
+		setItem: (k: string, v: string) => void data.set(k, v),
+		removeItem: (k: string) => void data.delete(k),
+	};
 };
 
 async function boot(fake: Fake) {
@@ -120,7 +158,7 @@ afterEach(() => {
 });
 
 describe('opening another project', () => {
-	it('drops the old selections and falls back to the new project\'s first flow and layout', async () => {
+	it("drops the old selections and falls back to the new project's first flow and layout", async () => {
 		const fake = fakeApi();
 		const { app, root } = await boot(fake);
 		await app.openPath('/a');
@@ -134,7 +172,9 @@ describe('opening another project', () => {
 
 		expect(fake.calls).toContain('getFlow:setup');
 		expect(fake.calls).toContain('getLayout:intro');
-		expect(fake.calls.filter((c) => c === 'getFlow:install' || c === 'getLayout:welcome')).toEqual([]);
+		expect(fake.calls.filter((c) => c === 'getFlow:install' || c === 'getLayout:welcome')).toEqual(
+			[],
+		);
 		expect(root.querySelector('.statusbar-path')?.textContent).toBe('/b');
 	});
 
@@ -145,6 +185,36 @@ describe('opening another project', () => {
 		expect(await app.openPath('/missing')).toBe(false);
 		expect(root.querySelector('.toast.error')?.textContent).toContain('no project at /missing');
 		expect(root.querySelector('.statusbar-path')?.textContent).toBe('/a');
+	});
+});
+
+describe('a project that cannot be opened', () => {
+	const failing = (error: Error) =>
+		fakeApi({
+			openProject: async () => {
+				throw error;
+			},
+		});
+
+	it('is dropped from the recent list when it is missing, and shows only the message', async () => {
+		const { app, root, chrome } = await boot(
+			failing(new StudioError('not_found', 'no project at /gone')),
+		);
+		await chrome.recordProject('/gone');
+		expect(chrome.get().settings.recentProjects).toContain('/gone');
+		expect(await app.openPath('/gone')).toBe(false);
+		expect(root.querySelector('.toast.error')?.textContent).toBe('no project at /gone');
+		expect(chrome.get().settings.recentProjects).not.toContain('/gone');
+	});
+
+	it('stays in the recent list when it is there but invalid', async () => {
+		const { app, root, chrome } = await boot(
+			failing(new StudioError('invalid_input', 'invalid installer.toml: bad')),
+		);
+		await chrome.recordProject('/broken');
+		expect(await app.openPath('/broken')).toBe(false);
+		expect(root.querySelector('.toast.error')?.textContent).toBe('invalid installer.toml: bad');
+		expect(chrome.get().settings.recentProjects).toContain('/broken');
 	});
 });
 
@@ -191,8 +261,18 @@ describe('running actions', () => {
 });
 
 describe('the status bar', () => {
-	const problem = (severity: Problem['severity'], n: number): Problem => ({ severity, scope: 'flow:install', message: `finding ${n}` });
-	const entry = (index: number, applied: boolean): HistoryEntry => ({ index, label: `edit ${index}`, source: 'ui', doc: { type: 'flow', id: 'install' }, applied });
+	const problem = (severity: Problem['severity'], n: number): Problem => ({
+		severity,
+		scope: 'flow:install',
+		message: `finding ${n}`,
+	});
+	const entry = (index: number, applied: boolean): HistoryEntry => ({
+		index,
+		label: `edit ${index}`,
+		source: 'ui',
+		doc: { type: 'flow', id: 'install' },
+		applied,
+	});
 
 	it('says there are no problems only when there are no findings at all', async () => {
 		const fake = fakeApi();

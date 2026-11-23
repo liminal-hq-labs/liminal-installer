@@ -4,9 +4,26 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { SettingsSectionDef } from '@liminal-hq/studio-chrome/SettingsShell/types';
-import { AdvancedPage, AgentsPage, AppearancePage, EditorPage, GeneralPage, PreviewPage, ProjectsPage, type PageProps } from './pages';
+import {
+	AdvancedPage,
+	AgentsPage,
+	AppearancePage,
+	EditorPage,
+	GeneralPage,
+	PreviewPage,
+	ProjectsPage,
+	type PageProps,
+} from './pages';
 
-export const SECTION_IDS = ['general', 'appearance', 'editor', 'preview', 'agents', 'projects', 'advanced'] as const;
+export const SECTION_IDS = [
+	'general',
+	'appearance',
+	'editor',
+	'preview',
+	'agents',
+	'projects',
+	'advanced',
+] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
 
 export const SECTION_LABELS: Record<SectionId, string> = {

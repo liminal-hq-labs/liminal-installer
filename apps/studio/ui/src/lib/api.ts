@@ -5,6 +5,7 @@
 
 import type {
 	ChangeEvent,
+	ErrorKind,
 	Flow,
 	FlowView,
 	HistoryView,
@@ -49,8 +50,69 @@ export interface Api {
 
 export const CHANGE_EVENT = 'studio://changed';
 
-async function tauriApi(): Promise<Api> {
+const ERROR_KINDS: readonly ErrorKind[] = [
+	'not_found',
+	'invalid_input',
+	'io',
+	'project',
+	'script',
+	'backend',
+	'agent',
+	'internal',
+];
+
+/**
+ * What a failed command rejects with: the `kind` to branch on and a `message` to show. The shell
+ * sends it as `{ kind, message }` (`ErrorPayload`); anything else that fails on the way, such as
+ * the page not being in the shell, becomes `internal`.
+ */
+export class StudioError extends Error {
+	readonly kind: ErrorKind;
+
+	constructor(kind: ErrorKind, message: string) {
+		super(message);
+		this.name = 'StudioError';
+		this.kind = kind;
+	}
+}
+
+/** Turns whatever a command rejected with into a `StudioError`. */
+export function toStudioError(raw: unknown): StudioError {
+	if (raw instanceof StudioError) return raw;
+	if (raw && typeof raw === 'object' && !(raw instanceof Error)) {
+		const { kind, message } = raw as { kind?: unknown; message?: unknown };
+		if (typeof message === 'string') {
+			const known = ERROR_KINDS.find((k) => k === kind);
+			return new StudioError(known ?? 'internal', message);
+		}
+	}
+	if (raw instanceof Error) return new StudioError('internal', raw.message);
+	return new StudioError('internal', typeof raw === 'string' ? raw : String(raw));
+}
+
+/** True when `e` is a `StudioError`, of `kind` when one is named. */
+export function isStudioError(e: unknown, kind?: ErrorKind): e is StudioError {
+	return e instanceof StudioError && (kind === undefined || e.kind === kind);
+}
+
+/** The text to show for any failure. */
+export const errorMessage = (e: unknown): string => toStudioError(e).message;
+
+/** Calls a Tauri command; a rejection arrives as a `StudioError`. */
+export async function invokeCommand<T>(
+	command: string,
+	args?: Record<string, unknown>,
+): Promise<T> {
 	const { invoke } = await import('@tauri-apps/api/core');
+	try {
+		return await invoke<T>(command, args);
+	} catch (e) {
+		throw toStudioError(e);
+	}
+}
+
+async function tauriApi(): Promise<Api> {
+	const invoke = invokeCommand;
 	const { listen } = await import('@tauri-apps/api/event');
 	return {
 		openProject: (path) => invoke('open_project', { path }),
@@ -62,7 +124,8 @@ async function tauriApi(): Promise<Api> {
 		setLayout: (id, layout, label) => invoke('set_layout', { id, layout, label }),
 		readScript: (path) => invoke('read_script', { path }),
 		writeScript: (path, source, label) => invoke('write_script', { path, source, label }),
-		testScript: (path, source, target) => invoke('test_script', { path, source: source ?? null, target: target ?? null }),
+		testScript: (path, source, target) =>
+			invoke('test_script', { path, source: source ?? null, target: target ?? null }),
 		checkScriptSyntax: (source) => invoke('check_script_syntax', { source }),
 		runPreview: (target) => invoke('run_preview', { target }),
 		getPreview: () => invoke('get_preview'),
@@ -75,7 +138,11 @@ async function tauriApi(): Promise<Api> {
 		onChange: async (handler) => listen<ChangeEvent>(CHANGE_EVENT, (e) => handler(e.payload)),
 		pickProject: async (startIn) => {
 			const { open } = await import('@tauri-apps/plugin-dialog');
-			const picked = await open({ directory: true, title: 'Open installer project', ...(startIn ? { defaultPath: startIn } : {}) });
+			const picked = await open({
+				directory: true,
+				title: 'Open installer project',
+				...(startIn ? { defaultPath: startIn } : {}),
+			});
 			return typeof picked === 'string' ? picked : null;
 		},
 	};

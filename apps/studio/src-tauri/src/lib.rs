@@ -13,12 +13,13 @@ mod windows;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use agent::{Agent, AgentInfo};
+use agent::Agent;
 use li_model::{Flow, Layout};
+use li_studio::mcp::McpInfo;
 use li_studio::studio::{FlowView, HistoryView, ProjectSummary, TargetInfo};
 use li_studio::{
-	EngineBackend, Preview, Problem, ScriptDiagnostic, ScriptReport, Source, Studio, StudioError,
-	scaffold,
+	EngineBackend, ErrorKind, Preview, Problem, ScriptDiagnostic, ScriptReport, Source, Studio,
+	StudioError, scaffold,
 };
 use serde::Serialize;
 use tauri::{Emitter, Manager, State};
@@ -39,6 +40,11 @@ struct AppInfo {
 }
 
 type Res<T> = Result<T, StudioError>;
+
+/// A failure of the shell itself, such as a path Tauri cannot resolve.
+fn internal(e: impl ToString) -> StudioError {
+	StudioError::new(ErrorKind::Internal, e)
+}
 
 #[tauri::command]
 fn open_project(state: State<AppState>, path: String) -> Res<ProjectSummary> {
@@ -136,7 +142,7 @@ fn redo(state: State<AppState>) -> Res<HistoryView> {
 
 /// Where the agent server listens, or nothing while it is off. The token is a separate request.
 #[tauri::command]
-fn mcp_info(agent: State<Agent>) -> Option<AgentInfo> {
+fn mcp_info(agent: State<Agent>) -> Option<McpInfo> {
 	agent.info()
 }
 
@@ -153,19 +159,14 @@ fn mcp_token(agent: State<Agent>) -> Option<String> {
 }
 
 #[tauri::command]
-fn mcp_regenerate_token(agent: State<Agent>) -> Result<String, String> {
+fn mcp_regenerate_token(agent: State<Agent>) -> Res<String> {
 	agent.regenerate_token()
 }
 
 /// Writes a new project's files into `folder` with the scaffold `liminst init` uses. The folder is made when it
 /// is missing and must not already hold a project. Returns the folder, for the window to open.
 #[tauri::command]
-fn new_project(
-	folder: String,
-	name: String,
-	id: String,
-	publisher: String,
-) -> Result<String, StudioError> {
+fn new_project(folder: String, name: String, id: String, publisher: String) -> Res<String> {
 	let opts = scaffold::InitOptions {
 		id,
 		name,
@@ -178,34 +179,42 @@ fn new_project(
 }
 
 #[tauri::command]
-fn app_info(app: tauri::AppHandle) -> Result<AppInfo, String> {
-	let log_dir = app.path().app_log_dir().map_err(|e| e.to_string())?;
+fn app_info(app: tauri::AppHandle) -> Res<AppInfo> {
+	let log_dir = app.path().app_log_dir().map_err(internal)?;
 	Ok(AppInfo {
 		version: app.package_info().version.to_string(),
-		settings_file: settings::file(&app)?.to_string_lossy().into_owned(),
+		settings_file: settings::file(&app)
+			.map_err(internal)?
+			.to_string_lossy()
+			.into_owned(),
 		log_dir: log_dir.to_string_lossy().into_owned(),
 	})
 }
 
 /// Shows the settings file or the log folder in the file manager. Only these two places can be asked for.
 #[tauri::command]
-fn reveal(app: tauri::AppHandle, what: String) -> Result<(), String> {
+fn reveal(app: tauri::AppHandle, what: String) -> Res<()> {
 	let path = match what.as_str() {
 		"settings" => {
-			let file = settings::file(&app)?;
+			let file = settings::file(&app).map_err(internal)?;
 			if let Some(dir) = file.parent() {
-				std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+				std::fs::create_dir_all(dir).map_err(|e| StudioError::io(dir, e))?;
 			}
 			file
 		}
 		"logs" => {
-			let dir = app.path().app_log_dir().map_err(|e| e.to_string())?;
-			std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+			let dir = app.path().app_log_dir().map_err(internal)?;
+			std::fs::create_dir_all(&dir).map_err(|e| StudioError::io(&dir, e))?;
 			dir
 		}
-		other => return Err(format!("cannot show `{other}`")),
+		other => {
+			return Err(StudioError::new(
+				ErrorKind::InvalidInput,
+				format!("cannot show `{other}`"),
+			));
+		}
 	};
-	tools::reveal(&path)
+	tools::reveal(&path).map_err(|e| StudioError::new(ErrorKind::Io, e))
 }
 
 pub fn run() {
@@ -232,6 +241,7 @@ pub fn run() {
 		.manage(agent)
 		.setup(move |app| {
 			let handle = app.handle().clone();
+			settings::migrate_legacy_for(&handle);
 			// The agent server follows the saved settings; its address is logged, its token never is.
 			let saved = settings::file(&handle)
 				.map(|path| settings::load(&path))

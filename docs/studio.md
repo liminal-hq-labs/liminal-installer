@@ -16,6 +16,12 @@ How the Studio window is put together, and how to drive it while developing. `SP
 
 The chrome copy is refreshed from Waypoint by the steps in `apps/studio/ui/vendor/studio-chrome/PROVENANCE.md`. The design tokens are regenerated with `bun run tokens` from `src/styles/tokens.json`, the design system export.
 
+## Typed bindings and errors
+
+The Rust types that cross the Tauri boundary or the MCP API (`Flow`, `Layout`, `Node`, `Plan`, `Operation` from `li-model`; `Preview`, `Problem`, `ScriptReport`, `ProjectSummary`, `ChangeEvent`, `ErrorPayload` and the rest from `li-studio`; `ScriptDiagnostic` from `li-script`) derive `ts_rs::TS` and are written to `packages/protocol/src/generated/`, the Bun workspace package `@liminal-hq/installer-protocol`. `li-model` and `li-script` hold the derive behind a `ts` feature that `li-studio` turns on, so the runner never builds ts-rs. `.cargo/config.toml` sets `TS_RS_EXPORT_DIR`; `bash scripts/generate-protocol-bindings.sh` regenerates the files and `bash scripts/check-bindings-drift.sh` (the `Bindings drift` job, and `make bindings`) deletes them, regenerates and fails on a difference. `src/lib/types.ts` re-exports them, and nothing under `src` declares a type that Rust sends. The shell's own types, `Settings` and `AppInfo`, are not generated: `settings.ts` and `settings.rs` stay in step by the test described above.
+
+Every command returns `Result<T, StudioError>`. `StudioError` serialises as `{ kind, message }` (`ErrorPayload` and `ErrorKind` in the bindings), and the MCP server uses the same object (see `SPEC.md`). `src/lib/api.ts` parses a rejection into a `StudioError` class (an `Error` with `kind`) in `invokeCommand`, which `api.ts`, `host.ts` and `settings.ts` call; a string, a plain `Error` or an unknown kind becomes `internal`. Toasts show `errorMessage(e)`, and a caller branches with `isStudioError(e, kind)`: opening a project that fails with `invalid_input` stays in the recent list so it can be fixed, and any other failure drops it.
+
 ## Preferences
 
 `src/preferences/` holds the window's content: `usePreferences.ts` reads the settings, shows a change at once, writes it as a patch, follows `studio://settings-changed`, and on a refusal puts the value back and keeps the reason for the row. `escapeGuard.ts` keeps Escape from closing the window while a box holds text that was typed and not applied: the first Escape puts the old text back and the next closes. `pages.tsx` has one page per section and `sections.tsx` their order. Text boxes and number boxes apply when left or on Enter. `src/lib/host.ts` is what the pages need from the shell besides settings: `app_info`, `reveal` (the settings file or the log folder), `mcp_token` and `mcp_regenerate_token` (the token is fetched only when asked for), the dialog plugin's pickers, and confirmations in a window of their own.
@@ -28,13 +34,15 @@ The chrome copy is refreshed from Waypoint by the steps in `apps/studio/ui/vendo
 
 ### Where files live
 
-The shell uses Tauri's `app_config_dir()` for the settings and the window sizes, and `app_log_dir()` for logs, under the bundle identifier `hq.liminal.installer-studio`:
+The shell uses Tauri's `app_config_dir()` for the settings and the window sizes, and `app_log_dir()` for logs, under the bundle identifier `ca.liminalhq.installerstudio`:
 
 | Platform | Config (`settings.json`, `.window-state.json`) | Logs |
 |---|---|---|
-| Linux | `$XDG_CONFIG_HOME/hq.liminal.installer-studio` (`~/.config/…`) | `$XDG_DATA_HOME/hq.liminal.installer-studio/logs` (`~/.local/share/…`) |
-| macOS | `~/Library/Application Support/hq.liminal.installer-studio` | `~/Library/Logs/hq.liminal.installer-studio` |
-| Windows | `%APPDATA%\hq.liminal.installer-studio` | `%LOCALAPPDATA%\hq.liminal.installer-studio\logs` |
+| Linux | `$XDG_CONFIG_HOME/ca.liminalhq.installerstudio` (`~/.config/…`) | `$XDG_DATA_HOME/ca.liminalhq.installerstudio/logs` (`~/.local/share/…`) |
+| macOS | `~/Library/Application Support/ca.liminalhq.installerstudio` | `~/Library/Logs/ca.liminalhq.installerstudio` |
+| Windows | `%APPDATA%\ca.liminalhq.installerstudio` | `%LOCALAPPDATA%\ca.liminalhq.installerstudio\logs` |
+
+The identifier was `hq.liminal.installer-studio` before the Studio joined the Liminal HQ house pattern (`ca.liminalhq.<app>`, no separators), and the directories above are named after it. On the first run under the new identifier, `settings::migrate_legacy_for` copies `settings.json` and `.window-state.json` from the old config directory when the new one has no `settings.json`; the old directory is left alone, and logs are not carried over.
 
 The Studio writes no log file yet, so the log folder is created when it is first shown. `tauri-plugin-window-state` remembers the size of the `main` and `preferences` windows only; About and confirmations have a fixed size.
 
@@ -45,6 +53,8 @@ The Studio writes no log file yet, so the log folder is created when it is first
 The text is `state.scriptDraft`; `lib/scriptActions.ts` owns saving, discarding, selecting and test runs, and `app.ts` only wires them. `startApp` takes an optional `api` and `settleUnsaved`, which the tests use with a fake backend (`src/app.script.test.ts`). The browser demo's `checkScriptSyntax` is a stand-in that balances blocks; the desktop shell compiles with Lua.
 
 ## Driving the Studio in dev
+
+The dev server is Vite on port 1420 with `strictPort`, and `devUrl` in `tauri.conf.json` names the same port; `ui/scripts/dev-server.test.ts` fails if they differ. Vite does not watch `src-tauri`.
 
 Start the shell with the dev config, which turns on the global Tauri object and registers the debug-only MCP bridge:
 

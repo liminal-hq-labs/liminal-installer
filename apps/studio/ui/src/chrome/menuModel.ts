@@ -88,8 +88,18 @@ export const ACTIONS: Record<ActionId, Action> = {
 	'file.save': { label: 'Save', keys: ['Ctrl+S'], enabled: (s) => s.hasProject && s.scriptDirty },
 	'app.preferences': { label: 'Preferences…', keys: ['Ctrl+,'] },
 	'file.quit': { label: 'Quit', keys: ['Ctrl+Q'] },
-	'edit.undo': { label: 'Undo', keys: ['Ctrl+Z'], enabled: (s) => s.hasProject && s.canUndo, textFieldOwnsKey: true },
-	'edit.redo': { label: 'Redo', keys: ['Ctrl+Shift+Z', 'Ctrl+Y'], enabled: (s) => s.hasProject && s.canRedo, textFieldOwnsKey: true },
+	'edit.undo': {
+		label: 'Undo',
+		keys: ['Ctrl+Z'],
+		enabled: (s) => s.hasProject && s.canUndo,
+		textFieldOwnsKey: true,
+	},
+	'edit.redo': {
+		label: 'Redo',
+		keys: ['Ctrl+Shift+Z', 'Ctrl+Y'],
+		enabled: (s) => s.hasProject && s.canRedo,
+		textFieldOwnsKey: true,
+	},
 	'view.project': screenAction('project', 'Project', '1'),
 	'view.flow': screenAction('flow', 'Flow', '2'),
 	'view.layouts': screenAction('layouts', 'Layouts', '3'),
@@ -122,20 +132,45 @@ interface Menu {
 
 /** The menus of the bar, in order. Each group of items is set off from the next by a separator. */
 export const MENUS: Menu[] = [
-	{ id: 'file', label: 'File', mnemonic: 'f', groups: [{ items: ['file.new', 'file.open', RECENT, 'file.reload'] }, { items: ['file.save'] }, { items: ['app.preferences'] }, { items: ['file.quit'], last: true }] },
+	{
+		id: 'file',
+		label: 'File',
+		mnemonic: 'f',
+		groups: [
+			{ items: ['file.new', 'file.open', RECENT, 'file.reload'] },
+			{ items: ['file.save'] },
+			{ items: ['app.preferences'] },
+			{ items: ['file.quit'], last: true },
+		],
+	},
 	{ id: 'edit', label: 'Edit', mnemonic: 'e', groups: [{ items: ['edit.undo', 'edit.redo'] }] },
 	{
 		id: 'view',
 		label: 'View',
 		mnemonic: 'v',
-		groups: [{ items: ['view.project', 'view.flow', 'view.layouts', 'view.script', 'view.preview'] }, { items: ['view.menuBar'] }],
+		groups: [
+			{ items: ['view.project', 'view.flow', 'view.layouts', 'view.script', 'view.preview'] },
+			{ items: ['view.menuBar'] },
+		],
 	},
-	{ id: 'project', label: 'Project', mnemonic: 'p', groups: [{ items: ['project.check', 'project.preview'] }] },
-	{ id: 'help', label: 'Help', mnemonic: 'h', groups: [{ items: ['help.shortcuts', 'help.agent'] }, { items: ['help.about'] }] },
+	{
+		id: 'project',
+		label: 'Project',
+		mnemonic: 'p',
+		groups: [{ items: ['project.check', 'project.preview'] }],
+	},
+	{
+		id: 'help',
+		label: 'Help',
+		mnemonic: 'h',
+		groups: [{ items: ['help.shortcuts', 'help.agent'] }, { items: ['help.about'] }],
+	},
 ];
 
 /** Alt plus a letter, for the bar: letters to the ids of the menus the bar builds. */
-export const MNEMONICS: Readonly<Record<string, string>> = Object.fromEntries(MENUS.map((m) => [m.mnemonic, menuId(m.id)]));
+export const MNEMONICS: Readonly<Record<string, string>> = Object.fromEntries(
+	MENUS.map((m) => [m.mnemonic, menuId(m.id)]),
+);
 
 function menuId(id: string): string {
 	return `menu:${id}`;
@@ -148,8 +183,15 @@ export function isEnabled(id: ActionId, state: MenuState): boolean {
 function item(id: ActionId, state: MenuState): SelectableMenuItem {
 	const action = ACTIONS[id];
 	const shortcut = action.keys?.[0];
-	const base = { id, label: action.label, disabled: !isEnabled(id, state), ...(shortcut ? { shortcut } : {}) };
-	return action.checked ? { type: 'checkbox', ...base, checked: action.checked(state) } : { type: 'action', ...base };
+	const base = {
+		id,
+		label: action.label,
+		disabled: !isEnabled(id, state),
+		...(shortcut ? { shortcut } : {}),
+	};
+	return action.checked
+		? { type: 'checkbox', ...base, checked: action.checked(state) }
+		: { type: 'action', ...base };
 }
 
 const RECENT_PREFIX = 'recent:';
@@ -172,9 +214,21 @@ export function shortPath(path: string): string {
 function recentMenu(state: MenuState): MenuItem {
 	const rows: MenuItem[] =
 		state.recent.length === 0
-			? [{ type: 'action', id: `${RECENT_PREFIX}none`, label: 'No recent projects', disabled: true }]
+			? [
+					{
+						type: 'action',
+						id: `${RECENT_PREFIX}none`,
+						label: 'No recent projects',
+						disabled: true,
+					},
+				]
 			: [
-					...state.recent.map((path, i): MenuItem => ({ type: 'action', id: recentId(i), label: shortPath(path), title: path })),
+					...state.recent.map((path, i): MenuItem => ({
+						type: 'action',
+						id: recentId(i),
+						label: shortPath(path),
+						title: path,
+					})),
 					{ type: 'separator', id: 'separator:recent' },
 					item('file.clearRecent', state),
 				];
@@ -191,7 +245,12 @@ function joinGroups(groups: Group[], state: MenuState): MenuItem[] {
 
 /** The menu bar: one submenu per menu. */
 export function buildBarMenu(state: MenuState): MenuItem[] {
-	return MENUS.map((menu) => ({ type: 'submenu', id: menuId(menu.id), label: menu.label, items: joinGroups(menu.groups, state) }));
+	return MENUS.map((menu) => ({
+		type: 'submenu',
+		id: menuId(menu.id),
+		label: menu.label,
+		items: joinGroups(menu.groups, state),
+	}));
 }
 
 /** The app menu: one flat menu with no submenus, made of the same groups in the bar's order. */
@@ -212,7 +271,13 @@ export function isActionId(id: string): id is ActionId {
 
 /** Every selectable item in a menu, however deeply nested. */
 export function selectableItems(items: MenuItem[]): SelectableMenuItem[] {
-	return items.flatMap((i) => (i.type === 'submenu' ? selectableItems(i.items) : i.type === 'action' || i.type === 'checkbox' ? [i] : []));
+	return items.flatMap((i) =>
+		i.type === 'submenu'
+			? selectableItems(i.items)
+			: i.type === 'action' || i.type === 'checkbox'
+				? [i]
+				: [],
+	);
 }
 
 interface KeyEventLike {
@@ -237,7 +302,11 @@ export function matchesShortcut(event: KeyEventLike, shortcut: string): boolean 
 }
 
 /** The enabled action a key press runs, if any. `inTextField` skips the keys such a field keeps for itself. */
-export function actionForEvent(event: KeyEventLike, state: MenuState, inTextField: boolean): ActionId | undefined {
+export function actionForEvent(
+	event: KeyEventLike,
+	state: MenuState,
+	inTextField: boolean,
+): ActionId | undefined {
 	for (const id of Object.keys(ACTIONS) as ActionId[]) {
 		const action = ACTIONS[id];
 		if (inTextField && action.textFieldOwnsKey) continue;
@@ -247,7 +316,10 @@ export function actionForEvent(event: KeyEventLike, state: MenuState, inTextFiel
 }
 
 /** The shortcut table for the Keyboard shortcuts window: every command that has a key, grouped by its menu. */
-export function shortcutTable(): { menu: string; rows: { id: ActionId; label: string; keys: string[] }[] }[] {
+export function shortcutTable(): {
+	menu: string;
+	rows: { id: ActionId; label: string; keys: string[] }[];
+}[] {
 	return MENUS.map((menu) => ({
 		menu: menu.label,
 		rows: menu.groups

@@ -11,6 +11,8 @@ use thiserror::Error;
 
 use crate::project::Project;
 
+#[derive(ts_rs::TS)]
+#[ts(export)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {
@@ -19,6 +21,8 @@ pub enum Severity {
 }
 
 /// One finding from a check, a flow validation or a dry run.
+#[derive(ts_rs::TS)]
+#[ts(export)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Problem {
 	pub severity: Severity,
@@ -28,6 +32,7 @@ pub struct Problem {
 	pub message: String,
 	/// The flow step involved, when there is one.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[ts(optional)]
 	pub step: Option<String>,
 }
 
@@ -55,13 +60,18 @@ impl Problem {
 }
 
 /// An image of one step. `encoding` is `utf8` for SVG text and `base64` for PNG.
+#[derive(ts_rs::TS)]
+#[ts(export)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Screenshot {
 	pub mime: String,
+	#[ts(type = "'utf8' | 'base64'")]
 	pub encoding: String,
 	pub data: String,
 }
 
+#[derive(ts_rs::TS)]
+#[ts(export)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PreviewStep {
 	pub id: String,
@@ -76,13 +86,17 @@ pub struct PreviewStep {
 	/// The layout as the target's renderer draws it: its `@renderer` overrides applied, string
 	/// references such as `items = "components"` expanded and document `source` files read in.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[ts(optional)]
 	pub layout_tree: Option<Node>,
 	/// The page state when the step is shown, including seeded meter readings.
 	#[serde(default, skip_serializing_if = "serde_json::Map::is_empty")]
+	#[ts(optional, type = "Record<string, unknown>")]
 	pub state: serde_json::Map<String, serde_json::Value>,
 }
 
 /// The product a preview was run for, for the placeholders a screen shows.
+#[derive(ts_rs::TS)]
+#[ts(export)]
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PreviewProduct {
 	pub id: String,
@@ -92,6 +106,8 @@ pub struct PreviewProduct {
 }
 
 /// The result of a dry run of one target.
+#[derive(ts_rs::TS)]
+#[ts(export)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Preview {
 	/// The `os-arch:renderer` target that was run.
@@ -114,6 +130,8 @@ pub struct Preview {
 }
 
 /// A hook from the spec's hook table, and whether the script defines it.
+#[derive(ts_rs::TS)]
+#[ts(export)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HookInfo {
 	pub name: String,
@@ -121,6 +139,8 @@ pub struct HookInfo {
 	pub present: bool,
 }
 
+#[derive(ts_rs::TS)]
+#[ts(export)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ScriptReport {
 	pub ok: bool,
@@ -138,6 +158,8 @@ pub struct ScriptReport {
 }
 
 /// The outcome of calling one hook against the sample.
+#[derive(ts_rs::TS)]
+#[ts(export)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HookRun {
 	pub hook: String,

@@ -14,7 +14,8 @@ export function screenshotSrc(shot: Screenshot): string {
 
 /** One line describing a plan operation. */
 export function formatOp(op: Operation): { name: string; detail: string } {
-	const s = (k: string) => (typeof op[k] === 'string' ? (op[k] as string) : '');
+	const fields = op as Record<string, unknown>;
+	const s = (k: string) => (typeof fields[k] === 'string' ? (fields[k] as string) : '');
 	switch (op.op) {
 		case 'copy':
 			return { name: 'copy', detail: `${s('from')} → ${s('to')}` };
@@ -34,7 +35,13 @@ export function formatOp(op: Operation): { name: string; detail: string } {
 		case 'os.register':
 			return { name: 'os.register', detail: `${s('product')} ${s('version')}` };
 		default:
-			return { name: op.op, detail: Object.entries(op).filter(([k]) => k !== 'op').map(([k, v]) => `${k}=${String(v)}`).join(' ') };
+			return {
+				name: op.op,
+				detail: Object.entries(op)
+					.filter(([k]) => k !== 'op')
+					.map(([k, v]) => `${k}=${String(v)}`)
+					.join(' '),
+			};
 	}
 }
 
@@ -43,13 +50,19 @@ export function problemsFor(problems: Problem[], scope: string): Problem[] {
 	return problems.filter((p) => p.scope === scope || p.scope.startsWith(`${scope}:`));
 }
 
-export const errorCount = (problems: Problem[]): number => problems.filter((p) => p.severity === 'error').length;
+export const errorCount = (problems: Problem[]): number =>
+	problems.filter((p) => p.severity === 'error').length;
 
 /** The history in newest-first order with a marker for entries that can be redone. */
-export function historyRows(entries: HistoryEntry[]): { label: string; source: string; doc: string; undone: boolean }[] {
-	return [...entries]
-		.reverse()
-		.map((e) => ({ label: e.label, source: e.source === 'mcp' ? 'Agent' : 'You', doc: `${e.doc.type} ${e.doc.id}`, undone: !e.applied }));
+export function historyRows(
+	entries: HistoryEntry[],
+): { label: string; source: string; doc: string; undone: boolean }[] {
+	return [...entries].reverse().map((e) => ({
+		label: e.label,
+		source: e.source === 'mcp' ? 'Agent' : 'You',
+		doc: `${e.doc.type} ${e.doc.id}`,
+		undone: !e.applied,
+	}));
 }
 
 /** The status shown for a target in the project table, from the problems that name it. */

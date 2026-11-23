@@ -13,6 +13,11 @@ use serde::{Deserialize, Serialize};
 use crate::CAPABILITIES;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(
+	feature = "ts",
+	derive(ts_rs::TS),
+	ts(export, rename = "ScriptSeverity")
+)]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {
 	Error,
@@ -21,6 +26,11 @@ pub enum Severity {
 
 /// One finding, with the span it marks.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(
+	feature = "ts",
+	derive(ts_rs::TS),
+	ts(export, rename = "ScriptDiagnostic")
+)]
 pub struct Diagnostic {
 	pub severity: Severity,
 	/// A stable name for the kind of finding, such as `syntax` or `undeclared-capability`.

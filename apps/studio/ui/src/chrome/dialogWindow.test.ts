@@ -4,7 +4,15 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it, vi } from 'vitest';
-import { createDialogs, decodeSpec, encodeSpec, inPageDialogBackend, type DialogBackend, type DialogResult, type DialogSpec } from './dialogWindow';
+import {
+	createDialogs,
+	decodeSpec,
+	encodeSpec,
+	inPageDialogBackend,
+	type DialogBackend,
+	type DialogResult,
+	type DialogSpec,
+} from './dialogWindow';
 
 const confirm: DialogSpec = {
 	kind: 'confirm',
@@ -17,7 +25,11 @@ const confirm: DialogSpec = {
 };
 
 function fakeBackend() {
-	const shown: { spec: DialogSpec; done: (r: DialogResult) => void; hide: ReturnType<typeof vi.fn> }[] = [];
+	const shown: {
+		spec: DialogSpec;
+		done: (r: DialogResult) => void;
+		hide: ReturnType<typeof vi.fn>;
+	}[] = [];
 	const backend: DialogBackend = {
 		show(spec, done) {
 			const hide = vi.fn();
@@ -104,7 +116,9 @@ describe('dialog windows', () => {
 		expect(decodeSpec('?' + encodeSpec(confirm))).toEqual(confirm);
 		expect(decodeSpec('?spec=%7Bbroken')).toBeUndefined();
 		expect(decodeSpec('')).toBeUndefined();
-		expect(decodeSpec('?spec=' + encodeURIComponent('{"kind":"shell","title":"x"}'))).toBeUndefined();
+		expect(
+			decodeSpec('?spec=' + encodeURIComponent('{"kind":"shell","title":"x"}')),
+		).toBeUndefined();
 	});
 
 	it('draws in the page for the browser demo, and clears when answered', async () => {

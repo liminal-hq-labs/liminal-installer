@@ -8,7 +8,8 @@ use serde::{Deserialize, Serialize};
 use crate::project::{Doc, DocKey};
 
 /// Who made a change.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export)]
 #[serde(rename_all = "lowercase")]
 pub enum Source {
 	Ui,
@@ -25,7 +26,8 @@ pub struct Entry {
 	pub after: Option<Doc>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, ts_rs::TS)]
+#[ts(export)]
 pub struct EntrySummary {
 	pub index: usize,
 	pub label: String,

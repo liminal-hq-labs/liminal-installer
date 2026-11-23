@@ -30,7 +30,9 @@ const memory = (initial?: string): KeyValueStore & { data: Map<string, string> }
 
 describe('validation', () => {
 	it('accepts every default and the bounds of every range', () => {
-		expect(validatePatch({ version: SETTINGS_VERSION })).toBe('the version is managed by the Studio');
+		expect(validatePatch({ version: SETTINGS_VERSION })).toBe(
+			'the version is managed by the Studio',
+		);
 		const { version: _version, ...rest } = defaultSettings;
 		expect(validatePatch(rest)).toBeNull();
 		for (const [key, [lo, hi]] of Object.entries(LIMITS)) {
@@ -70,18 +72,26 @@ describe('validation', () => {
 describe('merge', () => {
 	it('changes only the named fields', () => {
 		const merged = mergeSettings(defaultSettings, { tabWidth: 2, menuBar: true });
-		expect(merged).toMatchObject({ ok: true, settings: { tabWidth: 2, menuBar: true, theme: 'afterglow' } });
+		expect(merged).toMatchObject({
+			ok: true,
+			settings: { tabWidth: 2, menuBar: true, theme: 'afterglow' },
+		});
 	});
 
 	it('refuses a bad patch whole', () => {
-		expect(mergeSettings(defaultSettings, { menuBar: true, tabWidth: 99 })).toMatchObject({ ok: false });
+		expect(mergeSettings(defaultSettings, { menuBar: true, tabWidth: 99 })).toMatchObject({
+			ok: false,
+		});
 	});
 
 	it('keeps the recent list within its limit and without repeats', () => {
 		const many = Array.from({ length: 30 }, (_, i) => `/p/${i}`);
 		const merged = mergeSettings(defaultSettings, { recentProjects: many });
 		expect(merged.ok && merged.settings.recentProjects).toHaveLength(10);
-		const lowered = mergeSettings({ ...defaultSettings, recentProjects: many.slice(0, 10) }, { recentLimit: 5 });
+		const lowered = mergeSettings(
+			{ ...defaultSettings, recentProjects: many.slice(0, 10) },
+			{ recentLimit: 5 },
+		);
 		expect(lowered.ok && lowered.settings.recentProjects).toHaveLength(5);
 		expect(pushRecent(['/a', '/b', '/c'], '/b', 10)).toEqual(['/b', '/a', '/c']);
 		expect(pushRecent(['/a', '/b'], '/c', 2)).toEqual(['/c', '/a']);
@@ -92,12 +102,19 @@ describe('reading', () => {
 	it('fills in the default for a field that is missing or invalid and keeps the rest', () => {
 		expect(normalizeSettings(undefined)).toEqual(defaultSettings);
 		expect(normalizeSettings([])).toEqual(defaultSettings);
-		expect(normalizeSettings({ menuBar: true, theme: 'neon', tabWidth: 'wide', wrapLines: false })).toEqual({ ...defaultSettings, menuBar: true, wrapLines: false });
+		expect(
+			normalizeSettings({ menuBar: true, theme: 'neon', tabWidth: 'wide', wrapLines: false }),
+		).toEqual({ ...defaultSettings, menuBar: true, wrapLines: false });
 	});
 
 	it('migrates the first file, which had only the menu bar and the theme and no version', () => {
 		const migrated = normalizeSettings({ menuBar: true, theme: 'afterglow-light' });
-		expect(migrated).toEqual({ ...defaultSettings, menuBar: true, theme: 'afterglow-light', version: SETTINGS_VERSION });
+		expect(migrated).toEqual({
+			...defaultSettings,
+			menuBar: true,
+			theme: 'afterglow-light',
+			version: SETTINGS_VERSION,
+		});
 	});
 
 	it('does not lower a newer version', () => {
@@ -106,7 +123,9 @@ describe('reading', () => {
 
 	it('compares settings field by field', () => {
 		expect(sameSettings(defaultSettings, { ...defaultSettings })).toBe(true);
-		expect(sameSettings(defaultSettings, { ...defaultSettings, recentProjects: ['/a'] })).toBe(false);
+		expect(sameSettings(defaultSettings, { ...defaultSettings, recentProjects: ['/a'] })).toBe(
+			false,
+		);
 	});
 });
 
@@ -123,11 +142,18 @@ describe('the browser port', () => {
 
 	it('keeps keys it does not know when it writes', async () => {
 		const storage = memory(JSON.stringify({ menuBar: true, futureThing: { a: 1 } }));
-		expect(unknownKeys(JSON.parse(storage.getItem('liminal-installer-studio.settings')!))).toEqual({ futureThing: { a: 1 } });
+		expect(unknownKeys(JSON.parse(storage.getItem('liminal-installer-studio.settings')!))).toEqual({
+			futureThing: { a: 1 },
+		});
 		const port = browserSettings(storage);
 		await port.write({ tabWidth: 2 });
 		const saved = JSON.parse(storage.data.get('liminal-installer-studio.settings')!);
-		expect(saved).toMatchObject({ futureThing: { a: 1 }, menuBar: true, tabWidth: 2, version: SETTINGS_VERSION });
+		expect(saved).toMatchObject({
+			futureThing: { a: 1 },
+			menuBar: true,
+			tabWidth: 2,
+			version: SETTINGS_VERSION,
+		});
 	});
 
 	it('resets to the defaults', async () => {
@@ -140,10 +166,17 @@ describe('the browser port', () => {
 describe('parity with the Rust schema', () => {
 	const rust = readFileSync(new URL('../../../src-tauri/src/settings.rs', import.meta.url), 'utf8');
 	const range = (name: string) => {
-		const m = rust.match(new RegExp(`${name}: std::ops::RangeInclusive<u32> = (\\d+)\\.\\.=(\\d+)`));
+		const m = rust.match(
+			new RegExp(`${name}: std::ops::RangeInclusive<u32> = (\\d+)\\.\\.=(\\d+)`),
+		);
 		return m ? [Number(m[1]), Number(m[2])] : undefined;
 	};
-	const list = (name: string) => [...(rust.match(new RegExp(`const ${name}: \\[&str; \\d+\\] = \\[([^\\]]*)\\]`))?.[1] ?? '').matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+	const list = (name: string) =>
+		[
+			...(
+				rust.match(new RegExp(`const ${name}: \\[&str; \\d+\\] = \\[([^\\]]*)\\]`))?.[1] ?? ''
+			).matchAll(/"([^"]+)"/g),
+		].map((m) => m[1]);
 
 	it('has the same version, ranges and choices', () => {
 		expect(rust).toContain(`pub const VERSION: u32 = ${SETTINGS_VERSION};`);
@@ -157,7 +190,11 @@ describe('parity with the Rust schema', () => {
 	});
 
 	it('names every setting in the Rust struct', () => {
-		const fields = [...rust.slice(rust.indexOf('pub struct Settings'), rust.indexOf('impl Default for Settings')).matchAll(/pub (\w+):/g)]
+		const fields = [
+			...rust
+				.slice(rust.indexOf('pub struct Settings'), rust.indexOf('impl Default for Settings'))
+				.matchAll(/pub (\w+):/g),
+		]
 			.map((m) => m[1]!)
 			.filter((f) => f !== 'extra')
 			.map((f) => f.replace(/_(\w)/g, (_, c: string) => c.toUpperCase()));

@@ -4,12 +4,13 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { useEffect, useMemo, useState } from 'react';
+import { errorMessage } from '../lib/api';
 import type { Host } from '../lib/host';
 import type { Settings } from '../lib/settings';
 import { CREATED_PREFIX, type DialogResult } from './dialogWindow';
 import { shortcutTable } from './menuModel';
 
-const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+const message = errorMessage;
 
 /** Every command that has a key, grouped by menu. */
 export function ShortcutsBody() {
@@ -33,14 +34,28 @@ export function ShortcutsBody() {
 					</dl>
 				</section>
 			))}
-			<p className="dim small">F10 or a lone Alt opens the menu. Alt and a letter open a menu in the bar.</p>
+			<p className="dim small">
+				F10 or a lone Alt opens the menu. Alt and a letter open a menu in the bar.
+			</p>
 		</div>
 	);
 }
 
 /** The text of a client config that points an MCP client at the endpoint. */
 export function clientConfig(url: string, token: string): string {
-	return JSON.stringify({ mcpServers: { 'liminal-installer-studio': { type: 'http', url, headers: { Authorization: `Bearer ${token}` } } } }, null, 2);
+	return JSON.stringify(
+		{
+			mcpServers: {
+				'liminal-installer-studio': {
+					type: 'http',
+					url,
+					headers: { Authorization: `Bearer ${token}` },
+				},
+			},
+		},
+		null,
+		2,
+	);
 }
 
 /** Where the agent server listens, with the token on request and a sample client config. */
@@ -51,8 +66,14 @@ export function AgentBody({ host }: { host: Host }) {
 	const [note, setNote] = useState<{ text: string; error: boolean } | null>(null);
 	useEffect(() => {
 		let live = true;
-		void host.agent().then((a) => live && setUrl(a?.url ?? null), () => live && setUrl(null));
-		void host.agentError().then((e) => live && setWhy(e), () => undefined);
+		void host.agent().then(
+			(a) => live && setUrl(a?.url ?? null),
+			() => live && setUrl(null),
+		);
+		void host.agentError().then(
+			(e) => live && setWhy(e),
+			() => undefined,
+		);
 		return () => {
 			live = false;
 		};
@@ -67,20 +88,30 @@ export function AgentBody({ host }: { host: Host }) {
 		setNote(null);
 		text()
 			.then((t) => host.copy(t))
-			.then(() => say(`${what} copied.`), (e) => say(message(e), true));
+			.then(
+				() => say(`${what} copied.`),
+				(e) => say(message(e), true),
+			);
 	};
 	if (url === undefined) return <p className="dim">Looking for the agent server…</p>;
 	if (url === null) {
 		return (
 			<div className="agent-connect">
 				<p>The agent server is not running.</p>
-				{why ? <p className="err">It did not start: {why}</p> : <p className="dim">Turn on the MCP server in Preferences, under Agents.</p>}
+				{why ? (
+					<p className="err">It did not start: {why}</p>
+				) : (
+					<p className="dim">Turn on the MCP server in Preferences, under Agents.</p>
+				)}
 			</div>
 		);
 	}
 	return (
 		<div className="agent-connect">
-			<p>Agents edit this project over MCP, through the same undo history as you. The server listens on this computer only.</p>
+			<p>
+				Agents edit this project over MCP, through the same undo history as you. The server listens
+				on this computer only.
+			</p>
 			<label className="field">
 				<span>Endpoint</span>
 				<input type="text" readOnly value={url} onFocus={(e) => e.currentTarget.select()} />
@@ -106,10 +137,17 @@ export function AgentBody({ host }: { host: Host }) {
 			</div>
 			{token !== null ? <code className="token">{token}</code> : null}
 			<h2>Sample client configuration</h2>
-			<p className="dim small">For a client that reads an `mcpServers` block, such as Claude Code or Claude Desktop. Copying it puts the real token in.</p>
+			<p className="dim small">
+				For a client that reads an `mcpServers` block, such as Claude Code or Claude Desktop.
+				Copying it puts the real token in.
+			</p>
 			<pre className="snippet">{clientConfig(url, 'YOUR_TOKEN')}</pre>
 			<div className="row">
-				<button type="button" className="btn" onClick={copy('Configuration', async () => clientConfig(url, await fetchToken()))}>
+				<button
+					type="button"
+					className="btn"
+					onClick={copy('Configuration', async () => clientConfig(url, await fetchToken()))}
+				>
 					Copy configuration
 				</button>
 			</div>
@@ -126,10 +164,19 @@ const slug = (name: string) =>
 		.replace(/[^a-z0-9]+/g, '-')
 		.replace(/^-+|-+$/g, '');
 
-const join = (folder: string, leaf: string) => `${folder.replace(/[\\/]+$/, '')}${folder.includes('\\') && !folder.includes('/') ? '\\' : '/'}${leaf}`;
+const join = (folder: string, leaf: string) =>
+	`${folder.replace(/[\\/]+$/, '')}${folder.includes('\\') && !folder.includes('/') ? '\\' : '/'}${leaf}`;
 
 /** A form that scaffolds a project the way `liminst init` does, then answers with the new folder. */
-export function NewProjectBody({ host, settings, onAnswer }: { host: Host; settings: Settings; onAnswer(result: DialogResult): void }) {
+export function NewProjectBody({
+	host,
+	settings,
+	onAnswer,
+}: {
+	host: Host;
+	settings: Settings;
+	onAnswer(result: DialogResult): void;
+}) {
 	const [name, setName] = useState('');
 	const [id, setId] = useState('');
 	const [idTouched, setIdTouched] = useState(false);
@@ -144,7 +191,12 @@ export function NewProjectBody({ host, settings, onAnswer }: { host: Host; setti
 		setBusy(true);
 		setError(null);
 		try {
-			const folder = await host.newProject(join(parent.trim(), leaf), name.trim(), shownId.trim(), publisher.trim() || 'Unknown publisher');
+			const folder = await host.newProject(
+				join(parent.trim(), leaf),
+				name.trim(),
+				shownId.trim(),
+				publisher.trim() || 'Unknown publisher',
+			);
 			onAnswer(`${CREATED_PREFIX}${folder}`);
 		} catch (e) {
 			setError(message(e));
@@ -161,35 +213,62 @@ export function NewProjectBody({ host, settings, onAnswer }: { host: Host; setti
 		>
 			<label className="field">
 				<span>Name</span>
-				<input type="text" value={name} autoFocus onChange={(e) => setName(e.target.value)} placeholder="Fizz Level" />
+				<input
+					type="text"
+					value={name}
+					autoFocus
+					onChange={(e) => setName(e.target.value)}
+					placeholder="Fizz Level"
+				/>
 			</label>
 			<label className="field">
 				<span>Id</span>
-				<input type="text" value={shownId} onChange={(e) => (setId(e.target.value), setIdTouched(true))} placeholder="hq.liminal.fizz" />
+				<input
+					type="text"
+					value={shownId}
+					onChange={(e) => (setId(e.target.value), setIdTouched(true))}
+					placeholder="hq.liminal.fizz"
+				/>
 			</label>
 			<label className="field">
 				<span>Publisher</span>
-				<input type="text" value={publisher} onChange={(e) => setPublisher(e.target.value)} placeholder="Liminal HQ" />
+				<input
+					type="text"
+					value={publisher}
+					onChange={(e) => setPublisher(e.target.value)}
+					placeholder="Liminal HQ"
+				/>
 			</label>
 			<label className="field">
 				<span>Create in</span>
 				<span className="row">
-					<input type="text" value={parent} onChange={(e) => setParent(e.target.value)} placeholder="A folder for the project" />
+					<input
+						type="text"
+						value={parent}
+						onChange={(e) => setParent(e.target.value)}
+						placeholder="A folder for the project"
+					/>
 					<button
 						type="button"
 						className="btn"
 						onClick={() =>
-							void host.browse('folder', 'Choose where to create the project', parent || undefined).then(
-								(p) => p && setParent(p),
-								(e) => setError(message(e)),
-							)
+							void host
+								.browse('folder', 'Choose where to create the project', parent || undefined)
+								.then(
+									(p) => p && setParent(p),
+									(e) => setError(message(e)),
+								)
 						}
 					>
 						Browse…
 					</button>
 				</span>
 			</label>
-			<p className="dim small">{leaf && parent ? `The files go in ${join(parent, leaf)}/installer.` : 'Writes the same starting files as `liminst init`.'}</p>
+			<p className="dim small">
+				{leaf && parent
+					? `The files go in ${join(parent, leaf)}/installer.`
+					: 'Writes the same starting files as `liminst init`.'}
+			</p>
 			{error ? (
 				<p className="err" role="alert">
 					{error}
@@ -208,7 +287,17 @@ export function NewProjectBody({ host, settings, onAnswer }: { host: Host; setti
 }
 
 /** The body for a kind of dialog that has more than a message. */
-export function PageDialog({ kind, host, settings, onAnswer }: { kind: 'shortcuts' | 'agent' | 'new-project'; host: Host; settings: Settings; onAnswer(result: DialogResult): void }) {
+export function PageDialog({
+	kind,
+	host,
+	settings,
+	onAnswer,
+}: {
+	kind: 'shortcuts' | 'agent' | 'new-project';
+	host: Host;
+	settings: Settings;
+	onAnswer(result: DialogResult): void;
+}) {
 	if (kind === 'shortcuts') return <ShortcutsBody />;
 	if (kind === 'agent') return <AgentBody host={host} />;
 	return <NewProjectBody host={host} settings={settings} onAnswer={onAnswer} />;

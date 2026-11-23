@@ -145,7 +145,7 @@ export function validateFlow(flow: Flow): Problem[] {
 			if (!ids.has(t)) out.push(err(`step \`${s.id}\` points at unknown step \`${t}\``, s.id));
 	}
 	const reaches = new Set(flow.steps.filter((s) => s.type === 'finish').map((s) => s.id));
-	for (let changed = true; changed; ) {
+	for (let changed = true; changed;) {
 		changed = false;
 		for (const s of flow.steps)
 			if (!reaches.has(s.id) && outgoing(s).some((t) => reaches.has(t))) {
@@ -180,7 +180,12 @@ const GAP_X = 70;
 const GAP_Y = 28;
 
 /** Layers steps by their distance from the start step; unreachable steps go in a final column. */
-export function layoutGraph(flow: Flow): { nodes: GraphNode[]; edges: GraphEdge[]; width: number; height: number } {
+export function layoutGraph(flow: Flow): {
+	nodes: GraphNode[];
+	edges: GraphEdge[];
+	width: number;
+	height: number;
+} {
 	const byId = new Map(flow.steps.map((s) => [s.id, s]));
 	const start = flow.start ?? flow.steps[0]?.id;
 	const column = new Map<string, number>();
@@ -204,7 +209,13 @@ export function layoutGraph(flow: Flow): { nodes: GraphNode[]; edges: GraphEdge[
 		const c = column.get(s.id)!;
 		const r = rows.get(c) ?? 0;
 		rows.set(c, r + 1);
-		return { id: s.id, column: c, row: r, x: 16 + c * (NODE_W + GAP_X), y: 16 + r * (NODE_H + GAP_Y) };
+		return {
+			id: s.id,
+			column: c,
+			row: r,
+			x: 16 + c * (NODE_W + GAP_X),
+			y: 16 + r * (NODE_H + GAP_Y),
+		};
 	});
 	const edges: GraphEdge[] = [];
 	for (const s of flow.steps) {
@@ -212,7 +223,12 @@ export function layoutGraph(flow: Flow): { nodes: GraphNode[]; edges: GraphEdge[
 			edges.push({ from: s.id, to: s.next, back: column.get(s.next)! <= column.get(s.id)! });
 		for (const b of s.branches ?? [])
 			if (byId.has(b.next))
-				edges.push({ from: s.id, to: b.next, label: b.when, back: column.get(b.next)! <= column.get(s.id)! });
+				edges.push({
+					from: s.id,
+					to: b.next,
+					label: b.when,
+					back: column.get(b.next)! <= column.get(s.id)!,
+				});
 	}
 	const maxCol = Math.max(0, ...column.values());
 	const maxRow = Math.max(1, ...rows.values());

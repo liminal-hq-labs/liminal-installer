@@ -10,6 +10,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tauri::{AppHandle, Emitter, Manager, State};
 
+use li_studio::{ErrorKind, StudioError};
+
 use crate::agent::Agent;
 use crate::tools;
 
@@ -281,6 +283,38 @@ pub fn file(app: &AppHandle) -> Result<PathBuf, String> {
 		.join("settings.json"))
 }
 
+/// The bundle identifier before the Studio moved to `ca.liminalhq.installerstudio`. The settings directory is named
+/// after the identifier, so a person's settings stayed behind in the old directory.
+pub const LEGACY_IDENTIFIER: &str = "hq.liminal.installer-studio";
+
+/// Copies the settings and window sizes from the old identifier's directory into `new_dir`, once. Nothing is
+/// copied when `new_dir` already has a settings file or the old directory has none. Returns whether it copied.
+pub fn migrate_legacy(old_dir: &Path, new_dir: &Path) -> bool {
+	if new_dir.join("settings.json").exists() || !old_dir.join("settings.json").is_file() {
+		return false;
+	}
+	if fs::create_dir_all(new_dir).is_err() {
+		return false;
+	}
+	let mut copied = false;
+	for name in ["settings.json", ".window-state.json"] {
+		let from = old_dir.join(name);
+		if from.is_file() {
+			copied |= fs::copy(&from, new_dir.join(name)).is_ok();
+		}
+	}
+	copied
+}
+
+/// Runs [`migrate_legacy`] for the app's own config directory and its sibling under the old identifier.
+pub fn migrate_legacy_for(app: &AppHandle) {
+	if let Ok(new_dir) = app.path().app_config_dir()
+		&& let Some(parent) = new_dir.parent()
+	{
+		migrate_legacy(&parent.join(LEGACY_IDENTIFIER), &new_dir);
+	}
+}
+
 /// What a write needs from the machine, beyond the values themselves: a folder that exists and tools that run.
 /// Only a field the patch names is looked at, so an unrelated change is never refused for an old path.
 pub fn check_machine(next: &Settings, patch: &Value) -> Result<(), String> {
@@ -302,9 +336,19 @@ pub fn check_machine(next: &Settings, patch: &Value) -> Result<(), String> {
 	Ok(())
 }
 
+/// A failure of the shell, such as a config directory Tauri cannot resolve.
+fn internal(e: impl ToString) -> StudioError {
+	StudioError::new(ErrorKind::Internal, e)
+}
+
+/// A refused value: the reason is the message, shown as it is on the row it concerns.
+fn refused(e: impl ToString) -> StudioError {
+	StudioError::new(ErrorKind::InvalidInput, e)
+}
+
 #[tauri::command]
-pub fn read_settings(app: AppHandle) -> Result<Settings, String> {
-	Ok(load(&file(&app)?))
+pub fn read_settings(app: AppHandle) -> Result<Settings, StudioError> {
+	Ok(load(&file(&app).map_err(internal)?))
 }
 
 /// Merges `patch` into the saved settings, saves them and tells every window. A patch that cannot be applied,
@@ -314,39 +358,41 @@ pub fn write_settings(
 	app: AppHandle,
 	agent: State<Agent>,
 	patch: Value,
-) -> Result<Settings, String> {
-	let path = file(&app)?;
+) -> Result<Settings, StudioError> {
+	let path = file(&app).map_err(internal)?;
 	let current = load(&path);
-	let next = current.merged(&patch)?;
-	check_machine(&next, &patch)?;
+	let next = current.merged(&patch).map_err(refused)?;
+	check_machine(&next, &patch).map_err(refused)?;
 	apply_agent(&agent, &current, &next)?;
 	if let Err(e) = save(&path, &next) {
 		let _ = apply_agent(&agent, &next, &current);
-		return Err(e);
+		return Err(StudioError::io(&path, e));
 	}
-	app.emit(SETTINGS_EVENT, &next).map_err(|e| e.to_string())?;
+	app.emit(SETTINGS_EVENT, &next).map_err(internal)?;
 	Ok(next)
 }
 
 /// Puts every setting back to its default and keeps the keys this build does not know.
 #[tauri::command]
-pub fn reset_settings(app: AppHandle, agent: State<Agent>) -> Result<Settings, String> {
-	let path = file(&app)?;
+pub fn reset_settings(app: AppHandle, agent: State<Agent>) -> Result<Settings, StudioError> {
+	let path = file(&app).map_err(internal)?;
 	let current = load(&path);
 	let next = Settings {
 		extra: current.extra.clone(),
 		..Settings::default()
 	};
 	apply_agent(&agent, &current, &next)?;
-	save(&path, &next)?;
-	app.emit(SETTINGS_EVENT, &next).map_err(|e| e.to_string())?;
+	save(&path, &next).map_err(|e| StudioError::io(&path, e))?;
+	app.emit(SETTINGS_EVENT, &next).map_err(internal)?;
 	Ok(next)
 }
 
 /// Starts, stops or moves the agent server when its settings changed.
-pub fn apply_agent(agent: &Agent, from: &Settings, to: &Settings) -> Result<(), String> {
+pub fn apply_agent(agent: &Agent, from: &Settings, to: &Settings) -> Result<(), StudioError> {
 	if from.mcp_enabled != to.mcp_enabled || from.mcp_port != to.mcp_port {
-		agent.apply(to.mcp_enabled, to.mcp_port)?;
+		agent
+			.apply(to.mcp_enabled, to.mcp_port)
+			.map_err(|e| StudioError::new(ErrorKind::Agent, e))?;
 	}
 	Ok(())
 }
@@ -358,6 +404,47 @@ mod tests {
 
 	fn temp(name: &str) -> PathBuf {
 		std::env::temp_dir().join(format!("li-studio-settings-{}-{name}", std::process::id()))
+	}
+
+	#[test]
+	fn a_refused_value_rejects_with_its_reason_and_a_kind() {
+		let reason = Settings::default()
+			.merged(&json!({ "tabWidth": 99 }))
+			.unwrap_err();
+		let wire = serde_json::to_value(refused(reason.clone())).unwrap();
+		assert_eq!(wire, json!({ "kind": "invalid_input", "message": reason }));
+		let wire = serde_json::to_value(internal("no config directory")).unwrap();
+		assert_eq!(wire["kind"], "internal");
+	}
+
+	#[test]
+	fn legacy_settings_are_copied_once() {
+		let old = temp("legacy-old");
+		let new = temp("legacy-new");
+		let _ = fs::remove_dir_all(&old);
+		let _ = fs::remove_dir_all(&new);
+		fs::create_dir_all(&old).unwrap();
+		fs::write(old.join("settings.json"), "{\"menuBar\":true}").unwrap();
+		fs::write(old.join(".window-state.json"), "{}").unwrap();
+		assert!(migrate_legacy(&old, &new));
+		assert_eq!(
+			fs::read_to_string(new.join("settings.json")).unwrap(),
+			"{\"menuBar\":true}"
+		);
+		assert!(new.join(".window-state.json").is_file());
+		// A later change is never overwritten, and an old directory without settings copies nothing.
+		fs::write(new.join("settings.json"), "{\"menuBar\":false}").unwrap();
+		assert!(!migrate_legacy(&old, &new));
+		assert_eq!(
+			fs::read_to_string(new.join("settings.json")).unwrap(),
+			"{\"menuBar\":false}"
+		);
+		assert!(!migrate_legacy(
+			&temp("legacy-missing"),
+			&temp("legacy-other")
+		));
+		let _ = fs::remove_dir_all(&old);
+		let _ = fs::remove_dir_all(&new);
 	}
 
 	#[test]

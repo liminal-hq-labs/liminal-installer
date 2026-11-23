@@ -3,7 +3,13 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { foldService, HighlightStyle, LanguageSupport, StreamLanguage, syntaxHighlighting } from '@codemirror/language';
+import {
+	foldService,
+	HighlightStyle,
+	LanguageSupport,
+	StreamLanguage,
+	syntaxHighlighting,
+} from '@codemirror/language';
 import type { Text } from '@codemirror/state';
 import { lua } from '@codemirror/legacy-modes/mode/lua';
 import { tags } from '@lezer/highlight';
@@ -13,13 +19,30 @@ const language = StreamLanguage.define(lua);
 
 /** The colours are tokens (`--ed-*`), set for each theme in `app.css`. */
 export const luaHighlight = HighlightStyle.define([
-	{ tag: [tags.keyword, tags.controlKeyword, tags.definitionKeyword, tags.operatorKeyword], color: 'var(--ed-keyword)' },
+	{
+		tag: [tags.keyword, tags.controlKeyword, tags.definitionKeyword, tags.operatorKeyword],
+		color: 'var(--ed-keyword)',
+	},
 	{ tag: [tags.atom, tags.bool, tags.null], color: 'var(--ed-atom)' },
 	{ tag: tags.number, color: 'var(--ed-number)' },
 	{ tag: [tags.string, tags.special(tags.string)], color: 'var(--ed-string)' },
-	{ tag: [tags.comment, tags.lineComment, tags.blockComment], color: 'var(--ed-comment)', fontStyle: 'italic' },
-	{ tag: [tags.standard(tags.variableName), tags.function(tags.variableName), tags.function(tags.propertyName)], color: 'var(--ed-function)' },
-	{ tag: [tags.definition(tags.variableName), tags.definition(tags.propertyName)], color: 'var(--ed-definition)' },
+	{
+		tag: [tags.comment, tags.lineComment, tags.blockComment],
+		color: 'var(--ed-comment)',
+		fontStyle: 'italic',
+	},
+	{
+		tag: [
+			tags.standard(tags.variableName),
+			tags.function(tags.variableName),
+			tags.function(tags.propertyName),
+		],
+		color: 'var(--ed-function)',
+	},
+	{
+		tag: [tags.definition(tags.variableName), tags.definition(tags.propertyName)],
+		color: 'var(--ed-definition)',
+	},
 	{ tag: tags.propertyName, color: 'var(--ed-property)' },
 	{ tag: [tags.operator, tags.punctuation, tags.bracket], color: 'var(--ed-punct)' },
 	{ tag: tags.invalid, color: 'var(--ed-error)' },

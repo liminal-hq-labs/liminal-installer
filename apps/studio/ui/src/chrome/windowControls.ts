@@ -6,7 +6,8 @@
 import { createTauriWindowControls } from '@liminal-hq/studio-chrome/TitleBar/tauriWindowControls';
 import type { WindowControls } from '@liminal-hq/studio-chrome/TitleBar/windowControls';
 
-export const inTauri = (): boolean => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+export const inTauri = (): boolean =>
+	typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 /** A window the page cannot control, for the browser demo: the buttons do nothing but the chrome still draws. */
 export function createBrowserWindowControls(): WindowControls {

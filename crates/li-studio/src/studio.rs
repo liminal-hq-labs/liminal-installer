@@ -12,15 +12,17 @@ use serde_json::Value;
 
 use crate::backend::{Preview, Problem, ScriptReport, StudioBackend};
 use crate::checks::{check_project, flow_problems};
-use crate::error::StudioError;
+use crate::error::{ErrorKind, StudioError};
 use crate::history::{Entry, EntrySummary, History, Source};
 use crate::project::{Doc, DocKey, Project};
 use crate::resolve::{merge_patch, node_at_mut, resolve_for_renderer};
 
 /// Raised after every change to the project, whoever made it.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, ts_rs::TS)]
+#[ts(export)]
 pub struct ChangeEvent {
 	/// `open`, `edit`, `undo` or `redo`.
+	#[ts(type = "'open' | 'edit' | 'undo' | 'redo'")]
 	pub kind: &'static str,
 	pub doc: Option<DocKey>,
 	pub label: String,
@@ -43,7 +45,8 @@ pub struct Studio {
 	listeners: Mutex<Vec<Listener>>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[ts(export)]
 pub struct TargetInfo {
 	pub full_id: String,
 	pub id: String,
@@ -53,7 +56,8 @@ pub struct TargetInfo {
 	pub components: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[ts(export)]
 pub struct ComponentInfo {
 	pub id: String,
 	pub name: String,
@@ -62,21 +66,24 @@ pub struct ComponentInfo {
 	pub files: usize,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[ts(export)]
 pub struct ThemeInfo {
 	pub id: String,
 	pub name: String,
 	pub renderers: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[ts(export)]
 pub struct FlowInfo {
 	pub id: String,
 	pub steps: usize,
 	pub errors: usize,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[ts(export)]
 pub struct ProjectSummary {
 	pub root: String,
 	pub id: String,
@@ -92,13 +99,15 @@ pub struct ProjectSummary {
 	pub scripts: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[ts(export)]
 pub struct FlowView {
 	pub flow: Flow,
 	pub errors: Vec<Problem>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[ts(export)]
 pub struct HistoryView {
 	pub entries: Vec<EntrySummary>,
 	pub can_undo: bool,
@@ -434,7 +443,9 @@ impl Studio {
 				.cloned()
 				.ok_or_else(|| StudioError::NotFound(format!("script `{path}`")))?,
 		};
-		Ok(self.backend.test_script(project, path, &text, target)?)
+		self.backend
+			.test_script(project, path, &text, target)
+			.map_err(|e| StudioError::new(ErrorKind::Script, e))
 	}
 
 	/// Checks Lua source without running it: syntax errors, and warnings about capabilities,
@@ -805,6 +816,76 @@ mod tests {
 			.unwrap();
 		assert!(!win.components.contains(&"sound".to_string()));
 		assert_eq!(sum.flows.len(), 5);
+	}
+
+	/// A backend that always fails, to reach the errors the mock never raises.
+	struct Failing;
+
+	impl crate::StudioBackend for Failing {
+		fn check(&self, _: &Project) -> Result<Vec<Problem>, crate::BackendError> {
+			Err(crate::BackendError("the engine stopped".into()))
+		}
+		fn run_preview(&self, _: &Project, _: &str) -> Result<Preview, crate::BackendError> {
+			Err(crate::BackendError("the engine stopped".into()))
+		}
+		fn test_script(
+			&self,
+			_: &Project,
+			_: &str,
+			_: &str,
+			_: Option<&str>,
+		) -> Result<ScriptReport, crate::BackendError> {
+			Err(crate::BackendError("the sandbox would not start".into()))
+		}
+	}
+
+	fn kind<T>(r: Result<T, StudioError>) -> (ErrorKind, String) {
+		let e = r.err().expect("the call should fail");
+		let p = e.payload();
+		(p.kind, p.message)
+	}
+
+	#[test]
+	fn each_kind_of_failure_reaches_the_caller_with_its_kind() {
+		let none = Studio::new(Box::new(crate::MockBackend));
+		assert_eq!(kind(none.project_summary()).0, ErrorKind::Project);
+		assert_eq!(
+			kind(none.open(Path::new("/no/such/project"))).0,
+			ErrorKind::NotFound
+		);
+
+		let (dir, s, root) = open_example("neutral");
+		assert_eq!(kind(s.get_flow("nope")).0, ErrorKind::NotFound);
+		assert_eq!(kind(s.undo(Source::Ui)).0, ErrorKind::Project);
+		let flow = s.get_flow("install").unwrap().flow;
+		assert_eq!(
+			kind(s.set_flow("other", flow, "Edit", Source::Ui)).0,
+			ErrorKind::InvalidInput
+		);
+		assert_eq!(
+			kind(s.write_script("../escape.lua", "x", "Edit", Source::Ui)).0,
+			ErrorKind::InvalidInput
+		);
+		assert_eq!(kind(s.run_preview("nowhere:tui")).0, ErrorKind::Backend);
+
+		// A file where a folder is needed makes the write fail.
+		let scripts = root.join("scripts");
+		std::fs::create_dir_all(&scripts).unwrap();
+		std::fs::write(scripts.join("blocker"), "x").unwrap();
+		assert_eq!(
+			kind(s.write_script("scripts/blocker/a.lua", "-- x\n", "Edit", Source::Ui)).0,
+			ErrorKind::Io
+		);
+
+		let failing = Studio::new(Box::new(Failing));
+		failing.open(&root).unwrap();
+		let (k, message) = kind(failing.test_script("scripts/a.lua", Some("x"), None));
+		assert_eq!(
+			(k, message.as_str()),
+			(ErrorKind::Script, "the sandbox would not start")
+		);
+		assert_eq!(kind(failing.check_project()).0, ErrorKind::Backend);
+		drop(dir);
 	}
 
 	#[test]

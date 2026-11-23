@@ -6,14 +6,8 @@
 use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 
-use li_studio::{Studio, mcp::McpServer};
-use serde::Serialize;
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct AgentInfo {
-	pub url: String,
-	pub port: u16,
-}
+use li_studio::mcp::{McpInfo, McpServer};
+use li_studio::{ErrorKind, Studio, StudioError};
 
 pub struct Agent {
 	studio: Arc<Studio>,
@@ -83,8 +77,8 @@ impl Agent {
 		Ok(())
 	}
 
-	pub fn info(&self) -> Option<AgentInfo> {
-		self.lock().as_ref().map(|(s, _)| AgentInfo {
+	pub fn info(&self) -> Option<McpInfo> {
+		self.lock().as_ref().map(|(s, _)| McpInfo {
 			url: format!("http://{}/mcp", s.addr),
 			port: s.addr.port(),
 		})
@@ -95,10 +89,15 @@ impl Agent {
 		self.lock().as_ref().map(|(s, _)| s.token())
 	}
 
-	pub fn regenerate_token(&self) -> Result<String, String> {
+	pub fn regenerate_token(&self) -> Result<String, StudioError> {
 		match self.lock().as_ref() {
-			Some((s, _)) => s.regenerate_token().map_err(|e| e.to_string()),
-			None => Err("the agent server is off".into()),
+			Some((s, _)) => s
+				.regenerate_token()
+				.map_err(|e| StudioError::new(ErrorKind::Agent, e)),
+			None => Err(StudioError::new(
+				ErrorKind::Agent,
+				"the agent server is off",
+			)),
 		}
 	}
 
@@ -120,7 +119,10 @@ mod tests {
 	fn it_starts_stops_and_hides_its_token_while_off() {
 		let a = agent();
 		assert!(a.info().is_none() && a.token().is_none());
-		assert!(a.regenerate_token().is_err());
+		assert_eq!(
+			a.regenerate_token().unwrap_err().kind(),
+			li_studio::ErrorKind::Agent
+		);
 		a.apply(true, 0).unwrap();
 		let info = a.info().unwrap();
 		assert!(info.url.starts_with("http://127.0.0.1:"));
