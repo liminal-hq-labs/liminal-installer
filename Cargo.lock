@@ -1095,6 +1095,7 @@ dependencies = [
  "li-pack",
  "li-package",
  "li-render-tui",
+ "li-render-web",
  "li-retro-build",
  "li-studio",
  "predicates",
@@ -1194,6 +1195,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "li-render-web"
+version = "0.1.0"
+dependencies = [
+ "assert_cmd",
+ "clap",
+ "li-engine",
+ "li-model",
+ "li-pack",
+ "li-runner",
+ "predicates",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "ts-rs",
+]
+
+[[package]]
 name = "li-retro"
 version = "0.1.0"
 dependencies = [
@@ -1255,6 +1274,7 @@ dependencies = [
  "li-engine",
  "li-model",
  "li-render-tui",
+ "li-render-web",
  "li-retro",
  "li-script",
  "ratatui",

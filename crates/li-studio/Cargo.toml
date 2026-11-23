@@ -17,6 +17,7 @@ li-model = { workspace = true, features = ["ts"] }
 li-engine.workspace = true
 li-script = { workspace = true, features = ["ts"] }
 li-render-tui = { workspace = true, features = ["ts"] }
+li-render-web.workspace = true
 ratatui.workspace = true
 li-retro.workspace = true
 serde.workspace = true

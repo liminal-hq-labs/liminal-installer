@@ -35,6 +35,8 @@ ts-rs = { version = "12", features = ["serde-json-impl"] }
 
 # Workspace crates.
 li-render-tui = { path = "crates/li-render-tui" }
+li-render-web = { path = "crates/li-render-web" }
+li-runner = { path = "crates/li-runner" }
 li-package = { path = "crates/li-package" }
 li-studio = { path = "crates/li-studio" }
 li-retro = { path = "crates/li-retro" }

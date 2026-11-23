@@ -25,7 +25,9 @@ pub mod feedsrc;
 pub mod stash;
 pub mod ui;
 
-pub use cli::{Cli, run};
+pub use cli::{
+	Cli, Command, Mode, TerminalUis, UiContext, UiProvider, execute, exit_code, parse_answers, run,
+};
 
 /// Why the runner stopped.
 #[derive(Debug, thiserror::Error)]

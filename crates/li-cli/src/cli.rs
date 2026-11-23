@@ -176,6 +176,12 @@ pub struct BuildArgs {
 	/// The `SETUP.EXE` DOS runtime to carry in a DOS target's outputs; without it one is found or built from `dos/`
 	#[arg(long, value_name = "PATH")]
 	pub dos_runtime: Option<PathBuf>,
+	/// The web runner (`liminal-runner`) to carry in a `web` target's bundle; without it the bundle holds a placeholder
+	#[arg(long, value_name = "PATH")]
+	pub web_runner: Option<PathBuf>,
+	/// Build the web runner with Tauri first (`bun run --cwd apps/runner tauri build --no-bundle`; slow, needs the Tauri system libraries)
+	#[arg(long)]
+	pub build_web_runner: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -390,6 +396,8 @@ pub fn execute(cli: &Cli) -> CliResult<u8> {
 				outputs: a.outputs.clone(),
 				engine: a.engine.clone(),
 				dos_runtime: a.dos_runtime.clone(),
+				web_runner: a.web_runner.clone(),
+				build_web_runner: a.build_web_runner,
 			};
 			let built = NativeBuilder
 				.build(&req)

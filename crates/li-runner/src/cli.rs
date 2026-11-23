@@ -12,7 +12,8 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 use li_engine::bundle::{bundled_target, bundled_version, extract_project, pinned_key};
 use li_engine::{
 	CommitFn, EngineError, FlowEnv, FlowOutcome, FlowRunner, InstallRequest, LaunchOutcome,
-	LipPayload, Machine, Progress, Project, ProjectScripts, RealMachine, RunOptions, State, Ui,
+	LipPayload, Machine, Payload, Progress, Project, ProjectScripts, RealMachine, RunOptions,
+	State, Ui,
 };
 use li_model::{Layout, Receipt, Scope, Target};
 use li_pack::Lip;
@@ -155,10 +156,16 @@ fn absolute(p: &Path) -> PathBuf {
 	std::path::absolute(p).unwrap_or_else(|_| p.to_owned())
 }
 
-fn load_project(lip: &Lip) -> RunnerResult<(TempDir, Project)> {
+/// Loads the project bundled in a `.lip`. A build that says which renderer it is for (the
+/// `os-arch:renderer` form) leaves only that target, so a project with several targets of one
+/// `os-arch` runs the right one.
+fn load_project(lip: &Lip, target: Option<&str>) -> RunnerResult<(TempDir, Project)> {
 	let tmp = tempfile::tempdir().map_err(|e| RunnerError::new(e.to_string()))?;
 	extract_project(lip, tmp.path())?;
-	let project = Project::load(tmp.path())?;
+	let mut project = Project::load(tmp.path())?;
+	if let Some(full) = target.filter(|t| t.contains(':')) {
+		project.installer.targets.retain(|t| t.full_id() == full);
+	}
 	Ok((tmp, project))
 }
 
@@ -261,6 +268,63 @@ impl<'a> Drive<'a> {
 	}
 }
 
+/// What a lifecycle command does, so a renderer can say so.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Mode {
+	Install,
+	Update,
+	Modify,
+	Repair,
+	Uninstall,
+}
+
+impl Mode {
+	pub fn as_str(self) -> &'static str {
+		match self {
+			Mode::Install => "install",
+			Mode::Update => "update",
+			Mode::Modify => "modify",
+			Mode::Repair => "repair",
+			Mode::Uninstall => "uninstall",
+		}
+	}
+}
+
+/// What a renderer is told about the run before its first page.
+pub struct UiContext<'a> {
+	pub mode: Mode,
+	pub project: &'a Project,
+	pub target: &'a Target,
+	/// The install directory the run starts with: the one chosen, or the receipt's.
+	pub install_dir: &'a Path,
+	pub version: &'a str,
+	/// The files the run installs from, when there are any to read.
+	pub payload: Option<&'a dyn Payload>,
+	pub machine: &'a dyn Machine,
+	pub cli: &'a Cli,
+}
+
+/// Where a lifecycle command gets its pages from: the terminal, or another renderer such as the
+/// web runner's window.
+pub trait UiProvider {
+	/// The `Ui` for a flow's pages and its progress.
+	fn page_ui(&mut self, cx: &UiContext) -> RunnerResult<Box<dyn Ui>>;
+
+	/// The `Ui` for work that has no flow (`repair`): it only reports progress.
+	fn status_ui(&mut self, _cx: &UiContext) -> RunnerResult<Box<dyn Ui>> {
+		Ok(Box::new(ConsoleUi::new(State::new())))
+	}
+}
+
+/// The default provider: `tui` pages in a terminal, answers from `--answer` without one.
+pub struct TerminalUis;
+
+impl UiProvider for TerminalUis {
+	fn page_ui(&mut self, cx: &UiContext) -> RunnerResult<Box<dyn Ui>> {
+		make_ui(cx.cli, cx.target)
+	}
+}
+
 fn use_tui(cli: &Cli) -> bool {
 	!cli.headless && std::io::stdin().is_terminal() && std::io::stdout().is_terminal()
 }
@@ -306,7 +370,7 @@ fn scope_of(project: &Project) -> Scope {
 	}
 }
 
-fn install(cli: &Cli, a: &InstallArgs) -> RunnerResult<()> {
+fn install(cli: &Cli, a: &InstallArgs, ui: &mut dyn UiProvider) -> RunnerResult<()> {
 	let from = a.from.clone().map(|p| absolute(&p)).or_else(default_from);
 	let lip_path = a
 		.lip
@@ -316,9 +380,10 @@ fn install(cli: &Cli, a: &InstallArgs) -> RunnerResult<()> {
 	let bytes = std::fs::read(&lip_path)
 		.map_err(|e| RunnerError::new(format!("{}: {e}", lip_path.display())))?;
 	let lip = Lip::parse(&bytes)?;
-	let (_tmp, project) = load_project(&lip)?;
+	let (_tmp, project) = load_project(&lip, bundled_target(&lip).as_deref())?;
 	let mut m = RealMachine::from_environment();
 	let target_id = bundled_target(&lip)
+		.map(|t| plain_target(&t).to_owned())
 		.or_else(|| detect_target(&project, &m))
 		.ok_or_else(|| RunnerError::new("the payload does not say which target it is for"))?;
 	let target = project
@@ -347,8 +412,17 @@ fn install(cli: &Cli, a: &InstallArgs) -> RunnerResult<()> {
 	);
 	let scripts = ProjectScripts::load(&project, env, m.script_fs())?;
 	let drive = Drive::new(&project, &target, &scripts, &m, &default_dir);
-	let mut ui = make_ui(cli, &target)?;
 	let payload = LipPayload(lip.clone());
+	let mut ui = ui.page_ui(&UiContext {
+		mode: Mode::Install,
+		project: &project,
+		target: &target,
+		install_dir: &default_dir,
+		version: version.as_deref().unwrap_or("0.0.0"),
+		payload: Some(&payload),
+		machine: &m,
+		cli,
+	})?;
 	let feed = a.feed.clone();
 	let channel = a
 		.channel
@@ -407,6 +481,27 @@ struct Installed {
 	target: Target,
 }
 
+impl Installed {
+	fn context<'a>(
+		&'a self,
+		mode: Mode,
+		payload: Option<&'a dyn Payload>,
+		machine: &'a dyn Machine,
+		cli: &'a Cli,
+	) -> UiContext<'a> {
+		UiContext {
+			mode,
+			project: &self.project,
+			target: &self.target,
+			install_dir: &self.dir,
+			version: &self.receipt.installed,
+			payload,
+			machine,
+			cli,
+		}
+	}
+}
+
 fn open(cli: &Cli, m: &dyn Machine) -> RunnerResult<Installed> {
 	let dir = cli
 		.install_dir
@@ -417,7 +512,7 @@ fn open(cli: &Cli, m: &dyn Machine) -> RunnerResult<Installed> {
 	let receipt = li_engine::read_receipt(m, &dir)?;
 	let bytes = stash::read(&dir, stash::PAYLOAD)?;
 	let lip = Lip::parse(&bytes)?;
-	let (tmp, project) = load_project(&lip)?;
+	let (tmp, project) = load_project(&lip, Some(&receipt.target))?;
 	let target = project
 		.target(plain_target(&receipt.target))
 		.ok_or_else(|| RunnerError::new(format!("the project has no target `{}`", receipt.target)))?
@@ -443,7 +538,7 @@ fn feed_key(inst: &Installed, file: Option<&Path>) -> RunnerResult<li_pack::Veri
 	})
 }
 
-fn update(cli: &Cli, a: &UpdateArgs) -> RunnerResult<()> {
+fn update(cli: &Cli, a: &UpdateArgs, ui: &mut dyn UiProvider) -> RunnerResult<()> {
 	let mut m = RealMachine::from_environment();
 	let inst = open(cli, &m)?;
 	if !li_engine::tauri::updates::installer_owns(&inst.receipt) {
@@ -473,7 +568,7 @@ fn update(cli: &Cli, a: &UpdateArgs) -> RunnerResult<()> {
 	let bytes = feedsrc::fetch(&loc)?;
 	li_pack::verify_artefact(&bytes, &info.artefact)?;
 	let new_lip = Lip::parse(&bytes)?;
-	let (_tmp, project) = load_project(&new_lip)?;
+	let (_tmp, project) = load_project(&new_lip, Some(&inst.receipt.target))?;
 	let target = project
 		.target(plain_target(&inst.receipt.target))
 		.ok_or_else(|| RunnerError::new("the new release no longer has this target"))?
@@ -481,7 +576,17 @@ fn update(cli: &Cli, a: &UpdateArgs) -> RunnerResult<()> {
 	let env = script_env(&m, &target.id, &inst.dir, &info.version);
 	let scripts = ProjectScripts::load(&project, env, m.script_fs())?;
 	let drive = Drive::new(&project, &target, &scripts, &m, &inst.dir);
-	let mut ui = make_ui(cli, &target)?;
+	let new_payload = LipPayload(new_lip.clone());
+	let mut ui = ui.page_ui(&UiContext {
+		mode: Mode::Update,
+		project: &project,
+		target: &target,
+		install_dir: &inst.dir,
+		version: &info.version,
+		payload: Some(&new_payload),
+		machine: &m,
+		cli,
+	})?;
 	let mut state = State::new();
 	state.insert("components".into(), json!(inst.receipt.components));
 	// What the `builtin:check-feed` step finds, for the flow's branch and the offer page.
@@ -509,13 +614,14 @@ fn update(cli: &Cli, a: &UpdateArgs) -> RunnerResult<()> {
 	Ok(())
 }
 
-fn modify(cli: &Cli, a: &ModifyArgs) -> RunnerResult<()> {
+fn modify(cli: &Cli, a: &ModifyArgs, ui: &mut dyn UiProvider) -> RunnerResult<()> {
 	let mut m = RealMachine::from_environment();
 	let inst = open(cli, &m)?;
 	let env = script_env(&m, &inst.target.id, &inst.dir, &inst.receipt.installed);
 	let scripts = ProjectScripts::load(&inst.project, env, m.script_fs())?;
 	let drive = Drive::new(&inst.project, &inst.target, &scripts, &m, &inst.dir);
-	let mut ui = make_ui(cli, &inst.target)?;
+	let payload = LipPayload(inst.lip.clone());
+	let mut ui = ui.page_ui(&inst.context(Mode::Modify, Some(&payload), &m, cli))?;
 	let mut state = State::new();
 	let wanted = if a.components.is_empty() {
 		inst.receipt.components.clone()
@@ -523,7 +629,6 @@ fn modify(cli: &Cli, a: &ModifyArgs) -> RunnerResult<()> {
 		a.components.clone()
 	};
 	state.insert("components".into(), json!(wanted));
-	let payload = LipPayload(inst.lip.clone());
 	let mut result: Option<Receipt> = None;
 	let mut work = |st: &State, opts: &mut RunOptions<'_>| -> Result<(), EngineError> {
 		let comps = components_from(st).unwrap_or_else(|| wanted.clone());
@@ -545,11 +650,11 @@ fn modify(cli: &Cli, a: &ModifyArgs) -> RunnerResult<()> {
 	Ok(())
 }
 
-fn repair(cli: &Cli) -> RunnerResult<()> {
+fn repair(cli: &Cli, ui: &mut dyn UiProvider) -> RunnerResult<()> {
 	let mut m = RealMachine::from_environment();
 	let inst = open(cli, &m)?;
 	let payload = LipPayload(inst.lip.clone());
-	let mut ui = ConsoleUi::new(State::new());
+	let mut ui = ui.status_ui(&inst.context(Mode::Repair, Some(&payload), &m, cli))?;
 	let mut report = |p: &Progress| ui.progress(p);
 	let mut opts = RunOptions {
 		cancel: None,
@@ -563,13 +668,14 @@ fn repair(cli: &Cli) -> RunnerResult<()> {
 	Ok(())
 }
 
-fn uninstall(cli: &Cli) -> RunnerResult<()> {
+fn uninstall(cli: &Cli, ui: &mut dyn UiProvider) -> RunnerResult<()> {
 	let mut m = RealMachine::from_environment();
 	let inst = open(cli, &m)?;
 	let env = script_env(&m, &inst.target.id, &inst.dir, &inst.receipt.installed);
 	let scripts = ProjectScripts::load(&inst.project, env, m.script_fs())?;
 	let drive = Drive::new(&inst.project, &inst.target, &scripts, &m, &inst.dir);
-	let mut ui = make_ui(cli, &inst.target)?;
+	let payload = LipPayload(inst.lip.clone());
+	let mut ui = ui.page_ui(&inst.context(Mode::Uninstall, Some(&payload), &m, cli))?;
 	let mut work = |_: &State, opts: &mut RunOptions<'_>| -> Result<(), EngineError> {
 		li_engine::uninstall(&mut m, Some(&inst.project), &inst.dir, opts)
 	};
@@ -629,16 +735,20 @@ fn launch(cli: &Cli, a: &LaunchArgs) -> RunnerResult<()> {
 	Ok(())
 }
 
-/// Runs a parsed command line and maps the result to an exit code.
-pub fn run(cli: Cli) -> ExitCode {
-	let result = match &cli.command {
-		Command::Install(a) => install(&cli, a),
-		Command::Update(a) => update(&cli, a),
-		Command::Modify(a) => modify(&cli, a),
-		Command::Repair => repair(&cli),
-		Command::Uninstall => uninstall(&cli),
-		Command::Launch(a) => launch(&cli, a),
-	};
+/// Runs a parsed command line, taking each page from `ui`.
+pub fn execute(cli: &Cli, ui: &mut dyn UiProvider) -> RunnerResult<()> {
+	match &cli.command {
+		Command::Install(a) => install(cli, a, ui),
+		Command::Update(a) => update(cli, a, ui),
+		Command::Modify(a) => modify(cli, a, ui),
+		Command::Repair => repair(cli, ui),
+		Command::Uninstall => uninstall(cli, ui),
+		Command::Launch(a) => launch(cli, a),
+	}
+}
+
+/// Maps the result of [`execute`] to an exit code, saying why on standard error.
+pub fn exit_code(result: RunnerResult<()>) -> ExitCode {
 	match result {
 		Ok(()) => ExitCode::SUCCESS,
 		Err(RunnerError::Cancelled) => {
@@ -650,6 +760,11 @@ pub fn run(cli: Cli) -> ExitCode {
 			ExitCode::from(1)
 		}
 	}
+}
+
+/// Runs a parsed command line with the terminal for a front end and maps the result to an exit code.
+pub fn run(cli: Cli) -> ExitCode {
+	exit_code(execute(&cli, &mut TerminalUis))
 }
 
 #[cfg(test)]

@@ -68,12 +68,18 @@ pub fn last_feed(install_dir: &Path) -> Option<Feed> {
 	serde_json::from_slice(&read_optional(install_dir, FEED_SEEN)?).ok()
 }
 
+/// The file name a runner keeps in the stash: its own, so the web runner stays `liminal-runner`.
+fn exe_name(exe: &Path) -> std::ffi::OsString {
+	exe.file_name()
+		.map_or_else(|| BINARY.into(), ToOwned::to_owned)
+}
+
 /// Copies this binary into the stash and writes the `.lip` and the pinned key beside it.
 pub fn save(install_dir: &Path, lip: &[u8], key: Option<&VerifyingKey>) -> RunnerResult<()> {
 	let d = dir(install_dir);
 	std::fs::create_dir_all(&d).map_err(|e| io(&d, e))?;
 	let exe = std::env::current_exe().map_err(|e| RunnerError::new(e.to_string()))?;
-	let dest = d.join(BINARY);
+	let dest = d.join(exe_name(&exe));
 	if std::fs::canonicalize(&exe).ok() != std::fs::canonicalize(&dest).ok() {
 		std::fs::copy(&exe, &dest).map_err(|e| io(&dest, e))?;
 		#[cfg(unix)]
@@ -97,7 +103,10 @@ pub fn save(install_dir: &Path, lip: &[u8], key: Option<&VerifyingKey>) -> Runne
 /// Removes the files the stub extracted (`engine/` and `payload.lip` under `from`), now that
 /// the runner has its own copies, and `from` itself when it is empty and not the install.
 pub fn clean_bootstrap(from: &Path, install_dir: &Path) {
-	let _ = std::fs::remove_file(from.join("engine").join(BINARY));
+	let name = std::env::current_exe()
+		.ok()
+		.map_or_else(|| BINARY.into(), |e| exe_name(&e));
+	let _ = std::fs::remove_file(from.join("engine").join(name));
 	let _ = std::fs::remove_dir(from.join("engine"));
 	let _ = std::fs::remove_file(from.join(PAYLOAD));
 	if from != install_dir {
