@@ -164,7 +164,7 @@ describe('the browser port', () => {
 });
 
 describe('parity with the Rust schema', () => {
-	const rust = readFileSync(new URL('../../../src-tauri/src/settings.rs', import.meta.url), 'utf8');
+	const rust = readFileSync(new URL('../../src-tauri/src/settings.rs', import.meta.url), 'utf8');
 	const range = (name: string) => {
 		const m = rust.match(
 			new RegExp(`${name}: std::ops::RangeInclusive<u32> = (\\d+)\\.\\.=(\\d+)`),

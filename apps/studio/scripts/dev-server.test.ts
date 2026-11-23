@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import config from '../vite.config';
 
 const tauriConfig = JSON.parse(
-	readFileSync(new URL('../../src-tauri/tauri.conf.json', import.meta.url), 'utf8'),
+	readFileSync(new URL('../src-tauri/tauri.conf.json', import.meta.url), 'utf8'),
 ) as { identifier: string; build: { devUrl: string } };
 
 describe('dev server', () => {

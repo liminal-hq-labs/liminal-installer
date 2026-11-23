@@ -6,7 +6,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const tauri = new URL('../../src-tauri/', import.meta.url);
+const tauri = new URL('../src-tauri/', import.meta.url);
 const read = (path: string) => readFileSync(new URL(path, tauri), 'utf8');
 const json = (path: string) => JSON.parse(read(path)) as Record<string, any>;
 

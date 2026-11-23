@@ -51,5 +51,11 @@
 		"./SettingsShell/ToggleRow": "./src/SettingsShell/ToggleRow.tsx",
 		"./SettingsShell/labels": "./src/SettingsShell/labels.ts",
 		"./SettingsShell/types": "./src/SettingsShell/types.ts"
+	},
+	"devDependencies": {
+		"@types/react": "^19.3.0",
+		"@types/react-dom": "^19.3.0",
+		"react": "^19.3.1",
+		"react-dom": "^19.3.1"
 	}
 }

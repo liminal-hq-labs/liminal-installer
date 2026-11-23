@@ -3,12 +3,14 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vitest/config';
 import { fileURLToPath } from 'node:url';
 
-const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
+const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
 
 export default defineConfig({
+	plugins: [react()],
 	clearScreen: false,
 	server: {
 		port: 1420,

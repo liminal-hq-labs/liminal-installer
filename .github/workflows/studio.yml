@@ -11,6 +11,10 @@ on:
       - main
     paths:
       - 'apps/studio/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'bun.lock'
+      - 'scripts/check-headers.sh'
       - '.github/workflows/studio.yml'
   push:
     branches:
@@ -19,6 +23,10 @@ on:
       - 'v*'
     paths:
       - 'apps/studio/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'bun.lock'
+      - 'scripts/check-headers.sh'
       - '.github/workflows/studio.yml'
   workflow_dispatch:
 

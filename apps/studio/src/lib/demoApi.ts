@@ -22,7 +22,7 @@ import type {
 } from './types';
 
 const files = import.meta.glob(
-	'../../../../../examples/lt-fizz/installer/{*.toml,flows/*.json,layouts/*.json,themes/*/layouts/*.json,scripts/*.lua}',
+	'../../../../examples/lt-fizz/installer/{*.toml,flows/*.json,layouts/*.json,themes/*/layouts/*.json,scripts/*.lua}',
 	{
 		query: '?raw',
 		import: 'default',

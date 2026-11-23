@@ -76,7 +76,7 @@ Liminal Installer is a [Liminal HQ Labs](https://github.com/liminal-hq-labs) exp
 - **Single local gate:** `make validate` runs `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo nextest run --workspace --locked`, the header check and, when `bun` is installed, the Studio UI's format check, typecheck and tests (`make js`), then the bindings drift check (`make bindings`). `make markdown` and `make e2e-linux` run the other checks.
 - **End to end:** `bash scripts/e2e-linux.sh` builds a themed `.run` and a signed feed, then installs, updates, repairs and uninstalls it in a clean Debian container (needs `docker`). `scripts/e2e-linux-container.sh` is its in-container half.
 - **Docker-based tools:** markdownlint, shellcheck and actionlint run from pinned images (see Testing), so nothing but `docker` is installed locally for them.
-- **Studio UI:** `apps/studio/ui` and `packages/protocol` are Bun workspace members (root `package.json`, `packageManager` pinned, `bun install`, `bun run typecheck`, `bun run test:js`); use Bun, not pnpm or npm; the Tauri shell in `apps/studio/src-tauri` has its own `Cargo.lock` and is built with `cargo check` there.
+- **Studio UI:** `apps/studio`, `packages/chrome` and `packages/protocol` are Bun workspace members (root `package.json`, `packageManager` pinned, `bun install`, `bun run typecheck`, `bun run test:js`); use Bun, not pnpm or npm; the Tauri shell in `apps/studio/src-tauri` has its own `Cargo.lock` and is built with `cargo check` there.
 
 ## Licence headers
 
@@ -98,7 +98,7 @@ Use `#` comments for shell, YAML, TOML and Dockerfiles, and an XML comment for S
 - **Themes cannot add operations.** A theme draws pages and plays media. Only components and scripts put operations in a plan.
 - **Scripts get only declared capabilities.** A Lua script runs in a sandbox and holds only what its `-- capabilities:` header names. Writing files goes through the plan.
 - **Wire types are generated.** A Rust type the Studio UI or an MCP client receives derives `ts_rs::TS`, and its TypeScript is generated into `packages/protocol`, never written by hand. Failed commands and tools carry `{ kind, message }` (`StudioError`).
-- **Vendored chrome is refreshed by its recipe.** `apps/studio/ui/vendor/studio-chrome` changes only by the steps in its `PROVENANCE.md`, never by hand.
+- **Vendored chrome is refreshed by its recipe.** `packages/chrome` changes only by the steps in its `PROVENANCE.md`, never by hand.
 - **SPEC first.** A change to behaviour, interfaces, settings or defaults updates `SPEC.md` in the same change.
 
 ## Testing
@@ -131,8 +131,8 @@ README.md SPEC.md AGENTS.md CLAUDE.md LICENSE-APACHE LICENSE-MIT Makefile
 .editorconfig .markdownlint.jsonc .gitignore rustfmt.toml rust-toolchain.toml
 crates/        li-model, li-engine, li-script, li-render-tui, li-pack, li-package, li-cli (`liminst`),
                li-runner (`liminal-engine`), li-studio (the Studio's editing core), li-examples-test
-apps/studio/   ui/ (Vite page, vendored chrome in ui/vendor) and src-tauri/ (the desktop shell)
-packages/      protocol/ (`@liminal-hq/installer-protocol`: ts-rs bindings, generated, committed)
+apps/studio/   the Studio: index.html, vite.config.ts, src/ (React) and src-tauri/ (the desktop shell)
+packages/      chrome/ (`@liminal-hq/studio-chrome`, vendored, see its PROVENANCE.md) and protocol/ (`@liminal-hq/installer-protocol`: ts-rs bindings, generated, committed)
 examples/      lt-fizz, planboard and neutral projects
 retro/         the DOS runtime scaffold and its build container
 assets/        hero banner

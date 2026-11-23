@@ -4,7 +4,7 @@ How the Studio window is put together, and how to drive it while developing. `SP
 
 ## What draws what
 
-`apps/studio/ui` is a Vite page. The screens (Overview, Flow, Layouts, Scripts, Dry-run preview) are plain TypeScript. Around them is a small React layer in `src/chrome/` that draws the shared window chrome from `vendor/studio-chrome`.
+`apps/studio` is a Vite page. The screens (Overview, Flow, Layouts, Scripts, Dry-run preview) are plain TypeScript. Around them is a small React layer in `src/chrome/` that draws the shared window chrome from `packages/chrome`.
 
 - `menuModel.ts` declares every command once, with its label, shortcut and enabled state, and builds both the flat app menu and the menu bar from it. The same table answers key presses.
 - `chromeStore.ts` holds what the chrome shows (menu state, title, settings) outside React. The settings come from `settings.json` through `read_settings` and `write_settings` (a merge), and every window follows the `studio://settings-changed` event. `src/lib/settings.ts` and `src-tauri/src/settings.rs` hold the same schema and the same limits, and a test fails if they differ.
@@ -14,7 +14,7 @@ How the Studio window is put together, and how to drive it while developing. `SP
 - `src/app.test.ts` runs `startApp` against a fake `Api` under happy-dom. `src-tauri/src/api_contract.rs` parses the UI sources and checks that every `invoke` and `call` names a registered command and sends exactly its argument names.
 - In a browser tab the page draws its own header and no chrome. In development, add `?chrome` to the URL to draw the chrome there for a look.
 
-The chrome copy is refreshed from Waypoint by the steps in `apps/studio/ui/vendor/studio-chrome/PROVENANCE.md`. The design tokens are regenerated with `bun run tokens` from `src/styles/tokens.json`, the design system export.
+The chrome copy is refreshed from Waypoint by the steps in `packages/chrome/PROVENANCE.md`. The design tokens are regenerated with `bun run tokens` from `src/styles/tokens.json`, the design system export.
 
 ## Typed bindings and errors
 
@@ -54,7 +54,7 @@ The text is `state.scriptDraft`; `lib/scriptActions.ts` owns saving, discarding,
 
 ## Driving the Studio in dev
 
-The dev server is Vite on port 1420 with `strictPort`, and `devUrl` in `tauri.conf.json` names the same port; `ui/scripts/dev-server.test.ts` fails if they differ. Vite does not watch `src-tauri`.
+The dev server is Vite on port 1420 with `strictPort`, and `devUrl` in `tauri.conf.json` names the same port; `scripts/dev-server.test.ts` fails if they differ. Vite does not watch `src-tauri`.
 
 Start the shell with the dev config, which turns on the global Tauri object and registers the debug-only MCP bridge:
 
@@ -70,7 +70,7 @@ What keeps this out of release builds:
 - `tauri.conf.json` leaves `withGlobalTauri` unset. Only `tauri.conf.dev.json`, passed by `bun run tauri:dev`, sets it.
 - `tauri-plugin-mcp-bridge` is a dependency only off Windows, and `lib.rs` registers it under `#[cfg(all(debug_assertions, not(windows)))]`.
 - `capabilities/dev-automation.json` grants `mcp-bridge:default` to the main window and every child window on Linux and macOS, and grants nothing when the plugin is not registered.
-- `ui/scripts/dev-automation.test.ts` fails the UI tests if any of those change, or if a child window is added to `windows.rs` without being added to both capability files.
+- `scripts/dev-automation.test.ts` fails the UI tests if any of those change, or if a child window is added to `windows.rs` without being added to both capability files.
 
 A new kind of child window needs its label in `capabilities/default.json` and `capabilities/dev-automation.json`. The Preferences window keeps the label `preferences`, so both already cover it.
 
