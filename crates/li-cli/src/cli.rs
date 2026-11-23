@@ -220,13 +220,16 @@ fn load(cli: &Cli) -> CliResult<Project> {
 	project::load(&cli.project).map_err(Into::into)
 }
 
+/// A target by its `os-arch` id, or by its `os-arch:renderer` form when a project has two targets
+/// for one platform (the first of those is what a bare id finds).
 fn find_target<'a>(project: &'a Project, id: &str) -> CliResult<&'a li_model::Target> {
-	project.target(id).ok_or_else(|| {
-		let known: Vec<&str> = project
+	let by_full_id = project.installer.targets.iter().find(|t| t.full_id() == id);
+	by_full_id.or_else(|| project.target(id)).ok_or_else(|| {
+		let known: Vec<String> = project
 			.installer
 			.targets
 			.iter()
-			.map(|t| t.id.as_str())
+			.map(|t| t.id.clone())
 			.collect();
 		CliError::new(format!(
 			"no target named `{id}` (the project has: {})",

@@ -33,6 +33,12 @@ theme    = "fizz-win95"
 outputs  = ["setup-exe", "msix"]
 
 [[target]]
+id       = "windows-x86_64"
+renderer = "web"
+theme    = "fizz-modern"
+outputs  = ["setup-exe", "msix"]
+
+[[target]]
 id       = "linux-x86_64"
 renderer = "tui"
 theme    = "fizz-win95"

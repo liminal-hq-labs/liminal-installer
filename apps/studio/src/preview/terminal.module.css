@@ -57,3 +57,40 @@
 	align-items: center;
 	gap: 6px;
 }
+
+/* The full-screen window: the terminal fills its parent and the canvas is sized to a whole zoom. */
+.fill {
+	height: 100%;
+	margin: 0;
+	gap: 0;
+	background: #000;
+}
+.area {
+	position: relative;
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+}
+.areaNatural {
+	display: contents;
+}
+.terminalFill {
+	max-width: none;
+	width: auto;
+	border-radius: 0;
+	border: 0;
+	flex: none;
+}
+.fill .hint {
+	flex: none;
+	padding: 4px 12px 6px;
+	color: #9aa0aa;
+	text-align: center;
+}
+.fill .error,
+.fill .opening {
+	color: #eee;
+}

@@ -243,6 +243,35 @@ fn preview_draws_each_step_and_prints_the_plan() {
 }
 
 #[test]
+fn a_target_is_found_by_its_full_id_when_a_platform_has_two() {
+	let dir = project();
+	let manifest = dir.path().join("installer/installer.toml");
+	let mut text = std::fs::read_to_string(&manifest).unwrap();
+	text.push_str("\n[[target]]\nid = \"linux-x86_64\"\nrenderer = \"canvas\"\n");
+	std::fs::write(&manifest, text).unwrap();
+	liminst(dir.path())
+		.args(["preview", "-t", "linux-x86_64:canvas", "--only", "screens"])
+		.assert()
+		.success()
+		.stdout(predicate::str::contains("linux-x86_64:canvas"))
+		.stdout(predicate::str::contains("`canvas` renderer is not drawn"));
+	// A bare id still finds the first target, which draws with the tui renderer.
+	liminst(dir.path())
+		.args(["preview", "-t", "linux-x86_64", "--only", "screens"])
+		.assert()
+		.success()
+		.stdout(predicate::str::contains("renderer is not drawn").not());
+	liminst(dir.path())
+		.args(["check", "--target", "linux-x86_64:canvas"])
+		.assert()
+		.success();
+	liminst(dir.path())
+		.args(["check", "--target", "linux-x86_64:web"])
+		.assert()
+		.code(2);
+}
+
+#[test]
 fn preview_plan_only_and_json() {
 	let dir = project();
 	liminst(dir.path())

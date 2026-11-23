@@ -4,13 +4,16 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { t } from '../i18n/messages';
+import type { TuiApi } from '../lib/api';
 import { stepFrom } from './sim';
 import type { ComponentInfo, Preview, TargetInfo } from '../lib/types';
 import { cx } from '../ui/cx';
 import ui from '../ui/ui.module.css';
 import { SPEEDS, RunStage } from './RunStage';
 import type { Run } from './useRun';
-import { hasMovingParts } from './model';
+import { hasMovingParts, hasSchemes, lookFor, type Scheme } from './model';
+import { SchemeSwitch } from './SchemeSwitch';
+import { stepFor, TerminalPreview, TerminalViewSwitch, type TerminalView } from './TerminalPreview';
 import styles from './FullScreenBody.module.css';
 
 export interface FullScreenBodyProps {
@@ -29,6 +32,14 @@ export interface FullScreenBodyProps {
 	onClose?: () => void;
 	/** The target's renderer while the preview is still loading. */
 	loading?: boolean;
+	/** How a terminal target is drawn, and the way to change it. Only `tui` targets offer the real terminal. */
+	view: TerminalView;
+	onView: (view: TerminalView) => void;
+	/** Runs the terminal sessions; without it the real terminal is not offered. */
+	api?: TuiApi | null;
+	/** Light, dark or the system's colours, for a look that has both, and the way to change it. */
+	scheme: Scheme;
+	onScheme: (scheme: Scheme) => void;
 }
 
 export function FullScreenBody(props: FullScreenBodyProps) {
@@ -39,6 +50,12 @@ export function FullScreenBody(props: FullScreenBodyProps) {
 	const renderer = pv?.renderer ?? info?.renderer ?? 'canvas';
 	const moving = step?.layout_tree ? hasMovingParts(step.layout_tree) : false;
 	const p = run.playback;
+	const style = step?.layout_tree?.props?.style;
+	const schemes = hasSchemes(
+		lookFor(renderer, pv?.theme ?? info?.theme, typeof style === 'string' ? style : undefined),
+	);
+	const terminal = renderer.startsWith('tui') && Boolean(props.api);
+	const real = terminal && props.view === 'terminal' && pv && step?.layout && !step.skipped;
 	return (
 		<div className={styles.body} data-testid="fullscreen-preview">
 			<div className={styles.bar} role="toolbar" aria-label={t('preview.stepper')}>
@@ -80,11 +97,13 @@ export function FullScreenBody(props: FullScreenBodyProps) {
 						</option>
 					))}
 				</select>
+				{terminal ? <TerminalViewSwitch value={props.view} onChange={props.onView} /> : null}
+				{schemes ? <SchemeSwitch value={props.scheme} onChange={props.onScheme} /> : null}
 				<span className={styles.spacer} />
 				<button
 					type="button"
 					className={ui.btn}
-					disabled={!moving}
+					disabled={!moving || Boolean(real)}
 					aria-pressed={p.playing}
 					onClick={() => (p.playing ? p.pause() : p.play())}
 				>
@@ -116,7 +135,21 @@ export function FullScreenBody(props: FullScreenBodyProps) {
 				) : null}
 			</div>
 			<div className={styles.stage}>
-				{pv && step?.layout_tree ? (
+				{real && props.api ? (
+					<TerminalPreview
+						fill
+						autoFocus
+						api={props.api}
+						target={pv.target}
+						page={step.id}
+						state={step.state}
+						label={t('terminal.label', { id: step.id })}
+						onOutcome={(outcome) => {
+							const to = stepFor(outcome);
+							if (to) run.onAction(to);
+						}}
+					/>
+				) : pv && step?.layout_tree ? (
 					<RunStage
 						pv={pv}
 						step={step}
@@ -124,6 +157,7 @@ export function FullScreenBody(props: FullScreenBodyProps) {
 						components={components}
 						renderer={renderer}
 						theme={pv.theme ?? info?.theme}
+						scheme={props.scheme}
 						fit="contain"
 					/>
 				) : (

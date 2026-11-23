@@ -7,7 +7,8 @@ import { lex } from '../editor/luaLex';
 import { validateFlow } from './flowEdit';
 import { resolveForRenderer } from './layoutEdit';
 import { composeScreen } from './stage';
-import { noTerminal, type Api } from './api';
+import type { Api } from './api';
+import { demoTerminal } from './demoTerminal';
 import type {
 	ChangeEvent,
 	Flow,
@@ -168,6 +169,7 @@ export function demoApi(): Api {
 		themes: [
 			{ id: 'fizz-dos', name: 'Fizz DOS', renderers: ['tui-retro'] },
 			{ id: 'fizz-win95', name: 'Fizz Windows 95', renderers: ['win16', 'win32-classic', 'tui'] },
+			{ id: 'fizz-modern', name: 'Fizz Windows 11', renderers: ['web', 'canvas'] },
 		],
 		flows: [...flows.values()].map((f) => ({
 			id: f.id,
@@ -338,8 +340,8 @@ export function demoApi(): Api {
 			return next;
 		},
 		getPreview: async () => preview,
-		// The renderer is Rust, so the browser demo has no terminal to open.
-		...noTerminal,
+		// The renderer is Rust, so the browser demo draws a stand-in screen.
+		...demoTerminal(),
 		checkProject: async () => [...flows.values()].flatMap((f) => validateFlow(f)),
 		history: async () => view(),
 		undo: async () => step(-1),

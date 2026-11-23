@@ -7,7 +7,7 @@ import { t } from '../i18n/messages';
 import type { ComponentInfo, Preview, PreviewStep } from '../lib/types';
 import { cx } from '../ui/cx';
 import ui from '../ui/ui.module.css';
-import { hasMovingParts } from './model';
+import { hasMovingParts, type Scheme } from './model';
 import { PreviewTree } from './PreviewTree';
 import type { Run } from './useRun';
 import styles from './RunStage.module.css';
@@ -62,6 +62,7 @@ export function RunStage({
 	renderer,
 	theme,
 	fit,
+	scheme,
 }: {
 	pv: Preview;
 	step: PreviewStep;
@@ -70,6 +71,7 @@ export function RunStage({
 	renderer: string;
 	theme: string | null | undefined;
 	fit?: 'width' | 'contain';
+	scheme?: Scheme;
 }) {
 	if (!step.layout_tree) return null;
 	return (
@@ -83,6 +85,7 @@ export function RunStage({
 				components,
 				live: run.live,
 				fit,
+				scheme,
 				interact: { mode: 'run', onChange: run.onChange, onAction: run.onAction },
 			}}
 		/>

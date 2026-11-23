@@ -196,6 +196,9 @@ export const enMessages = {
 	// translator: Hint under the real terminal. F6 is a key name, not translated.
 	'terminal.hint':
 		'This is the real terminal output, and the keyboard plays it: Tab, arrows, Space, Enter and Esc. Press F6 to leave it.',
+	// translator: Hint under the real terminal in the full-screen window. Esc and F6 are key names, not translated.
+	'terminal.hintFullScreen':
+		'The keyboard plays the terminal, and Esc goes to the installer. Press F6 to leave the terminal, then Esc to leave full screen.',
 	// translator: Accessible name of the real terminal. {id} is the step or layout it shows.
 	'terminal.label': 'Terminal screen of {id}',
 	'terminal.demoUnavailable':
@@ -343,6 +346,11 @@ export const enMessages = {
 	'preview.speed': 'Speed',
 	'preview.resetChoices': 'Reset choices',
 	'preview.fullScreen': 'Full screen',
+	// translator: Label of the control that picks light or dark colours for a preview. System follows the desktop.
+	'preview.scheme': 'Colours',
+	'preview.schemeSystem': 'System',
+	'preview.schemeLight': 'Light',
+	'preview.schemeDark': 'Dark',
 	'preview.spaceRequired': 'Space required {size} · free after {after}',
 	'preview.notEnoughSpace': 'Not enough space on the drive for this choice.',
 	'preview.selectedComponents': 'Components · {count}',

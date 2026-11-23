@@ -37,8 +37,9 @@ import {
 import type { Layout, LayoutNode } from '../lib/types';
 import { LayoutPreview } from '../preview/PreviewTree';
 import { TerminalPreview, TerminalViewSwitch, type TerminalView } from '../preview/TerminalPreview';
-import { lookFor } from '../preview/model';
-import { useProject, useStudio } from '../app/StudioContext';
+import { hasSchemes, lookFor, type Scheme } from '../preview/model';
+import { SchemeSwitch } from '../preview/SchemeSwitch';
+import { usePreview, useProject, useStudio } from '../app/StudioContext';
 import { cx } from '../ui/cx';
 import text from '../ui/text.module.css';
 import ui from '../ui/ui.module.css';
@@ -567,6 +568,8 @@ export function LayoutsScreen() {
 		if (renderer !== layoutRenderer) studio.project.setState({ layoutRenderer: renderer });
 	}, [renderer, layoutRenderer, studio]);
 	const [view, setView] = useState<TerminalView>('rich');
+	const scheme = usePreview((s) => s.previewScheme);
+	const setScheme = (next: Scheme) => studio.preview.setState({ previewScheme: next });
 	// The real terminal runs on a target that uses this renderer, and reopens after an edit to the
 	// layout or its stage.
 	const tuiTarget = summary.targets.find((x) => x.renderer === renderer)?.full_id;
@@ -607,6 +610,11 @@ export function LayoutsScreen() {
 						{renderer.startsWith('tui') && tuiTarget ? (
 							<TerminalViewSwitch value={view} onChange={setView} />
 						) : null}
+						{hasSchemes(
+							lookFor(renderer, themeId, layout.root.props?.style as string | undefined),
+						) ? (
+							<SchemeSwitch value={scheme} onChange={setScheme} />
+						) : null}
 						<span className={ui.chip}>
 							{t('layouts.look', {
 								look: lookFor(renderer, themeId, layout.root.props?.style as string | undefined),
@@ -630,6 +638,7 @@ export function LayoutsScreen() {
 								renderer={renderer}
 								options={{
 									theme: themeId,
+									scheme,
 									components: summary.components,
 									interact: {
 										mode: 'edit',

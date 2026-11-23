@@ -15,7 +15,8 @@ import {
 	TerminalViewSwitch,
 	type TerminalView,
 } from '../preview/TerminalPreview';
-import { lookFor } from '../preview/model';
+import { hasSchemes, lookFor, type Scheme } from '../preview/model';
+import { SchemeSwitch } from '../preview/SchemeSwitch';
 import preview from '../preview/preview.module.css';
 import { useChromeState, usePreview, useProject, useStudio } from '../app/StudioContext';
 import { cx } from '../ui/cx';
@@ -34,6 +35,8 @@ function FullscreenOverlay({ body, onClose }: { body: OverlayBody; onClose: () =
 	const [native, setNative] = useState(false);
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
+			// Esc the terminal view took, as the installer's own key, is already handled.
+			if (e.defaultPrevented) return;
 			if (e.key === 'Escape' && (e.target as HTMLElement | null)?.tagName !== 'SELECT') onClose();
 		};
 		const onChange = () => setNative(document.fullscreenElement !== null);
@@ -69,7 +72,10 @@ export function PreviewScreen() {
 	const previewStep = usePreview((s) => s.previewStep);
 	const targets = summary.targets;
 	const shown = pv?.steps[previewStep];
-	const [view, setView] = useState<TerminalView>('rich');
+	const view = usePreview((s) => s.previewView);
+	const setView = (next: TerminalView) => studio.preview.setState({ previewView: next });
+	const scheme = usePreview((s) => s.previewScheme);
+	const setScheme = (next: Scheme) => studio.preview.setState({ previewScheme: next });
 	const setStep = (i: number) => studio.preview.setState({ previewStep: i });
 	const run = useRun(pv, summary.components, previewStep, setStep);
 	const fullscreen = usePreview((s) => s.fullscreen);
@@ -80,6 +86,10 @@ export function PreviewScreen() {
 	const skippedCount = pv?.steps.filter((x) => x.skipped).length ?? 0;
 	const renderer = pv?.renderer ?? targetInfo?.renderer ?? 'canvas';
 	const isTui = renderer.startsWith('tui');
+	const treeStyle =
+		typeof shown?.layout_tree?.props?.style === 'string'
+			? shown.layout_tree.props.style
+			: undefined;
 	const real = isTui && view === 'terminal' && pv && shown?.layout && !shown.skipped;
 
 	return (
@@ -114,6 +124,9 @@ export function PreviewScreen() {
 					{t('preview.run')}
 				</button>
 				{isTui ? <TerminalViewSwitch value={view} onChange={setView} /> : null}
+				{hasSchemes(lookFor(renderer, pv?.theme ?? targetInfo?.theme, treeStyle)) ? (
+					<SchemeSwitch value={scheme} onChange={setScheme} />
+				) : null}
 				{pv ? (
 					<span className={stale ? cx(ui.chip, styles.stale) : cx(text.dim, text.small)}>
 						{stale
@@ -201,6 +214,7 @@ export function PreviewScreen() {
 										components={summary.components}
 										renderer={renderer}
 										theme={pv.theme ?? targetInfo?.theme}
+										scheme={scheme}
 									/>
 								</div>
 								<PlaybackBar run={run} step={shown} />
@@ -289,6 +303,11 @@ export function PreviewScreen() {
 						target: previewTarget,
 						index: previewStep,
 						setIndex: setStep,
+						view,
+						onView: setView,
+						scheme,
+						onScheme: setScheme,
+						api: studio.api,
 						onTarget: (target) => {
 							studio.preview.setState({ previewTarget: target });
 							void studio.run(() => studio.runPreview(target));

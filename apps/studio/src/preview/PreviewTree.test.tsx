@@ -126,6 +126,13 @@ describe('lookFor', () => {
 		expect(lookFor('canvas', 'neutral')).toBe('neutral');
 		expect(lookFor('canvas', null, 'neutral')).toBe('neutral');
 	});
+
+	it('gives the Fizz Windows 11 theme, or a root styled win11, the Fluent look on web and canvas', () => {
+		expect(lookFor('web', 'fizz-modern')).toBe('win11');
+		expect(lookFor('canvas', null, 'win11')).toBe('win11');
+		expect(lookFor('tui', 'fizz-modern')).toBe('dos');
+		expect(lookFor('win32-classic', 'fizz-modern')).toBe('win95');
+	});
 });
 
 describe('fill', () => {
@@ -385,5 +392,116 @@ describe('Afterglow and Neutral', () => {
 		};
 		expect(renderLayoutHtml(layout, 'tui-retro')).not.toContain('custom content');
 		expect(renderLayoutHtml(layout, 'canvas')).toContain('custom content');
+	});
+});
+
+describe('the Windows 11 look', () => {
+	const stage: LayoutNode = {
+		kind: 'backdrop',
+		props: { style: 'win11', title: 'Lieutenant Fizz', subtitle: 'Episode One', credit: 'Powered' },
+		children: [
+			{
+				kind: 'meter',
+				bind: 'engine.meter.free_space',
+				props: { label: 'Free space', source: 'free_space', region: 'status', warn_label: 'Low' },
+			},
+			{ kind: 'slot' },
+		],
+	};
+	const page: LayoutNode = {
+		kind: 'window',
+		props: { title: 'Lieutenant Fizz Setup', style: 'win11' },
+		children: [
+			{
+				kind: 'stack',
+				props: { region: 'side' },
+				children: [
+					{ kind: 'text', props: { text: 'Welcome', role: 'step-item', state: 'done' } },
+					{ kind: 'text', props: { text: 'Components', role: 'step-item', state: 'current' } },
+				],
+			},
+			{
+				kind: 'stack',
+				children: [
+					{
+						kind: 'checklist',
+						bind: 'c',
+						props: {
+							label: 'Components',
+							cards: true,
+							control: 'toggle',
+							items: [
+								{ id: 'a', label: 'Game', required: true, checked: true },
+								{ id: 'b', label: 'Levels' },
+							],
+						},
+					},
+					{
+						kind: 'checklist',
+						bind: 'f',
+						props: { label: 'After setup', items: [{ id: 'launch', label: 'Launch' }] },
+					},
+					{ kind: 'button', props: { label: 'Open README', variant: 'link' } },
+					{
+						kind: 'image',
+						props: { label: 'Hero', art, panel: '#101040', variant: 'hero' },
+					},
+				],
+			},
+			{
+				kind: 'stack',
+				props: { region: 'footer', direction: 'row' },
+				children: [
+					{ kind: 'text', props: { text: 'No administrator', role: 'note' } },
+					{ kind: 'button', props: { label: 'Next', default: true } },
+				],
+			},
+		],
+	};
+	const html = (extra: Partial<RenderOptions> = {}): string =>
+		renderToStaticMarkup(
+			<LayoutPreview
+				layout={{ version: 1, id: 'fizz-modern/components', root: page }}
+				stage={{ version: 1, id: 'fizz-modern/stage', root: stage }}
+				renderer="web"
+				options={{ theme: 'fizz-modern', ...extra }}
+			/>,
+		);
+
+	it('draws a Mica window with caption buttons, a rail and the status band', () => {
+		const out = html();
+		expect(out).toContain('data-look="win11"');
+		expect(out).toContain('pvModern');
+		expect(out).toContain('pvKWindow');
+		expect(out).toContain('pvKCaption');
+		expect(out).toContain('pvKRail');
+		expect(out).toContain('pvKStatus');
+		expect(out).toContain('aria-current="step"');
+		expect(out).toContain('Lieutenant Fizz · Episode One');
+	});
+
+	it('follows the system scheme unless one is pinned', () => {
+		expect(html()).toContain('data-scheme="system"');
+		expect(html({ scheme: 'dark' })).toContain('data-scheme="dark"');
+		expect(html({ scheme: 'light' })).toContain('data-scheme="light"');
+	});
+
+	it('draws optional components as toggles and other checklists as checkboxes', () => {
+		const out = html();
+		expect(out.match(/pvSwitch/g)?.length).toBe(2);
+		expect(out).toContain('pvToggles');
+		expect(out).toContain('pvLocked');
+		expect(out.match(/pvBox/g)?.length).toBe(1);
+	});
+
+	it('draws a link button and a hero image', () => {
+		const out = html();
+		expect(out).toContain('pvLink');
+		expect(out).toContain('pvHero');
+	});
+
+	it('badges free space as Low when the drive is nearly full', () => {
+		expect(html({ live: { freeSpace: 0.02 } })).toContain('pvLow');
+		expect(html({ live: { freeSpace: 0.6 } })).not.toContain('pvLow');
 	});
 });
