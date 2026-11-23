@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 
 use li_model::Node;
 use ratatui::buffer::Buffer;
@@ -11,6 +11,7 @@ use ratatui::layout::{Position, Rect};
 use ratatui::style::{Color, Style};
 
 use crate::bindings::{Bindings, get_fraction, get_str};
+use crate::flatten::Widget;
 use crate::glyphs::{Glyphs, Palette};
 use crate::screen::{Control, Screen, accessible_name, items_of, prop_str, prop_u16, resolve};
 
@@ -28,6 +29,8 @@ struct Ctx<'a> {
 	cursors: &'a [usize],
 	controls: &'a [Control],
 	counter: Cell<usize>,
+	/// Set when flattening: dynamic widgets are recorded instead of drawn.
+	rec: Option<&'a RefCell<Vec<Widget>>>,
 }
 
 /// A buffer with a clip rectangle, so drawing past an edge is harmless.
@@ -188,6 +191,46 @@ fn billboard_line(node: &Node, cx: &Ctx) -> String {
 	items[idx % items.len()].clone()
 }
 
+/// The height a flattened document (`text` with a `source`) reserves.
+const DOCUMENT_LINES: u16 = 8;
+
+/// Every slide's text, for sizing a billboard that rotates.
+fn billboard_lines(node: &Node) -> Vec<String> {
+	let strings = |k: &str| -> Vec<String> {
+		node.props
+			.get(k)
+			.and_then(|v| v.as_array())
+			.map(|a| {
+				a.iter()
+					.filter_map(|v| v.as_str().map(str::to_owned))
+					.collect()
+			})
+			.unwrap_or_default()
+	};
+	let items = strings("items");
+	if !items.is_empty() {
+		return items;
+	}
+	let captions: Vec<String> = node
+		.props
+		.get("captions")
+		.and_then(|v| v.as_array())
+		.map(|a| {
+			a.iter()
+				.map(|c| {
+					let part = |k: &str| c.get(k).and_then(|v| v.as_str()).unwrap_or_default();
+					format!("{} — {}", part("title"), part("text"))
+				})
+				.collect()
+		})
+		.unwrap_or_default();
+	if captions.is_empty() {
+		vec![text_of(node)]
+	} else {
+		captions
+	}
+}
+
 fn stack_size(children: &[Node], horizontal: bool, gap: u16, max_w: u16, cx: &Ctx) -> Size {
 	let mut size = Size::default();
 	let mut count = 0u16;
@@ -278,6 +321,10 @@ fn list_size(node: &Node) -> Size {
 
 fn measure(node: &Node, max_w: u16, cx: &Ctx) -> Size {
 	match node.kind.as_str() {
+		"text" if cx.rec.is_some() && node.props.contains_key("source") => Size {
+			w: max_w,
+			h: prop_u16(node, "lines").unwrap_or(DOCUMENT_LINES),
+		},
 		"text" => {
 			let lines = wrap(&text_of(node), max_w);
 			Size {
@@ -307,10 +354,18 @@ fn measure(node: &Node, max_w: u16, cx: &Ctx) -> Size {
 		},
 		"billboard" => {
 			let w = max_w.min(prop_u16(node, "width").unwrap_or(44)).max(5);
-			let lines = wrap(&billboard_line(node, cx), w - 4);
+			let lines = if cx.rec.is_some() {
+				billboard_lines(node)
+					.iter()
+					.map(|l| wrap(l, w - 4).len())
+					.max()
+					.unwrap_or(1)
+			} else {
+				wrap(&billboard_line(node, cx), w - 4).len()
+			};
 			Size {
 				w,
-				h: lines.len() as u16 + 2,
+				h: lines as u16 + 2,
 			}
 		}
 		"stack" => stack_size(
@@ -417,6 +472,32 @@ fn draw(node: &Node, r: Rect, surface: Style, cx: &Ctx, pt: &mut Painter) {
 		cx.counter.set(i + 1);
 		i
 	});
+	if let Some(rec) = cx.rec {
+		let tpl = crate::flatten::template_of(node);
+		let dynamic = match tpl.kind.as_str() {
+			"button" | "checklist" | "radio" | "field" | "path" | "meter" | "progress"
+			| "billboard" => true,
+			"text" => text_of(&tpl).contains('{') || tpl.props.contains_key("source"),
+			_ => false,
+		};
+		if dynamic {
+			rec.borrow_mut().push(Widget {
+				x: r.x,
+				y: r.y,
+				w: r.width,
+				h: r.height,
+				limit_right: pt.clip.right(),
+				attr: crate::flatten::attr_of(surface),
+				control: control_index,
+				node: Node {
+					children: Vec::new(),
+					overrides: Default::default(),
+					..tpl
+				},
+			});
+			return;
+		}
+	}
 	let focused = control_index.is_some() && control_index == cx.focus;
 	let colour = surface != Style::new();
 	let pt_clip = pt.clip;
@@ -789,6 +870,7 @@ impl Screen {
 			cursors: &self.cursors,
 			controls: &controls,
 			counter: Cell::new(0),
+			rec: None,
 		};
 		let mut pt = Painter { buf, clip: area };
 		pt.fill(area, cx.p.base);
@@ -829,6 +911,81 @@ impl Screen {
 				line.trim_end(),
 				cx.p.status,
 			);
+		}
+	}
+
+	/// Draws the screen once into `width` by `height` cells for a runtime that has no layout
+	/// engine. The last row is left for the runtime's status line, and every dynamic widget is
+	/// recorded with its rectangle instead of being drawn.
+	///
+	/// `known` fills the placeholders whose values are known now; `samples` fills the others with
+	/// stand-ins of a typical length, so the layout leaves room for the live values. A widget keeps
+	/// the text with only the known values filled in.
+	pub fn flatten(
+		&self,
+		known: &dyn Bindings,
+		samples: &dyn Bindings,
+		width: u16,
+		height: u16,
+	) -> crate::flatten::Flat {
+		let b = samples;
+		let area = Rect::new(0, 0, width, height);
+		let mut buf = Buffer::empty(area);
+		let controls: Vec<Control> = self.controls.iter().map(|c| c.interpolated(b)).collect();
+		let rec = RefCell::new(Vec::new());
+		let cx = Ctx {
+			g: self.look.glyphs(),
+			p: self.look.palette(),
+			b,
+			focus: None,
+			cursors: &self.cursors,
+			controls: &controls,
+			counter: Cell::new(0),
+			rec: Some(&rec),
+		};
+		let mut pt = Painter {
+			buf: &mut buf,
+			clip: area,
+		};
+		pt.fill(area, cx.p.base);
+		let content = Rect::new(0, 0, width, height.saturating_sub(1));
+		let templ = crate::interp::interpolate_node(&self.root, known);
+		let mut sampled = crate::interp::interpolate_node(&templ, samples);
+		crate::flatten::mark(&mut sampled, &templ);
+		let root = &sampled;
+		match root.kind.as_str() {
+			"window" | "backdrop" => draw(root, content, cx.p.base, &cx, &mut pt),
+			_ => {
+				let s = measure(root, content.width.saturating_sub(2), &cx);
+				let dx = content.width.saturating_sub(s.w) / 2;
+				let dy = content.height.saturating_sub(s.h) / 2;
+				draw(
+					root,
+					sub(content, dx, dy, s.w, s.h),
+					cx.p.base,
+					&cx,
+					&mut pt,
+				);
+			}
+		}
+		pt.clip = Rect::new(0, 0, width, height);
+		let status = cx.p.status;
+		pt.fill(Rect::new(0, height.saturating_sub(1), width, 1), status);
+		let mut cells = Vec::with_capacity(usize::from(width) * usize::from(height));
+		for y in 0..height {
+			for x in 0..width {
+				let c = &buf[(x, y)];
+				cells.push(crate::flatten::FlatCell {
+					symbol: c.symbol().to_owned(),
+					attr: crate::flatten::attr_of(c.style()),
+				});
+			}
+		}
+		crate::flatten::Flat {
+			width,
+			height,
+			cells,
+			widgets: rec.into_inner(),
 		}
 	}
 }

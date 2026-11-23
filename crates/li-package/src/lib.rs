@@ -14,6 +14,7 @@
 //! | [`wix`] | WiX v4 `.wxs` source |
 //! | [`msix`] | MSIX `AppxManifest.xml` |
 //! | [`macos`] | `.pkg` distribution XML and the installer `.app`'s `Info.plist` |
+//! | [`dos`] | a stored zip and a FAT12 1.44 MB floppy image for the DOS runtime |
 //! | [`freebsd`] | `+MANIFEST` for `pkg create` |
 //!
 //! Every native package ships the receipt of `SPEC.md` §9 in its payload, so the themed
@@ -21,6 +22,7 @@
 
 pub mod arch;
 pub mod deb;
+pub mod dos;
 pub mod freebsd;
 mod info;
 pub mod macos;

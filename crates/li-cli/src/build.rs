@@ -34,6 +34,9 @@ pub struct BuildRequest<'a> {
 	/// extracts the runner and the `.lip`, and the runner walks the install flow. Without it the
 	/// `.run` only extracts the files and a receipt.
 	pub engine: Option<PathBuf>,
+	/// The `SETUP.EXE` to carry in a DOS target's outputs; without it one is found or built (see
+	/// `crate::dos`).
+	pub dos_runtime: Option<PathBuf>,
 }
 
 /// One file (or tree) a build wrote, or an output it could not write.
@@ -101,6 +104,15 @@ pub fn resolve_version(project: &Project, explicit: Option<&str>) -> Result<Stri
 
 impl Builder for NativeBuilder {
 	fn build(&self, req: &BuildRequest) -> Result<Vec<BuiltArtefact>, BuildError> {
+		if req.target.renderer == "tui-retro" {
+			let outputs = if !req.outputs.is_empty() {
+				req.outputs.clone()
+			} else {
+				req.target.outputs.clone()
+			};
+			std::fs::create_dir_all(&req.out_dir).map_err(|e| PackageError::io(&req.out_dir, e))?;
+			return crate::dos::build(req, &outputs, &req.out_dir);
+		}
 		let mut info = PackageInfo::from_project(
 			&req.project.installer,
 			&req.project.components,

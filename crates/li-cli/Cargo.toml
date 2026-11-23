@@ -25,6 +25,7 @@ li-engine.workspace = true
 li-pack.workspace = true
 li-render-tui.workspace = true
 li-package.workspace = true
+li-retro-build.workspace = true
 li-studio.workspace = true
 clap.workspace = true
 serde.workspace = true

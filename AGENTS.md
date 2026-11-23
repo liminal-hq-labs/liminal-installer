@@ -98,6 +98,7 @@ Use `#` comments for shell, YAML, TOML and Dockerfiles, and an XML comment for S
 - **Themes cannot add operations.** A theme draws pages and plays media. Only components and scripts put operations in a plan.
 - **Scripts get only declared capabilities.** A Lua script runs in a sandbox and holds only what its `-- capabilities:` header names. Writing files goes through the plan.
 - **Wire types are generated.** A Rust type the Studio UI or an MCP client receives derives `ts_rs::TS`, and its TypeScript is generated into `packages/protocol`, never written by hand. Failed commands and tools carry `{ kind, message }` (`StudioError`).
+- **The DOS runtime is Rust, and its foundation is a copy.** `dos/` is refreshed only by the steps in `dos/PROVENANCE.md`. The portable parts live in `li-retro` (`no_std` plus `alloc`, tested on the host); `dos/setup` holds only what touches the machine. No Lua on DOS: a step names a `builtin:` action.
 - **Vendored chrome is refreshed by its recipe.** `packages/chrome` changes only by the steps in its `PROVENANCE.md`, never by hand. The Studio imports it by deep path.
 - **Every visible string is in the catalogue.** UI text comes from `apps/studio/src/i18n/messages.ts` through `t('area.key')` (en-CA, sentence case), never a literal in JSX. `bun run check:i18n` enforces it; look at a layout with `?locale=en-XA` and `?locale=ar-XB` in a development build.
 - **Styles are CSS Modules** next to the component, over the `--lis-*` tokens in `src/theme/tokens.css`. The tokens come from `bun run tokens`; do not edit the generated file.
@@ -114,6 +115,7 @@ Use `#` comments for shell, YAML, TOML and Dockerfiles, and an XML comment for S
 - `cargo nextest run --workspace --locked --profile ci` — what CI runs (`.config/nextest.toml`: one retry, no fail-fast, JUnit at `target/nextest/ci/junit.xml`)
 - `cd apps/studio/src-tauri && cargo check && cargo clippy -- -D warnings` — the Tauri shell
 - `bash scripts/e2e-linux.sh` (or `make e2e-linux`) — install, update, repair and uninstall in a Debian container
+- `make dos` — the DOS runtime: `dos/tools/fetch-tools.sh`, `dos/check.sh` (format, clippy, build, `SETUP.EXE` under headless DOSBox) and `dos/tools/e2e.sh` (Lt. Fizz installed and removed under DOSBox with typed keys, screens compared with the host goldens). `DOS_VENDOR` and `CARGO_TARGET_DIR` keep the tools and the build output out of the checkout. The DOS crates build with `RUSTC_BOOTSTRAP=1` and `-Zbuild-std` (see `dos/.cargo/config.toml`)
 - `bash scripts/check-banner.sh` — hero banner rules and text fit (needs `xmllint`, `rsvg-convert`, `python3` and Chromium; `--shots DIR` writes frames to look at)
 - `docker run --rm -v "$PWD:/workdir" davidanson/markdownlint-cli2:v0.17.2 "**/*.md"` — markdown
 - `docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:stable scripts/*.sh` — shell scripts
@@ -133,11 +135,13 @@ State exactly what was and was not run when reporting results.
 README.md SPEC.md AGENTS.md CLAUDE.md LICENSE-APACHE LICENSE-MIT Makefile
 .editorconfig .markdownlint.jsonc .gitignore rustfmt.toml rust-toolchain.toml
 crates/        li-model, li-engine, li-script, li-render-tui, li-pack, li-package, li-cli (`liminst`),
-               li-runner (`liminal-engine`), li-studio (the Studio's editing core), li-examples-test
+               li-runner (`liminal-engine`), li-studio (the Studio's editing core), li-examples-test,
+               li-retro (the `no_std` DOS runtime core) and li-retro-build (its compiler)
 apps/studio/   the Studio: index.html, vite.config.ts, src/ (React) and src-tauri/ (the desktop shell)
 packages/      chrome/ (`@liminal-hq/studio-chrome`, vendored, see its PROVENANCE.md) and protocol/ (`@liminal-hq/installer-protocol`: ts-rs bindings, generated, committed)
 examples/      lt-fizz, planboard and neutral projects
-retro/         the DOS runtime scaffold and its build container
+dos/           the DOS runtime: Desk's Rust-on-DOS foundation (PROVENANCE.md), `rt`, `setup` (`SETUP.EXE`); its own Cargo workspace
+retro/         the Open Watcom spike and its build container (Windows 3.1, which stays C)
 assets/        hero banner
 docs/          decisions and project notes
 scripts/       header check, banner check, bindings generation and drift check, packaging and end-to-end scripts

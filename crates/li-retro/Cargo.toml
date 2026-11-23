@@ -1,0 +1,26 @@
+# The portable core of the DOS runtime: the compiled project format, the flow VM, the text-mode renderer and the installer engine.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[package]
+name = "li-retro"
+description = "The retro runtime core (no_std plus alloc): compiled project format, flow VM, text-mode renderer and installer engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[features]
+default = ["std"]
+# The host build: the encoder's compressor, the `HostPlatform` simulator and tests. The DOS build turns it off.
+std = ["miniz_oxide/std", "serde/std", "postcard/use-std"]
+
+[dependencies]
+serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
+postcard = { version = "1", default-features = false, features = ["alloc"] }
+miniz_oxide = { version = "0.8", default-features = false, features = ["with-alloc"] }
+
+[dev-dependencies]
+tempfile.workspace = true

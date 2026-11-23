@@ -149,6 +149,9 @@ pub struct BuildArgs {
 	/// The `liminal-engine` runner to carry in the `.run`; without it the `.run` only extracts
 	#[arg(long, value_name = "PATH")]
 	pub engine: Option<PathBuf>,
+	/// The `SETUP.EXE` DOS runtime to carry in a DOS target's outputs; without it one is found or built from `dos/`
+	#[arg(long, value_name = "PATH")]
+	pub dos_runtime: Option<PathBuf>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -359,6 +362,7 @@ pub fn execute(cli: &Cli) -> CliResult<u8> {
 				out_dir,
 				outputs: a.outputs.clone(),
 				engine: a.engine.clone(),
+				dos_runtime: a.dos_runtime.clone(),
 			};
 			let built = NativeBuilder
 				.build(&req)

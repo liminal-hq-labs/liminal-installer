@@ -39,18 +39,22 @@
 //!
 //! Every control's accessible name is its `name`, `label` or `text` property, in that order.
 
+mod artboard;
 mod bindings;
 mod cells;
 mod draw;
 mod dump;
+mod flatten;
 mod glyphs;
 mod interp;
 mod run;
 mod screen;
 
+pub use artboard::{SIDE_WIDTH, flatten_artboard, nearest_vga};
 pub use bindings::{Bindings, MapBindings};
 pub use cells::{Cell, CellGrid, Colour, Modifiers, render_cells};
 pub use dump::{dump, dump_with_controls};
+pub use flatten::{DEFAULT_ATTR, Flat, FlatCell, Widget, attr_of};
 pub use glyphs::Look;
 pub use interp::{interpolate, interpolate_node};
 pub use run::{PageResult, Tick, TickResult, run_page};

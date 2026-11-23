@@ -232,6 +232,9 @@ fn slug_of(eng: &li_engine::Project) -> String {
 		.to_owned()
 }
 
+/// The sample machine's `BLASTER` variable, which the scripts and `builtin:detect-sound` read.
+const SAMPLE_BLASTER: &str = "A220 I5 D1 T4";
+
 fn script_env(target: &Target, install: &Path, version: &str) -> BTreeMap<String, String> {
 	let (os, arch) = target.id.split_once('-').unwrap_or((&target.id, ""));
 	BTreeMap::from([
@@ -241,7 +244,7 @@ fn script_env(target: &Target, install: &Path, version: &str) -> BTreeMap<String
 		("install".to_owned(), install.to_string_lossy().into_owned()),
 		("version".to_owned(), version.to_owned()),
 		// The sample machine has a Sound Blaster, as DOS drivers read it.
-		("BLASTER".to_owned(), "A220 I5 D1 T4".to_owned()),
+		("BLASTER".to_owned(), SAMPLE_BLASTER.to_owned()),
 	])
 }
 
@@ -344,6 +347,16 @@ fn walk_install(
 							.at_step(&step.id),
 					),
 				}
+			}
+			if step.on_enter.as_deref() == Some("builtin:detect-sound") {
+				// What the DOS runtime finds on the sample machine.
+				let field =
+					|tag| li_retro::sound::blaster_field(SAMPLE_BLASTER, tag).unwrap_or_default();
+				state.insert("sound.card".into(), json!("sbpro"));
+				state.insert("sound.port".into(), json!(field('A')));
+				state.insert("sound.irq".into(), json!(field('I')));
+				state.insert("sound.dma".into(), json!(field('D')));
+				state.insert("sound.detected".into(), json!("Sound Blaster"));
 			}
 			if step.kind == StepType::Branch {
 				for b in &step.branches {
@@ -992,14 +1005,21 @@ mod tests {
 		let p = open("lt-fizz");
 		let pv = EngineBackend.run_preview(&p, "dos-x86:tui-retro").unwrap();
 		assert!(pv.problems.iter().all(|x| !x.message.starts_with("detect")));
+		// A project that still runs the Lua hook, on a target that runs scripts.
 		let broken = {
 			let dir = tempfile::tempdir().unwrap();
 			copy_dir(&examples().join("lt-fizz"), dir.path());
+			let flow = dir.path().join("installer/flows/install.flow.json");
+			let src = std::fs::read_to_string(&flow).unwrap();
+			let src = src
+				.replace("builtin:detect-sound", "scripts/sound-setup.lua#detect")
+				.replace("target.renderer in ['tui-retro', 'win16']", "true");
+			std::fs::write(&flow, src).unwrap();
 			let script = dir.path().join("installer/scripts/sound-setup.lua");
 			let src = std::fs::read_to_string(&script).unwrap();
 			std::fs::write(&script, src.replace("li.env.get", "li.net.get")).unwrap();
 			let p = Project::open(&dir.path().join("installer")).unwrap();
-			EngineBackend.run_preview(&p, "dos-x86:tui-retro").unwrap()
+			EngineBackend.run_preview(&p, "linux-x86_64:tui").unwrap()
 		};
 		assert!(
 			broken

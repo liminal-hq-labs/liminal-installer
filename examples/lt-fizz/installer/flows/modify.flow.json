@@ -13,6 +13,7 @@
 			"id": "ready",
 			"type": "page",
 			"layout": "ready",
+			"on_enter": "builtin:check-disk-space",
 			"next": "copying"
 		},
 		{

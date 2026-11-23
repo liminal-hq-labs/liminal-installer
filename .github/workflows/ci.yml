@@ -209,3 +209,48 @@ jobs:
         with:
           name: event-file
           path: ${{ github.event_path }}
+
+  # The DOS runtime. The host tests of its crates always run. The DOSBox run needs DOSBox Staging and CWSDPMI from dos/tools/fetch-tools.sh;
+  # when they cannot be fetched the run is skipped with a warning and the job still passes.
+  dos:
+    name: DOS runtime
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Install the pinned Rust toolchain and the disk tools the tests use
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustup component add rust-src
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq dosfstools mtools unzip xz-utils
+
+      - name: Cache Rust build output
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: liminal-installer-dos
+
+      - name: Test the DOS crates on the host
+        run: |
+          cargo test --locked -p li-retro -p li-retro-build -p li-package
+          cargo test --locked -p li-cli --test dos
+
+      - name: Fetch the DOS tools
+        id: tools
+        continue-on-error: true
+        run: bash dos/tools/fetch-tools.sh
+
+      - name: Format, lints, build and run SETUP.EXE under DOSBox
+        run: bash dos/check.sh
+
+      - name: Install and uninstall Lt. Fizz under DOSBox
+        if: steps.tools.outcome == 'success'
+        run: bash dos/tools/e2e.sh
+
+      - name: Say that the DOSBox run was skipped
+        if: steps.tools.outcome != 'success'
+        run: echo "::warning::The DOS tools could not be fetched, so the DOSBox run was skipped."
