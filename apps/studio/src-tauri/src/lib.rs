@@ -19,7 +19,8 @@ use li_studio::mcp::McpInfo;
 use li_studio::studio::{FlowView, HistoryView, ProjectSummary, TargetInfo};
 use li_studio::{
 	EngineBackend, ErrorKind, Preview, Problem, ScriptDiagnostic, ScriptReport, Source, Studio,
-	StudioError, TuiFrame, TuiKey, TuiKeyResult, TuiOpened, scaffold,
+	StudioError, TauriImportResult, TauriSettingsChange, TauriView, TuiFrame, TuiKey, TuiKeyResult,
+	TuiOpened, scaffold,
 };
 use serde::Serialize;
 use tauri::{Emitter, Manager, State};
@@ -158,6 +159,31 @@ fn tui_session_close(state: State<AppState>, session: String) {
 #[tauri::command]
 fn check_project(state: State<AppState>) -> Res<Vec<Problem>> {
 	state.studio.check_project()
+}
+
+#[tauri::command]
+fn get_tauri(state: State<AppState>) -> Res<TauriView> {
+	state.studio.tauri_view()
+}
+
+#[tauri::command]
+fn import_tauri(
+	state: State<AppState>,
+	config: Option<String>,
+	label: String,
+) -> Res<TauriImportResult> {
+	state
+		.studio
+		.tauri_import(config.as_deref(), &label, Source::Ui)
+}
+
+#[tauri::command]
+fn set_tauri_settings(
+	state: State<AppState>,
+	change: TauriSettingsChange,
+	label: String,
+) -> Res<TauriView> {
+	state.studio.tauri_set(change, &label, Source::Ui)
 }
 
 #[tauri::command]
@@ -333,6 +359,9 @@ pub fn run() {
 			tui_session_resize,
 			tui_session_close,
 			check_project,
+			get_tauri,
+			import_tauri,
+			set_tauri_settings,
 			history,
 			undo,
 			redo,

@@ -9,6 +9,7 @@ export const ICON_PATHS = {
 	flow: 'M3 3h4v3H3zM9 10h4v3H9zM7 4.5h2.5V10',
 	layouts: 'M2 3h12v10H2zM2 6h12M6 6v7',
 	code: 'M5 4L2 8l3 4M11 4l3 4-3 4M9 3l-2 10',
+	package: 'M8 2l5 2.5v7L8 14l-5-2.5v-7zM3 4.5L8 7l5-2.5M8 7v7',
 	eye: 'M8 3C4 3 2 8 2 8s2 5 6 5 6-5 6-5-2-5-6-5zM8 6a2 2 0 100 4 2 2 0 000-4z',
 	newProject: 'M4 2.5h5l3 3v8H4zM9 2.5v3h3M8 8v4M6 10h4',
 	recent: 'M8 2.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM8 5v3l2 1.5',

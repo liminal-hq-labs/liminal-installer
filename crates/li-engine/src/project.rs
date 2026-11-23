@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use li_model::{
-	Component, ComponentsFile, Flow, InstallerFile, Layout, Target, ThemeFile,
+	Component, ComponentsFile, Flow, InstallerFile, Layout, Target, TauriSnapshot, ThemeFile,
 	project::VersionSource, theme::STAGE_LAYOUT,
 };
 
@@ -39,6 +39,8 @@ pub struct Project {
 	pub themes: BTreeMap<String, ThemeData>,
 	/// Lua sources keyed by project-relative path such as `scripts/setup.lua`.
 	pub scripts: BTreeMap<String, String>,
+	/// What `liminst import tauri` read, from `tauri.json`, when the project has one.
+	pub tauri_snapshot: Option<TauriSnapshot>,
 }
 
 fn read_text(path: &Path) -> Result<String> {
@@ -160,6 +162,16 @@ impl Project {
 			}
 		}
 
+		let snapshot_path = installer_dir.join(TauriSnapshot::PATH);
+		let tauri_snapshot = if snapshot_path.is_file() {
+			Some(
+				serde_json::from_str(&read_text(&snapshot_path)?)
+					.map_err(|e| parse_err(&snapshot_path, e))?,
+			)
+		} else {
+			None
+		};
+
 		Ok(Project {
 			root: dir.to_owned(),
 			dir: installer_dir,
@@ -170,6 +182,7 @@ impl Project {
 			layouts,
 			themes,
 			scripts,
+			tauri_snapshot,
 		})
 	}
 

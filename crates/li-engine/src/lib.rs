@@ -46,6 +46,7 @@ pub mod project;
 pub mod real;
 pub mod scripts;
 pub mod sim;
+pub mod tauri;
 
 pub use check::{Diagnostic, Severity, check};
 pub use cond::{CondContext, CondError, Expr};
@@ -55,11 +56,11 @@ pub use fault::FaultMachine;
 pub use flow::{Action, CommitFn, FlowEnv, FlowOutcome, FlowRunner, HeadlessUi, State, Ui};
 pub use lifecycle::{
 	InstallRequest, LaunchOutcome, RepairReport, UpdateInfo, find_update, install, launch, modify,
-	preview, read_receipt, repair, system_info, uninstall, update,
+	preview, read_receipt, reconcile_receipt, repair, system_info, uninstall, update,
 };
 pub use machine::{Dirs, Machine, NodeKind, Resolver};
 pub use payload::{DirPayload, LipPayload, MemPayload, Payload, expand_sources, pack_payload};
-pub use plan::{build_plan, op_key, receipt_path, select_components};
+pub use plan::{build_plan, build_plan_scoped, op_key, receipt_path, select_components};
 pub use progress::{Phase, Progress, RunOptions};
 pub use project::{Project, ThemeData};
 pub use real::RealMachine;

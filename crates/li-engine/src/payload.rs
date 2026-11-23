@@ -224,8 +224,14 @@ pub fn expand_sources(payload: &dyn Payload, pattern: &str) -> Vec<(String, Stri
 pub fn pack_payload(project: &Project, target: &str) -> Result<Vec<u8>> {
 	let dir = DirPayload::new(&project.dir)?;
 	let mut builder = LipBuilder::new();
+	let tauri =
+		crate::tauri::plan::WindowsTauri::of(project, target, project.installer.defaults.scope);
 	for component in &project.components.components {
 		if !component.applies_to(target) {
+			continue;
+		}
+		// A wrapped Tauri setup carries the app's files itself.
+		if tauri.as_ref().map(|t| t.skips(component)) == Some(crate::tauri::plan::Skip::All) {
 			continue;
 		}
 		for rule in &component.files {
@@ -238,6 +244,12 @@ pub fn pack_payload(project: &Project, target: &str) -> Result<Vec<u8>> {
 				let data = dir.read(&src)?;
 				builder.add(&src, data, dir.executable(&src))?;
 			}
+		}
+	}
+	if let Some(t) = &tauri {
+		for src in crate::tauri::plan::payload_files(t, &dir)? {
+			let data = dir.read(&src)?;
+			builder.add(&src, data, dir.executable(&src))?;
 		}
 	}
 	Ok(builder.build()?)

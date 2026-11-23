@@ -1,0 +1,70 @@
+{
+	"version": 1,
+	"sources": [
+		{
+			"path": "tauri.conf.json",
+			"sha256": "11791f4b1b43016e443836a311457f249adea722b74a329f19ef093f5e662f80"
+		},
+		{
+			"path": "tauri.windows.conf.json",
+			"sha256": "311b642e4b4325c3daa4907883d917adf30681f97eeb68cd0deb81d538a2b1c5"
+		}
+	],
+	"product_name": "Plume Notes",
+	"identifier": "ca.liminalhq.plumenotes",
+	"app_version": "0.4.2",
+	"main_binary_name": "plume-notes",
+	"publisher": "Liminal HQ",
+	"homepage": "https://example.org/plume",
+	"description": "Quick notes that sync when you are back online",
+	"targets": [
+		"nsis",
+		"deb",
+		"app"
+	],
+	"windows": {
+		"webview2": {
+			"mode": "embedBootstrapper",
+			"silent": true,
+			"min_version": "110.0.1587.40"
+		},
+		"install_mode": "both",
+		"allow_downgrades": true,
+		"has_installer_hooks": false,
+		"has_custom_template": false
+	},
+	"resources": [
+		{
+			"from": "assets/*",
+			"to": "assets/"
+		},
+		{
+			"from": "licences/NOTICE.txt",
+			"to": "licences/NOTICE.txt"
+		}
+	],
+	"external_bin": [
+		"binaries/plume-sync"
+	],
+	"file_associations": [
+		{
+			"ext": [
+				"plume"
+			],
+			"name": "Plume note",
+			"description": "Plume note",
+			"mime_type": "application/x-plume"
+		}
+	],
+	"deep_link_schemes": [
+		"plume"
+	],
+	"updater": {
+		"endpoints": [
+			"https://example.org/plume/latest.json"
+		],
+		"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZBS0VGQUtFRkFLRQo=",
+		"windows_install_mode": "passive",
+		"create_artifacts": true
+	}
+}

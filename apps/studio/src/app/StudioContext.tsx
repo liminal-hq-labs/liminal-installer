@@ -10,6 +10,7 @@ import type { PreviewState } from '../stores/preview';
 import type { ProjectState } from '../stores/project';
 import type { ScriptState } from '../stores/script';
 import type { Studio } from '../stores/studio';
+import type { TauriState } from '../stores/tauri';
 import type { ToastState } from '../stores/toasts';
 
 const StudioContext = createContext<Studio | null>(null);
@@ -32,6 +33,10 @@ export function usePreview<T>(select: (state: PreviewState) => T): T {
 
 export function useScript<T>(select: (state: ScriptState) => T): T {
 	return useStore(useStudio().script, select);
+}
+
+export function useTauri<T>(select: (state: TauriState) => T): T {
+	return useStore(useStudio().tauri.store, select);
 }
 
 export function useToast<T>(select: (state: ToastState) => T): T {

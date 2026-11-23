@@ -72,8 +72,47 @@ pub trait Machine {
 
 	fn launch(&mut self, path: &Path, args: &[String]) -> io::Result<()>;
 
+	/// Runs a program to completion and returns its exit code. Used for installers the engine
+	/// wraps (a Tauri NSIS setup, the WebView2 bootstrapper), so a dry run can answer for them.
+	fn run(&mut self, program: &Path, args: &[String]) -> io::Result<i32>;
+
+	/// One registry value: `name` under `key` (`HKLM\SOFTWARE\...`); `""` is the default value.
+	/// Values the engine wrote itself (`registry.set` operations) read back the same way.
+	fn registry_value(&self, key: &str, name: &str) -> Option<String> {
+		let stored = self.registry_get(&registry_entry_key(key, name))?;
+		Some(decode_registry_value(&stored))
+	}
+
+	/// Fetches `url` to `dest` with `curl` (Windows 10 and later ship `curl.exe`).
+	fn download(&mut self, url: &str, dest: &Path) -> io::Result<()> {
+		let args = [
+			"-fsSL".to_owned(),
+			"-o".to_owned(),
+			dest.to_string_lossy().into_owned(),
+			url.to_owned(),
+		];
+		match self.run(Path::new("curl"), &args)? {
+			0 => Ok(()),
+			code => Err(io::Error::other(format!("curl exited with {code}"))),
+		}
+	}
+
 	/// Read-only file access for scripts.
 	fn script_fs(&self) -> Arc<dyn ScriptFs>;
+}
+
+/// The registry stand-in's key for one value, the same form `registry.set` operations use.
+pub fn registry_entry_key(key: &str, name: &str) -> String {
+	format!("registry:{key}:{name}")
+}
+
+/// A stored value is either the raw text a test or a platform put there, or the JSON of the
+/// `registry.set` operation the engine wrote.
+fn decode_registry_value(stored: &str) -> String {
+	match serde_json::from_str::<li_model::Operation>(stored) {
+		Ok(li_model::Operation::RegistrySet { value, .. }) => value,
+		_ => stored.to_owned(),
+	}
 }
 
 /// Creates `path` and any missing parents, without journaling. For scratch space only.

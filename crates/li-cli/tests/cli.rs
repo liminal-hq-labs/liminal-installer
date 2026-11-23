@@ -675,3 +675,147 @@ fn studio_mcp_prints_the_address_and_token_then_serves() {
 	assert!(reply.starts_with("HTTP/1.1 200"), "{reply}");
 	assert!(reply.contains("get_flow"), "{reply}");
 }
+
+// Tauri apps: `import tauri`, the drift check and the Windows plan.
+
+fn tauri_project() -> TempDir {
+	fn copy(from: &Path, to: &Path) {
+		std::fs::create_dir_all(to).unwrap();
+		for e in std::fs::read_dir(from).unwrap() {
+			let e = e.unwrap();
+			let dest = to.join(e.file_name());
+			if e.file_type().unwrap().is_dir() {
+				copy(&e.path(), &dest);
+			} else {
+				std::fs::copy(e.path(), dest).unwrap();
+			}
+		}
+	}
+	let dir = tempfile::tempdir().unwrap();
+	copy(
+		&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/tauri-notes"),
+		dir.path(),
+	);
+	dir
+}
+
+#[test]
+fn import_tauri_is_idempotent_and_reports_what_it_did() {
+	let dir = tauri_project();
+	let before = std::fs::read_to_string(dir.path().join("installer/tauri.json")).unwrap();
+	let out = liminst(dir.path())
+		.args(["import", "tauri", "src-tauri/tauri.conf.json", "--json"])
+		.assert()
+		.success()
+		.get_output()
+		.stdout
+		.clone();
+	let report = json_of(&out);
+	assert_eq!(report["first_import"], false);
+	assert_eq!(report["changes"].as_array().unwrap().len(), 0);
+	assert_eq!(
+		report["components"],
+		serde_json::json!(["tauri-app", "tauri-app-windows"])
+	);
+	assert_eq!(
+		std::fs::read_to_string(dir.path().join("installer/tauri.json")).unwrap(),
+		before
+	);
+}
+
+#[test]
+fn check_reports_a_stale_import_until_it_is_imported_again() {
+	let dir = tauri_project();
+	let clean = liminst(dir.path())
+		.args(["check", "--json"])
+		.assert()
+		.success()
+		.get_output()
+		.stdout
+		.clone();
+	assert!(!codes(&json_of(&clean)).contains(&"tauri-drift".to_owned()));
+
+	let conf = dir.path().join("src-tauri/tauri.conf.json");
+	let text = std::fs::read_to_string(&conf)
+		.unwrap()
+		.replace("0.4.2", "0.5.0");
+	std::fs::write(&conf, text).unwrap();
+	let out = liminst(dir.path())
+		.args(["check", "--json"])
+		.assert()
+		.code(1)
+		.get_output()
+		.stdout
+		.clone();
+	assert!(codes(&json_of(&out)).contains(&"tauri-drift".to_owned()));
+
+	liminst(dir.path())
+		.args(["import", "tauri"])
+		.assert()
+		.success()
+		.stdout(predicate::str::contains("Re-imported"))
+		.stdout(predicate::str::contains("app_version: 0.4.2 -> 0.5.0"))
+		.stdout(predicate::str::contains("filled [product]: version"));
+	liminst(dir.path()).arg("check").assert().success();
+	let installer = std::fs::read_to_string(dir.path().join("installer/installer.toml")).unwrap();
+	assert!(installer.contains("version   = \"0.5.0\""), "{installer}");
+}
+
+#[test]
+fn import_needs_a_project() {
+	let dir = tempfile::tempdir().unwrap();
+	liminst(dir.path())
+		.args(["import", "tauri", "tauri.conf.json"])
+		.assert()
+		.code(2)
+		.stderr(predicate::str::contains("liminst init"));
+}
+
+#[test]
+fn preview_shows_the_webview2_step_and_the_native_registrations_for_windows() {
+	let dir = tauri_project();
+	let out = liminst(dir.path())
+		.args(["preview", "-t", "windows-x86_64", "--only", "plan"])
+		.assert()
+		.success()
+		.get_output()
+		.stdout
+		.clone();
+	let text = String::from_utf8(out).unwrap();
+	assert!(
+		text.contains("prereq.webview2 embedBootstrapper, at least 110.0.1587.40"),
+		"{text}"
+	);
+	assert!(
+		text.contains(
+			r"HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Plume Notes DisplayName=Plume Notes"
+		),
+		"{text}"
+	);
+	assert!(!text.contains("tauri.wrap"), "{text}");
+}
+
+#[test]
+fn preview_shows_the_tauri_setup_for_wrap() {
+	let dir = tauri_project();
+	let path = dir.path().join("installer/installer.toml");
+	let text = std::fs::read_to_string(&path)
+		.unwrap()
+		.replace("windows = \"native\"", "windows = \"wrap\"");
+	std::fs::write(&path, text).unwrap();
+	let out = liminst(dir.path())
+		.args(["preview", "-t", "windows-x86_64", "--only", "plan"])
+		.assert()
+		.success()
+		.get_output()
+		.stdout
+		.clone();
+	let text = String::from_utf8(out).unwrap();
+	assert!(
+		text.contains(
+			"tauri.wrap     Plume Notes via {temp}/liminal-installer/wrap/Plume Notes-setup.exe (HKCU, both)"
+		),
+		"{text}"
+	);
+	assert!(!text.contains("registry.set"), "{text}");
+}

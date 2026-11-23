@@ -2449,6 +2449,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "li-lpk"
+version = "0.1.0"
+
+[[package]]
 name = "li-model"
 version = "0.1.0"
 dependencies = [
@@ -2489,7 +2493,7 @@ dependencies = [
 name = "li-retro"
 version = "0.1.0"
 dependencies = [
- "miniz_oxide 0.8.9",
+ "li-lpk",
  "postcard",
  "serde",
 ]

@@ -40,6 +40,11 @@ pub enum EngineError {
 	NotInstalled(PathBuf),
 	#[error("already up to date at version {0}")]
 	UpToDate(String),
+	#[error(
+		"updates for this product are applied by the app itself (updates mode `{}`), not by the installer",
+		.0.as_str()
+	)]
+	UpdatesNotOwned(li_model::UpdateMode),
 	#[error("feed has no usable release: {0}")]
 	Feed(String),
 	#[error("script error: {0}")]

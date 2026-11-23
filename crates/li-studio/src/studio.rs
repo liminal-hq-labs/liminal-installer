@@ -263,7 +263,7 @@ impl Studio {
 
 	/// Records and writes one change. Returns false, recording nothing, when the document is
 	/// already as asked.
-	fn apply(
+	pub(crate) fn apply(
 		&self,
 		key: DocKey,
 		after: Option<Doc>,

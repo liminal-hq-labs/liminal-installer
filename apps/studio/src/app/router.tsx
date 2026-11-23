@@ -1,4 +1,4 @@
-// The router for the main window's five screens, over an in-memory history.
+// The router for the main window's six screens, over an in-memory history.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -14,6 +14,7 @@ import { LayoutsScreen } from '../screens/LayoutsScreen';
 import { PreviewScreen } from '../screens/PreviewScreen';
 import { ProjectScreen } from '../screens/ProjectScreen';
 import { ScriptScreen } from '../screens/ScriptScreen';
+import { TauriScreen } from '../screens/TauriScreen';
 import type { Navigator } from '../stores/studio';
 import { Shell } from './Shell';
 import { SCREEN_PATHS, screenAt } from './screens';
@@ -41,6 +42,11 @@ const routeTree = rootRoute.addChildren([
 		getParentRoute: () => rootRoute,
 		path: SCREEN_PATHS.preview,
 		component: PreviewScreen,
+	}),
+	createRoute({
+		getParentRoute: () => rootRoute,
+		path: SCREEN_PATHS.tauri,
+		component: TauriScreen,
 	}),
 ]);
 

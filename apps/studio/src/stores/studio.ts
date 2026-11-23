@@ -20,9 +20,10 @@ import type { TerminalView } from '../preview/TerminalPreview';
 import { createPreviewStore, type PreviewStore } from './preview';
 import { createProjectStore, type ProjectStore } from './project';
 import { createScriptStore, initialScriptState, type ScriptStore } from './script';
+import { createTauri, type Tauri } from './tauri';
 import { createToastStore, type ToastStore } from './toasts';
 
-/** Moves between the five screens. The router implements it; tests may stand in. */
+/** Moves between the six screens. The router implements it; tests may stand in. */
 export interface Navigator {
 	go(screen: Screen): Promise<void>;
 	current(): Screen;
@@ -36,6 +37,7 @@ export const SCREEN_TITLE: Record<Screen, Parameters<typeof t>[0]> = {
 	layouts: 'nav.layouts',
 	script: 'nav.scripts',
 	preview: 'nav.dryRun',
+	tauri: 'nav.tauri',
 };
 
 /** What the shell drives the app with. */
@@ -71,6 +73,8 @@ export interface Studio {
 	readonly preview: PreviewStore;
 	readonly script: ScriptStore;
 	readonly toasts: ToastStore;
+	/** The project's Tauri import and settings. */
+	readonly tauri: Tauri;
 	/** The live editor, registered by the Scripts screen while it is on screen. */
 	readonly editor: { current: ScriptEditor | null };
 	readonly settings: () => Settings;
@@ -106,6 +110,7 @@ export function createStudio(options: StudioOptions): Studio {
 	const preview = createPreviewStore();
 	const script = createScriptStore();
 	const toasts = createToastStore();
+	const tauri = createTauri(api);
 	const editor: Studio['editor'] = { current: null };
 	const disposers: (() => void)[] = [];
 
@@ -336,6 +341,7 @@ export function createStudio(options: StudioOptions): Studio {
 		});
 		scriptActions.clearScript();
 		preview.setState({ previewTarget: '', previewStep: 0, preview: null });
+		tauri.clear();
 	}
 
 	/** Reloads whatever the current project and screen show. A dirty script is kept. A selection the project no longer has falls back to its first. */
@@ -346,6 +352,8 @@ export function createStudio(options: StudioOptions): Studio {
 		project.setState({ problems: await api.checkProject() });
 		project.setState({ mcp: await api.mcpInfo() });
 		project.setState({ mcpError: await api.mcpError().catch(() => null) });
+		// Reads its own failure into the store, so a project with no Tauri state does not fail the refresh.
+		await tauri.load();
 		if (!summary.targets.some((x) => x.full_id === pv().previewTarget))
 			preview.setState({ previewTarget: defaultTarget(summary.targets.map((x) => x.full_id)) });
 		const current = await api.getPreview();
@@ -402,6 +410,7 @@ export function createStudio(options: StudioOptions): Studio {
 		const s = p();
 		if (screen === 'flow' && !s.flow && s.flowId) await loadFlow(s.flowId);
 		if (screen === 'layouts' && !s.layout && s.layoutId) await loadLayout(s.layoutId);
+		if (screen === 'tauri' && !tauri.store.getState().view) await tauri.load();
 		if (screen === 'script' && !sc().scriptPath && s.summary?.scripts[0])
 			await scriptActions.loadScript(s.summary.scripts[0]);
 	}
@@ -543,6 +552,7 @@ export function createStudio(options: StudioOptions): Studio {
 		preview,
 		script,
 		toasts,
+		tauri,
 		editor,
 		settings,
 		run,

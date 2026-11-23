@@ -40,7 +40,14 @@ impl Planner for EnginePlanner {
 			feed: None,
 			channel: None,
 		};
-		li_engine::preview(project, &payload, &req, &SimMachine::new())
+		// A Windows Tauri target is drawn against a Windows machine with no WebView2 runtime, so
+		// the plan shows what the step does when it is missing.
+		let machine = if project.installer.tauri.is_some() && target.id.starts_with("windows") {
+			SimMachine::new().with_os("windows")
+		} else {
+			SimMachine::new()
+		};
+		li_engine::preview(project, &payload, &req, &machine)
 			.map_err(|e| CliError::new(e.to_string()))
 	}
 }
@@ -82,6 +89,43 @@ pub fn describe(op: &Operation) -> String {
 		Operation::OsRegister { product, version } => {
 			format!("os.register    {product} {version}")
 		}
+		Operation::PrereqWebview2 {
+			mode,
+			min_version,
+			installer,
+			source,
+			path,
+			found,
+			ran,
+			..
+		} => {
+			let mut s = format!("prereq.webview2 {}", mode.name());
+			if let Some(v) = min_version {
+				s.push_str(&format!(", at least {v}"));
+			}
+			if let Some(i) = installer {
+				s.push_str(&format!(" via {i}"));
+			}
+			if let Some(u) = source {
+				s.push_str(&format!(" from {u}"));
+			}
+			if let Some(p) = path {
+				s.push_str(&format!(" at {p}"));
+			}
+			match (found, ran) {
+				(Some(v), false) => s.push_str(&format!(" (found {v}, nothing to do)")),
+				(_, true) => s.push_str(" (installed)"),
+				_ => {}
+			}
+			s
+		}
+		Operation::TauriWrap {
+			installer,
+			product_name,
+			hive,
+			nsis_mode,
+			..
+		} => format!("tauri.wrap     {product_name} via {installer} ({hive}, {nsis_mode})"),
 		Operation::ReceiptWrite { path } => format!("receipt.write  {path}"),
 	}
 }

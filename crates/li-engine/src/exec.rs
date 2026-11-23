@@ -10,7 +10,8 @@
 
 use std::path::{Path, PathBuf};
 
-use li_model::{Operation, Receipt};
+use li_model::tauri::Webview2Mode;
+use li_model::{External, Operation, Receipt};
 use serde::{Deserialize, Serialize};
 
 use crate::error::{EngineError, Result};
@@ -48,6 +49,10 @@ enum Undo {
 	Registry {
 		key: String,
 		previous: Option<String>,
+	},
+	/// Takes a wrapped installer's product off again.
+	Uninstall {
+		external: External,
 	},
 }
 
@@ -180,6 +185,7 @@ fn apply_undo(m: &mut dyn Machine, undo: &Undo) -> Result<()> {
 			m.registry_set(key, previous.as_deref())
 				.map_err(|e| EngineError::Other(format!("registry `{key}`: {e}")))?;
 		}
+		Undo::Uninstall { external } => crate::tauri::nsis::run_uninstall(m, external)?,
 	}
 	Ok(())
 }
@@ -439,6 +445,8 @@ impl<'a, 'o> Session<'a, 'o> {
 				let path = self.res.resolve(&crate::plan::receipt_path())?;
 				self.delete(&path)?;
 				if let Some(dir) = path.parent() {
+					// The time of the last feed check lives beside the receipt.
+					self.delete(&dir.join("last-update-check"))?;
 					self.rmdir(dir)?;
 				}
 			}
@@ -697,10 +705,39 @@ impl<'a, 'o> Session<'a, 'o> {
 				self.put(&file, desktop_entry(name, &target).as_bytes(), true)?;
 				done.push(op.clone());
 			}
+			Operation::PrereqWebview2 { .. } => {
+				let recorded = self.apply_webview2(op)?;
+				done.push(recorded);
+			}
+			Operation::TauriWrap { .. } => {
+				let recorded = self.apply_wrap(op)?;
+				done.push(recorded);
+			}
 			Operation::ReceiptWrite { .. } => {
 				return Err(EngineError::Other(
 					"receipt.write is handled by the Record phase".into(),
 				));
+			}
+			Operation::RegistrySet { key, name, value } => {
+				// The machine holds the value with its placeholders resolved (`{install}` in a
+				// path); the receipt keeps the placeholder form.
+				let resolved = if value.contains('{') {
+					self.res
+						.resolve(value)
+						.map(|p| p.to_string_lossy().into_owned())
+						.unwrap_or_else(|_| value.clone())
+				} else {
+					value.clone()
+				};
+				let stored = Operation::RegistrySet {
+					key: key.clone(),
+					name: name.clone(),
+					value: resolved,
+				};
+				let json = serde_json::to_string(&stored)
+					.map_err(|e| EngineError::Other(e.to_string()))?;
+				self.set_registry(&crate::plan::op_key(op), Some(&json))?;
+				done.push(op.clone());
 			}
 			other => {
 				let key = Self::registry_entry(other).expect("registry operation");
@@ -711,6 +748,140 @@ impl<'a, 'o> Session<'a, 'o> {
 			}
 		}
 		Ok(())
+	}
+
+	/// Detects WebView2 and, when it is missing or too old, runs the installer the plan staged.
+	/// Returns the operation as it ran: what was found, and whether an installer ran.
+	fn apply_webview2(&mut self, op: &Operation) -> Result<Operation> {
+		use crate::tauri::webview2;
+		let Operation::PrereqWebview2 {
+			mode,
+			silent,
+			path,
+			min_version,
+			installer,
+			source,
+			..
+		} = op
+		else {
+			unreachable!("checked by the caller");
+		};
+		let found = webview2::detect(&*self.m);
+		let mut recorded = op.clone();
+		let set = |rec: &mut Operation, f: Option<String>, r: bool| {
+			if let Operation::PrereqWebview2 { found, ran, .. } = rec {
+				*found = f;
+				*ran = r;
+			}
+		};
+		match mode {
+			Webview2Mode::Skip => {
+				set(&mut recorded, found.map(|d| d.version), false);
+				return Ok(recorded);
+			}
+			Webview2Mode::FixedRuntime => {
+				let dir = path
+					.as_deref()
+					.ok_or_else(|| EngineError::Other("fixedRuntime has no path".into()))?;
+				let dir = self.res.resolve(dir)?;
+				if self.m.kind(&dir) != Some(NodeKind::Dir) {
+					return Err(EngineError::Other(format!(
+						"the fixed WebView2 runtime is not at {}",
+						dir.display()
+					)));
+				}
+				set(&mut recorded, None, false);
+				return Ok(recorded);
+			}
+			_ => {}
+		}
+		if !webview2::needs_install(found.as_ref(), min_version.as_deref()) {
+			set(&mut recorded, found.map(|d| d.version), false);
+			return Ok(recorded);
+		}
+		let staged = installer
+			.as_deref()
+			.ok_or_else(|| EngineError::Other("the WebView2 step has no installer".into()))?;
+		let staged = self.res.resolve(staged)?;
+		let downloaded = source.is_some() && self.m.kind(&staged).is_none();
+		if let Some(url) = source.as_deref().filter(|_| downloaded) {
+			self.m.download(url, &staged).map_err(|e| {
+				EngineError::Other(format!("downloading the WebView2 bootstrapper: {e}"))
+			})?;
+		}
+		let args: Vec<String> = if *silent {
+			vec!["/silent".to_owned(), "/install".to_owned()]
+		} else {
+			vec!["/install".to_owned()]
+		};
+		let code = self
+			.m
+			.run(&staged, &args)
+			.map_err(|e| EngineError::io(&staged, e))?;
+		if downloaded {
+			// Scratch the engine fetched itself; a staged copy is the plan's and is undone with it.
+			let _ = self.m.remove_file(&staged);
+		}
+		if code != 0 {
+			return Err(EngineError::Other(format!(
+				"the WebView2 installer failed (exit {code})"
+			)));
+		}
+		if webview2::needs_install(webview2::detect(&*self.m).as_ref(), min_version.as_deref()) {
+			return Err(EngineError::Other(
+				"the WebView2 runtime is still missing after its installer ran".into(),
+			));
+		}
+		set(&mut recorded, found.map(|d| d.version), true);
+		Ok(recorded)
+	}
+
+	/// Runs Tauri's setup silently and records the uninstall entry it left.
+	fn apply_wrap(&mut self, op: &Operation) -> Result<Operation> {
+		use crate::tauri::nsis;
+		let Operation::TauriWrap {
+			installer,
+			product_name,
+			publisher,
+			hive,
+			nsis_mode,
+			args,
+			..
+		} = op
+		else {
+			unreachable!("checked by the caller");
+		};
+		let setup = self.res.resolve(installer)?;
+		let dir = self.res.install.to_string_lossy().into_owned();
+		let key = crate::tauri::registry::uninstall_key(hive, product_name);
+		let upgrading = self.m.registry_value(&key, "DisplayName").is_some();
+		let argv = nsis::setup_args(nsis_mode, hive, upgrading, args, &dir);
+		let code = self
+			.m
+			.run(&setup, &argv)
+			.map_err(|e| EngineError::io(&setup, e))?;
+		if let Some(why) = nsis::explain_exit(code) {
+			return Err(EngineError::Other(why));
+		}
+		let external =
+			nsis::find_external(&*self.m, product_name, publisher, hive).ok_or_else(|| {
+				EngineError::Other(
+					"the Tauri installer ran but wrote no Add or Remove Programs entry".into(),
+				)
+			})?;
+		if !upgrading {
+			self.journal.record(
+				self.m,
+				Undo::Uninstall {
+					external: external.clone(),
+				},
+			)?;
+		}
+		let mut recorded = op.clone();
+		if let Operation::TauriWrap { external: e, .. } = &mut recorded {
+			*e = Some(external);
+		}
+		Ok(recorded)
 	}
 
 	fn revert(&mut self, op: &Operation) -> Result<()> {
@@ -761,6 +932,13 @@ impl<'a, 'o> Session<'a, 'o> {
 				self.delete(&p)?;
 			}
 			Operation::ReceiptWrite { .. } => {}
+			// WebView2 is shared by other apps and is never removed.
+			Operation::PrereqWebview2 { .. } => {}
+			Operation::TauriWrap { external, .. } => {
+				if let Some(ext) = external {
+					crate::tauri::nsis::run_uninstall(self.m, ext)?;
+				}
+			}
 			other => {
 				let key = Self::registry_entry(other).expect("registry operation");
 				if self.m.registry_get(&key).is_some() {
@@ -802,6 +980,23 @@ pub(crate) fn is_intact(m: &dyn Machine, res: &Resolver, op: &Operation) -> bool
 					== Some(NodeKind::File)
 			}
 			Operation::ReceiptWrite { .. } => true,
+			Operation::PrereqWebview2 { mode, path, .. } => match mode {
+				Webview2Mode::Skip => true,
+				Webview2Mode::FixedRuntime => path
+					.as_deref()
+					.and_then(|p| res.resolve(p).ok())
+					.is_some_and(|p| m.kind(&p) == Some(NodeKind::Dir)),
+				_ => crate::tauri::webview2::detect(m).is_some(),
+			},
+			Operation::TauriWrap {
+				external: Some(e), ..
+			} => {
+				let main = e.main_binary.as_deref().unwrap_or_default();
+				m.kind(&Path::new(&e.install_location).join(main)).is_some()
+					&& m.registry_value(&format!("{}\\{}", e.hive, e.uninstall_key), "DisplayName")
+						.is_some()
+			}
+			Operation::TauriWrap { .. } => false,
 			other => Session::registry_entry(other).is_some_and(|k| m.registry_get(&k).is_some()),
 		})
 	};

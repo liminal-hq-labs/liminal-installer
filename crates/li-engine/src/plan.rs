@@ -5,12 +5,16 @@
 
 use std::collections::BTreeSet;
 
-use li_model::{Operation, Plan, Receipt};
+use li_model::{Operation, Plan, Receipt, Scope};
 
 use crate::error::{EngineError, Result};
 use crate::payload::{Payload, expand_sources};
 use crate::project::Project;
 use crate::scripts::ProjectScripts;
+use crate::tauri::{
+	self,
+	plan::{Skip, WindowsTauri},
+};
 
 /// Where the receipt is written, as a placeholder path.
 pub fn receipt_path() -> String {
@@ -48,7 +52,7 @@ pub fn select_components(
 }
 
 /// Emits `mkdir` for every directory from the placeholder root down to `dir`, once each.
-fn mkdirs(dir: &str, seen: &mut BTreeSet<String>, ops: &mut Vec<Operation>) {
+pub(crate) fn mkdirs(dir: &str, seen: &mut BTreeSet<String>, ops: &mut Vec<Operation>) {
 	let mut acc = String::new();
 	for (i, part) in dir.split('/').enumerate() {
 		if i == 0 {
@@ -78,13 +82,41 @@ pub fn build_plan(
 	selected: &[String],
 	scripts: Option<&ProjectScripts>,
 ) -> Result<Plan> {
+	build_plan_scoped(
+		project,
+		payload,
+		target,
+		selected,
+		scripts,
+		project.installer.defaults.scope,
+	)
+}
+
+/// [`build_plan`] for a given install scope, which decides the registry hive a Windows Tauri
+/// product writes to.
+pub fn build_plan_scoped(
+	project: &Project,
+	payload: &dyn Payload,
+	target: &str,
+	selected: &[String],
+	scripts: Option<&ProjectScripts>,
+	scope: Scope,
+) -> Result<Plan> {
 	let mut ops = Vec::new();
 	let mut seen = BTreeSet::new();
 	mkdirs("{install}", &mut seen, &mut ops);
+	let tauri = WindowsTauri::of(project, target, scope);
+	if let Some(t) = &tauri {
+		tauri::plan::pre_ops(t, payload, &mut seen, &mut ops)?;
+	}
 	for id in selected {
 		let c = project
 			.component(id)
 			.ok_or_else(|| EngineError::UnknownComponent(id.clone()))?;
+		let skip = tauri.as_ref().map_or(Skip::Nothing, |t| t.skips(c));
+		if skip == Skip::All {
+			continue;
+		}
 		for rule in &c.files {
 			let pattern = rule.from.replace("{target}", target);
 			let found = expand_sources(payload, &pattern);
@@ -119,14 +151,14 @@ pub fn build_plan(
 				place: s.place.clone(),
 			});
 		}
-		for ft in &c.file_types {
+		for ft in c.file_types.iter().filter(|_| skip == Skip::Nothing) {
 			ops.push(Operation::FileType {
 				extension: ft.extension.clone(),
 				name: ft.name.clone(),
 				open_with: ft.open_with.clone().or_else(|| first_target.clone()),
 			});
 		}
-		for scheme in &c.url_schemes {
+		for scheme in c.url_schemes.iter().filter(|_| skip == Skip::Nothing) {
 			ops.push(Operation::UrlScheme {
 				scheme: scheme.clone(),
 				open_with: first_target.clone().unwrap_or_default(),
@@ -138,6 +170,9 @@ pub fn build_plan(
 			});
 		}
 	}
+	if let Some(t) = &tauri {
+		tauri::plan::post_ops(t, payload, &mut ops);
+	}
 	if let Some(scripts) = scripts {
 		let so_far = Plan { ops: ops.clone() };
 		ops.extend(scripts.on_commit(&so_far)?);
@@ -146,6 +181,24 @@ pub fn build_plan(
 		path: receipt_path(),
 	});
 	Ok(Plan { ops })
+}
+
+/// Whether two operations ask for the same thing: the outcome an operation records after it ran
+/// (what a WebView2 step found, the uninstall entry a wrapped installer left) is not part of it.
+pub fn same_plan(a: &Operation, b: &Operation) -> bool {
+	fn plain(op: &Operation) -> Operation {
+		let mut op = op.clone();
+		match &mut op {
+			Operation::PrereqWebview2 { found, ran, .. } => {
+				*found = None;
+				*ran = false;
+			}
+			Operation::TauriWrap { external, .. } => *external = None,
+			_ => {}
+		}
+		op
+	}
+	plain(a) == plain(b)
 }
 
 /// A stable identity for an operation, so an update can tell what replaces what.
@@ -165,6 +218,8 @@ pub fn op_key(op: &Operation) -> String {
 		Operation::PathAdd { entry } => format!("path:{entry}"),
 		Operation::ServiceInstall { name, .. } => format!("service:{name}"),
 		Operation::OsRegister { product, .. } => format!("os_register:{product}"),
+		Operation::PrereqWebview2 { .. } => "prereq:webview2".to_owned(),
+		Operation::TauriWrap { product_name, .. } => format!("tauri_wrap:{product_name}"),
 		Operation::ReceiptWrite { .. } => "receipt".to_owned(),
 	}
 }

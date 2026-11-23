@@ -54,4 +54,37 @@ describe('format', () => {
 			['one', 'You', false],
 		]);
 	});
+
+	it('describes the Tauri plan operations and a Tauri history entry', () => {
+		expect(
+			formatOp({
+				op: 'prereq.webview2',
+				mode: 'embedBootstrapper',
+				silent: true,
+				path: null,
+				min_version: '110.0',
+				installer: null,
+				source: null,
+				found: null,
+				ran: false,
+			}),
+		).toEqual({ name: 'prereq.webview2', detail: 'WebView2 (embedBootstrapper) · at least 110.0' });
+		expect(
+			formatOp({
+				op: 'tauri.wrap',
+				installer: '{payload}/setup.exe',
+				sha256: null,
+				product_name: 'Plume Notes',
+				publisher: 'Plume Labs',
+				hive: 'HKCU',
+				nsis_mode: 'currentUser',
+				args: ['/NS'],
+				external: null,
+			}),
+		).toEqual({ name: 'tauri.wrap', detail: 'Run Tauri installer for Plume Notes /NS' });
+		const rows = historyRows([
+			{ index: 0, label: 'Import', source: 'ui', doc: { type: 'tauri' }, applied: true },
+		]);
+		expect(rows[0]?.doc).toBe('tauri');
+	});
 });

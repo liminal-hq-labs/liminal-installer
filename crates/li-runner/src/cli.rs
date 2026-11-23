@@ -446,6 +446,14 @@ fn feed_key(inst: &Installed, file: Option<&Path>) -> RunnerResult<li_pack::Veri
 fn update(cli: &Cli, a: &UpdateArgs) -> RunnerResult<()> {
 	let mut m = RealMachine::from_environment();
 	let inst = open(cli, &m)?;
+	if !li_engine::tauri::updates::installer_owns(&inst.receipt) {
+		println!(
+			"{} is updated by the app itself (updates mode `{}`); the installer has nothing to do",
+			inst.receipt.product,
+			li_engine::tauri::updates::mode_of(&inst.receipt).as_str()
+		);
+		return Ok(());
+	}
 	let spec = a
 		.feed
 		.clone()
@@ -578,8 +586,28 @@ fn uninstall(cli: &Cli) -> RunnerResult<()> {
 
 fn launch(cli: &Cli, a: &LaunchArgs) -> RunnerResult<()> {
 	let mut m = RealMachine::from_environment();
-	let inst = open(cli, &m)?;
-	let spec = a.feed.clone().or_else(|| inst.receipt.feed.clone());
+	let mut inst = open(cli, &m)?;
+	// The app may have updated itself since the receipt was written; start from what is installed.
+	if let Ok(Some(next)) = li_engine::reconcile_receipt(&mut m, &inst.dir) {
+		inst.receipt = next;
+	}
+	let now = std::time::SystemTime::now()
+		.duration_since(std::time::UNIX_EPOCH)
+		.map_or(0, |d| d.as_secs());
+	let interval = inst
+		.receipt
+		.updates
+		.as_ref()
+		.and_then(|u| u.check_interval_hours);
+	let due = li_engine::tauri::updates::check_due(&m, &inst.dir, interval, now);
+	let spec = a
+		.feed
+		.clone()
+		.or_else(|| inst.receipt.feed.clone())
+		.filter(|_| due && li_engine::tauri::updates::installer_owns(&inst.receipt));
+	if spec.is_some() {
+		let _ = li_engine::tauri::updates::record_check(&mut m, &inst.dir, now);
+	}
 	let feed = match (&spec, feed_key(&inst, a.feed_key.as_deref())) {
 		(Some(spec), Ok(key)) => {
 			feedsrc::load_feed(spec, &key, stash::last_feed(&inst.dir).as_ref())

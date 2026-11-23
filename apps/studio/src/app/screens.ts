@@ -13,6 +13,7 @@ export const SCREEN_PATHS: Record<Screen, string> = {
 	layouts: '/layouts',
 	script: '/scripts',
 	preview: '/dry-run',
+	tauri: '/tauri',
 };
 
 export const screenAt = (pathname: string): Screen =>
