@@ -65,7 +65,7 @@ pub fn check_project(
 		.installer
 		.targets
 		.iter()
-		.filter(|t| only.is_empty() || only.contains(&t.id))
+		.filter(|t| only.is_empty() || only.contains(&t.id) || only.contains(&t.full_id()))
 		.collect();
 	let mut diags = Vec::new();
 	for c in checkers {
