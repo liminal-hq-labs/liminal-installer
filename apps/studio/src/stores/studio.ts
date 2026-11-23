@@ -6,7 +6,7 @@
 // Screens read the stores and call the actions here. The backend arrives as `api`, so a test
 // hands in a fake one. An action that can fail runs through `run`, which shows its error as a toast.
 
-import { isStageId, stageIdFor } from '../lib/stage';
+import { isStageId, stageIdFor, type Scheme } from '@liminal-hq/installer-renderer';
 import type { ChromeStore } from '../chrome/chromeStore';
 import { SCREEN_ACTIONS, type ActionId, type Screen } from '../chrome/menuModel';
 import type { ScriptEditor } from '../editor/scriptEditor';
@@ -15,7 +15,6 @@ import { t, tn } from '../i18n/messages';
 import { errorMessage, isStudioError, type Api } from '../lib/api';
 import type { Settings } from '../lib/settings';
 import type { Flow, Layout } from '../lib/types';
-import type { Scheme } from '../preview/model';
 import type { TerminalView } from '../preview/TerminalPreview';
 import { createPreviewStore, type PreviewStore } from './preview';
 import { createProjectStore, type ProjectStore } from './project';

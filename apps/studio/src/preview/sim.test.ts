@@ -12,7 +12,7 @@ import {
 	previewWindowQuery,
 	terminalFit,
 } from './fullScreen';
-import { STAGE } from './model';
+import { STAGE } from '@liminal-hq/installer-renderer';
 import { copyFrame, derive, driveOf, formatSize, nextFolder, stepFrom } from './sim';
 
 const components = [

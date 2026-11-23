@@ -11,7 +11,7 @@ import { cx } from '../ui/cx';
 import ui from '../ui/ui.module.css';
 import { SPEEDS, RunStage } from './RunStage';
 import type { Run } from './useRun';
-import { hasMovingParts, hasSchemes, lookFor, type Scheme } from './model';
+import { hasMovingParts, hasSchemes, lookFor, type Scheme } from '@liminal-hq/installer-renderer';
 import { SchemeSwitch } from './SchemeSwitch';
 import { stepFor, TerminalPreview, TerminalViewSwitch, type TerminalView } from './TerminalPreview';
 import styles from './FullScreenBody.module.css';

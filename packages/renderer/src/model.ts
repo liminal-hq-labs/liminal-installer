@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { LayoutNode } from '../lib/types';
+import type { LayoutNode } from './types';
 
 /** The five looks the Studio draws. The renderer and theme pick one. */
 export type Look = 'dos' | 'win95' | 'afterglow' | 'neutral' | 'win11';
@@ -77,6 +77,8 @@ export interface Interact {
 	onSelect?: (key: string) => void;
 	onChange?: (key: string, value: unknown) => void;
 	onAction?: (action: string) => void;
+	/** Whether a node is switched off, such as a Next whose `enabled_when` does not hold; only buttons read it. */
+	isDisabled?: (node: LayoutNode) => boolean;
 }
 
 /** Readings that override the page's meters and billboard while a preview plays. */

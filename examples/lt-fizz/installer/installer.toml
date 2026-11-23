@@ -36,7 +36,7 @@ outputs  = ["setup-exe", "msix"]
 id       = "windows-x86_64"
 renderer = "web"
 theme    = "fizz-modern"
-outputs  = ["setup-exe", "msix"]
+outputs  = ["web", "setup-exe", "msix"]
 
 [[target]]
 id       = "linux-x86_64"

@@ -8,7 +8,7 @@ Everything in this specification is in progress. Nothing is released, and any pa
 
 - **Engine** (plan, stage, commit, record): in progress. Install, update, modify, repair, uninstall and launch work end to end on Linux through the runner (§14).
 - **CLI** (`check`, `preview`, `build`, `keygen`, `feed`, `theme`, `studio`): in progress. `check`, `preview`, the Linux `build` (themed `.run` and `.lip`) and the DOS `build` (`SETUP.LPK`, `zip`, `floppy-1440`) work, and feeds and themes are signed.
-- **Renderers**: `tui` is in progress; `tui-retro` works for DOS (`SETUP.EXE` in Rust, see [docs/retro-dos.md](docs/retro-dos.md)); `win16`, `win32-classic`, `canvas` and `web` are in progress as scaffolds or designs.
+- **Renderers**: `tui` is in progress; `tui-retro` works for DOS (`SETUP.EXE` in Rust, see [docs/retro-dos.md](docs/retro-dos.md)); `web` works as a Tauri window, the web runner (see [docs/web-runner.md](docs/web-runner.md)); `win16`, `win32-classic` and `canvas` are in progress as scaffolds or designs.
 - **Studio** and its MCP server: in progress. GraphQL is deferred (D26).
 - **Tauri apps** (`[tauri]`, `liminst import tauri`, WebView2, the two Windows modes, per-product updates): in progress. Built and tested against the simulated machine; the real machine's registry is still a stand-in (§15).
 - **Example installers** for Planboard, Lt. Fizz, Neutral and Plume Notes (a Tauri app): in progress.
@@ -305,7 +305,7 @@ Table 7. `liminst` commands.
 
 `check` loads the project with the engine and reports the CLI's checks (flows, themes, layouts, accessible names, components) with the engine's condition, component and hook checks. `preview` prints the engine's Plan phase against a simulated machine, so it shows the same operations, hashes and script hooks an install runs. Exit codes: 0 success, 1 the project has errors, 2 the command could not run.
 
-`build` outputs, by name: for a `tui-retro` target, `zip` and `floppy-1440` (`SETUP.EXE`, `SETUP.LPK`, a Liminal Pack that holds the compiled project and the files, and `README.TXT`, also written loose under `dos/`; `--dos-runtime PATH` names a prebuilt `SETUP.EXE`, else one is found or built from `dos/`; a payload too big for a floppy is reported, and disks do not span yet); for the others, `lip` (the payload and bundled project, §14), `run` (with `--engine PATH`, a themed self-extracting installer that carries the runner and the `.lip`; without it, a `.run` that only extracts the files and a receipt), and the native formats `deb`, `rpm`, `arch`, `msi`, `msix` and `pkg`. A themed `run` also writes its `.lip`, which is what `feed add` publishes. `feed add --sign-key FILE` writes `<feed>.sig`; without a key it removes a signature that no longer matches. `theme pack --sign-key FILE` writes `<archive>.sig`, the hex signature over the archive.
+`build` outputs, by name: for a `tui-retro` target, `zip` and `floppy-1440` (`SETUP.EXE`, `SETUP.LPK`, a Liminal Pack that holds the compiled project and the files, and `README.TXT`, also written loose under `dos/`; `--dos-runtime PATH` names a prebuilt `SETUP.EXE`, else one is found or built from `dos/`; a payload too big for a floppy is reported, and disks do not span yet); for the others, `lip` (the payload and bundled project, §14), `run` (with `--engine PATH`, a themed self-extracting installer that carries the runner and the `.lip`; without it, a `.run` that only extracts the files and a receipt), and the native formats `deb`, `rpm`, `arch`, `msi`, `msix` and `pkg`. A themed `run` also writes its `.lip`, which is what `feed add` publishes. `feed add --sign-key FILE` writes `<feed>.sig`; without a key it removes a signature that no longer matches. `theme pack --sign-key FILE` writes `<archive>.sig`, the hex signature over the archive. For a `web` target, `web` is built by default (and any other output the target lists): a `web/` folder with the runner, `payload.lip`, the project files and `manifest.json`; `--web-runner PATH` names a built runner, `--build-web-runner` runs `bun run --cwd apps/runner tauri build --no-bundle` first, and without either the folder holds a placeholder (§14).
 
 Example 2. A CI job.
 
@@ -410,6 +410,17 @@ Table 10. Runner commands.
 - **Scope.** The runner installs for the person running it, with the user-scope directories of `li-engine`'s `RealMachine`. Elevation is not implemented yet.
 - **Exit codes.** 0 success, 1 failure (the engine rolled every change back), 2 bad arguments, 3 the person cancelled.
 - **Updates.** `update` does nothing but say so for a product whose receipt says the app updates itself (`updates` mode `tauri`), and `launch` offers no update for it. `launch` checks the feed only when the receipt's `check_interval_hours` has passed since `{install}/.liminal/last-update-check` (always, with none), and first catches the receipt up when the app updated itself (§15).
+
+### The web runner
+
+`liminal-runner` (`apps/runner`) is the `web` renderer's runner: the same commands, options, exit codes and files as `liminal-engine`, but each page is drawn in a Tauri window by the shared React renderer (`packages/renderer`) instead of in a terminal. With no command it runs `install`, finding `payload.lip` beside itself. See [docs/web-runner.md](docs/web-runner.md).
+
+- **Pages.** Each page of the real flow is sent to the window as the layout tree for the target (overrides applied, the theme's stage composed, lists expanded), the page's values under their bound keys (`install.path` is the flow's `install_dir`, `components.selected` its `components`), the `{placeholder}` values and the nodes a button's `enabled_when` switches off. A condition reads the page's values as `state.<key>`, a dotted key being nested (`state.licence.accepted`).
+- **Commit.** The commit page does not wait; progress readings move its meters. Cancelling stops the commit at its next operation and the engine rolls back (exit code 3).
+- **Headless.** `--headless` opens no window and answers each page from `--answer`, as `liminal-engine` does, but presses Next only when the page has it switched on; `--events FILE` records the events as JSON lines. `liminal-runner-headless` is the same flow without Tauri.
+- **Targets.** A `.lip` built for a target that shares its `os-arch` with another names it as `os-arch:renderer`; the runner then keeps only that target of the bundled project, so the right theme runs and the receipt records `os-arch:renderer`.
+- **Bundle.** `liminst build` for a `web` target writes `web/` with the runner, `payload.lip`, `project/installer/…` and `manifest.json`.
+- **Window.** The window opens at the look's size (Afterglow and Neutral 1024 by 720, Windows 11 1100 by 720); Enter, Ctrl+Enter, Esc and Alt+Left press the default, Cancel and Back buttons; every control has an accessible name and a live region announces pages and progress.
 
 ## 15 · Tauri apps
 

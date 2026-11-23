@@ -3,8 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { STAGE, type Look } from './model';
-import type { Scheme } from './model';
+import { STAGE, type Look, type Scheme } from '@liminal-hq/installer-renderer';
 import type { TerminalView } from './TerminalPreview';
 
 /** The `?window=` kind, and the label the shell gives the window. */

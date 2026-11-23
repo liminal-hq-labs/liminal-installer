@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { previewWindowQuery } from '../preview/fullScreen';
-import type { Scheme } from '../preview/model';
+import type { Scheme } from '@liminal-hq/installer-renderer';
 import type { TerminalView } from '../preview/TerminalPreview';
 
 export interface DialogButton {

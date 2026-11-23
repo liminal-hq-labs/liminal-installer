@@ -1,0 +1,130 @@
+# Checks the Tauri shell of the web runner in apps/runner.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+name: Runner
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'apps/runner/**'
+      - 'crates/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'bun.lock'
+      - '.github/workflows/runner.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/runner/**'
+      - 'crates/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'bun.lock'
+      - '.github/workflows/runner.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runner-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  WEBKIT_DEPS: libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev libssl-dev libxdo-dev patchelf
+
+jobs:
+  cargo-check:
+    name: Runner cargo check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Install WebKit dependencies
+        run: |
+          sudo apt-get update
+          # shellcheck disable=SC2086
+          sudo apt-get install -y --no-install-recommends $WEBKIT_DEPS
+
+      - name: Install the pinned Rust toolchain
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - name: Cache Rust build output
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/runner/src-tauri
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+
+      - name: Build the page the shell embeds
+        run: |
+          bun install --frozen-lockfile
+          bun run --cwd apps/runner build
+
+      - name: Run cargo check
+        working-directory: apps/runner/src-tauri
+        run: cargo check --all-targets --locked
+
+  clippy:
+    name: Runner clippy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Install WebKit dependencies
+        run: |
+          sudo apt-get update
+          # shellcheck disable=SC2086
+          sudo apt-get install -y --no-install-recommends $WEBKIT_DEPS
+
+      - name: Install the pinned Rust toolchain
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - name: Cache Rust build output
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/runner/src-tauri
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+
+      - name: Build the page the shell embeds
+        run: |
+          bun install --frozen-lockfile
+          bun run --cwd apps/runner build
+
+      - name: Run clippy
+        working-directory: apps/runner/src-tauri
+        run: cargo clippy --all-targets --locked -- -D warnings

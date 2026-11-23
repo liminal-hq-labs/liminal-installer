@@ -5,7 +5,7 @@
 
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import type { Layout, LayoutNode } from '../lib/types';
+import type { Layout, LayoutNode } from './types';
 import { fill, lookFor, type RenderOptions } from './model';
 import { ArtSvg, LayoutPreview, PreviewTree } from './PreviewTree';
 
@@ -503,5 +503,29 @@ describe('the Windows 11 look', () => {
 	it('badges free space as Low when the drive is nearly full', () => {
 		expect(html({ live: { freeSpace: 0.02 } })).toContain('pvLow');
 		expect(html({ live: { freeSpace: 0.6 } })).not.toContain('pvLow');
+	});
+});
+
+describe('a button the page switched off', () => {
+	const tree: LayoutNode = {
+		kind: 'dialog',
+		props: { title: 'Page' },
+		children: [
+			{ kind: 'button', props: { label: 'Next', action: 'next' } },
+			{ kind: 'button', props: { label: 'Back', action: 'back' } },
+		],
+	};
+	it('is a disabled button only while the page runs and says so', () => {
+		const html = renderTreeHtml(tree, {
+			renderer: 'web',
+			interact: { mode: 'run', isDisabled: (n) => n.props?.action === 'next' },
+		});
+		expect(html.match(/<button[^>]*disabled=""/g)).toHaveLength(1);
+		expect(html).toContain('data-action="next"');
+		const idle = renderTreeHtml(tree, {
+			renderer: 'web',
+			interact: { mode: 'edit', isDisabled: () => true },
+		});
+		expect(idle).not.toContain('disabled=""');
 	});
 });

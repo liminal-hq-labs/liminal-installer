@@ -1,4 +1,4 @@
-# Checks the Tauri Studio app in apps/studio.
+# Checks the Tauri Studio app in apps/studio, and the JavaScript of the web runner in apps/runner.
 #
 # (c) Copyright 2026 Liminal HQ, Scott Morris
 # SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -11,6 +11,7 @@ on:
       - main
     paths:
       - 'apps/studio/**'
+      - 'apps/runner/**'
       - 'packages/**'
       - 'package.json'
       - 'bun.lock'
@@ -23,6 +24,7 @@ on:
       - 'v*'
     paths:
       - 'apps/studio/**'
+      - 'apps/runner/**'
       - 'packages/**'
       - 'package.json'
       - 'bun.lock'
@@ -103,7 +105,7 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: js-test-results
-          path: test-results/studio-junit.xml
+          path: test-results/*.xml
           if-no-files-found: error
 
       - name: Upload the event file

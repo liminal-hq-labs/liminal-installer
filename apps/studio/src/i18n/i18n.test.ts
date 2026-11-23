@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { afterEach, describe, expect, it } from 'vitest';
-import { findJsxLiterals } from '../../scripts/jsx-literals';
+import { findJsxLiterals } from '@liminal-hq/installer-renderer/scripts/jsx-literals';
 import { resetActiveLocale, setActiveLocale } from './active';
 import ar from './catalogues/ar-XB';
 import en from './catalogues/en-XA';

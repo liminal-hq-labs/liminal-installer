@@ -25,6 +25,7 @@ li-engine.workspace = true
 li-pack.workspace = true
 li-lpk = { workspace = true, features = ["std"] }
 li-render-tui.workspace = true
+li-render-web.workspace = true
 li-package.workspace = true
 li-retro-build.workspace = true
 li-studio.workspace = true

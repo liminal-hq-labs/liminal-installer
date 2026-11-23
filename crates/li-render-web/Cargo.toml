@@ -1,0 +1,37 @@
+# The web renderer's engine side: the flow session a Tauri window drives, and the wire types it speaks.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[package]
+name = "li-render-web"
+description = "The web renderer's session: runs an installer flow page by page for a webview, and the same flow headless for tests"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "liminal-runner-headless"
+path = "src/main.rs"
+
+[dependencies]
+li-model.workspace = true
+clap.workspace = true
+li-engine.workspace = true
+li-runner.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+# Generates the TypeScript for the wire types (see `packages/protocol`).
+ts-rs = { workspace = true, optional = true }
+
+[features]
+ts = ["dep:ts-rs", "li-model/ts"]
+
+[dev-dependencies]
+assert_cmd.workspace = true
+li-pack.workspace = true
+predicates.workspace = true
+tempfile.workspace = true

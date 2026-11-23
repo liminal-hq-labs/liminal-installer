@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { ComponentInfo, Preview } from '../lib/types';
-import type { Live } from './model';
+import type { Live } from '@liminal-hq/installer-renderer';
 import { copyFrame, derive, nextFolder, stepFrom, type Derived } from './sim';
 import { usePlayback, type Playback } from './usePlayback';
 

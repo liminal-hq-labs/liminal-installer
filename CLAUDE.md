@@ -13,7 +13,7 @@ Liminal Installer is a Liminal HQ Labs experiment: Themeable installers, updater
 - **Git.** Topic branches, merge commits only, branches deleted on merge. Never push, tag, publish or dispatch workflows unless asked. Never `git add -A` or `git commit -a`. `PLAN.md` stays out of git.
 - **Formatting.** Tabs everywhere except YAML. Rust uses rustfmt with hard tabs (`rustfmt.toml`); the Studio UI's TypeScript, CSS and JSON use Prettier (`.prettierrc`), never the vendored chrome or generated bindings.
 - **Headers.** SPDX header on every source, script, YAML, TOML and SVG file: summary line, blank, "(c) Copyright 2026 Liminal HQ, Scott Morris", `SPDX-License-Identifier: Apache-2.0 OR MIT`.
-- **Studio UI.** React 19, zustand, TanStack Router and CSS Modules in `apps/studio`. Every visible string comes from `src/i18n/messages.ts` through `t()`; `bun run check:i18n` fails on a literal in JSX. Tokens are `--lis-*` in the generated `src/theme/tokens.css`.
+- **Studio UI.** React 19, zustand, TanStack Router and CSS Modules in `apps/studio`. Every visible string comes from `src/i18n/messages.ts` through `t()`; `bun run check:i18n` fails on a literal in JSX. Tokens are `--lis-*` in the generated `src/theme/tokens.css`. The rich preview renderer is `packages/renderer`, shared with the web runner (`apps/runner`, `docs/web-runner.md`); the runner's own strings are in its `src/i18n/messages.ts`.
 - **Architecture.** Core first: `li-model` and `li-engine` have no UI dependency. Plan before commit, and every operation records its undo. Themes cannot add operations. Scripts hold only the capabilities they declare. `SPEC.md` first. Vendored chrome in `packages/chrome` is refreshed only by its `PROVENANCE.md`.
 - **Packs.** `.LPK` is specified in `docs/lpk-format.md` first. `li-lpk`'s reader is `no_std`, allocates nothing and never panics on bad input; a format change follows its compatibility rule and updates the golden files (`LI_UPDATE_GOLDEN=1`).
 - **Toolchain.** Rust 1.98.0 (`rust-toolchain.toml`), `cargo nextest`. `make validate` is the single local gate. Markdown, shell and workflow checks run in Docker.
@@ -35,5 +35,6 @@ bun run format:check             # Prettier; `bun run format` fixes
 bun run typecheck && bun run test:js && bun run check:i18n
 bash scripts/check-bindings-drift.sh   # ts-rs bindings in packages/protocol; regenerate with scripts/generate-protocol-bindings.sh
 (cd apps/studio/src-tauri && cargo check && cargo clippy -- -D warnings)
+(cd apps/runner/src-tauri && cargo check && cargo clippy -- -D warnings)
 docker run --rm -v "$PWD:/workdir" davidanson/markdownlint-cli2:v0.17.2 "**/*.md"
 ```

@@ -6,9 +6,6 @@
 
 /* Each stage is composed at its artboard's pixel size and scaled to fit by `fitStages`. */
 
-.host {
-	margin-top: 12px;
-}
 .pvFit {
 	position: relative;
 	width: 100%;
@@ -1786,4 +1783,10 @@
 
 .pvWin11 .pvField .pvInput {
 	min-width: 88px;
+}
+
+/* A button the page has switched off (`enabled_when`). */
+.pv button:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
 }

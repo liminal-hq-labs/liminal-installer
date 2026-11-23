@@ -7,9 +7,13 @@
 import { act, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it } from 'vitest';
-import { composeScreen, parseRef } from '../lib/stage';
+import {
+	composeScreen,
+	parseRef,
+	LayoutPreview,
+	PreviewTree,
+} from '@liminal-hq/installer-renderer';
 import type { ComponentInfo, Layout, LayoutNode, Preview } from '../lib/types';
-import { LayoutPreview, PreviewTree } from './PreviewTree';
 import { RunStage } from './RunStage';
 import { useRun } from './useRun';
 

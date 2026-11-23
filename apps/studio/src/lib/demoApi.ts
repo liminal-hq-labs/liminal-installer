@@ -6,7 +6,7 @@
 import { lex } from '../editor/luaLex';
 import { validateFlow } from './flowEdit';
 import { resolveForRenderer } from './layoutEdit';
-import { composeScreen } from './stage';
+import { composeScreen } from '@liminal-hq/installer-renderer';
 import type { Api } from './api';
 import { demoTauri } from './demoTauri';
 import { demoTerminal } from './demoTerminal';

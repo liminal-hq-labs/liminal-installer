@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { t } from '../i18n/messages';
-import type { Scope } from './stage';
+import type { Scope } from '@liminal-hq/installer-renderer';
 import type { LayoutNode } from './types';
 
 export type PaletteGroup = 'containers' | 'content' | 'controls' | 'status' | 'special';

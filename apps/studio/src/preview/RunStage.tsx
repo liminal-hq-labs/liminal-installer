@@ -7,8 +7,7 @@ import { t } from '../i18n/messages';
 import type { ComponentInfo, Preview, PreviewStep } from '../lib/types';
 import { cx } from '../ui/cx';
 import ui from '../ui/ui.module.css';
-import { hasMovingParts, type Scheme } from './model';
-import { PreviewTree } from './PreviewTree';
+import { hasMovingParts, type Scheme, PreviewTree } from '@liminal-hq/installer-renderer';
 import type { Run } from './useRun';
 import styles from './RunStage.module.css';
 

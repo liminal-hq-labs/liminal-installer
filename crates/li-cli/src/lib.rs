@@ -36,6 +36,7 @@ pub mod project;
 pub mod scaffold;
 pub mod theme_pack;
 pub mod util;
+pub mod web;
 
 pub use build::{BuildError, BuildRequest, Builder, BuiltArtefact, NativeBuilder};
 pub use check::{DefaultChecker, EngineChecker, ProjectChecker, check_project};

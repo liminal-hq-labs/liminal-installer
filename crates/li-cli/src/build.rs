@@ -23,6 +23,7 @@ pub enum BuildError {
 }
 
 /// Everything a builder needs to write one target.
+#[derive(Clone)]
 pub struct BuildRequest<'a> {
 	pub project: &'a Project,
 	pub target: &'a Target,
@@ -37,6 +38,10 @@ pub struct BuildRequest<'a> {
 	/// The `SETUP.EXE` to carry in a DOS target's outputs; without it one is found or built (see
 	/// `crate::dos`).
 	pub dos_runtime: Option<PathBuf>,
+	/// The web runner to carry in a `web` target's bundle; without it the bundle holds a placeholder.
+	pub web_runner: Option<PathBuf>,
+	/// Build the web runner with Tauri first, when none is named (slow; see `crate::web`).
+	pub build_web_runner: bool,
 }
 
 /// One file (or tree) a build wrote, or an output it could not write.
@@ -113,6 +118,30 @@ impl Builder for NativeBuilder {
 			std::fs::create_dir_all(&req.out_dir).map_err(|e| PackageError::io(&req.out_dir, e))?;
 			return crate::dos::build(req, &outputs, &req.out_dir);
 		}
+		if req.target.renderer == "web" {
+			let outputs = if !req.outputs.is_empty() {
+				req.outputs.clone()
+			} else {
+				// The runner bundle is what a `web` target is; the others are the packaging around it.
+				let mut all = vec!["web".to_owned()];
+				all.extend(req.target.outputs.iter().filter(|o| *o != "web").cloned());
+				all
+			};
+			if outputs.iter().any(|o| o == "web") {
+				std::fs::create_dir_all(&req.out_dir)
+					.map_err(|e| PackageError::io(&req.out_dir, e))?;
+				let mut built = crate::web::build(req)?;
+				let rest: Vec<String> = outputs.into_iter().filter(|o| o != "web").collect();
+				if !rest.is_empty() {
+					let again = BuildRequest {
+						outputs: rest,
+						..req.clone()
+					};
+					built.extend(NativeBuilder.build(&again)?);
+				}
+				return Ok(built);
+			}
+		}
 		let mut info = PackageInfo::from_project(
 			&req.project.installer,
 			&req.project.components,
@@ -169,14 +198,31 @@ fn pinned_key(project: &Project) -> Result<Option<li_pack::VerifyingKey>, BuildE
 		.map_err(|e| BuildError::Other(format!("{}: {e}", path.display())))
 }
 
+/// The target the `.lip` says it is for: the `os-arch` id, or `os-arch:renderer` when the project
+/// has more than one target of that id, so the runner knows which one to run.
+fn bundle_target(req: &BuildRequest) -> String {
+	let same = req
+		.project
+		.installer
+		.targets
+		.iter()
+		.filter(|t| t.id == req.target.id)
+		.count();
+	if same > 1 {
+		req.target.full_id()
+	} else {
+		req.target.id.clone()
+	}
+}
+
 /// The `.lip` for the target: the payload files and the bundled project.
-fn lip_bytes(req: &BuildRequest) -> Result<Vec<u8>, BuildError> {
+pub(crate) fn lip_bytes(req: &BuildRequest) -> Result<Vec<u8>, BuildError> {
 	let plain = li_engine::pack_payload(req.project, &req.target.id)
 		.map_err(|e| BuildError::Other(e.to_string()))?;
 	li_engine::bundle::bundle_project(
 		req.project,
 		&plain,
-		&req.target.id,
+		&bundle_target(req),
 		&req.version,
 		pinned_key(req.project)?.as_ref(),
 	)

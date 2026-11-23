@@ -8,7 +8,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { ChromeStore } from '../chrome/chromeStore';
 import { createApi, errorMessage, type Api } from '../lib/api';
-import type { Scheme } from '../preview/model';
+import type { Scheme } from '@liminal-hq/installer-renderer';
 import type { TerminalView } from '../preview/TerminalPreview';
 import { createStudio, type App } from '../stores/studio';
 import { createStudioRouter, routerNavigator } from './router';

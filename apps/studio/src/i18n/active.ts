@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { setRendererCatalogue } from '@liminal-hq/installer-renderer';
 import { FALLBACK_LOCALE, intlTagFor, pluralTagFor, type Locale } from './locales';
 import type { MessageId, PluralId } from './messages';
 
@@ -36,6 +37,7 @@ export function pluralLocale(): string {
 /** Makes an already loaded catalogue the one in force. */
 export function setActiveLocale(locale: Locale, messages: Catalogue): void {
 	current = { locale, messages };
+	setRendererCatalogue(messages);
 }
 
 /** Puts the English catalogue back; for tests. */

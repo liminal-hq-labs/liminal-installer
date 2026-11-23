@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { t } from '../i18n/messages';
-import { SCHEMES, type Scheme } from './model';
+import { SCHEMES, type Scheme } from '@liminal-hq/installer-renderer';
 import styles from './terminal.module.css';
 
 const NAMES: Record<Scheme, Parameters<typeof t>[0]> = {
