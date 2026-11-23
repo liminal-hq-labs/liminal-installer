@@ -69,7 +69,10 @@ async function boot(): Promise<void> {
 	const settleUnsaved = async (): Promise<boolean> => {
 		if (!store.get().menu.scriptDirty) return true;
 		// With the confirmation off, unsaved edits are discarded without asking.
-		if (!store.get().settings.confirmDiscard) return true;
+		if (!store.get().settings.confirmDiscard) {
+			app?.discard();
+			return true;
+		}
 		const answer = await dialogs.open({
 			kind: 'confirm',
 			title: 'Unsaved changes',
@@ -83,6 +86,7 @@ async function boot(): Promise<void> {
 		}).result;
 		// Going on after a save that failed would lose the edits, so the save settles it.
 		if (answer === 'save') return (await app?.dispatch('file.save')) === true;
+		if (answer === 'discard') app?.discard();
 		return answer === 'discard';
 	};
 
@@ -120,7 +124,7 @@ async function boot(): Promise<void> {
 	};
 
 	const appHost = await mountShell(container, { store, host, onAction: perform, ...(chrome ? { controls } : {}) });
-	app = await startApp(appHost, store, { header: !chrome });
+	app = await startApp(appHost, store, { header: !chrome, settleUnsaved });
 
 	if (inTauri()) {
 		const { getCurrentWindow } = await import('@tauri-apps/api/window');
@@ -134,7 +138,7 @@ async function boot(): Promise<void> {
 	window.addEventListener('keydown', (e) => {
 		if (e.defaultPrevented || store.get().dialog) return;
 		const target = e.target as HTMLElement | null;
-		const inTextField = !!target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT' || target.tagName === 'SELECT');
+		const inTextField = !!target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT' || target.tagName === 'SELECT' || !!target.closest?.('.cm-editor'));
 		const id = actionForEvent(e, store.get().menu, inTextField);
 		if (!id) return;
 		e.preventDefault();
