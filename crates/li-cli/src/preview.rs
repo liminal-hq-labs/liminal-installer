@@ -105,6 +105,11 @@ fn sample_vars(project: &Project, target: &Target, slug: &str, plan_ops: usize) 
 	b
 }
 
+/// A step's type as the lower-case word a layout's `show_on` list uses.
+fn step_kind(step: &li_model::Step) -> String {
+	format!("{:?}", step.kind).to_lowercase()
+}
+
 pub fn screen_text(layout: &Layout, look: Look, w: u16, h: u16, vars: &MapBindings) -> String {
 	let screen = Screen::new(layout, look);
 	let mut b = vars.clone();
@@ -148,12 +153,12 @@ pub fn preview(
 				let layout = s
 					.layout
 					.as_deref()
-					.and_then(|l| project.layout_for(target, l));
+					.and_then(|l| project.screen_for(target, l, &s.id, &step_kind(s)));
 				json!({
 					"id": s.id,
 					"type": s.kind,
 					"layout": s.layout,
-					"screen": layout.map(|l| screen_text(l, o.look, o.width, o.height, &vars)),
+					"screen": layout.map(|l| screen_text(&l, o.look, o.width, o.height, &vars)),
 				})
 			})
 			.collect();
@@ -188,9 +193,9 @@ pub fn preview(
 			));
 			match &step.layout {
 				None => out.push_str("(no page)\n"),
-				Some(l) => match project.layout_for(target, l) {
+				Some(l) => match project.screen_for(target, l, &step.id, &step_kind(step)) {
 					Some(layout) => {
-						out.push_str(&screen_text(layout, o.look, o.width, o.height, &vars))
+						out.push_str(&screen_text(&layout, o.look, o.width, o.height, &vars))
 					}
 					None => out.push_str(&format!("(layout `{l}` not found)\n")),
 				},

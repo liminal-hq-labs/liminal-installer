@@ -515,7 +515,13 @@ mod tests {
 			"get_layout",
 			json!({"id": "fizz-dos/welcome", "renderer": "tui-retro"}),
 		);
-		assert_eq!(layout["root"]["props"]["style"], "text-mode");
+		assert_eq!(layout["root"]["kind"], "dialog");
+		let (_, stage) = call(
+			&s,
+			"get_layout",
+			json!({"id": "fizz-dos/stage", "renderer": "tui-retro"}),
+		);
+		assert_eq!(stage["root"]["props"]["style"], "text-mode");
 		assert!(layout["root"].get("overrides").is_none());
 		let (_, script) = call(
 			&s,

@@ -3,16 +3,64 @@
 	"version": 1,
 	"id": "done",
 	"root": {
-		"kind": "backdrop",
+		"kind": "dialog",
 		"props": {
-			"style": "text-mode",
-			"charset": "cp437",
-			"fill": "░",
-			"title": "{product.name}  Setup",
-			"credit": "Liminal Installer",
-			"label": "Lieutenant Fizz — Episode One setup"
+			"title": "Setup complete",
+			"label": "Setup complete",
+			"border": "double",
+			"shadow": true,
+			"width": 56
 		},
 		"children": [
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "column",
+					"gap": 1
+				},
+				"children": [
+					{
+						"kind": "text",
+						"props": {
+							"text": "Lt. Fizz is installed. Thank you for installing it.",
+							"role": "body"
+						}
+					},
+					{
+						"kind": "checklist",
+						"bind": "finish.launch",
+						"props": {
+							"label": "After setup",
+							"items": [
+								{
+									"id": "launch",
+									"label": "Launch Lieutenant Fizz"
+								}
+							]
+						}
+					}
+				]
+			},
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "row",
+					"gap": 2,
+					"align": "centre",
+					"region": "footer"
+				},
+				"children": [
+					{
+						"kind": "button",
+						"props": {
+							"label": "Finish",
+							"action": "finish",
+							"default": true,
+							"hotkey": "F"
+						}
+					}
+				]
+			},
 			{
 				"kind": "stack",
 				"props": {
@@ -100,67 +148,6 @@
 							"max": 8,
 							"text": "Step 8 of 8"
 						}
-					}
-				]
-			},
-			{
-				"kind": "dialog",
-				"props": {
-					"title": "Setup complete",
-					"label": "Setup complete",
-					"border": "double",
-					"shadow": true,
-					"width": 56
-				},
-				"children": [
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "column",
-							"gap": 1
-						},
-						"children": [
-							{
-								"kind": "text",
-								"props": {
-									"text": "Lt. Fizz is installed. Thank you for installing it.",
-									"role": "body"
-								}
-							},
-							{
-								"kind": "checklist",
-								"bind": "finish.launch",
-								"props": {
-									"label": "After setup",
-									"items": [
-										{
-											"id": "launch",
-											"label": "Launch Lieutenant Fizz"
-										}
-									]
-								}
-							}
-						]
-					},
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "row",
-							"gap": 2,
-							"align": "centre",
-							"region": "footer"
-						},
-						"children": [
-							{
-								"kind": "button",
-								"props": {
-									"label": "Finish",
-									"action": "finish",
-									"default": true,
-									"hotkey": "F"
-								}
-							}
-						]
 					}
 				]
 			},

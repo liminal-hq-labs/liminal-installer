@@ -212,9 +212,13 @@ impl<'a> Drive<'a> {
 	fn layouts(&self, flow_id: &str) -> BTreeMap<String, Layout> {
 		let mut out = BTreeMap::new();
 		if let Some(flow) = self.project.flows.get(flow_id) {
-			for id in flow.steps.iter().filter_map(|s| s.layout.as_deref()) {
-				if let Some(l) = self.project.layout_for(self.target, id) {
-					out.insert(id.to_owned(), l.clone());
+			for step in &flow.steps {
+				let Some(id) = step.layout.as_deref() else {
+					continue;
+				};
+				let kind = format!("{:?}", step.kind).to_lowercase();
+				if let Some(l) = self.project.screen_for(self.target, id, &step.id, &kind) {
+					out.insert(id.to_owned(), l);
 				}
 			}
 		}

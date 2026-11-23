@@ -353,11 +353,14 @@ fn walk_install(
 					}
 				}
 			}
-			if let Some(layout) = step
-				.layout
-				.as_deref()
-				.and_then(|l| eng.layout_for(target, l))
-			{
+			if let Some(layout) = step.layout.as_deref().and_then(|l| {
+				eng.screen_for(
+					target,
+					l,
+					&step.id,
+					&format!("{:?}", step.kind).to_lowercase(),
+				)
+			}) {
 				let mut shown = state.clone();
 				shown.insert("install.path".into(), json!(sample.display_path));
 				let tree_in = |renderer: &str, st: &State| {

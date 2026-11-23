@@ -3,16 +3,149 @@
 	"version": 1,
 	"id": "sound-card",
 	"root": {
-		"kind": "backdrop",
+		"kind": "dialog",
 		"props": {
-			"style": "text-mode",
-			"charset": "cp437",
-			"fill": "░",
-			"title": "{product.name}  Setup",
-			"credit": "Liminal Installer",
-			"label": "Lieutenant Fizz — Episode One setup"
+			"title": "Sound Card",
+			"label": "Sound Card",
+			"border": "double",
+			"shadow": true,
+			"width": 56
 		},
 		"children": [
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "column",
+					"gap": 1
+				},
+				"children": [
+					{
+						"kind": "text",
+						"props": {
+							"text": "Setup found: {sound.detected}.",
+							"role": "body"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Choose how Lt. Fizz should play sound.",
+							"role": "body"
+						}
+					},
+					{
+						"kind": "radio",
+						"bind": "sound.card",
+						"props": {
+							"label": "Sound card",
+							"options": [
+								{
+									"id": "none",
+									"label": "No sound"
+								},
+								{
+									"id": "speaker",
+									"label": "PC speaker"
+								},
+								{
+									"id": "adlib",
+									"label": "AdLib music card"
+								},
+								{
+									"id": "sbpro",
+									"label": "Sound Blaster / Pro / 16"
+								},
+								{
+									"id": "gus",
+									"label": "Gravis UltraSound"
+								}
+							],
+							"sunken": true
+						}
+					},
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "row",
+							"gap": 3,
+							"group": "fields"
+						},
+						"children": [
+							{
+								"kind": "field",
+								"bind": "sound.port",
+								"props": {
+									"label": "Port",
+									"default": "220",
+									"width": 4
+								}
+							},
+							{
+								"kind": "field",
+								"bind": "sound.irq",
+								"props": {
+									"label": "IRQ",
+									"default": "5",
+									"width": 2
+								}
+							},
+							{
+								"kind": "field",
+								"bind": "sound.dma",
+								"props": {
+									"label": "DMA",
+									"default": "1",
+									"width": 2
+								}
+							}
+						]
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "{validate.problems}",
+							"role": "error",
+							"label": "Problems"
+						}
+					}
+				]
+			},
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "row",
+					"gap": 2,
+					"align": "centre",
+					"region": "footer"
+				},
+				"children": [
+					{
+						"kind": "button",
+						"props": {
+							"label": "Test",
+							"action": "test",
+							"hotkey": "T"
+						}
+					},
+					{
+						"kind": "button",
+						"props": {
+							"label": "OK",
+							"action": "next",
+							"default": true,
+							"hotkey": "O"
+						}
+					},
+					{
+						"kind": "button",
+						"props": {
+							"label": "Back",
+							"action": "back",
+							"hotkey": "B"
+						}
+					}
+				]
+			},
 			{
 				"kind": "stack",
 				"props": {
@@ -100,152 +233,6 @@
 							"max": 8,
 							"text": "Step 5 of 8"
 						}
-					}
-				]
-			},
-			{
-				"kind": "dialog",
-				"props": {
-					"title": "Sound Card",
-					"label": "Sound Card",
-					"border": "double",
-					"shadow": true,
-					"width": 56
-				},
-				"children": [
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "column",
-							"gap": 1
-						},
-						"children": [
-							{
-								"kind": "text",
-								"props": {
-									"text": "Setup found: {sound.detected}.",
-									"role": "body"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Choose how Lt. Fizz should play sound.",
-									"role": "body"
-								}
-							},
-							{
-								"kind": "radio",
-								"bind": "sound.card",
-								"props": {
-									"label": "Sound card",
-									"options": [
-										{
-											"id": "none",
-											"label": "No sound"
-										},
-										{
-											"id": "speaker",
-											"label": "PC speaker"
-										},
-										{
-											"id": "adlib",
-											"label": "AdLib music card"
-										},
-										{
-											"id": "sbpro",
-											"label": "Sound Blaster / Pro / 16"
-										},
-										{
-											"id": "gus",
-											"label": "Gravis UltraSound"
-										}
-									],
-									"sunken": true
-								}
-							},
-							{
-								"kind": "stack",
-								"props": {
-									"direction": "row",
-									"gap": 3,
-									"group": "fields"
-								},
-								"children": [
-									{
-										"kind": "field",
-										"bind": "sound.port",
-										"props": {
-											"label": "Port",
-											"default": "220",
-											"width": 4
-										}
-									},
-									{
-										"kind": "field",
-										"bind": "sound.irq",
-										"props": {
-											"label": "IRQ",
-											"default": "5",
-											"width": 2
-										}
-									},
-									{
-										"kind": "field",
-										"bind": "sound.dma",
-										"props": {
-											"label": "DMA",
-											"default": "1",
-											"width": 2
-										}
-									}
-								]
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "{validate.problems}",
-									"role": "error",
-									"label": "Problems"
-								}
-							}
-						]
-					},
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "row",
-							"gap": 2,
-							"align": "centre",
-							"region": "footer"
-						},
-						"children": [
-							{
-								"kind": "button",
-								"props": {
-									"label": "Test",
-									"action": "test",
-									"hotkey": "T"
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "OK",
-									"action": "next",
-									"default": true,
-									"hotkey": "O"
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "Back",
-									"action": "back",
-									"hotkey": "B"
-								}
-							}
-						]
 					}
 				]
 			},
