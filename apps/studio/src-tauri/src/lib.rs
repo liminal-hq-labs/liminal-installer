@@ -12,7 +12,7 @@ use std::sync::Arc;
 use li_model::{Flow, Layout};
 use li_studio::studio::{FlowView, HistoryView, ProjectSummary, TargetInfo};
 use li_studio::{
-	MockBackend, Preview, Problem, ScriptReport, Source, Studio, StudioError, mcp::McpServer,
+	EngineBackend, Preview, Problem, ScriptReport, Source, Studio, StudioError, mcp::McpServer,
 };
 use serde::Serialize;
 use tauri::{Emitter, Manager, State};
@@ -124,8 +124,7 @@ fn mcp_info(state: State<AppState>) -> Option<McpInfo> {
 }
 
 pub fn run() {
-	// The engine is wired in here: replace `MockBackend` with the real `StudioBackend`.
-	let studio = Arc::new(Studio::new(Box::new(MockBackend)));
+	let studio = Arc::new(Studio::new(Box::new(EngineBackend)));
 	let mcp = match McpServer::start(studio.clone(), 0) {
 		Ok(server) => {
 			println!("{}", server.banner());

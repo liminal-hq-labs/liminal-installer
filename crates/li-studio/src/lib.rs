@@ -9,6 +9,7 @@
 
 pub mod backend;
 pub mod checks;
+pub mod engine;
 pub mod error;
 pub mod history;
 pub mod mcp;
@@ -21,6 +22,7 @@ pub use backend::{
 	BackendError, HookInfo, Preview, PreviewStep, Problem, Screenshot, ScriptReport, Severity,
 	StudioBackend,
 };
+pub use engine::EngineBackend;
 pub use error::StudioError;
 pub use history::{Entry, EntrySummary, History, Source};
 pub use mock::MockBackend;
