@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { problemSummary } from '../lib/format';
 import { startApp, type App } from './startApp';
 import { createChromeStore } from '../chrome/chromeStore';
-import { StudioError, type Api } from '../lib/api';
+import { StudioError, noTerminal, type Api } from '../lib/api';
 import { browserSettings } from '../lib/settings';
 import type {
 	ChangeEvent,
@@ -124,6 +124,7 @@ function fakeApi(overrides: Partial<Api> = {}): Fake {
 			throw new Error('not used');
 		},
 		getPreview: async () => null,
+		...noTerminal,
 		checkProject: async () => fake.problems,
 		history: async () => view(),
 		undo: async () => view(),

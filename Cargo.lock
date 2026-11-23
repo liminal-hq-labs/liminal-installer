@@ -1086,7 +1086,9 @@ version = "0.1.0"
 dependencies = [
  "li-model",
  "ratatui",
+ "serde",
  "serde_json",
+ "ts-rs",
 ]
 
 [[package]]
@@ -1127,6 +1129,7 @@ dependencies = [
  "li-model",
  "li-render-tui",
  "li-script",
+ "ratatui",
  "serde",
  "serde_json",
  "tempfile",

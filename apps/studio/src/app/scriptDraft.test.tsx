@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { startApp, type App } from './startApp';
 import { createChromeStore, type ChromeStore } from '../chrome/chromeStore';
 import { SCREEN_ACTIONS } from '../chrome/menuModel';
-import type { Api } from '../lib/api';
+import { noTerminal, type Api } from '../lib/api';
 import { browserSettings } from '../lib/settings';
 import type { ProjectSummary, ScriptReport } from '../lib/types';
 
@@ -88,6 +88,7 @@ function fakeApi() {
 			throw new Error('no preview');
 		},
 		getPreview: async () => null,
+		...noTerminal,
 		checkProject: async () => [],
 		history: async () => ({ entries: [], can_undo: false, can_redo: false }),
 		undo: async () => ({ entries: [], can_undo: false, can_redo: false }),

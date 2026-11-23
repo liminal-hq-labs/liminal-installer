@@ -7,6 +7,8 @@
 // types (`bash scripts/generate-protocol-bindings.sh`). Edit the Rust type, not a copy of it.
 // A few names keep the spelling the UI already used.
 export type { Branch } from '@liminal-hq/installer-protocol/generated/Branch';
+export type { CellGrid } from '@liminal-hq/installer-protocol/generated/CellGrid';
+export type { Cell } from '@liminal-hq/installer-protocol/generated/Cell';
 export type { ChangeEvent } from '@liminal-hq/installer-protocol/generated/ChangeEvent';
 export type { ComponentInfo } from '@liminal-hq/installer-protocol/generated/ComponentInfo';
 export type { DocKey } from '@liminal-hq/installer-protocol/generated/DocKey';
@@ -36,5 +38,10 @@ export type { Step } from '@liminal-hq/installer-protocol/generated/Step';
 export type { StepType } from '@liminal-hq/installer-protocol/generated/StepType';
 export type { TargetInfo } from '@liminal-hq/installer-protocol/generated/TargetInfo';
 export type { ThemeInfo } from '@liminal-hq/installer-protocol/generated/ThemeInfo';
+export type { TuiFrame } from '@liminal-hq/installer-protocol/generated/TuiFrame';
+export type { TuiKey } from '@liminal-hq/installer-protocol/generated/TuiKey';
+export type { TuiKeyResult } from '@liminal-hq/installer-protocol/generated/TuiKeyResult';
+export type { TuiOpened } from '@liminal-hq/installer-protocol/generated/TuiOpened';
+export type { TuiOutcome } from '@liminal-hq/installer-protocol/generated/TuiOutcome';
 export type { Node as LayoutNode } from '@liminal-hq/installer-protocol/generated/Node';
 export type { EntrySummary as HistoryEntry } from '@liminal-hq/installer-protocol/generated/EntrySummary';

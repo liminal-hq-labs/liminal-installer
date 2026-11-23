@@ -1,0 +1,24 @@
+\e[0;97;44m┌───────────────────────\e[0;1;97;44m Lieutenant Fizz — Episode One \e[0;97;44m────────────────────────┐\e[0m
+\e[0;97;44m│ Select Components                                                            │\e[0m
+\e[0;97;44m│                                                                              │\e[0m
+\e[0;97;44m│ Select the components you want to install, and clear the components you do   │\e[0m
+\e[0;97;44m│ not want to install.                                                         │\e[0m
+\e[0;97;44m│                                                                              │\e[0m
+\e[0;97;44m│ Components                                                                   │\e[0m
+\e[0;97;44m│  [x] Game program                                                            │\e[0m
+\e[0;97;44m│  [x] Sound drivers                                                           │\e[0m
+\e[0;97;44m│  [ ] Bonus levels                                                            │\e[0m
+\e[0;97;44m│                                                                              │\e[0m
+\e[0;97;44m│ Space required: 48 MB · Free: 12.4 GB                                        │\e[0m
+\e[0;97;44m│                                                                              │\e[0m
+\e[0;97;44m│ [ Back ]  \e[0;30;46m[ Next ]\e[0;97;44m  [ Cancel ]                                               │\e[0m
+\e[0;97;44m│                                                                              │\e[0m
+\e[0;97;44m│                                                                              │\e[0m
+\e[0;97;44m│                                                                              │\e[0m
+\e[0;97;44m│                                                                              │\e[0m
+\e[0;97;44m│                                                                              │\e[0m
+\e[0;97;44m│                                                                              │\e[0m
+\e[0;97;44m│                                                                              │\e[0m
+\e[0;97;44m│                                                                              │\e[0m
+\e[0;97;44m└──────────────────────────────────────────────────────────────────────────────┘\e[0m
+\e[0;30;46m Next, button  |  Tab move, Space toggle, Enter choose, Esc cancel              \e[0m

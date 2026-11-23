@@ -41,7 +41,8 @@ struct Inner {
 
 pub struct Studio {
 	inner: Mutex<Inner>,
-	backend: Box<dyn StudioBackend>,
+	pub(crate) backend: Box<dyn StudioBackend>,
+	pub(crate) sessions: Mutex<crate::tui::Sessions>,
 	listeners: Mutex<Vec<Listener>>,
 }
 
@@ -123,6 +124,7 @@ impl Studio {
 				preview: None,
 			}),
 			backend,
+			sessions: Mutex::new(crate::tui::Sessions::default()),
 			listeners: Mutex::new(Vec::new()),
 		}
 	}
@@ -138,7 +140,7 @@ impl Studio {
 		}
 	}
 
-	fn with_project<T>(
+	pub(crate) fn with_project<T>(
 		&self,
 		f: impl FnOnce(&Project) -> Result<T, StudioError>,
 	) -> Result<T, StudioError> {

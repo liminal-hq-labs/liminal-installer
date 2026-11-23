@@ -11,6 +11,6 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-cargo test --locked --quiet -p li-model -p li-script -p li-studio \
-	--features li-model/ts,li-script/ts export_bindings
+cargo test --locked --quiet -p li-model -p li-script -p li-render-tui -p li-studio \
+	--features li-model/ts,li-script/ts,li-render-tui/ts export_bindings
 echo "Regenerated the protocol bindings."

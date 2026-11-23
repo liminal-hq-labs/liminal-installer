@@ -118,7 +118,7 @@ bun run tauri:dev
 The first run compiles the Tauri shell, which takes a few minutes. Then:
 
 - **Open project…** from the app menu (the wordmark, or `F10`): choose a folder that holds `installer/`, for example `examples/lt-fizz`.
-- **Project, Flow, Layouts, Scripts, Dry-run:** the five screens. The dry-run preview runs the real engine: change a flow or a layout and run it again.
+- **Project, Flow, Layouts, Scripts, Dry-run:** the five screens. The dry-run preview runs the real engine: change a flow or a layout and run it again. For `tui` and `tui-retro` targets, switch View to Terminal (real) to see the renderer's actual terminal output, the same as `liminst` draws, and play the installer with the keyboard.
 - **Menu bar:** switch it on from the app menu or View. It is saved in the Studio's settings.
 - **About and Preferences:** `F1` and `Ctrl+,` open child windows.
 - **Undo and redo:** shared by the UI and agents.

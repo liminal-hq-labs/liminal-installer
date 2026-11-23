@@ -1,0 +1,24 @@
+\e[0;97;44m \e[0;1;97;44mLieutenant Fizz Setup\e[0;97;44m                                                          \e[0m
+\e[0;97;44m                                                                                \e[0m
+\e[0;97;44m                                                                                \e[0m
+\e[0;97;44m                                                                                \e[0m
+\e[0;97;44m                                                                                \e[0m
+\e[0;97;44m              \e[0;30;47m╔═══════════════════\e[0;1;30;47m Welcome \e[0;30;47m════════════════════╗\e[0;97;44m                \e[0m
+\e[0;97;44m              \e[0;30;47m║ This program installs Lieutenant Fizz on your  ║\e[0;90;40m  \e[0;97;44m              \e[0m
+\e[0;97;44m              \e[0;30;47m║ computer. Choose Next to continue.             ║\e[0;90;40m  \e[0;97;44m              \e[0m
+\e[0;97;44m              \e[0;30;47m║ Folder: [\e[0;30;107m/home/me/fizz                 \e[0;30;47m]       ║\e[0;90;40m  \e[0;97;44m              \e[0m
+\e[0;97;44m              \e[0;30;47m║ Components                                     ║\e[0;90;40m  \e[0;97;44m              \e[0m
+\e[0;97;44m              \e[0;30;47m║  [x] Game program                              ║\e[0;90;40m  \e[0;97;44m              \e[0m
+\e[0;97;44m              \e[0;30;47m║  [x] Sound drivers                             ║\e[0;90;40m  \e[0;97;44m              \e[0m
+\e[0;97;44m              \e[0;30;47m║  [ ] Bonus levels                              ║\e[0;90;40m  \e[0;97;44m              \e[0m
+\e[0;97;44m              \e[0;30;47m║ Install for                                    ║\e[0;90;40m  \e[0;97;44m              \e[0m
+\e[0;97;44m              \e[0;30;47m║  (•) Just me                                   ║\e[0;90;40m  \e[0;97;44m              \e[0m
+\e[0;97;44m              \e[0;30;47m║  ( ) Everyone                                  ║\e[0;90;40m  \e[0;97;44m              \e[0m
+\e[0;97;44m              \e[0;30;47m║ [ Back ]  \e[0;30;46m[ Next ]\e[0;30;47m  [ Cancel ]                 ║\e[0;90;40m  \e[0;97;44m              \e[0m
+\e[0;97;44m              \e[0;30;47m╚════════════════════════════════════════════════╝\e[0;90;40m  \e[0;97;44m              \e[0m
+\e[0;97;44m                \e[0;90;40m                                                  \e[0;97;44m              \e[0m
+\e[0;97;44m                                                                                \e[0m
+\e[0;97;44m                                                                                \e[0m
+\e[0;97;44m                                                                                \e[0m
+\e[0;97;44m Free space [\e[0;36;44m█████████████████████████████████████\e[0;97;44m░░░░░░░░░░░░░░░░░░░░░░░]  62% \e[0m
+\e[0;30;46m Next, button  |  Tab move, Space toggle, Enter choose, Esc cancel              \e[0m
