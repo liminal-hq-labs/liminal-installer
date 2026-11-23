@@ -4,7 +4,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import './styles/tokens.css';
+import '@fontsource/vt323/latin-400.css';
 import './styles/app.css';
+import './styles/preview.css';
 import { startApp, type App } from './app';
 import { mountShell } from './chrome/Chrome';
 import { createChromeStore, type ChromeStore } from './chrome/chromeStore';

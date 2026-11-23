@@ -23,7 +23,7 @@ import {
 	setProp,
 	toggleOverride,
 } from '../lib/layoutEdit';
-import { renderLayoutHtml, styleFor } from '../lib/previewRender';
+import { fitStages, lookFor, renderLayoutHtml } from '../lib/previewRender';
 import type { Layout } from '../lib/types';
 
 const same = (a: number[], b: number[]) => a.length === b.length && a.every((v, i) => v === b[i]);
@@ -100,17 +100,38 @@ function inspector(ctx: Ctx, layout: Layout): HTMLElement {
 	);
 }
 
+function layoutPicker(ctx: Ctx): HTMLElement {
+	const s = ctx.state;
+	const ids = s.summary!.layouts;
+	const groups = [...new Set(ids.map((id) => (id.includes('/') ? id.split('/')[0]! : '')))].sort((a, b) => (a === '' ? -1 : b === '' ? 1 : a.localeCompare(b)));
+	return h(
+		'label',
+		{ class: 'field inline' },
+		h('span', { class: 'field-label' }, 'Layout'),
+		h(
+			'select',
+			{ 'aria-label': 'Layout', on: { change: (e) => void ctx.run(() => ctx.loadLayout((e.target as HTMLSelectElement).value)) } },
+			groups.map((g) => h('optgroup', { label: g === '' ? 'Shared (plain fallback)' : `Theme ${g}` }, ids.filter((id) => (id.includes('/') ? id.split('/')[0] : '') === g).map((id) => h('option', { value: id, selected: id === s.layoutId }, id.includes('/') ? id.split('/')[1]! : id)))),
+		),
+	);
+}
+
 export function layoutView(ctx: Ctx): HTMLElement {
 	const s = ctx.state;
 	const layout = s.layout;
 	if (!layout) return h('p', { class: 'muted' }, 'Loading…');
+	// A theme's own layout is previewed by a renderer that theme supports.
+	const themeId = s.layoutId.includes('/') ? s.layoutId.split('/')[0]! : null;
+	const theme = s.summary!.themes.find((t) => t.id === themeId) ?? null;
+	if (theme && !theme.renderers.includes(s.previewRenderer)) s.previewRenderer = theme.renderers[0] ?? s.previewRenderer;
 	const pv = h('div', { class: 'preview-host' });
-	pv.innerHTML = renderLayoutHtml(layout, s.previewRenderer);
+	pv.innerHTML = renderLayoutHtml(layout, s.previewRenderer, { theme: themeId, components: s.summary!.components });
+	fitStages(pv);
 	return h(
 		'div',
 		{ class: 'screen' },
 		h('div', { class: 'screen-head' }, h('div', {}, h('h1', {}, 'Layouts'), h('p', { class: 'muted' }, 'A tree of nodes. A renderer uses its override where one exists and the base node otherwise.'))),
-		h('div', { class: 'tabs', role: 'tablist' }, s.summary!.layouts.map((id) => h('button', { role: 'tab', 'aria-selected': id === s.layoutId, class: id === s.layoutId ? 'tab active' : 'tab', on: { click: () => void ctx.run(() => ctx.loadLayout(id)) } }, id))),
+		layoutPicker(ctx),
 		h(
 			'div',
 			{ class: 'layout-grid' },
@@ -119,7 +140,7 @@ export function layoutView(ctx: Ctx): HTMLElement {
 			h(
 				'section',
 				{ class: 'card', 'aria-label': 'Live preview' },
-				h('div', { class: 'toolbar' }, h('label', { class: 'field inline' }, h('span', { class: 'field-label' }, 'Preview as'), h('select', { on: { change: (e) => { s.previewRenderer = (e.target as HTMLSelectElement).value; ctx.render(); } } }, RENDERERS.map((r) => h('option', { value: r, selected: r === s.previewRenderer }, r)))), h('span', { class: 'chip' }, styleFor(s.previewRenderer) === 'retro' ? 'tui-retro style' : 'canvas style')),
+				h('div', { class: 'toolbar' }, h('label', { class: 'field inline' }, h('span', { class: 'field-label' }, 'Preview as'), h('select', { on: { change: (e) => { s.previewRenderer = (e.target as HTMLSelectElement).value; ctx.render(); } } }, RENDERERS.map((r) => h('option', { value: r, selected: r === s.previewRenderer }, r)))), h('span', { class: 'chip' }, `${lookFor(s.previewRenderer, themeId, layout.root.props?.style as string | undefined)} look`)),
 				pv,
 			),
 		),

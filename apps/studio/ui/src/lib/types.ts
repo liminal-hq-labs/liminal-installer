@@ -119,11 +119,21 @@ export interface PreviewStep {
 	kind: string;
 	layout: string | null;
 	skipped: boolean;
+	/** The tui text version of the screen; only `tui` and `tui-retro` targets have one. */
 	screenshot: Screenshot | null;
+	/** The layout as the target's renderer draws it, overrides applied and references expanded. */
+	layout_tree?: LayoutNode | null;
+	/** The page state when the step is shown. */
+	state?: Record<string, unknown>;
 }
 
 export interface Preview {
 	target: string;
+	renderer?: string;
+	theme?: string | null;
+	product?: { id: string; name: string; version: string; publisher: string };
+	/** Sample values for `{placeholders}`. */
+	vars?: Record<string, string>;
 	plan: { ops: Operation[] };
 	problems: Problem[];
 	steps: PreviewStep[];

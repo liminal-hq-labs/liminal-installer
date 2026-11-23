@@ -5,7 +5,6 @@
 
 import { validateFlow } from './flowEdit';
 import { resolveForRenderer } from './layoutEdit';
-import { renderLayoutHtml } from './previewRender';
 import type {
 	Api,
 } from './api';
@@ -22,7 +21,7 @@ import type {
 	TargetInfo,
 } from './types';
 
-const files = import.meta.glob('../../../../../examples/lt-fizz/installer/{*.toml,flows/*.json,layouts/*.json,scripts/*.lua}', {
+const files = import.meta.glob('../../../../../examples/lt-fizz/installer/{*.toml,flows/*.json,layouts/*.json,themes/*/layouts/*.json,scripts/*.lua}', {
 	query: '?raw',
 	import: 'default',
 	eager: true,
@@ -30,6 +29,11 @@ const files = import.meta.glob('../../../../../examples/lt-fizz/installer/{*.tom
 
 const byName = (suffix: string) => Object.entries(files).filter(([k]) => k.includes(suffix));
 const stem = (path: string) => path.split('/').pop()!.replace(/\.(flow|layout)\.json$/, '');
+/** A layout's id: the file stem, with a theme's own layouts prefixed `theme/`. */
+const layoutId = (path: string) => {
+	const theme = /\/themes\/([^/]+)\/layouts\//.exec(path)?.[1];
+	return theme ? `${theme}/${stem(path)}` : stem(path);
+};
 
 /** Reads `[[name]]` tables of `key = value` lines; enough for the example manifests. */
 function tables(text: string, name: string): Record<string, string>[] {
@@ -58,7 +62,7 @@ interface Entry extends HistoryEntry {
 
 export function demoApi(): Api {
 	const flows = new Map<string, Flow>(byName('/flows/').map(([k, v]) => [stem(k), JSON.parse(v) as Flow]));
-	const layouts = new Map<string, Layout>(byName('/layouts/').map(([k, v]) => [stem(k), JSON.parse(v) as Layout]));
+	const layouts = new Map<string, Layout>(byName('/layouts/').map(([k, v]) => [layoutId(k), { ...(JSON.parse(v) as Layout), id: layoutId(k) }]));
 	const scripts = new Map<string, string>(byName('/scripts/').map(([k, v]) => [`scripts/${k.split('/').pop()}`, v]));
 	const installer = byName('installer.toml')[0]?.[1] ?? '';
 	const components = byName('components.toml')[0]?.[1] ?? '';
@@ -182,27 +186,65 @@ export function demoApi(): Api {
 		testScript: async (path, source) => report(path, source ?? scripts.get(path) ?? ''),
 		runPreview: async (target) => {
 			const flow = flows.get('install')!;
-			const renderer = target.split(':')[1] ?? 'canvas';
+			const [targetId = '', renderer = 'canvas'] = target.split(':');
+			const info = targets().find((t) => t.full_id === target);
+			const theme = info?.theme ?? 'fizz-win95';
+			const comps = summary().components.filter((c) => !c.targets.length || c.targets.includes(targetId));
+			const slug = 'LT-FIZZ';
+			const winish = targetId.startsWith('dos') || targetId.startsWith('win');
+			const vars: Record<string, string> = {
+				'product.id': 'hq.liminal.lt-fizz',
+				'product.name': 'Lieutenant Fizz — Episode One',
+				'product.publisher': 'Liminal HQ',
+				'product.version': '1.0.0',
+				'target.id': targetId,
+				'target.renderer': renderer,
+				'install.path': winish ? `C:\\${slug}` : `~/.local/share/${slug.toLowerCase()}`,
+				'install.size': '48 MB',
+				'system.free_space': '12.4 GB',
+				'system.free_space_after': '12.3 GB',
+				'progress.file': winish ? 'C:\\LT-FIZZ\\SOUND\\SB16.DRV' : 'sound/SB16.DRV',
+				'progress.percent': '55',
+				'plan.summary': `${comps.length} components · 41 files · 48 MB`,
+				'sound.detected': 'Sound Blaster',
+				'validate.problems': '',
+			};
+			const state = {
+				'components.selected': comps.map((c) => c.id),
+				'licence.accepted': 'yes',
+				'install.scope': 'user',
+				'finish.launch': ['launch'],
+				'sound.card': 'sbpro',
+				'sound.port': '220',
+				'sound.irq': '5',
+				'sound.dma': '1',
+				'sound.cards': [
+					{ id: 'none', name: 'No sound' },
+					{ id: 'speaker', name: 'PC speaker' },
+					{ id: 'adlib', name: 'AdLib music card' },
+					{ id: 'sbpro', name: 'Sound Blaster / Pro / 16' },
+					{ id: 'gus', name: 'Gravis UltraSound' },
+				],
+			};
 			const steps = flow.steps.map((s) => {
 				const skipped = Boolean(s.when && !s.when.includes(`'${renderer}'`));
-				const layout = s.layout ? layouts.get(s.layout) : undefined;
+				const layout = s.layout ? (layouts.get(`${theme}/${s.layout}`) ?? layouts.get(s.layout)) : undefined;
 				return {
 					id: s.id,
 					kind: s.type,
 					layout: s.layout ?? null,
 					skipped,
-					screenshot:
-						layout && !skipped
-							? {
-									mime: 'image/svg+xml',
-									encoding: 'utf8' as const,
-									data: `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="60"><rect width="480" height="60" fill="#0c0c10"/><text x="12" y="34" fill="#e0e0e0" font-family="monospace">${s.id} (${renderLayoutHtml(layout, renderer).length} bytes of HTML)</text></svg>`,
-								}
-							: null,
+					screenshot: null,
+					layout_tree: layout && !skipped ? resolveForRenderer(layout.root, renderer) : null,
+					state,
 				};
 			});
 			preview = {
 				target,
+				renderer,
+				theme,
+				product: { id: vars['product.id']!, name: vars['product.name']!, version: '1.0.0', publisher: 'Liminal HQ' },
+				vars,
 				plan: { ops: [{ op: 'mkdir', path: '{install}' }, { op: 'copy', from: 'dist/FIZZ.EXE', to: '{install}/FIZZ.EXE' }, { op: 'receipt.write', path: '{install}/.liminal/receipt.json' }] },
 				problems: [],
 				steps,

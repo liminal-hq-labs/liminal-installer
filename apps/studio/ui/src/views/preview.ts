@@ -6,6 +6,7 @@
 import type { Ctx } from '../app';
 import { h } from '../lib/dom';
 import { formatOp, screenshotSrc } from '../lib/format';
+import { fitStages, lookFor, renderTreeHtml } from '../lib/previewRender';
 
 export function previewView(ctx: Ctx): HTMLElement {
 	const s = ctx.state;
@@ -22,6 +23,15 @@ export function previewView(ctx: Ctx): HTMLElement {
 			ctx.render();
 		}
 	};
+	const targetInfo = targets.find((t) => t.full_id === s.previewTarget);
+	const stale = Boolean(pv && pv.target !== s.previewTarget);
+	const rich = h('div', { class: 'preview-host', 'aria-label': shown ? `Screen of step ${shown.id}` : 'Screen' });
+	if (pv && shown?.layout_tree) {
+		const renderer = pv.renderer ?? targetInfo?.renderer ?? 'canvas';
+		rich.innerHTML = renderTreeHtml(shown.layout_tree, { renderer, theme: pv.theme ?? targetInfo?.theme, vars: pv.vars, state: shown.state, components: s.summary!.components });
+		fitStages(rich);
+	}
+	const skippedCount = pv?.steps.filter((st) => st.skipped).length ?? 0;
 	return h(
 		'div',
 		{ class: 'screen' },
@@ -29,9 +39,9 @@ export function previewView(ctx: Ctx): HTMLElement {
 		h(
 			'div',
 			{ class: 'toolbar' },
-			h('select', { 'aria-label': 'Target', on: { change: (e) => { s.previewTarget = (e.target as HTMLSelectElement).value; } } }, targets.map((t) => h('option', { value: t.full_id, selected: t.full_id === s.previewTarget }, `${t.id} · ${t.renderer}`))),
+			h('select', { 'aria-label': 'Target', on: { change: (e) => { const t = (e.target as HTMLSelectElement).value; s.previewTarget = t; void ctx.run(() => ctx.runPreview(t)); } } }, targets.map((t) => h('option', { value: t.full_id, selected: t.full_id === s.previewTarget }, `${t.id} · ${t.renderer}`))),
 			h('button', { class: 'btn primary', on: { click: () => void ctx.run(() => ctx.runPreview(s.previewTarget)) } }, 'Run preview'),
-			pv ? h('span', { class: 'dim small' }, `Showing ${pv.target}`) : null,
+			pv ? h('span', { class: stale ? 'chip warn' : 'dim small' }, stale ? `Stale: showing ${pv.target}` : `Showing ${pv.target}${pv.theme ? ` · theme ${pv.theme}` : ''} · ${pv.renderer ?? ''} look: ${lookFor(pv.renderer ?? 'canvas', pv.theme)}`) : null,
 		),
 		!pv
 			? h('p', { class: 'muted' }, 'Run a preview to see the plan. Editing the project clears it.')
@@ -48,7 +58,9 @@ export function previewView(ctx: Ctx): HTMLElement {
 						'section',
 						{ class: 'card', 'aria-label': 'Screen' },
 						h('div', { class: 'toolbar' }, h('button', { class: 'btn', on: { click: () => go(-1) } }, '← Back'), h('strong', {}, shown?.id ?? ''), h('button', { class: 'btn', on: { click: () => go(1) } }, 'Next →')),
-						shown?.screenshot ? h('img', { class: 'shot', src: screenshotSrc(shown.screenshot), alt: `Screen of step ${shown.id}` }) : h('p', { class: 'muted' }, shown ? 'This step has no screen.' : ''),
+						shown?.layout_tree ? rich : h('p', { class: 'muted' }, shown ? 'This step has no screen.' : ''),
+						skippedCount > 0 ? h('p', { class: 'dim small' }, `${skippedCount} step${skippedCount === 1 ? ' is' : 's are'} skipped for this target and have no screen.`) : null,
+						shown?.screenshot ? h('details', { class: 'text-version' }, h('summary', {}, 'Text version'), h('img', { class: 'shot', src: screenshotSrc(shown.screenshot), alt: `Text version of step ${shown.id}` })) : null,
 					),
 					h(
 						'section',
