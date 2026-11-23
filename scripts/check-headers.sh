@@ -17,6 +17,8 @@ missing=()
 is_candidate() {
 	case "$1" in
 	*/Cargo.toml | Cargo.toml | *.lock | *-lock.yaml | *.json | *.jsonc | *.md) return 1 ;;
+	# Vendored copies keep their upstream files as they are; see the PROVENANCE.md beside them.
+	*/vendor/*) return 1 ;;
 	*.rs | *.sh | *.py | *.js | *.ts | *.mjs | *.css | *.html | *.yml | *.yaml | *.toml | *.svg | *.xml | *.ui) return 0 ;;
 	*/Dockerfile | Dockerfile | */Makefile | Makefile) return 0 ;;
 	*) return 1 ;;

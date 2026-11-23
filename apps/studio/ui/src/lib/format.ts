@@ -58,14 +58,3 @@ export function targetStatus(problems: Problem[], fullId: string): 'ok' | 'warni
 	if (mine.some((p) => p.severity === 'error')) return 'error';
 	return mine.length > 0 ? 'warning' : 'ok';
 }
-
-/** True for the platform's redo shortcut. */
-export function isRedo(e: { key: string; ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }): boolean {
-	const mod = e.ctrlKey || e.metaKey;
-	const k = e.key.toLowerCase();
-	return mod && ((k === 'z' && e.shiftKey) || (k === 'y' && !e.shiftKey));
-}
-
-export function isUndo(e: { key: string; ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }): boolean {
-	return (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey;
-}

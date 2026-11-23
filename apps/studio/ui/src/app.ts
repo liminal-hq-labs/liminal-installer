@@ -5,7 +5,7 @@
 
 import { createApi, type Api } from './lib/api';
 import { h, mount } from './lib/dom';
-import { historyRows, isRedo, isUndo } from './lib/format';
+import { historyRows } from './lib/format';
 import type {
 	Flow,
 	FlowView,
@@ -17,13 +17,15 @@ import type {
 	ProjectSummary,
 	ScriptReport,
 } from './lib/types';
+import { SCREEN_ACTIONS, type ActionId, type Screen } from './chrome/menuModel';
+import type { ChromeStore } from './chrome/chromeStore';
 import { layoutView } from './views/layouts';
 import { flowView } from './views/flow';
 import { previewView } from './views/preview';
 import { projectView } from './views/project';
 import { scriptView } from './views/script';
 
-export type Route = 'project' | 'flow' | 'layouts' | 'script' | 'preview';
+export type Route = Screen;
 
 export interface State {
 	route: Route;
@@ -68,14 +70,22 @@ export interface Ctx {
 	testScript(source?: string): Promise<void>;
 	runPreview(target: string): Promise<void>;
 	openProject(): Promise<void>;
+	/** Tells the window chrome what the menus and title need to know. */
+	syncChrome(): void;
+}
+
+/** What the shell drives the app with. */
+export interface App {
+	/** Runs the action a menu item or shortcut names. */
+	dispatch(id: ActionId): void;
 }
 
 const NAV: { route: Route; label: string; icon: string }[] = [
-	{ route: 'project', label: 'Project', icon: 'M2 4.5h4l1.5 1.5H14v6.5H2z' },
+	{ route: 'project', label: 'Overview', icon: 'M2 4.5h4l1.5 1.5H14v6.5H2z' },
 	{ route: 'flow', label: 'Flow', icon: 'M3 3h4v3H3zM9 10h4v3H9zM7 4.5h2.5V10' },
 	{ route: 'layouts', label: 'Layouts', icon: 'M2 3h12v10H2zM2 6h12M6 6v7' },
-	{ route: 'script', label: 'Script', icon: 'M5 4L2 8l3 4M11 4l3 4-3 4M9 3l-2 10' },
-	{ route: 'preview', label: 'Dry run', icon: 'M8 3C4 3 2 8 2 8s2 5 6 5 6-5 6-5-2-5-6-5zM8 6a2 2 0 100 4 2 2 0 000-4z' },
+	{ route: 'script', label: 'Scripts', icon: 'M5 4L2 8l3 4M11 4l3 4-3 4M9 3l-2 10' },
+	{ route: 'preview', label: 'Dry-run preview', icon: 'M8 3C4 3 2 8 2 8s2 5 6 5 6-5 6-5-2-5-6-5zM8 6a2 2 0 100 4 2 2 0 000-4z' },
 ];
 
 const icon = (d: string) => {
@@ -95,13 +105,13 @@ const icon = (d: string) => {
 	return s;
 };
 
-export async function startApp(root: HTMLElement): Promise<void> {
+export async function startApp(root: HTMLElement, chrome: ChromeStore, options: { header: boolean }): Promise<App> {
 	let api: Api;
 	try {
 		api = await createApi();
 	} catch (e) {
 		mount(root, h('p', { class: 'fatal' }, String(e)));
-		return;
+		return { dispatch: () => undefined };
 	}
 	const state: State = {
 		route: 'project',
@@ -130,11 +140,20 @@ export async function startApp(root: HTMLElement): Promise<void> {
 		error: null,
 	};
 	let toastTimer: number | undefined;
+	function showToast(text: string, error: boolean, ms: number): void {
+		state.toast = { text, error };
+		window.clearTimeout(toastTimer);
+		toastTimer = window.setTimeout(() => {
+			state.toast = null;
+			render();
+		}, ms);
+	}
 
 	const ctx: Ctx = {
 		api,
 		state,
 		render,
+		syncChrome,
 		go(route) {
 			state.route = route;
 			state.connectFrom = null;
@@ -148,12 +167,7 @@ export async function startApp(root: HTMLElement): Promise<void> {
 			try {
 				await action();
 			} catch (e) {
-				state.toast = { text: String(e instanceof Error ? e.message : e), error: true };
-				window.clearTimeout(toastTimer);
-				toastTimer = window.setTimeout(() => {
-					state.toast = null;
-					render();
-				}, 6000);
+				showToast(String(e instanceof Error ? e.message : e), true, 6000);
 			}
 			render();
 		},
@@ -227,28 +241,59 @@ export async function startApp(root: HTMLElement): Promise<void> {
 					state.layoutPath = keepPath;
 					state.overrideRenderer = keepOverride;
 				}
-				if (event.source === 'mcp') {
-					state.toast = { text: `Agent: ${event.label}`, error: false };
-					window.clearTimeout(toastTimer);
-					toastTimer = window.setTimeout(() => {
-						state.toast = null;
-						render();
-					}, 4000);
-				}
+				if (event.source === 'mcp') showToast(`Agent: ${event.label}`, false, 4000);
 			});
 	});
 
-	window.addEventListener('keydown', (e) => {
-		const target = e.target as HTMLElement | null;
-		if (target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT' || target.tagName === 'SELECT')) return;
-		if (isUndo(e)) {
-			e.preventDefault();
-			if (state.history.can_undo) void ctx.run(async () => void (await api.undo()));
-		} else if (isRedo(e)) {
-			e.preventDefault();
-			if (state.history.can_redo) void ctx.run(async () => void (await api.redo()));
-		}
-	});
+	function syncChrome(): void {
+		chrome.setMenu({
+			hasProject: state.summary !== null,
+			canUndo: state.history.can_undo,
+			canRedo: state.history.can_redo,
+			screen: state.route,
+			scriptDirty: state.scriptDirty && state.scriptPath !== '',
+		});
+		const screen = state.route === 'project' ? '' : ` · ${NAV.find((n) => n.route === state.route)?.label ?? ''}`;
+		chrome.setTitle(state.summary ? `${state.summary.name}${screen}` : '');
+	}
+
+	/** The text in the script editor, which is ahead of `scriptSource` while there are unsaved edits. */
+	const editorText = () => (document.getElementById('script-editor') as HTMLTextAreaElement | null)?.value ?? state.scriptSource;
+
+	const actions: Partial<Record<ActionId, () => Promise<void>>> = {
+		'file.open': () => ctx.openProject(),
+		'file.reload': async () => {
+			if (!state.summary) return;
+			state.summary = await api.openProject(state.summary.root);
+			await refresh();
+			showToast('Reloaded from disk', false, 2500);
+		},
+		'file.save': async () => {
+			if (state.route === 'script' && state.scriptPath) await ctx.saveScript(editorText());
+		},
+		'edit.undo': async () => void (await api.undo()),
+		'edit.redo': async () => void (await api.redo()),
+		'project.check': async () => {
+			state.problems = await api.checkProject();
+			const n = state.problems.length;
+			const errors = state.problems.filter((p) => p.severity === 'error').length;
+			showToast(n === 0 ? 'Check passed: no problems' : `Check found ${n} problem${n === 1 ? '' : 's'}${errors ? `, ${errors} with errors` : ''}`, errors > 0, 4000);
+		},
+		'project.preview': async () => {
+			await ctx.runPreview(state.previewTarget);
+			ctx.go('preview');
+		},
+	};
+	for (const [route, id] of Object.entries(SCREEN_ACTIONS) as [Route, ActionId][]) actions[id] = async () => ctx.go(route);
+
+	function historyPopover(): HTMLElement {
+		const rows = historyRows(state.history.entries);
+		return h(
+			'div',
+			{ class: 'popover', role: 'dialog', 'aria-label': 'History' },
+			rows.length === 0 ? h('p', { class: 'dim' }, 'No changes yet.') : h('ol', {}, rows.map((r) => h('li', { class: r.undone ? 'undone' : '' }, h('span', {}, r.label), h('span', { class: 'dim' }, ` · ${r.source} · ${r.doc}`)))),
+		);
+	}
 
 	function render(): void {
 		const s = state;
@@ -263,49 +308,54 @@ export async function startApp(root: HTMLElement): Promise<void> {
 						: s.route === 'script'
 							? scriptView(ctx)
 							: previewView(ctx);
-		const undo = () => void ctx.run(async () => void (await api.undo()));
-		const redo = () => void ctx.run(async () => void (await api.redo()));
 		const errors = s.problems.filter((p) => p.severity === 'error').length;
-		const lastApplied = [...s.history.entries].reverse().find((e) => e.applied);
 		mount(
 			root,
 			h(
 				'div',
-				{ class: 'shell' },
-				h(
-					'header',
-					{ class: 'topbar' },
-					h('span', { class: 'brand' }, 'Liminal Installer Studio'),
-					h('span', { class: 'project-name' }, s.summary?.name ?? 'No project'),
-					h(
-						'span',
-						{ class: 'topbar-actions' },
-						h('button', { class: 'btn ghost', disabled: !s.history.can_undo, title: lastApplied ? `Undo: ${lastApplied.label}` : 'Nothing to undo', on: { click: undo } }, 'Undo'),
-						h('button', { class: 'btn ghost', disabled: !s.history.can_redo, title: 'Redo', on: { click: redo } }, 'Redo'),
-						h('button', { class: 'btn ghost', 'aria-expanded': s.showHistory, on: { click: () => { s.showHistory = !s.showHistory; render(); } } }, `History (${s.history.entries.length})`),
-						h('button', { class: 'btn ghost', on: { click: () => void ctx.run(() => ctx.openProject()) } }, 'Open…'),
-					),
-				),
-				s.showHistory
-					? h('div', { class: 'popover', role: 'dialog', 'aria-label': 'History' },
-							historyRows(s.history.entries).length === 0
-								? h('p', { class: 'dim' }, 'No changes yet.')
-								: h('ol', {}, historyRows(s.history.entries).map((r) => h('li', { class: r.undone ? 'undone' : '' }, h('span', {}, r.label), h('span', { class: 'dim' }, ` · ${r.source} · ${r.doc}`)))))
+				{ class: options.header ? 'shell with-header' : 'shell' },
+				options.header
+					? h(
+							'header',
+							{ class: 'topbar' },
+							h('span', { class: 'brand' }, 'Liminal Installer Studio'),
+							h('span', { class: 'project-name' }, s.summary?.name ?? 'No project'),
+							h(
+								'span',
+								{ class: 'topbar-actions' },
+								h('button', { class: 'btn ghost', disabled: !s.history.can_undo, title: 'Undo', on: { click: () => actions['edit.undo'] && void ctx.run(actions['edit.undo']) } }, 'Undo'),
+								h('button', { class: 'btn ghost', disabled: !s.history.can_redo, title: 'Redo', on: { click: () => actions['edit.redo'] && void ctx.run(actions['edit.redo']) } }, 'Redo'),
+								h('button', { class: 'btn ghost', on: { click: () => void ctx.run(() => ctx.openProject()) } }, 'Open…'),
+							),
+						)
 					: null,
+				s.showHistory ? historyPopover() : null,
 				h(
 					'nav',
 					{ class: 'sidebar', 'aria-label': 'Studio' },
+					h('div', { class: 'nav-label' }, 'Project'),
 					NAV.map((n) =>
 						h('a', { href: '#', class: s.route === n.route ? 'active' : '', 'aria-current': s.route === n.route ? 'page' : undefined, on: { click: (e) => { e.preventDefault(); ctx.go(n.route); } } }, icon(n.icon), n.label),
 					),
 					h('div', { class: 'agent-card' }, h('span', { class: `dot ${s.mcp ? 'on' : ''}` }), s.mcp ? 'Agent endpoint ready' : 'Agent endpoint off', s.mcp ? h('code', {}, s.mcp.url) : null),
 				),
 				h('main', { class: 'main' }, s.error ? h('p', { class: 'fatal' }, s.error) : body),
-				h('footer', { class: 'statusbar' }, h('span', {}, s.summary?.root ?? ''), h('span', {}, errors === 0 ? 'No problems' : `${errors} problem${errors === 1 ? '' : 's'}`)),
+				h(
+					'footer',
+					{ class: 'statusbar' },
+					h('span', { class: 'statusbar-path' }, s.summary?.root ?? 'No project open'),
+					h(
+						'span',
+						{ class: 'statusbar-end' },
+						h('span', { class: errors === 0 ? '' : 'err' }, errors === 0 ? 'No problems' : `${errors} problem${errors === 1 ? '' : 's'}`),
+						h('button', { class: 'statusbar-btn', 'aria-expanded': s.showHistory, on: { click: () => { s.showHistory = !s.showHistory; render(); } } }, `History (${s.history.entries.length})`),
+					),
+				),
 				s.toast ? h('div', { class: `toast ${s.toast.error ? 'error' : ''}`, role: 'status' }, s.toast.text) : null,
 			),
 		);
 		if (s.route === 'script') document.getElementById('script-editor')?.focus({ preventScroll: true });
+		syncChrome();
 	}
 
 	render();
@@ -317,4 +367,10 @@ export async function startApp(root: HTMLElement): Promise<void> {
 		}
 		await refresh();
 	});
+	return {
+		dispatch(id) {
+			const action = actions[id];
+			if (action) void ctx.run(action);
+		},
+	};
 }

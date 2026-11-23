@@ -3,6 +3,9 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+mod settings;
+mod windows;
+
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -137,7 +140,14 @@ pub fn run() {
 		.nth(1)
 		.or_else(|| std::env::var("LIMINAL_STUDIO_PROJECT").ok());
 
-	tauri::Builder::default()
+	#[cfg_attr(any(not(debug_assertions), windows), allow(unused_mut))]
+	let mut builder = tauri::Builder::default();
+	// The debug-only bridge that lets an automation client drive the running app.
+	#[cfg(all(debug_assertions, not(windows)))]
+	{
+		builder = builder.plugin(tauri_plugin_mcp_bridge::init());
+	}
+	builder
 		.plugin(tauri_plugin_dialog::init())
 		.manage(AppState {
 			studio: studio.clone(),
@@ -176,6 +186,9 @@ pub fn run() {
 			undo,
 			redo,
 			mcp_info,
+			settings::read_settings,
+			settings::write_settings,
+			windows::open_window,
 		])
 		.run(tauri::generate_context!())
 		.expect("error while running the Studio");

@@ -1,4 +1,4 @@
-// Converts src/styles/tokens.json into CSS custom properties in src/styles/tokens.css.
+// Converts src/styles/tokens.json, the Liminal HQ design system export, into src/styles/tokens.css.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -6,29 +6,54 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-/** Flattens `{color: {bg: "x"}}` to `--lh-color-bg: x`. */
-export function flatten(group, prefix = '--lh') {
-	const out = [];
-	for (const [key, value] of Object.entries(group)) {
-		if (key === 'themes') continue;
-		const name = `${prefix}-${key}`;
-		if (value !== null && typeof value === 'object') out.push(...flatten(value, name));
-		else out.push([name, String(value)]);
-	}
-	return out;
+/** The theme every unthemed value belongs to, and the default look of the Studio. */
+export const BASE_THEME = 'afterglow';
+
+/** Colour families that belong to other products' palettes. The Studio does not use them. */
+export const SKIPPED_COLOUR_PREFIXES = ['wp-', 'cadence-', 'calm-', 'booth-', 'term-', 'traffic-'];
+
+/** Token groups that hold plain `{ name, value }` lists, each emitted as `--lh-<name>`. */
+const PLAIN_GROUPS = ['spacing', 'radius', 'shadow', 'blur', 'layout', 'font-size', 'font-weight', 'line-height', 'letter-spacing'];
+
+/** Turns `{brand-purple}` references into `var(--lh-brand-purple)` so a theme change follows them. */
+export function resolveRefs(value) {
+	return String(value).replace(/\{([a-z0-9-]+)\}/g, (_, name) => `var(--lh-${name})`);
 }
 
-const block = (selector, vars) =>
-	`${selector} {\n${vars.map(([k, v]) => `\t${k}: ${v};`).join('\n')}\n}\n`;
+/** The value a token has in `theme`, or undefined when that theme does not override it. */
+export function valueIn(token, theme) {
+	const v = token.value;
+	if (v !== null && typeof v === 'object') return v[theme] === undefined ? undefined : resolveRefs(v[theme]);
+	return theme === BASE_THEME ? resolveRefs(v) : undefined;
+}
 
-/** The stylesheet: dark by default, with `[data-theme="light"]` and an automatic light variant. */
+const block = (selector, vars) => `${selector} {\n${vars.map(([k, v]) => `\t${k}: ${v};`).join('\n')}\n}\n`;
+
+const colourTokens = (tokens) => tokens.color.tokens.filter((t) => !SKIPPED_COLOUR_PREFIXES.some((p) => t.name.startsWith(p)));
+
+/** The variables a theme sets: every colour it overrides, and for the base theme all other groups too. */
+export function themeVars(tokens, theme) {
+	const vars = [];
+	for (const t of colourTokens(tokens)) {
+		const v = valueIn(t, theme);
+		if (v !== undefined) vars.push([`--lh-${t.name}`, v]);
+	}
+	if (theme === BASE_THEME) {
+		for (const group of PLAIN_GROUPS) for (const t of tokens[group].tokens) vars.push([`--lh-${t.name}`, String(t.value)]);
+		for (const [name, family] of Object.entries(tokens.type.families)) vars.push([`--lh-font-${name}`, family]);
+	}
+	return vars;
+}
+
+/** The stylesheet: the base theme on `:root`, then one block per other theme under `[data-theme]`. */
 export function toCss(tokens) {
-	let css = '/* Liminal HQ design tokens, generated from tokens.json by scripts/tokens-to-css.mjs. */\n/*\n * (c) Copyright 2026 Liminal HQ, Scott Morris\n * SPDX-License-Identifier: Apache-2.0 OR MIT\n */\n\n';
-	css += block(':root,\n:root[data-theme="dark"]', flatten(tokens));
-	const light = tokens.themes?.light;
-	if (light) {
-		const vars = flatten(light);
-		css += '\n' + block(':root[data-theme="light"]', vars);
+	let css =
+		'/* Liminal HQ design tokens, generated from tokens.json by scripts/tokens-to-css.mjs. */\n/*\n * (c) Copyright 2026 Liminal HQ, Scott Morris\n * SPDX-License-Identifier: Apache-2.0 OR MIT\n */\n\n';
+	css += block(`:root,\n:root[data-theme="${BASE_THEME}"]`, [['color-scheme', 'dark'], ...themeVars(tokens, BASE_THEME)]);
+	for (const theme of tokens.color.themes) {
+		if (theme.id === BASE_THEME) continue;
+		const scheme = theme.id.endsWith('-light') ? 'light' : 'dark';
+		css += '\n' + block(`:root[data-theme="${theme.id}"]`, [['color-scheme', scheme], ...themeVars(tokens, theme.id)]);
 	}
 	return css;
 }
