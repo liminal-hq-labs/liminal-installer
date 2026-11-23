@@ -247,6 +247,15 @@
 									"text": "Copying {progress.file}",
 									"role": "body"
 								}
+							},
+							{
+								"kind": "progress",
+								"bind": "engine.meter.total",
+								"props": {
+									"label": "Overall progress",
+									"source": "total",
+									"caption": "{progress.percent}%"
+								}
 							}
 						]
 					},
