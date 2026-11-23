@@ -32,6 +32,9 @@ pub struct Project {
 	pub flows: BTreeMap<String, Flow>,
 	/// File names, kept so checks can point at them.
 	pub flow_files: BTreeMap<String, PathBuf>,
+	/// Layouts shared by every theme, from `installer/layouts/`. A theme's own layout of the same
+	/// id wins.
+	pub layouts: BTreeMap<String, Layout>,
 	/// Themes keyed by theme id.
 	pub themes: BTreeMap<String, ThemeData>,
 	/// Lua sources keyed by project-relative path such as `scripts/setup.lua`.
@@ -94,6 +97,17 @@ impl Project {
 			flows.insert(flow.id.clone(), flow);
 		}
 
+		let mut layouts = BTreeMap::new();
+		for lp in sorted_entries(&installer_dir.join("layouts"))? {
+			let name = lp.file_name().map(|n| n.to_string_lossy().into_owned());
+			if !name.is_some_and(|n| n.ends_with(".layout.json")) {
+				continue;
+			}
+			let layout: Layout =
+				serde_json::from_str(&read_text(&lp)?).map_err(|e| parse_err(&lp, e))?;
+			layouts.insert(layout.id.clone(), layout);
+		}
+
 		let mut themes = BTreeMap::new();
 		for theme_dir in sorted_entries(&installer_dir.join("themes"))? {
 			let theme_path = theme_dir.join("theme.toml");
@@ -141,6 +155,7 @@ impl Project {
 			components,
 			flows,
 			flow_files,
+			layouts,
 			themes,
 			scripts,
 		})
@@ -163,8 +178,9 @@ impl Project {
 			.or(self.installer.defaults.theme.as_deref())
 	}
 
-	/// Finds a layout for a target, following the theme's `fallback` chain through the themes in
-	/// the project.
+	/// Finds a layout for a target: the theme's own, then the themes on its `fallback` chain that
+	/// the project has, then the project's shared layouts. A fallback the project does not have,
+	/// such as the built-in `plain`, ends the chain.
 	pub fn layout_for(&self, target: &Target, layout_id: &str) -> Option<&Layout> {
 		let mut next = self.theme_id_for(target);
 		let mut seen = Vec::new();
@@ -173,13 +189,15 @@ impl Project {
 				break;
 			}
 			seen.push(id);
-			let theme = self.themes.get(id)?;
+			let Some(theme) = self.themes.get(id) else {
+				break;
+			};
 			if let Some(l) = theme.layouts.get(layout_id) {
 				return Some(l);
 			}
 			next = theme.file.theme.fallback.as_deref();
 		}
-		None
+		self.layouts.get(layout_id)
 	}
 
 	/// The literal version, or `None` when it is read from the build (`{ from = "git-tag" }`).

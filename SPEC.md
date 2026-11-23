@@ -19,7 +19,7 @@ Everything in this specification is in progress. Nothing is released, and any pa
 - Hand-written files are TOML. Files the Studio writes (flows, layouts) are JSON, each with a `$schema` and a `version`.
 - Paths in a project use `/` and are relative to `installer/`. Install-time paths use placeholders: `{install}`, `{user_data}`, `{system_data}`, `{start_menu}`, `{desktop}`, `{temp}`.
 - Versions are semantic versions. A product's version comes from its build (for example `Cargo.toml` or a tag), not from the installer project.
-- Targets are named `os-arch` plus a renderer, such as `dos-x86:tui-retro` or `linux-x86_64:canvas`.
+- Targets are named `os-arch` plus a renderer, such as `dos-x86:tui-retro` or `linux-x86_64:canvas`. An `os-arch` may be declared once per renderer; declaring the same pair twice is an error.
 
 ## 2 · Project layout
 
@@ -33,8 +33,9 @@ installer/
 		modify.flow.json
 		uninstall.flow.json
 		launch.flow.json
+	layouts/*.layout.json layouts shared by every theme
 	scripts/*.lua         project hooks
-	themes/<name>/        or a reference to a published theme
+	themes/<name>/        theme.toml, assets and the layouts only this theme has; or a reference to a published theme
 	feed/channels.toml    where releases are announced
 ```
 
@@ -95,7 +96,7 @@ A flow is a directed graph of steps. Every path must reach a `finish` step, and 
 | Type | What it does |
 |---|---|
 | `page` | Shows a layout and collects fields into the flow's state. |
-| `action` | Runs a script or a built-in action without a page, such as launching the app. |
+| `action` | Runs a script or a built-in action without a page, such as launching the app. A built-in is written `"on_enter": "builtin:<name>"`; the names are `check-feed` and `launch-app`, and `check` refuses any other. The lifecycle carries them out, so the flow runner does not run a script for them. |
 | `branch` | Chooses the next step from a condition. |
 | `commit` | Turns the plan into changes. Its page shows progress and any theme billboards. |
 | `finish` | Ends the flow and writes the receipt. |
@@ -127,7 +128,7 @@ intro = { layout = "intro", before = "welcome", skippable = true }
 music = "assets/theme.mod"  # the engine always adds a mute control
 ```
 
-A layout is a tree of nodes. Each node may carry `@renderer` overrides; a renderer uses its override where one exists and the base node otherwise.
+A layout for a step is found in the target's theme (`themes/<name>/layouts/<id>.layout.json`), then in each theme on its `fallback` chain that the project has, then in the project's shared `layouts/`. `fallback = "plain"` names the built-in plain look every renderer has, so the project need not carry a theme of that name. A layout is a tree of nodes. Each node may carry `@renderer` overrides; a renderer uses its override where one exists and the base node otherwise.
 
 | Node | Notes |
 |---|---|
@@ -155,7 +156,7 @@ Scripts are Lua 5.4 on modern targets. For DOS and Win16 the CLI compiles them f
 
 Table 3. Hooks.
 
-Modules: `li.env` (read), `li.fs` (read anywhere, write only through the plan), `li.ui` (notes and dialogs), `li.plan`, `li.net` (needs `net`), `li.retro.sound` and `li.retro.video` (retro targets only).
+Modules: `li.env` (`get`, `os`, `arch`), `li.fs` (read; writes only through the plan), `li.ui` (`note`, `dialog`), `li.plan` and `li.net` (needs `net`). A script names its capabilities in a header comment (`-- capabilities: env, ui`); there is no `require`, and the modules are globals. A page's fields are in `page.fields`. `li.retro.sound` and `li.retro.video` are designs only.
 
 ## 8 · Plan operations
 

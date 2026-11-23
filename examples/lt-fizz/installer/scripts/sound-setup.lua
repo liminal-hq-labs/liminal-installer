@@ -1,38 +1,39 @@
--- Sound card detection and the free-space check for the retro targets.
+-- Sound card detection and the install-folder check for the retro targets.
 --
 -- (c) Copyright 2026 Liminal HQ, Scott Morris
 -- SPDX-License-Identifier: Apache-2.0 OR MIT
+--
+-- capabilities: env, ui
 
-local env = require("li.env")
-local fs = require("li.fs")
-local ui = require("li.ui")
-local sound = require("li.retro.sound")
+local CARDS = {
+	{ id = "sbpro", name = "Sound Blaster Pro" },
+	{ id = "adlib", name = "AdLib" },
+	{ id = "none", name = "No sound" },
+}
 
-local REQUIRED_MB = 12
-
--- Fills the sound-card page from what the BLASTER variable and the card probe report.
+-- Fills the sound-card page from the BLASTER variable, as the DOS sound drivers read it.
 function detect(page)
-	local cards = sound.probe()
-	local found = "No sound card"
-	if #cards > 0 then
-		found = cards[1].name
-	end
-	page.set("sound.detected", found)
-	page.set("sound.cards", cards)
-	local blaster = env.get("BLASTER")
+	local blaster = li.env.get("BLASTER")
+	local fields = page.fields
+	fields["sound.cards"] = CARDS
 	if blaster ~= nil then
-		page.set("sound.port", string.match(blaster, "A(%x+)") or "220")
-		page.set("sound.irq", string.match(blaster, "I(%d+)") or "7")
+		fields["sound.detected"] = "Sound Blaster"
+		fields["sound.card"] = "sbpro"
+		fields["sound.port"] = string.match(blaster, "A(%x+)") or "220"
+		fields["sound.irq"] = string.match(blaster, "I(%d+)") or "7"
+	else
+		fields["sound.detected"] = "No sound card"
+		fields["sound.card"] = "none"
 	end
 end
 
--- Refuses to continue when the install drive cannot hold the game and its sound drivers.
+-- Refuses to continue without an install folder.
 function validate(page)
 	local problems = {}
-	local free_mb = fs.free_space(page.get("install.path")) / (1024 * 1024)
-	if free_mb < REQUIRED_MB then
-		table.insert(problems, string.format("Not enough disk space: %d MB free, %d MB needed.", free_mb, REQUIRED_MB))
-		ui.note("Choose another drive or free some space.")
+	local path = page.fields["install.path"]
+	if path == nil or path == "" then
+		table.insert(problems, "Choose a folder to install into.")
+		li.ui.note("The game needs a folder for its files and sound drivers.")
 	end
 	return problems
 end

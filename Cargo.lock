@@ -1032,6 +1032,7 @@ dependencies = [
 name = "li-examples-test"
 version = "0.1.0"
 dependencies = [
+ "li-engine",
  "li-model",
  "serde_json",
  "toml",

@@ -20,6 +20,10 @@ pub trait ProjectChecker {
 /// The CLI's own checks: flow rules, themes, layouts, accessible names and components.
 pub struct DefaultChecker;
 
+/// The theme every renderer has built in, so a `fallback` may name it without the project
+/// carrying a copy.
+pub const BUILTIN_THEME: &str = "plain";
+
 pub const KNOWN_RENDERERS: &[&str] = &[
 	"tui-retro",
 	"tui",
@@ -134,11 +138,11 @@ fn check_installer(project: &Project, d: &mut Vec<Diagnostic>) {
 	}
 	let mut seen = BTreeSet::new();
 	for t in &inst.targets {
-		if !seen.insert(t.id.as_str()) {
+		if !seen.insert(t.full_id()) {
 			d.push(
 				Diagnostic::error(
 					"duplicate-target",
-					format!("target `{}` is declared twice", t.id),
+					format!("target `{}` is declared twice", t.full_id()),
 				)
 				.in_file(&f),
 			);
@@ -284,7 +288,7 @@ fn check_flows(project: &Project, targets: &[&Target], d: &mut Vec<Diagnostic>) 
 		for step in &flow.steps {
 			if let Some(hook) = &step.on_enter {
 				let script = hook.split('#').next().unwrap_or(hook);
-				if !project.dir.join(script).is_file() {
+				if !hook.starts_with("builtin:") && !project.dir.join(script).is_file() {
 					d.push(
 						Diagnostic::error(
 							"missing-script",
@@ -347,6 +351,7 @@ fn check_themes(project: &Project, targets: &[&Target], d: &mut Vec<Diagnostic>)
 			);
 		}
 		if let Some(fb) = &theme.file.theme.fallback
+			&& fb != BUILTIN_THEME
 			&& !project.themes.contains_key(fb)
 		{
 			d.push(
@@ -358,7 +363,9 @@ fn check_themes(project: &Project, targets: &[&Target], d: &mut Vec<Diagnostic>)
 			);
 		}
 		for (page, insert) in &theme.file.pages {
-			if !theme.layouts.contains_key(&insert.layout) {
+			if !theme.layouts.contains_key(&insert.layout)
+				&& !project.layouts.contains_key(&insert.layout)
+			{
 				d.push(
 					Diagnostic::error(
 						"missing-layout",
@@ -375,6 +382,10 @@ fn check_themes(project: &Project, targets: &[&Target], d: &mut Vec<Diagnostic>)
 			let lf = format!("installer/themes/{name}/layouts/{id}.layout.json");
 			check_node(&layout.root, &lf, d);
 		}
+	}
+	for (id, layout) in &project.layouts {
+		let lf = format!("installer/layouts/{id}.layout.json");
+		check_node(&layout.root, &lf, d);
 	}
 	for t in targets {
 		if let Some(theme) = project

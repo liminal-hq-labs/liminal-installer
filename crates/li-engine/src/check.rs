@@ -85,6 +85,9 @@ fn check_condition(project: &Project, src: &str, location: &str, out: &mut Vec<D
 	}
 }
 
+/// The actions a step may name as `builtin:<name>`; the lifecycle carries them out.
+pub const BUILTIN_ACTIONS: &[&str] = &["check-feed", "launch-app"];
+
 /// Validates a project for every target.
 pub fn check(project: &Project) -> Vec<Diagnostic> {
 	let mut out = Vec::new();
@@ -98,12 +101,15 @@ pub fn check(project: &Project) -> Vec<Diagnostic> {
 		));
 	}
 	let mut target_ids = BTreeSet::new();
+	let mut full_ids = BTreeSet::new();
 	for t in &project.installer.targets {
-		if !target_ids.insert(t.id.as_str()) {
+		target_ids.insert(t.id.as_str());
+		// One os-arch may appear once per renderer.
+		if !full_ids.insert(t.full_id()) {
 			out.push(error(
 				"duplicate-target",
 				format!("target {}", t.id),
-				format!("target `{}` is declared twice", t.id),
+				format!("target `{}` is declared twice", t.full_id()),
 			));
 		}
 	}
@@ -184,6 +190,19 @@ pub fn check(project: &Project) -> Vec<Diagnostic> {
 			}
 			if let Some(spec) = &step.on_enter {
 				match spec.split_once('#') {
+					_ if spec.starts_with("builtin:") => {
+						let name = &spec["builtin:".len()..];
+						if !BUILTIN_ACTIONS.contains(&name) {
+							out.push(error(
+								"bad-hook",
+								&loc,
+								format!(
+									"unknown built-in action `{name}` (known: {})",
+									BUILTIN_ACTIONS.join(", ")
+								),
+							));
+						}
+					}
 					Some((path, hook)) => {
 						if !project.scripts.contains_key(path) {
 							out.push(error(
@@ -250,7 +269,9 @@ pub fn check(project: &Project) -> Vec<Diagnostic> {
 	// Pages themes insert.
 	for theme in project.themes.values() {
 		for (name, page) in &theme.file.pages {
-			if !theme.layouts.contains_key(&page.layout) {
+			if !theme.layouts.contains_key(&page.layout)
+				&& !project.layouts.contains_key(&page.layout)
+			{
 				out.push(error(
 					"unknown-layout",
 					format!("theme {}, page {name}", theme.file.theme.id),
