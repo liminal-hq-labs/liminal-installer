@@ -14,7 +14,7 @@ labels: bug
 
 ## Environment
 
-- {{PROJECT_TITLE}} version or commit:
+- Liminal Installer version or commit:
 - How it was installed (package, release download, source):
 - Operating system and version:
 
