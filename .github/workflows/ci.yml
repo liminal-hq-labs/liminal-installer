@@ -54,6 +54,27 @@ jobs:
       - name: Check SPDX headers
         run: bash scripts/check-headers.sh
 
+  prettier:
+    name: Prettier
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Check formatting
+        run: bun run format:check
+
   banner:
     name: Hero banner
     runs-on: ubuntu-24.04
@@ -129,4 +150,20 @@ jobs:
           shared-key: liminal-installer
 
       - name: Run the tests
-        run: cargo nextest run --workspace --locked
+        run: cargo nextest run --workspace --locked --profile ci
+
+      # `publish-test-results.yml` reads these after the run, with the permissions a fork's pull request lacks.
+      - name: Upload the JUnit report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: rust-test-results
+          path: target/nextest/ci/junit.xml
+          if-no-files-found: error
+
+      - name: Upload the event file
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: event-file
+          path: ${{ github.event_path }}
