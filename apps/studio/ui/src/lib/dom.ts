@@ -14,7 +14,8 @@ export function h<K extends keyof HTMLElementTagNameMap>(
 	const el = document.createElement(tag);
 	for (const [key, value] of Object.entries(attrs)) {
 		if (key === 'on') {
-			for (const [type, fn] of Object.entries(value as Record<string, (e: Event) => void>)) el.addEventListener(type, fn);
+			for (const [type, fn] of Object.entries(value as Record<string, (e: Event) => void>))
+				el.addEventListener(type, fn);
 		} else if (value === false || value === undefined || value === null) {
 			continue;
 		} else if (key === 'class') {
@@ -37,7 +38,11 @@ function append(el: Element, children: Child[]): void {
 	}
 }
 
-export const svg = (tag: string, attrs: Record<string, string | number> = {}, ...children: (Node | string)[]): SVGElement => {
+export const svg = (
+	tag: string,
+	attrs: Record<string, string | number> = {},
+	...children: (Node | string)[]
+): SVGElement => {
 	const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
 	for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
 	el.append(...children);

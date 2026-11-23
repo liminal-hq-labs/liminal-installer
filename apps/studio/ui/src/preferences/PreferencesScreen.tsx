@@ -22,7 +22,8 @@ export interface PreferencesScreenProps {
 }
 
 /** The full ids of the open project's targets; none when there is no project or no backend to ask. */
-const askForTargets = async (): Promise<string[]> => (await (await createApi()).listTargets()).map((t) => t.full_id);
+const askForTargets = async (): Promise<string[]> =>
+	(await (await createApi()).listTargets()).map((t) => t.full_id);
 
 function useTargets(load: () => Promise<string[]>): string[] {
 	const [targets, setTargets] = useState<string[]>([]);
@@ -42,19 +43,40 @@ function useTargets(load: () => Promise<string[]>): string[] {
  * Changes apply at once and are written as a merge; a refusal puts the value back and says why on its row. Escape
  * puts back text that was typed and not applied before it is left to close the window.
  */
-export function PreferencesScreen({ port, host, initialId = 'general', loadTargets = askForTargets }: PreferencesScreenProps) {
+export function PreferencesScreen({
+	port,
+	host,
+	initialId = 'general',
+	loadTargets = askForTargets,
+}: PreferencesScreenProps) {
 	const { settings, failures, update, reset } = usePreferences(port);
 	const [active, setActive] = useState(initialId);
 	const guard = useEscapeGuard();
 	const targets = useTargets(loadTargets);
 	const sections = useMemo(
-		() => (settings ? preferenceSections({ settings, failures, update, reset, host, targets, epoch: guard.epoch }) : []),
+		() =>
+			settings
+				? preferenceSections({
+						settings,
+						failures,
+						update,
+						reset,
+						host,
+						targets,
+						epoch: guard.epoch,
+					})
+				: [],
 		[settings, failures, update, reset, host, targets, guard.epoch],
 	);
 	if (!settings) return <div className="prefs-screen" aria-busy="true" />;
 	return (
 		<div className="prefs-screen" ref={guard.containerRef} {...guard.handlers}>
-			<SettingsShell sections={sections} activeId={active} onSelect={setActive} labels={{ navigation: 'Preferences sections' }} />
+			<SettingsShell
+				sections={sections}
+				activeId={active}
+				onSelect={setActive}
+				labels={{ navigation: 'Preferences sections' }}
+			/>
 		</div>
 	);
 }

@@ -6,9 +6,7 @@
 import { lex } from '../editor/luaLex';
 import { validateFlow } from './flowEdit';
 import { resolveForRenderer } from './layoutEdit';
-import type {
-	Api,
-} from './api';
+import type { Api } from './api';
 import type {
 	ChangeEvent,
 	Flow,
@@ -23,14 +21,21 @@ import type {
 	TargetInfo,
 } from './types';
 
-const files = import.meta.glob('../../../../../examples/lt-fizz/installer/{*.toml,flows/*.json,layouts/*.json,themes/*/layouts/*.json,scripts/*.lua}', {
-	query: '?raw',
-	import: 'default',
-	eager: true,
-}) as Record<string, string>;
+const files = import.meta.glob(
+	'../../../../../examples/lt-fizz/installer/{*.toml,flows/*.json,layouts/*.json,themes/*/layouts/*.json,scripts/*.lua}',
+	{
+		query: '?raw',
+		import: 'default',
+		eager: true,
+	},
+) as Record<string, string>;
 
 const byName = (suffix: string) => Object.entries(files).filter(([k]) => k.includes(suffix));
-const stem = (path: string) => path.split('/').pop()!.replace(/\.(flow|layout)\.json$/, '');
+const stem = (path: string) =>
+	path
+		.split('/')
+		.pop()!
+		.replace(/\.(flow|layout)\.json$/, '');
 /** A layout's id: the file stem, with a theme's own layouts prefixed `theme/`. */
 const layoutId = (path: string) => {
 	const theme = /\/themes\/([^/]+)\/layouts\//.exec(path)?.[1];
@@ -63,9 +68,18 @@ interface Entry extends HistoryEntry {
 }
 
 export function demoApi(): Api {
-	const flows = new Map<string, Flow>(byName('/flows/').map(([k, v]) => [stem(k), JSON.parse(v) as Flow]));
-	const layouts = new Map<string, Layout>(byName('/layouts/').map(([k, v]) => [layoutId(k), { ...(JSON.parse(v) as Layout), id: layoutId(k) }]));
-	const scripts = new Map<string, string>(byName('/scripts/').map(([k, v]) => [`scripts/${k.split('/').pop()}`, v]));
+	const flows = new Map<string, Flow>(
+		byName('/flows/').map(([k, v]) => [stem(k), JSON.parse(v) as Flow]),
+	);
+	const layouts = new Map<string, Layout>(
+		byName('/layouts/').map(([k, v]) => [
+			layoutId(k),
+			{ ...(JSON.parse(v) as Layout), id: layoutId(k) },
+		]),
+	);
+	const scripts = new Map<string, string>(
+		byName('/scripts/').map(([k, v]) => [`scripts/${k.split('/').pop()}`, v]),
+	);
 	const installer = byName('installer.toml')[0]?.[1] ?? '';
 	const components = byName('components.toml')[0]?.[1] ?? '';
 	const listeners = new Set<(e: ChangeEvent) => void>();
@@ -74,7 +88,11 @@ export function demoApi(): Api {
 	let preview: Preview | null = null;
 
 	const read = (d: Doc): string | undefined =>
-		d.type === 'flow' ? json(flows.get(d.id)) : d.type === 'layout' ? json(layouts.get(d.id)) : scripts.get(d.id);
+		d.type === 'flow'
+			? json(flows.get(d.id))
+			: d.type === 'layout'
+				? json(layouts.get(d.id))
+				: scripts.get(d.id);
 	const json = (v: unknown) => (v === undefined ? undefined : JSON.stringify(v));
 	const write = (d: Doc, text: string | undefined) => {
 		if (d.type === 'script') text === undefined ? scripts.delete(d.id) : scripts.set(d.id, text);
@@ -83,14 +101,23 @@ export function demoApi(): Api {
 			text === undefined ? map.delete(d.id) : map.set(d.id, JSON.parse(text));
 		}
 	};
-	const view = () => ({ entries: entries.map((e, i) => ({ ...e, index: i, applied: i < cursor })), can_undo: cursor > 0, can_redo: cursor < entries.length });
+	const view = () => ({
+		entries: entries.map((e, i) => ({ ...e, index: i, applied: i < cursor })),
+		can_undo: cursor > 0,
+		can_redo: cursor < entries.length,
+	});
 	const emit = (kind: ChangeEvent['kind'], doc: Doc, label: string, source: Source) =>
-		listeners.forEach((l) => l({ kind, doc, label, source, can_undo: cursor > 0, can_redo: cursor < entries.length }));
+		listeners.forEach((l) =>
+			l({ kind, doc, label, source, can_undo: cursor > 0, can_redo: cursor < entries.length }),
+		);
 	const edit = (doc: Doc, after: string, label: string) => {
 		const before = read(doc);
 		if (before === after) return;
 		write(doc, after);
-		entries = [...entries.slice(0, cursor), { index: 0, label, source: 'ui', doc, applied: true, before, after }];
+		entries = [
+			...entries.slice(0, cursor),
+			{ index: 0, label, source: 'ui', doc, applied: true, before, after },
+		];
 		cursor = entries.length;
 		preview = null;
 		emit('edit', doc, label, 'ui');
@@ -116,7 +143,9 @@ export function demoApi(): Api {
 				renderer,
 				theme: unquote(t.theme) || 'fizz-win95',
 				outputs: list(t.outputs),
-				components: comps.filter((c) => !c.targets || list(c.targets).includes(id)).map((c) => unquote(c.id)),
+				components: comps
+					.filter((c) => !c.targets || list(c.targets).includes(id))
+					.map((c) => unquote(c.id)),
 			};
 		});
 	};
@@ -139,7 +168,11 @@ export function demoApi(): Api {
 			{ id: 'fizz-dos', name: 'Fizz DOS', renderers: ['tui-retro'] },
 			{ id: 'fizz-win95', name: 'Fizz Windows 95', renderers: ['win16', 'win32-classic', 'tui'] },
 		],
-		flows: [...flows.values()].map((f) => ({ id: f.id, steps: f.steps.length, errors: validateFlow(f).length })),
+		flows: [...flows.values()].map((f) => ({
+			id: f.id,
+			steps: f.steps.length,
+			errors: validateFlow(f).length,
+		})),
 		layouts: [...layouts.keys()],
 		scripts: [...scripts.keys()],
 	});
@@ -149,8 +182,15 @@ export function demoApi(): Api {
 			['validate', 'Before Next'],
 			['on_commit', 'Plan is built'],
 			['on_uninstall', 'Uninstall plan is built'],
-		].map(([name, when]) => ({ name: name!, when: when!, present: source.includes(`function ${name}(`) }));
-		const header = source.split('\n').filter((l) => /^\s*--/.test(l)).flatMap((l) => (/capabilities:(.*)$/.exec(l)?.[1] ?? '').split(/[,\s]+/).filter(Boolean));
+		].map(([name, when]) => ({
+			name: name!,
+			when: when!,
+			present: source.includes(`function ${name}(`),
+		}));
+		const header = source
+			.split('\n')
+			.filter((l) => /^\s*--/.test(l))
+			.flatMap((l) => (/capabilities:(.*)$/.exec(l)?.[1] ?? '').split(/[,\s]+/).filter(Boolean));
 		const capabilities = [...new Set(header.map((c) => `li.${c.split('.')[0]}`))].sort();
 		const diagnostics: Problem[] = hooks.some((h) => h.present)
 			? []
@@ -163,7 +203,12 @@ export function demoApi(): Api {
 			diagnostics,
 			output: present.map((h) => `${h.name}: ok (demo run)`),
 			target: target ?? null,
-			tests: present.map((h) => ({ hook: h.name, ok: true, summary: 'ok (demo run)', lines: target ? [`sample: ${target}`] : [] })),
+			tests: present.map((h) => ({
+				hook: h.name,
+				ok: true,
+				summary: 'ok (demo run)',
+				lines: target ? [`sample: ${target}`] : [],
+			})),
 		};
 	};
 
@@ -205,7 +250,9 @@ export function demoApi(): Api {
 			const [targetId = '', renderer = 'canvas'] = target.split(':');
 			const info = targets().find((t) => t.full_id === target);
 			const theme = info?.theme ?? 'fizz-win95';
-			const comps = summary().components.filter((c) => !c.targets.length || c.targets.includes(targetId));
+			const comps = summary().components.filter(
+				(c) => !c.targets.length || c.targets.includes(targetId),
+			);
 			const slug = 'LT-FIZZ';
 			const winish = targetId.startsWith('dos') || targetId.startsWith('win');
 			const vars: Record<string, string> = {
@@ -244,7 +291,9 @@ export function demoApi(): Api {
 			};
 			const steps = flow.steps.map((s) => {
 				const skipped = Boolean(s.when && !s.when.includes(`'${renderer}'`));
-				const layout = s.layout ? (layouts.get(`${theme}/${s.layout}`) ?? layouts.get(s.layout)) : undefined;
+				const layout = s.layout
+					? (layouts.get(`${theme}/${s.layout}`) ?? layouts.get(s.layout))
+					: undefined;
 				return {
 					id: s.id,
 					kind: s.type,
@@ -259,9 +308,20 @@ export function demoApi(): Api {
 				target,
 				renderer,
 				theme,
-				product: { id: vars['product.id']!, name: vars['product.name']!, version: '1.0.0', publisher: 'Liminal HQ' },
+				product: {
+					id: vars['product.id']!,
+					name: vars['product.name']!,
+					version: '1.0.0',
+					publisher: 'Liminal HQ',
+				},
 				vars,
-				plan: { ops: [{ op: 'mkdir', path: '{install}' }, { op: 'copy', from: 'dist/FIZZ.EXE', to: '{install}/FIZZ.EXE' }, { op: 'receipt.write', path: '{install}/.liminal/receipt.json' }] },
+				plan: {
+					ops: [
+						{ op: 'mkdir', path: '{install}' },
+						{ op: 'copy', from: 'dist/FIZZ.EXE', to: '{install}/FIZZ.EXE' },
+						{ op: 'receipt.write', path: '{install}/.liminal/receipt.json' },
+					],
+				},
 				problems: [],
 				steps,
 			};
@@ -295,21 +355,47 @@ export function demoCheck(source: string): ScriptDiagnostic[] {
 		if (line.startsInside) continue;
 		for (const t of line.tokens) {
 			const at = { line: index + 1, column: t.from + 1, end_line: index + 1, end_column: t.to + 1 };
-			if (['function', 'if', 'do', 'repeat', '(', '[', '{'].includes(t.text)) stack.push({ word: t.text, line: index + 1, col: t.from + 1 });
+			if (['function', 'if', 'do', 'repeat', '(', '[', '{'].includes(t.text))
+				stack.push({ word: t.text, line: index + 1, col: t.from + 1 });
 			else if (['end', 'until', ')', ']', '}'].includes(t.text)) {
 				const top = stack[stack.length - 1];
 				const wants = pairs[t.text];
-				const ok = top && (wants ? top.word === wants : t.text === 'until' ? top.word === 'repeat' : ['function', 'if', 'do'].includes(top.word));
+				const ok =
+					top &&
+					(wants
+						? top.word === wants
+						: t.text === 'until'
+							? top.word === 'repeat'
+							: ['function', 'if', 'do'].includes(top.word));
 				if (ok) stack.pop();
-				else found.push({ severity: 'error', code: 'syntax', message: `unexpected symbol near '${t.text}'`, ...at });
+				else
+					found.push({
+						severity: 'error',
+						code: 'syntax',
+						message: `unexpected symbol near '${t.text}'`,
+						...at,
+					});
 			}
 		}
 	}
 	for (const open of stack) {
 		const last = Math.max(lines.length - 1, 1);
-		const closers: Record<string, string> = { repeat: "'until'", '(': "')'", '[': "']'", '{': "'}'" };
+		const closers: Record<string, string> = {
+			repeat: "'until'",
+			'(': "')'",
+			'[': "']'",
+			'{': "'}'",
+		};
 		const closer = closers[open.word] ?? "'end'";
-		found.push({ severity: 'error', code: 'syntax', message: `${closer} expected (to close '${open.word}' at line ${open.line}) near <eof>`, line: last, column: 1, end_line: last, end_column: (lines[last - 1]?.text.length ?? 0) + 2 });
+		found.push({
+			severity: 'error',
+			code: 'syntax',
+			message: `${closer} expected (to close '${open.word}' at line ${open.line}) near <eof>`,
+			line: last,
+			column: 1,
+			end_line: last,
+			end_column: (lines[last - 1]?.text.length ?? 0) + 2,
+		});
 	}
 	if (found.length > 0) return found;
 	const declared = new Set(
@@ -318,17 +404,38 @@ export function demoCheck(source: string): ScriptDiagnostic[] {
 			.filter((l) => /^\s*--/.test(l))
 			.flatMap((l) => (/capabilities:(.*)$/.exec(l)?.[1] ?? '').split(/[,\s]+/).filter(Boolean)),
 	);
-	const need: Record<string, string> = { env: 'env', fs: 'fs.read', ui: 'ui', plan: 'plan', net: 'net' };
+	const need: Record<string, string> = {
+		env: 'env',
+		fs: 'fs.read',
+		ui: 'ui',
+		plan: 'plan',
+		net: 'net',
+	};
 	const warned = new Set<string>();
 	for (const [index, line] of lines.entries()) {
 		if (line.startsInside) continue;
 		line.tokens.forEach((t, i) => {
 			const m = line.tokens[i + 2];
-			if (t.text !== 'li' || line.tokens[i + 1]?.text !== '.' || !m || !(m.text in need) || warned.has(m.text)) return;
+			if (
+				t.text !== 'li' ||
+				line.tokens[i + 1]?.text !== '.' ||
+				!m ||
+				!(m.text in need) ||
+				warned.has(m.text)
+			)
+				return;
 			const cap = need[m.text]!;
 			if (declared.has(cap) || (cap === 'fs.read' && declared.has('fs.write'))) return;
 			warned.add(m.text);
-			found.push({ severity: 'warning', code: 'undeclared-capability', message: `\`li.${m.text}\` needs the \`${cap}\` capability; add \`-- capabilities: ${cap}\` at the top of the file`, line: index + 1, column: t.from + 1, end_line: index + 1, end_column: m.to + 1 });
+			found.push({
+				severity: 'warning',
+				code: 'undeclared-capability',
+				message: `\`li.${m.text}\` needs the \`${cap}\` capability; add \`-- capabilities: ${cap}\` at the top of the file`,
+				line: index + 1,
+				column: t.from + 1,
+				end_line: index + 1,
+				end_column: m.to + 1,
+			});
 		});
 	}
 	return found;

@@ -13,7 +13,14 @@ import { SettingsRow } from '@liminal-hq/studio-chrome/SettingsShell/SettingsRow
 import { TextRow } from '@liminal-hq/studio-chrome/SettingsShell/TextRow';
 import { ToggleRow } from '@liminal-hq/studio-chrome/SettingsShell/ToggleRow';
 import type { AgentInfo, AppInfo, Host } from '../lib/host';
-import { LIMITS, type Density, type MotionSetting, type SettingKey, type Settings, type ThemeId } from '../lib/settings';
+import {
+	LIMITS,
+	type Density,
+	type MotionSetting,
+	type SettingKey,
+	type Settings,
+	type ThemeId,
+} from '../lib/settings';
 import { refusal, type Failures } from './usePreferences';
 
 /** What a page needs: the settings in force, why a write was refused, and the ways to change them. */
@@ -37,7 +44,13 @@ function Num({ epoch, ...props }: NumberRowProps & { epoch: number }) {
 }
 
 /** One row for a number setting, with its bounds. */
-function numberRow(p: PageProps, key: Exclude<SettingKey, 'version'>, label: string, description: string, unit?: string) {
+function numberRow(
+	p: PageProps,
+	key: Exclude<SettingKey, 'version'>,
+	label: string,
+	description: string,
+	unit?: string,
+) {
 	const bounds = (LIMITS as Record<string, readonly [number, number]>)[key]!;
 	return (
 		<Num
@@ -55,8 +68,30 @@ function numberRow(p: PageProps, key: Exclude<SettingKey, 'version'>, label: str
 	);
 }
 
-function toggle(p: PageProps, key: 'menuBar' | 'reopenLastProject' | 'confirmDiscard' | 'wrapLines' | 'lineNumbers' | 'formatOnSave' | 'previewAutoRun' | 'showSkippedSteps' | 'mcpEnabled', label: string, description: string) {
-	return <ToggleRow label={label} description={description} checked={p.settings[key]} onChange={(v) => void p.update({ [key]: v })} {...refusal(p.failures, key)} />;
+function toggle(
+	p: PageProps,
+	key:
+		| 'menuBar'
+		| 'reopenLastProject'
+		| 'confirmDiscard'
+		| 'wrapLines'
+		| 'lineNumbers'
+		| 'formatOnSave'
+		| 'previewAutoRun'
+		| 'showSkippedSteps'
+		| 'mcpEnabled',
+	label: string,
+	description: string,
+) {
+	return (
+		<ToggleRow
+			label={label}
+			description={description}
+			checked={p.settings[key]}
+			onChange={(v) => void p.update({ [key]: v })}
+			{...refusal(p.failures, key)}
+		/>
+	);
 }
 
 export function GeneralPage(p: PageProps) {
@@ -64,17 +99,41 @@ export function GeneralPage(p: PageProps) {
 	return (
 		<>
 			<SettingsGroup title="Window">
-				{toggle(p, 'menuBar', 'Show menu bar', 'Show File, Edit, View, Project and Help under the title bar. The app menu stays on the wordmark.')}
+				{toggle(
+					p,
+					'menuBar',
+					'Show menu bar',
+					'Show File, Edit, View, Project and Help under the title bar. The app menu stays on the wordmark.',
+				)}
 			</SettingsGroup>
 			<SettingsGroup title="Projects">
-				{toggle(p, 'reopenLastProject', 'Reopen the last project on start', 'Open the project that was open when the Studio closed, unless one is given on the command line.')}
-				{toggle(p, 'confirmDiscard', 'Confirm before discarding unsaved script edits', 'Ask before Reload, Open project or closing the window throws away edits to a script.')}
+				{toggle(
+					p,
+					'reopenLastProject',
+					'Reopen the last project on start',
+					'Open the project that was open when the Studio closed, unless one is given on the command line.',
+				)}
+				{toggle(
+					p,
+					'confirmDiscard',
+					'Confirm before discarding unsaved script edits',
+					'Ask before Reload, Open project or closing the window throws away edits to a script.',
+				)}
 			</SettingsGroup>
 			<SettingsGroup title="Recent projects">
-				{numberRow(p, 'recentLimit', 'Projects to remember', 'How many projects File > Open recent lists, from 5 to 20.')}
+				{numberRow(
+					p,
+					'recentLimit',
+					'Projects to remember',
+					'How many projects File > Open recent lists, from 5 to 20.',
+				)}
 				<ButtonRow
 					label="Recent projects"
-					description={count === 0 ? 'The list is empty.' : `${count} ${count === 1 ? 'project' : 'projects'} in File > Open recent.`}
+					description={
+						count === 0
+							? 'The list is empty.'
+							: `${count} ${count === 1 ? 'project' : 'projects'} in File > Open recent.`
+					}
 					actionLabel="Clear recent projects"
 					disabled={count === 0}
 					onAction={() => void p.update({ recentProjects: [] })}
@@ -117,7 +176,13 @@ export function AppearancePage(p: PageProps) {
 					onChange={(v) => void p.update({ density: v })}
 					{...refusal(p.failures, 'density')}
 				/>
-				{numberRow(p, 'textSize', 'Interface text size', 'Scales the text of every window, from 90 to 130 percent.', '%')}
+				{numberRow(
+					p,
+					'textSize',
+					'Interface text size',
+					'Scales the text of every window, from 90 to 130 percent.',
+					'%',
+				)}
 			</SettingsGroup>
 			<SettingsGroup title="Motion">
 				<SegmentedRow<MotionSetting>
@@ -141,11 +206,33 @@ export function EditorPage(p: PageProps) {
 	return (
 		<>
 			<SettingsGroup title="Script editor" description="These apply to the Scripts screen.">
-				{numberRow(p, 'editorFontSize', 'Font size', 'The size of the code, from 10 to 24 pixels.', 'px')}
-				{numberRow(p, 'tabWidth', 'Tab width', 'How many columns a tab character spans, from 1 to 8.', 'columns')}
-				{toggle(p, 'wrapLines', 'Wrap lines', 'Break long lines at the edge of the editor instead of scrolling sideways.')}
+				{numberRow(
+					p,
+					'editorFontSize',
+					'Font size',
+					'The size of the code, from 10 to 24 pixels.',
+					'px',
+				)}
+				{numberRow(
+					p,
+					'tabWidth',
+					'Tab width',
+					'How many columns a tab character spans, from 1 to 8.',
+					'columns',
+				)}
+				{toggle(
+					p,
+					'wrapLines',
+					'Wrap lines',
+					'Break long lines at the edge of the editor instead of scrolling sideways.',
+				)}
 				{toggle(p, 'lineNumbers', 'Show line numbers', 'Number the lines beside the code.')}
-				{toggle(p, 'formatOnSave', 'Format on save', 'Strip trailing spaces, use one line feed per line and end the file with a single newline when saving.')}
+				{toggle(
+					p,
+					'formatOnSave',
+					'Format on save',
+					'Strip trailing spaces, use one line feed per line and end the file with a single newline when saving.',
+				)}
 			</SettingsGroup>
 		</>
 	);
@@ -168,8 +255,18 @@ export function PreviewPage(p: PageProps) {
 				onChange={(v) => void p.update({ previewTarget: v })}
 				{...refusal(p.failures, 'previewTarget')}
 			/>
-			{toggle(p, 'previewAutoRun', 'Run the preview again when a flow or layout changes', 'Keeps the Dry run screen current as you or an agent edit. Off, a change clears the preview.')}
-			{toggle(p, 'showSkippedSteps', 'Show skipped steps', 'List the steps that do not apply to the target, dimmed, in the step list.')}
+			{toggle(
+				p,
+				'previewAutoRun',
+				'Run the preview again when a flow or layout changes',
+				'Keeps the Dry run screen current as you or an agent edit. Off, a change clears the preview.',
+			)}
+			{toggle(
+				p,
+				'showSkippedSteps',
+				'Show skipped steps',
+				'List the steps that do not apply to the target, dimmed, in the step list.',
+			)}
 		</SettingsGroup>
 	);
 }
@@ -179,19 +276,29 @@ export function AgentsPage(p: PageProps) {
 	const [agent, setAgent] = useState<AgentInfo | null>(null);
 	const [startError, setStartError] = useState<string | null>(null);
 	const [token, setToken] = useState<string | null>(null);
-	const [notice, setNotice] = useState<{ key: 'token' | 'copy' | 'regen'; text: string } | null>(null);
+	const [notice, setNotice] = useState<{ key: 'token' | 'copy' | 'regen'; text: string } | null>(
+		null,
+	);
 	useEffect(() => {
 		let live = true;
 		setToken(null);
-		void host.agent().then((a) => live && setAgent(a), () => live && setAgent(null));
-		void host.agentError().then((e) => live && setStartError(e), () => live && setStartError(null));
+		void host.agent().then(
+			(a) => live && setAgent(a),
+			() => live && setAgent(null),
+		);
+		void host.agentError().then(
+			(e) => live && setStartError(e),
+			() => live && setStartError(null),
+		);
 		return () => {
 			live = false;
 		};
 	}, [host, settings.mcpEnabled, settings.mcpPort]);
 	const running = agent !== null;
-	const fail = (key: 'token' | 'copy' | 'regen') => (e: unknown) => setNotice({ key, text: message(e) });
-	const error = (key: 'token' | 'copy' | 'regen') => (notice?.key === key ? { error: notice.text } : {});
+	const fail = (key: 'token' | 'copy' | 'regen') => (e: unknown) =>
+		setNotice({ key, text: message(e) });
+	const error = (key: 'token' | 'copy' | 'regen') =>
+		notice?.key === key ? { error: notice.text } : {};
 	const fetchToken = async () => {
 		const t = await host.agentToken();
 		if (t === null) throw new Error('The agent server is off.');
@@ -199,17 +306,45 @@ export function AgentsPage(p: PageProps) {
 	};
 	return (
 		<>
-			<SettingsGroup title="Agent server" description="An agent can read the project, edit flows, layouts and scripts, and run checks and dry runs. Every change it makes goes through the same undo history as yours, so Undo reverses it.">
-				{toggle(p, 'mcpEnabled', 'Enable the MCP server', 'Serve the Studio to agents on this computer only (127.0.0.1). Off by default in a release build.')}
-				{numberRow(p, 'mcpPort', 'Port', '0 picks a free port each time the server starts. A port that is taken is refused.')}
+			<SettingsGroup
+				title="Agent server"
+				description="An agent can read the project, edit flows, layouts and scripts, and run checks and dry runs. Every change it makes goes through the same undo history as yours, so Undo reverses it."
+			>
+				{toggle(
+					p,
+					'mcpEnabled',
+					'Enable the MCP server',
+					'Serve the Studio to agents on this computer only (127.0.0.1). Off by default in a release build.',
+				)}
+				{numberRow(
+					p,
+					'mcpPort',
+					'Port',
+					'0 picks a free port each time the server starts. A port that is taken is refused.',
+				)}
 				<SettingsRow
 					label="Status"
-					description={running ? agent.url : settings.mcpEnabled ? 'The server is not running.' : 'The server is off.'}
-					{...(!running && settings.mcpEnabled && startError ? { error: `It did not start: ${startError}` } : {})}
+					description={
+						running
+							? agent.url
+							: settings.mcpEnabled
+								? 'The server is not running.'
+								: 'The server is off.'
+					}
+					{...(!running && settings.mcpEnabled && startError
+						? { error: `It did not start: ${startError}` }
+						: {})}
 				/>
 			</SettingsGroup>
-			<SettingsGroup title="Access token" description="Agents send the token as a bearer token. It is not written to logs or to the settings file, and it changes each time the Studio starts.">
-				<SettingsRow label="Token" description={token ?? 'Hidden until you ask to see it.'} {...error('token')}>
+			<SettingsGroup
+				title="Access token"
+				description="Agents send the token as a bearer token. It is not written to logs or to the settings file, and it changes each time the Studio starts."
+			>
+				<SettingsRow
+					label="Token"
+					description={token ?? 'Hidden until you ask to see it.'}
+					{...error('token')}
+				>
 					<button
 						type="button"
 						className="btn"
@@ -225,7 +360,11 @@ export function AgentsPage(p: PageProps) {
 				</SettingsRow>
 				<ButtonRow
 					label="Copy token"
-					description={notice?.key === 'copy' && notice.text === 'Copied.' ? 'Copied to the clipboard.' : 'Put the token on the clipboard.'}
+					description={
+						notice?.key === 'copy' && notice.text === 'Copied.'
+							? 'Copied to the clipboard.'
+							: 'Put the token on the clipboard.'
+					}
 					actionLabel="Copy"
 					disabled={!running}
 					onAction={() => {
@@ -249,7 +388,8 @@ export function AgentsPage(p: PageProps) {
 								kind: 'confirm',
 								title: 'Regenerate token',
 								message: 'Regenerate the access token?',
-								detail: 'Agents using the current token are refused until you give them the new one.',
+								detail:
+									'Agents using the current token are refused until you give them the new one.',
 								buttons: [
 									{ id: 'regenerate', label: 'Regenerate', primary: true, danger: true },
 									{ id: 'cancel', label: 'Cancel' },
@@ -268,7 +408,23 @@ export function AgentsPage(p: PageProps) {
 }
 
 /** A text row for a path, with a button that asks for it in a dialog. */
-function PathRows({ p, name, label, description, kind, title, placeholder }: { p: PageProps; name: 'projectsFolder' | 'runnerPath' | 'dockerPath'; label: string; description: ReactNode; kind: 'folder' | 'file'; title: string; placeholder?: string }) {
+function PathRows({
+	p,
+	name,
+	label,
+	description,
+	kind,
+	title,
+	placeholder,
+}: {
+	p: PageProps;
+	name: 'projectsFolder' | 'runnerPath' | 'dockerPath';
+	label: string;
+	description: ReactNode;
+	kind: 'folder' | 'file';
+	title: string;
+	placeholder?: string;
+}) {
 	const [browseError, setBrowseError] = useState<string | undefined>();
 	const value = p.settings[name];
 	return (
@@ -303,11 +459,35 @@ export function ProjectsPage(p: PageProps) {
 	return (
 		<>
 			<SettingsGroup title="Folders">
-				<PathRows p={p} name="projectsFolder" label="Projects folder" kind="folder" title="Choose the projects folder" placeholder="Not set" description="Where Open project… starts. Leave empty to start where the system chooses." />
+				<PathRows
+					p={p}
+					name="projectsFolder"
+					label="Projects folder"
+					kind="folder"
+					title="Choose the projects folder"
+					placeholder="Not set"
+					description="Where Open project… starts. Leave empty to start where the system chooses."
+				/>
 			</SettingsGroup>
 			<SettingsGroup title="Tools">
-				<PathRows p={p} name="runnerPath" label="Runner" kind="file" title="Choose liminal-engine" placeholder="liminal-engine" description="The `liminal-engine` runner that builds use. It must answer `--version` before the path is saved. Builds from the Studio are not available yet." />
-				<PathRows p={p} name="dockerPath" label="Docker (optional)" kind="file" title="Choose docker" placeholder="docker" description="Used for the retro and Linux package checks. It must answer `--version` before the path is saved." />
+				<PathRows
+					p={p}
+					name="runnerPath"
+					label="Runner"
+					kind="file"
+					title="Choose liminal-engine"
+					placeholder="liminal-engine"
+					description="The `liminal-engine` runner that builds use. It must answer `--version` before the path is saved. Builds from the Studio are not available yet."
+				/>
+				<PathRows
+					p={p}
+					name="dockerPath"
+					label="Docker (optional)"
+					kind="file"
+					title="Choose docker"
+					placeholder="docker"
+					description="Used for the retro and Linux package checks. It must answer `--version` before the path is saved."
+				/>
 			</SettingsGroup>
 		</>
 	);
@@ -319,7 +499,10 @@ export function AdvancedPage(p: PageProps) {
 	const [notice, setNotice] = useState<{ key: string; text: string } | null>(null);
 	useEffect(() => {
 		let live = true;
-		void host.appInfo().then((i) => live && setInfo(i), () => undefined);
+		void host.appInfo().then(
+			(i) => live && setInfo(i),
+			() => undefined,
+		);
 		return () => {
 			live = false;
 		};
@@ -332,8 +515,20 @@ export function AdvancedPage(p: PageProps) {
 	return (
 		<>
 			<SettingsGroup title="Files">
-				<ButtonRow label="Settings file" description={info?.settingsFile ?? 'Where your preferences are kept.'} actionLabel="Open location" onAction={() => attempt('settings', () => host.reveal('settings'))} {...error('settings')} />
-				<ButtonRow label="Logs" description={info?.logDir ?? 'Where the Studio writes logs.'} actionLabel="Show location" onAction={() => attempt('logs', () => host.reveal('logs'))} {...error('logs')} />
+				<ButtonRow
+					label="Settings file"
+					description={info?.settingsFile ?? 'Where your preferences are kept.'}
+					actionLabel="Open location"
+					onAction={() => attempt('settings', () => host.reveal('settings'))}
+					{...error('settings')}
+				/>
+				<ButtonRow
+					label="Logs"
+					description={info?.logDir ?? 'Where the Studio writes logs.'}
+					actionLabel="Show location"
+					onAction={() => attempt('logs', () => host.reveal('logs'))}
+					{...error('logs')}
+				/>
 			</SettingsGroup>
 			<SettingsGroup title="Reset">
 				<ButtonRow
@@ -360,7 +555,12 @@ export function AdvancedPage(p: PageProps) {
 				/>
 			</SettingsGroup>
 			<SettingsGroup title="About">
-				<SettingsRow label="Version" description={info ? `Liminal Installer Studio ${info.version}` : 'Liminal Installer Studio'} />
+				<SettingsRow
+					label="Version"
+					description={
+						info ? `Liminal Installer Studio ${info.version}` : 'Liminal Installer Studio'
+					}
+				/>
 			</SettingsGroup>
 		</>
 	);

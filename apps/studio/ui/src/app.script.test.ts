@@ -26,8 +26,22 @@ const summary = (): ProjectSummary => ({
 	version: '1.0.0',
 	default_theme: null,
 	targets: [
-		{ full_id: 'dos-x86:tui-retro', id: 'dos-x86', renderer: 'tui-retro', theme: 't', outputs: [], components: [] },
-		{ full_id: 'linux-x86_64:tui', id: 'linux-x86_64', renderer: 'tui', theme: 't', outputs: [], components: [] },
+		{
+			full_id: 'dos-x86:tui-retro',
+			id: 'dos-x86',
+			renderer: 'tui-retro',
+			theme: 't',
+			outputs: [],
+			components: [],
+		},
+		{
+			full_id: 'linux-x86_64:tui',
+			id: 'linux-x86_64',
+			renderer: 'tui',
+			theme: 't',
+			outputs: [],
+			components: [],
+		},
 	],
 	components: [],
 	themes: [],
@@ -93,7 +107,8 @@ describe('the script draft', () => {
 	let guard: ReturnType<typeof vi.fn<() => Promise<boolean>>>;
 
 	const view = () => EditorView.findFromDOM(document.querySelector('.cm-editor') as HTMLElement)!;
-	const type = (text: string) => view().dispatch({ changes: { from: view().state.doc.length, insert: text } });
+	const type = (text: string) =>
+		view().dispatch({ changes: { from: view().state.doc.length, insert: text } });
 	const text = () => view().state.doc.toString();
 	const go = async (screen: keyof typeof SCREEN_ACTIONS) => {
 		await app.dispatch(SCREEN_ACTIONS[screen]);
@@ -126,7 +141,9 @@ describe('the script draft', () => {
 		type('-- more\n');
 		expect(dirtyLabel()).toBe('Unsaved changes');
 		expect(chrome.get().menu.scriptDirty).toBe(true);
-		view().dispatch({ changes: { from: SOURCES['scripts/a.lua']!.length, to: view().state.doc.length, insert: '' } });
+		view().dispatch({
+			changes: { from: SOURCES['scripts/a.lua']!.length, to: view().state.doc.length, insert: '' },
+		});
 		expect(dirtyLabel()).toBe('Saved');
 		expect(chrome.get().menu.scriptDirty).toBe(false);
 	});
@@ -150,7 +167,9 @@ describe('the script draft', () => {
 		expect(chrome.get().menu.scriptDirty).toBe(true);
 		await app.dispatch('file.save');
 		await settle();
-		expect(fake.writes).toEqual([{ path: 'scripts/a.lua', source: `${SOURCES['scripts/a.lua']}-- saved from elsewhere\n` }]);
+		expect(fake.writes).toEqual([
+			{ path: 'scripts/a.lua', source: `${SOURCES['scripts/a.lua']}-- saved from elsewhere\n` },
+		]);
 		expect(chrome.get().menu.scriptDirty).toBe(false);
 		await go('script');
 		expect(dirtyLabel()).toBe('Saved');
@@ -183,7 +202,9 @@ describe('the script draft', () => {
 		await settle();
 		expect(guard).toHaveBeenCalledTimes(1);
 		expect(text()).toContain('-- unsaved');
-		expect(document.querySelector<HTMLSelectElement>('select[aria-label="Script"]')!.value).toBe('scripts/a.lua');
+		expect(document.querySelector<HTMLSelectElement>('select[aria-label="Script"]')!.value).toBe(
+			'scripts/a.lua',
+		);
 	});
 
 	it('opens the other script once the edits are discarded', async () => {
@@ -238,7 +259,8 @@ describe('the test run', () => {
 	it('shows Running… and then when it ran, how long it took and whether the text was saved', async () => {
 		let release!: () => void;
 		const original = fake.api.testScript;
-		fake.api.testScript = (...args) => new Promise((resolve) => (release = () => resolve(original(...args))));
+		fake.api.testScript = (...args) =>
+			new Promise((resolve) => (release = () => resolve(original(...args))));
 		await press();
 		expect(status()).toBe('Running…');
 		release();
@@ -260,7 +282,9 @@ describe('the test run', () => {
 		expect(run.target).toBe('linux-x86_64:tui');
 		expect(run.source!.endsWith('-- draft\n')).toBe(true);
 		expect(status()).toMatch(/\(unsaved text\)$/);
-		expect(document.getElementById('script-console')!.textContent).toContain('test run on linux-x86_64:tui');
+		expect(document.getElementById('script-console')!.textContent).toContain(
+			'test run on linux-x86_64:tui',
+		);
 	});
 
 	it('marks the report out of date as soon as the draft changes', async () => {
@@ -279,10 +303,19 @@ describe('the test run', () => {
 			ok: false,
 			hooks: [],
 			capabilities: [],
-			diagnostics: [{ severity: 'error', scope: 's', message: 'on_commit: capability `env` is denied' }],
+			diagnostics: [
+				{ severity: 'error', scope: 's', message: 'on_commit: capability `env` is denied' },
+			],
 			output: [],
 			target: target ?? null,
-			tests: [{ hook: 'on_commit', ok: false, summary: 'on_commit: capability `env` is denied', lines: [] }],
+			tests: [
+				{
+					hook: 'on_commit',
+					ok: false,
+					summary: 'on_commit: capability `env` is denied',
+					lines: [],
+				},
+			],
 		});
 		await press();
 		await settle2();
@@ -299,7 +332,9 @@ describe('the test run', () => {
 		};
 		await press();
 		await settle2();
-		expect(document.getElementById('script-console')!.textContent).toContain('unknown target `nope`');
+		expect(document.getElementById('script-console')!.textContent).toContain(
+			'unknown target `nope`',
+		);
 		expect(status()).toMatch(/^Could not run at/);
 		expect(document.querySelector('.toast.error')).not.toBeNull();
 	});

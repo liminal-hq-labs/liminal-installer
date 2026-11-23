@@ -61,7 +61,9 @@ describe('usePreferences', () => {
 		expect(saved).toBe(false);
 		expect(result.current.settings?.mcpPort).toBe(0);
 		expect(result.current.failures.mcpPort).toBe('port 8123 is in use');
-		expect(refusal(result.current.failures, 'mcpPort')).toEqual({ error: 'Not saved: port 8123 is in use' });
+		expect(refusal(result.current.failures, 'mcpPort')).toEqual({
+			error: 'Not saved: port 8123 is in use',
+		});
 		expect(refusal(result.current.failures, 'tabWidth')).toEqual({});
 	});
 

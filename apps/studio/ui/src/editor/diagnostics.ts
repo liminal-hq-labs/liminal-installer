@@ -11,16 +11,27 @@ import type { ScriptDiagnostic } from '../lib/types';
 export function toLintDiagnostics(doc: Text, found: readonly ScriptDiagnostic[]): Diagnostic[] {
 	return found.map((d) => {
 		const start = doc.line(Math.min(Math.max(Math.trunc(d.line), 1), doc.lines));
-		const end = doc.line(Math.min(Math.max(Math.trunc(d.end_line), Math.trunc(d.line), 1), doc.lines));
+		const end = doc.line(
+			Math.min(Math.max(Math.trunc(d.end_line), Math.trunc(d.line), 1), doc.lines),
+		);
 		const from = Math.min(start.from + Math.max(d.column - 1, 0), start.to);
 		let to = Math.min(end.from + Math.max(d.end_column - 1, 0), end.to);
 		if (to <= from) to = Math.min(from + 1, doc.length);
-		return { from, to: Math.max(to, from), severity: d.severity, source: d.code, message: d.message };
+		return {
+			from,
+			to: Math.max(to, from),
+			severity: d.severity,
+			source: d.code,
+			message: d.message,
+		};
 	});
 }
 
 /** How many of each kind, for the footer. */
-export function countFindings(found: readonly ScriptDiagnostic[]): { errors: number; warnings: number } {
+export function countFindings(found: readonly ScriptDiagnostic[]): {
+	errors: number;
+	warnings: number;
+} {
 	const errors = found.filter((d) => d.severity === 'error').length;
 	return { errors, warnings: found.length - errors };
 }

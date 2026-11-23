@@ -90,7 +90,13 @@ describe('renderer overrides', () => {
 	});
 
 	it('resolves overrides through the whole tree', () => {
-		const l = setProp(toggleOverride(layout(), [0], 'tui-retro', true), [0], 'text', 'HELLO', 'tui-retro');
+		const l = setProp(
+			toggleOverride(layout(), [0], 'tui-retro', true),
+			[0],
+			'text',
+			'HELLO',
+			'tui-retro',
+		);
 		const retro = resolveForRenderer(l.root, 'tui-retro');
 		expect(retro.children![0]!.props!.text).toBe('HELLO');
 		expect(retro.children![0]!.overrides).toBeUndefined();

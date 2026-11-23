@@ -4,7 +4,14 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it, vi } from 'vitest';
-import { browserSettings, defaultSettings, normalizeSettings, type KeyValueStore, type Settings, type SettingsPort } from '../lib/settings';
+import {
+	browserSettings,
+	defaultSettings,
+	normalizeSettings,
+	type KeyValueStore,
+	type Settings,
+	type SettingsPort,
+} from '../lib/settings';
 import { createChromeStore } from './chromeStore';
 
 const memory = (): KeyValueStore & { data: Map<string, string> } => {
@@ -25,7 +32,11 @@ describe('settings in the browser', () => {
 	it('fills in defaults for anything missing or wrong', () => {
 		expect(normalizeSettings(undefined)).toEqual(defaultSettings);
 		expect(normalizeSettings({ menuBar: 'yes', theme: 'neon' })).toEqual(defaultSettings);
-		expect(normalizeSettings({ menuBar: true, theme: 'afterglow-light' })).toEqual({ ...defaultSettings, menuBar: true, theme: 'afterglow-light' });
+		expect(normalizeSettings({ menuBar: true, theme: 'afterglow-light' })).toEqual({
+			...defaultSettings,
+			menuBar: true,
+			theme: 'afterglow-light',
+		});
 	});
 
 	it('keeps a write for the next reader', async () => {
@@ -146,7 +157,11 @@ describe('chrome store', () => {
 
 describe('recent projects', () => {
 	it('puts a project first and remembers it as the last, within the limit', async () => {
-		const port = sharedPort({ ...defaultSettings, recentLimit: 5, recentProjects: ['/a', '/b', '/c', '/d', '/e'] });
+		const port = sharedPort({
+			...defaultSettings,
+			recentLimit: 5,
+			recentProjects: ['/a', '/b', '/c', '/d', '/e'],
+		});
 		const store = createChromeStore(port);
 		await store.init();
 		await store.recordProject('/c');

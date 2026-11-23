@@ -17,7 +17,9 @@ afterEach(cleanup);
 describe('Keyboard shortcuts', () => {
 	it('lists every command that has a key, from the one menu model', () => {
 		const listed = shortcutTable().flatMap((g) => g.rows.map((r) => r.id));
-		const keyed = (Object.keys(ACTIONS) as (keyof typeof ACTIONS)[]).filter((id) => ACTIONS[id].keys?.length);
+		const keyed = (Object.keys(ACTIONS) as (keyof typeof ACTIONS)[]).filter(
+			(id) => ACTIONS[id].keys?.length,
+		);
 		expect(listed.sort()).toEqual(keyed.sort());
 		expect(listed).toContain('file.new');
 		render(<ShortcutsBody />);
@@ -45,33 +47,65 @@ describe('Connect an agent', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Copy token' }));
 		await waitFor(() => expect(copy).toHaveBeenLastCalledWith('secret-token'));
 		fireEvent.click(screen.getByRole('button', { name: 'Copy configuration' }));
-		await waitFor(() => expect(copy).toHaveBeenLastCalledWith(clientConfig('http://127.0.0.1:5000/mcp', 'secret-token')));
+		await waitFor(() =>
+			expect(copy).toHaveBeenLastCalledWith(
+				clientConfig('http://127.0.0.1:5000/mcp', 'secret-token'),
+			),
+		);
 	});
 
 	it('says why the server is not running', async () => {
-		render(<AgentBody host={testHost({ agent: async () => null, agentError: async () => 'port 4000 is in use' })} />);
+		render(
+			<AgentBody
+				host={testHost({ agent: async () => null, agentError: async () => 'port 4000 is in use' })}
+			/>,
+		);
 		expect(await screen.findByText(/port 4000 is in use/)).toBeTruthy();
 	});
 });
 
 describe('New project', () => {
-	const fill = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
+	const fill = (label: string, value: string) =>
+		fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
 	it('suggests an id, creates the project in a folder named after it and answers with the folder', async () => {
 		const newProject = vi.fn(async (folder: string) => folder);
 		const onAnswer = vi.fn();
-		render(<NewProjectBody host={testHost({ newProject })} settings={{ ...defaultSettings, projectsFolder: '/home/me/projects' }} onAnswer={onAnswer} />);
+		render(
+			<NewProjectBody
+				host={testHost({ newProject })}
+				settings={{ ...defaultSettings, projectsFolder: '/home/me/projects' }}
+				onAnswer={onAnswer}
+			/>,
+		);
 		fill('Name', 'Fizz Level');
 		expect((screen.getByLabelText('Id') as HTMLInputElement).value).toBe('example.fizzlevel');
 		fill('Publisher', 'Liminal HQ');
 		fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
-		await waitFor(() => expect(onAnswer).toHaveBeenCalledWith(`${CREATED_PREFIX}/home/me/projects/fizz-level`));
-		expect(newProject).toHaveBeenCalledWith('/home/me/projects/fizz-level', 'Fizz Level', 'example.fizzlevel', 'Liminal HQ');
+		await waitFor(() =>
+			expect(onAnswer).toHaveBeenCalledWith(`${CREATED_PREFIX}/home/me/projects/fizz-level`),
+		);
+		expect(newProject).toHaveBeenCalledWith(
+			'/home/me/projects/fizz-level',
+			'Fizz Level',
+			'example.fizzlevel',
+			'Liminal HQ',
+		);
 	});
 
 	it('keeps the form open and shows the reason when the shell refuses', async () => {
 		const onAnswer = vi.fn();
-		render(<NewProjectBody host={testHost({ newProject: async () => { throw new Error('id: use reverse-DNS form'); } })} settings={{ ...defaultSettings, projectsFolder: '/p' }} onAnswer={onAnswer} />);
+		render(
+			<NewProjectBody
+				host={testHost({
+					newProject: async () => {
+						throw new Error('id: use reverse-DNS form');
+					},
+				})}
+				settings={{ ...defaultSettings, projectsFolder: '/p' }}
+				onAnswer={onAnswer}
+			/>,
+		);
 		fill('Name', 'Demo');
 		fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
 		expect((await screen.findByRole('alert')).textContent).toContain('reverse-DNS');
@@ -81,7 +115,9 @@ describe('New project', () => {
 	it('cannot create until it has a name and a folder, and cancel answers none', () => {
 		const onAnswer = vi.fn();
 		render(<NewProjectBody host={testHost()} settings={defaultSettings} onAnswer={onAnswer} />);
-		expect((screen.getByRole('button', { name: 'Create project' }) as HTMLButtonElement).disabled).toBe(true);
+		expect(
+			(screen.getByRole('button', { name: 'Create project' }) as HTMLButtonElement).disabled,
+		).toBe(true);
 		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 		expect(onAnswer).toHaveBeenCalledWith(null);
 	});

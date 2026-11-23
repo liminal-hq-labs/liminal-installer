@@ -3,7 +3,12 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { createDialogs, tauriDialogBackend, type DialogResult, type DialogSpec } from '../chrome/dialogWindow';
+import {
+	createDialogs,
+	tauriDialogBackend,
+	type DialogResult,
+	type DialogSpec,
+} from '../chrome/dialogWindow';
 import { inTauri } from '../chrome/windowControls';
 
 export interface AppInfo {
@@ -56,11 +61,17 @@ export async function tauriHost(): Promise<Host> {
 		agent: () => call('mcp_info'),
 		agentError: () => call('mcp_error'),
 		agentToken: () => call('mcp_token'),
-		newProject: (folder, name, id, publisher) => call('new_project', { folder, name, id, publisher }),
+		newProject: (folder, name, id, publisher) =>
+			call('new_project', { folder, name, id, publisher }),
 		regenerateToken: () => call('mcp_regenerate_token'),
 		async browse(kind, title, start) {
 			const { open } = await import('@tauri-apps/plugin-dialog');
-			const picked = await open({ directory: kind === 'folder', multiple: false, title, ...(start ? { defaultPath: start } : {}) });
+			const picked = await open({
+				directory: kind === 'folder',
+				multiple: false,
+				title,
+				...(start ? { defaultPath: start } : {}),
+			});
 			return typeof picked === 'string' ? picked : null;
 		},
 		copy: copyText,
@@ -71,7 +82,11 @@ export async function tauriHost(): Promise<Host> {
 /** The browser demo has no files, no agent server and no windows: it answers plainly and asks with `window.confirm`. */
 export function browserHost(): Host {
 	return {
-		appInfo: async () => ({ version: 'browser demo', settingsFile: 'Browser storage', logDir: 'Not available in a browser' }),
+		appInfo: async () => ({
+			version: 'browser demo',
+			settingsFile: 'Browser storage',
+			logDir: 'Not available in a browser',
+		}),
 		reveal: async () => {
 			throw new Error('A browser has no file manager to show it in.');
 		},
@@ -87,7 +102,9 @@ export function browserHost(): Host {
 		browse: async () => null,
 		copy: copyText,
 		confirm: async (spec) => {
-			const ok = window.confirm([spec.message ?? spec.title, spec.detail].filter(Boolean).join('\n\n'));
+			const ok = window.confirm(
+				[spec.message ?? spec.title, spec.detail].filter(Boolean).join('\n\n'),
+			);
 			const buttons = spec.buttons ?? [];
 			return ok ? (buttons[0]?.id ?? 'ok') : null;
 		},

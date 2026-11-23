@@ -4,35 +4,95 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { artSvg, escapeHtml, fill, lookFor, renderLayoutHtml, renderTreeHtml } from './previewRender';
+import {
+	artSvg,
+	escapeHtml,
+	fill,
+	lookFor,
+	renderLayoutHtml,
+	renderTreeHtml,
+} from './previewRender';
 import type { Layout, LayoutNode } from './types';
 
-const art = { width: 6, height: 10, scale: 4, rects: [[0, 0, 6, 1, '#aa0000'], [1, 4, 2, 2, '#ffffff']] };
+const art = {
+	width: 6,
+	height: 10,
+	scale: 4,
+	rects: [
+		[0, 0, 6, 1, '#aa0000'],
+		[1, 4, 2, 2, '#ffffff'],
+	],
+};
 
 const classic: LayoutNode = {
 	kind: 'backdrop',
-	props: { style: 'classic', title: 'Lieutenant Fizz', subtitle: 'Episode One', credit: 'Setup powered by Liminal Installer', taskbar: '{product.name} Setup' },
+	props: {
+		style: 'classic',
+		title: 'Lieutenant Fizz',
+		subtitle: 'Episode One',
+		credit: 'Setup powered by Liminal Installer',
+		taskbar: '{product.name} Setup',
+	},
 	children: [
 		{
 			kind: 'dialog',
 			props: { title: 'Choose Destination Location', style: 'win32-classic' },
 			children: [
-				{ kind: 'stack', props: { region: 'side' }, children: [{ kind: 'image', props: { label: 'Fizz', art, panel: '#008080' } }] },
+				{
+					kind: 'stack',
+					props: { region: 'side' },
+					children: [{ kind: 'image', props: { label: 'Fizz', art, panel: '#008080' } }],
+				},
 				{
 					kind: 'stack',
 					children: [
-						{ kind: 'text', props: { text: 'Version {product.version} on {target.id}', role: 'body' } },
-						{ kind: 'path', bind: 'install.path', props: { label: 'Destination Folder', browse: 'Browse…', hotkey: 'r' } },
-						{ kind: 'checklist', bind: 'components.selected', props: { label: 'Components', items: 'components', sunken: true } },
-						{ kind: 'billboard', props: { label: 'Highlights', captions: [{ title: 'Meet Ben', text: 'Ten years old.' }, { title: 'Two', text: 'Second.' }] } },
+						{
+							kind: 'text',
+							props: { text: 'Version {product.version} on {target.id}', role: 'body' },
+						},
+						{
+							kind: 'path',
+							bind: 'install.path',
+							props: { label: 'Destination Folder', browse: 'Browse…', hotkey: 'r' },
+						},
+						{
+							kind: 'checklist',
+							bind: 'components.selected',
+							props: { label: 'Components', items: 'components', sunken: true },
+						},
+						{
+							kind: 'billboard',
+							props: {
+								label: 'Highlights',
+								captions: [
+									{ title: 'Meet Ben', text: 'Ten years old.' },
+									{ title: 'Two', text: 'Second.' },
+								],
+							},
+						},
 					],
 				},
-				{ kind: 'stack', props: { region: 'footer', direction: 'row' }, children: [{ kind: 'button', props: { label: 'Back', action: 'back', hotkey: 'B' } }, { kind: 'button', props: { label: 'Next', action: 'next', default: true, hotkey: 'N' } }, { kind: 'button', props: { label: 'Cancel', action: 'cancel' } }] },
+				{
+					kind: 'stack',
+					props: { region: 'footer', direction: 'row' },
+					children: [
+						{ kind: 'button', props: { label: 'Back', action: 'back', hotkey: 'B' } },
+						{
+							kind: 'button',
+							props: { label: 'Next', action: 'next', default: true, hotkey: 'N' },
+						},
+						{ kind: 'button', props: { label: 'Cancel', action: 'cancel' } },
+					],
+				},
 			],
 		},
 		{ kind: 'meter', bind: 'm.file', props: { label: 'Current file', source: 'file' } },
 		{ kind: 'meter', bind: 'm.total', props: { label: 'Overall', source: 'total' } },
-		{ kind: 'meter', bind: 'm.free', props: { label: 'Free space', source: 'free_space', low_below: 0.05 } },
+		{
+			kind: 'meter',
+			bind: 'm.free',
+			props: { label: 'Free space', source: 'free_space', low_below: 0.05 },
+		},
 	],
 };
 
@@ -40,8 +100,17 @@ const opts = {
 	renderer: 'win32-classic',
 	theme: 'fizz-win95',
 	vars: { 'product.version': '2.3.4', 'product.name': 'Fizz', 'target.id': 'windows-x86_64' },
-	state: { 'components.selected': ['game'], 'install.path': 'C:\\FIZZ', 'm.file': 0.5, 'm.total': 0.25, 'm.free': 0.02 },
-	components: [{ id: 'game', name: 'Game program', required: true }, { id: 'levels', name: 'Levels' }],
+	state: {
+		'components.selected': ['game'],
+		'install.path': 'C:\\FIZZ',
+		'm.file': 0.5,
+		'm.total': 0.25,
+		'm.free': 0.02,
+	},
+	components: [
+		{ id: 'game', name: 'Game program', required: true },
+		{ id: 'levels', name: 'Levels' },
+	],
 };
 
 describe('lookFor', () => {
@@ -73,8 +142,12 @@ describe('artSvg', () => {
 		expect(svg).toContain('shape-rendering="crispEdges"');
 		expect(svg).toContain('<rect x="1" y="4" width="2" height="2" fill="#ffffff"/>');
 		expect(svg).toContain('aria-label="Lt. Fizz"');
-		expect(artSvg({ width: 2, height: 2, rects: [[0, 0, 1, 1, 'red" onload="x']] })).not.toContain('onload');
-		expect(artSvg({ viewBox: [4, 4], shapes: [{ path: 'M0 0h4', stroke: '#fff' }] })).toContain('<path d="M0 0h4"');
+		expect(artSvg({ width: 2, height: 2, rects: [[0, 0, 1, 1, 'red" onload="x']] })).not.toContain(
+			'onload',
+		);
+		expect(artSvg({ viewBox: [4, 4], shapes: [{ path: 'M0 0h4', stroke: '#fff' }] })).toContain(
+			'<path d="M0 0h4"',
+		);
 		expect(artSvg(undefined)).toBe('');
 	});
 });
@@ -126,23 +199,65 @@ describe('the DOS text-mode look', () => {
 		kind: 'backdrop',
 		props: { style: 'text-mode', title: '{product.name}  Setup', credit: 'Liminal Installer' },
 		children: [
-			{ kind: 'stack', props: { region: 'side' }, children: [{ kind: 'text', props: { text: 'Lt. Fizz', role: 'title' } }, { kind: 'progress', props: { label: 'Setup steps', role: 'steps', value: 5, max: 8, text: 'Step 5 of 8' } }] },
+			{
+				kind: 'stack',
+				props: { region: 'side' },
+				children: [
+					{ kind: 'text', props: { text: 'Lt. Fizz', role: 'title' } },
+					{
+						kind: 'progress',
+						props: { label: 'Setup steps', role: 'steps', value: 5, max: 8, text: 'Step 5 of 8' },
+					},
+				],
+			},
 			{
 				kind: 'dialog',
 				props: { title: 'Sound Card', border: 'double' },
 				children: [
-					{ kind: 'stack', children: [
-						{ kind: 'radio', bind: 'sound.card', props: { label: 'Sound card', options: [{ id: 'none', label: 'No sound' }, { id: 'sbpro', label: 'Sound Blaster / Pro / 16' }] } },
-						{ kind: 'stack', props: { direction: 'row', group: 'fields' }, children: [{ kind: 'field', bind: 'sound.port', props: { label: 'Port', default: '220' } }] },
-						{ kind: 'meter', bind: 'm', props: { label: 'Total', source: 'total' } },
-					] },
-					{ kind: 'stack', props: { region: 'footer', direction: 'row' }, children: [{ kind: 'button', props: { label: 'OK', default: true, hotkey: 'O' } }] },
+					{
+						kind: 'stack',
+						children: [
+							{
+								kind: 'radio',
+								bind: 'sound.card',
+								props: {
+									label: 'Sound card',
+									options: [
+										{ id: 'none', label: 'No sound' },
+										{ id: 'sbpro', label: 'Sound Blaster / Pro / 16' },
+									],
+								},
+							},
+							{
+								kind: 'stack',
+								props: { direction: 'row', group: 'fields' },
+								children: [
+									{ kind: 'field', bind: 'sound.port', props: { label: 'Port', default: '220' } },
+								],
+							},
+							{ kind: 'meter', bind: 'm', props: { label: 'Total', source: 'total' } },
+						],
+					},
+					{
+						kind: 'stack',
+						props: { region: 'footer', direction: 'row' },
+						children: [{ kind: 'button', props: { label: 'OK', default: true, hotkey: 'O' } }],
+					},
 				],
 			},
-			{ kind: 'stack', props: { region: 'hints', direction: 'row' }, children: [{ kind: 'text', props: { key: 'Enter', text: 'Accept' } }] },
+			{
+				kind: 'stack',
+				props: { region: 'hints', direction: 'row' },
+				children: [{ kind: 'text', props: { key: 'Enter', text: 'Accept' } }],
+			},
 		],
 	};
-	const html = renderTreeHtml(dosTree, { renderer: 'tui-retro', theme: 'fizz-dos', vars: { 'product.name': 'Lt. Fizz' }, state: { 'sound.card': 'sbpro', m: 0.5 } });
+	const html = renderTreeHtml(dosTree, {
+		renderer: 'tui-retro',
+		theme: 'fizz-dos',
+		vars: { 'product.name': 'Lt. Fizz' },
+		state: { 'sound.card': 'sbpro', m: 0.5 },
+	});
 	it('draws the title bar, ░ backdrop, double-border dialog with the title in the border and key hints', () => {
 		expect(html).toContain('pv-dos');
 		expect(html).toContain('data-w="960" data-h="600"');
@@ -163,22 +278,74 @@ describe('the DOS text-mode look', () => {
 		expect(html).toContain('>220</span>');
 	});
 	it('marks the chosen radio row', () => {
-		expect(html).toMatch(/pv-choice pv-sel"[^>]*><span class="pv-glyph">\(•\)<\/span><span class="pv-choice-body"><span class="pv-choice-label">Sound Blaster/);
+		expect(html).toMatch(
+			/pv-choice pv-sel"[^>]*><span class="pv-glyph">\(•\)<\/span><span class="pv-choice-body"><span class="pv-choice-label">Sound Blaster/,
+		);
 	});
 });
 
 describe('Afterglow and Neutral', () => {
 	const modern: LayoutNode = {
 		kind: 'window',
-		props: { title: 'Planboard Setup', style: 'afterglow', icon: { viewBox: [20, 20], shapes: [{ rect: [1, 1, 5, 5], fill: '#ffaa40' }] } },
+		props: {
+			title: 'Planboard Setup',
+			style: 'afterglow',
+			icon: { viewBox: [20, 20], shapes: [{ rect: [1, 1, 5, 5], fill: '#ffaa40' }] },
+		},
 		children: [
-			{ kind: 'stack', props: { region: 'side' }, children: [{ kind: 'text', props: { text: 'Welcome', role: 'step-item', state: 'done' } }, { kind: 'text', props: { text: 'Components', role: 'step-item', state: 'current' } }, { kind: 'text', props: { text: 'Done', role: 'step-item', state: 'todo' } }] },
-			{ kind: 'stack', children: [{ kind: 'checklist', bind: 'c', props: { label: 'Components', cards: true, items: [{ id: 'a', label: 'App', description: 'The app.', required: true, checked: true }, { id: 'b', label: 'CLI', description: 'A tool.', badges: [{ text: 'Adds to PATH' }] }] } }, { kind: 'meter', bind: 'm', props: { label: 'Overall', source: 'total', caption: '{progress.percent}%' } }] },
-			{ kind: 'stack', props: { region: 'footer', direction: 'row' }, children: [{ kind: 'text', props: { text: 'No administrator needed', role: 'note' } }, { kind: 'button', props: { label: 'Install', default: true } }] },
+			{
+				kind: 'stack',
+				props: { region: 'side' },
+				children: [
+					{ kind: 'text', props: { text: 'Welcome', role: 'step-item', state: 'done' } },
+					{ kind: 'text', props: { text: 'Components', role: 'step-item', state: 'current' } },
+					{ kind: 'text', props: { text: 'Done', role: 'step-item', state: 'todo' } },
+				],
+			},
+			{
+				kind: 'stack',
+				children: [
+					{
+						kind: 'checklist',
+						bind: 'c',
+						props: {
+							label: 'Components',
+							cards: true,
+							items: [
+								{ id: 'a', label: 'App', description: 'The app.', required: true, checked: true },
+								{
+									id: 'b',
+									label: 'CLI',
+									description: 'A tool.',
+									badges: [{ text: 'Adds to PATH' }],
+								},
+							],
+						},
+					},
+					{
+						kind: 'meter',
+						bind: 'm',
+						props: { label: 'Overall', source: 'total', caption: '{progress.percent}%' },
+					},
+				],
+			},
+			{
+				kind: 'stack',
+				props: { region: 'footer', direction: 'row' },
+				children: [
+					{ kind: 'text', props: { text: 'No administrator needed', role: 'note' } },
+					{ kind: 'button', props: { label: 'Install', default: true } },
+				],
+			},
 		],
 	};
 	it('draws the dark rounded Afterglow window with a step list, cards and an accent bar', () => {
-		const html = renderTreeHtml(modern, { renderer: 'canvas', theme: 'afterglow', vars: { 'progress.percent': '62' }, state: { m: 0.62 } });
+		const html = renderTreeHtml(modern, {
+			renderer: 'canvas',
+			theme: 'afterglow',
+			vars: { 'progress.percent': '62' },
+			state: { m: 0.62 },
+		});
 		expect(html).toContain('pv-afterglow');
 		expect(html).toContain('data-w="1024" data-h="720"');
 		expect(html).toContain('aria-current="step"');
@@ -197,12 +364,24 @@ describe('Afterglow and Neutral', () => {
 		expect(html).not.toContain('pv-afterglow');
 	});
 	it('uses a renderer override where one exists and escapes content', () => {
-		const layout: Layout = { version: 1, id: 'x', root: { kind: 'text', props: { text: '<script>x</script>' }, overrides: { web: { kind: 'text', props: { text: 'WEB' } } } } };
+		const layout: Layout = {
+			version: 1,
+			id: 'x',
+			root: {
+				kind: 'text',
+				props: { text: '<script>x</script>' },
+				overrides: { web: { kind: 'text', props: { text: 'WEB' } } },
+			},
+		};
 		expect(renderLayoutHtml(layout, 'canvas')).not.toContain('<script>');
 		expect(renderLayoutHtml(layout, 'web')).toContain('WEB');
 	});
 	it('skips custom nodes outside canvas and web', () => {
-		const layout: Layout = { version: 1, id: 'x', root: { kind: 'window', props: { title: 'T' }, children: [{ kind: 'custom' }] } };
+		const layout: Layout = {
+			version: 1,
+			id: 'x',
+			root: { kind: 'window', props: { title: 'T' }, children: [{ kind: 'custom' }] },
+		};
 		expect(renderLayoutHtml(layout, 'tui-retro')).not.toContain('custom content');
 		expect(renderLayoutHtml(layout, 'canvas')).toContain('custom content');
 	});

@@ -10,9 +10,17 @@ export interface DialogButton {
 	danger?: boolean;
 }
 
-export type DialogKind = 'about' | 'confirm' | 'preferences' | 'shortcuts' | 'agent' | 'new-project';
+export type DialogKind =
+	'about' | 'confirm' | 'preferences' | 'shortcuts' | 'agent' | 'new-project';
 
-export const DIALOG_KINDS: DialogKind[] = ['about', 'confirm', 'preferences', 'shortcuts', 'agent', 'new-project'];
+export const DIALOG_KINDS: DialogKind[] = [
+	'about',
+	'confirm',
+	'preferences',
+	'shortcuts',
+	'agent',
+	'new-project',
+];
 
 /** The answer of New project when it made a project: `created:` and the project's folder. */
 export const CREATED_PREFIX = 'created:';
@@ -94,7 +102,8 @@ export function decodeSpec(search: string): DialogSpec | undefined {
 	try {
 		const raw = new URLSearchParams(search).get('spec');
 		const v = raw ? (JSON.parse(raw) as Partial<DialogSpec>) : undefined;
-		if (!v || typeof v.title !== 'string' || !DIALOG_KINDS.includes(v.kind as DialogKind)) return undefined;
+		if (!v || typeof v.title !== 'string' || !DIALOG_KINDS.includes(v.kind as DialogKind))
+			return undefined;
 		return v as DialogSpec;
 	} catch {
 		return undefined;
@@ -131,7 +140,9 @@ export async function tauriDialogBackend(): Promise<DialogBackend> {
 				if (over) off();
 				else stop = off;
 			});
-			invoke('open_window', { kind: spec.kind, id, query: encodeSpec(spec) + `&id=${id}` }).catch(() => finish(null));
+			invoke('open_window', { kind: spec.kind, id, query: encodeSpec(spec) + `&id=${id}` }).catch(
+				() => finish(null),
+			);
 			return () => {
 				const label = spec.kind === 'confirm' ? `confirm-${id}` : spec.kind;
 				void WebviewWindow.getByLabel(label).then((w) => w?.close());
@@ -142,7 +153,9 @@ export async function tauriDialogBackend(): Promise<DialogBackend> {
 }
 
 /** Shows dialogs in the page through a function that draws and clears them. For the browser demo only. */
-export function inPageDialogBackend(draw: (dialog: { spec: DialogSpec; done(result: DialogResult): void } | null) => void): DialogBackend {
+export function inPageDialogBackend(
+	draw: (dialog: { spec: DialogSpec; done(result: DialogResult): void } | null) => void,
+): DialogBackend {
 	return {
 		show(spec, done) {
 			draw({

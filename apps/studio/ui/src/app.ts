@@ -133,7 +133,11 @@ const NAV: { route: Route; label: string; icon: string }[] = [
 	{ route: 'flow', label: 'Flow', icon: 'M3 3h4v3H3zM9 10h4v3H9zM7 4.5h2.5V10' },
 	{ route: 'layouts', label: 'Layouts', icon: 'M2 3h12v10H2zM2 6h12M6 6v7' },
 	{ route: 'script', label: 'Scripts', icon: 'M5 4L2 8l3 4M11 4l3 4-3 4M9 3l-2 10' },
-	{ route: 'preview', label: 'Dry-run preview', icon: 'M8 3C4 3 2 8 2 8s2 5 6 5 6-5 6-5-2-5-6-5zM8 6a2 2 0 100 4 2 2 0 000-4z' },
+	{
+		route: 'preview',
+		label: 'Dry-run preview',
+		icon: 'M8 3C4 3 2 8 2 8s2 5 6 5 6-5 6-5-2-5-6-5zM8 6a2 2 0 100 4 2 2 0 000-4z',
+	},
 ];
 
 const icon = (d: string) => {
@@ -153,7 +157,15 @@ const icon = (d: string) => {
 	return s;
 };
 
-export async function startApp(root: HTMLElement, chrome: ChromeStore, options: { header: boolean; /** The backend to use instead of the desktop shell or the demo. For tests. */ api?: Api; /** Settles unsaved script edits before they would be lost: true to go on. */ settleUnsaved?: () => Promise<boolean> }): Promise<App> {
+export async function startApp(
+	root: HTMLElement,
+	chrome: ChromeStore,
+	options: {
+		header: boolean;
+		/** The backend to use instead of the desktop shell or the demo. For tests. */ api?: Api;
+		/** Settles unsaved script edits before they would be lost: true to go on. */ settleUnsaved?: () => Promise<boolean>;
+	},
+): Promise<App> {
 	let api: Api;
 	try {
 		api = options.api ?? (await createApi());
@@ -228,8 +240,10 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 			state.connectFrom = null;
 			void ctx.run(async () => {
 				if (route === 'flow' && !state.flow && state.flowId) await ctx.loadFlow(state.flowId);
-				if (route === 'layouts' && !state.layout && state.layoutId) await ctx.loadLayout(state.layoutId);
-				if (route === 'script' && !state.scriptPath && state.summary?.scripts[0]) await ctx.loadScript(state.summary.scripts[0]);
+				if (route === 'layouts' && !state.layout && state.layoutId)
+					await ctx.loadLayout(state.layoutId);
+				if (route === 'script' && !state.scriptPath && state.summary?.scripts[0])
+					await ctx.loadScript(state.summary.scripts[0]);
 			});
 		},
 		async run(action) {
@@ -246,7 +260,8 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		async loadFlow(id) {
 			state.flowId = id;
 			state.flow = await api.getFlow(id);
-			if (!state.flow.flow.steps.some((s) => s.id === state.selectedStep)) state.selectedStep = null;
+			if (!state.flow.flow.steps.some((s) => s.id === state.selectedStep))
+				state.selectedStep = null;
 		},
 		async saveFlow(flow, label) {
 			state.flow = await api.setFlow(flow.id, flow, label);
@@ -264,7 +279,10 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		async runPreview(target) {
 			state.previewTarget = target;
 			state.preview = await api.runPreview(target);
-			state.previewStep = Math.max(0, state.preview.steps.findIndex((s) => !s.skipped));
+			state.previewStep = Math.max(
+				0,
+				state.preview.steps.findIndex((s) => !s.skipped),
+			);
 		},
 		async openProject() {
 			const path = await api.pickProject(chrome.get().settings.projectsFolder || undefined);
@@ -320,7 +338,8 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		state.problems = await api.checkProject();
 		state.mcp = await api.mcpInfo();
 		state.mcpError = await api.mcpError().catch(() => null);
-		if (!sum.targets.some((t) => t.full_id === state.previewTarget)) state.previewTarget = defaultTarget(sum.targets.map((t) => t.full_id));
+		if (!sum.targets.some((t) => t.full_id === state.previewTarget))
+			state.previewTarget = defaultTarget(sum.targets.map((t) => t.full_id));
 		state.preview = await api.getPreview();
 		if (state.preview) state.previewTarget = state.preview.target;
 		if (!sum.flows.some((f) => f.id === state.flowId)) {
@@ -347,16 +366,19 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		// Keep the layout selection when the change came from elsewhere.
 		const keepPath = state.layoutPath;
 		const keepOverride = state.overrideRenderer;
-		void ctx
-			.run(async () => {
-				await refresh();
-				if (event.doc?.type === 'layout' && event.doc.id === state.layoutId) {
-					state.layoutPath = keepPath;
-					state.overrideRenderer = keepOverride;
-				}
-				if (event.source === 'mcp') showToast(`Agent: ${event.label}`, false, 4000);
-				if (chrome.get().settings.previewAutoRun && (event.doc?.type === 'flow' || event.doc?.type === 'layout')) scheduleAutoRun();
-			});
+		void ctx.run(async () => {
+			await refresh();
+			if (event.doc?.type === 'layout' && event.doc.id === state.layoutId) {
+				state.layoutPath = keepPath;
+				state.overrideRenderer = keepOverride;
+			}
+			if (event.source === 'mcp') showToast(`Agent: ${event.label}`, false, 4000);
+			if (
+				chrome.get().settings.previewAutoRun &&
+				(event.doc?.type === 'flow' || event.doc?.type === 'layout')
+			)
+				scheduleAutoRun();
+		});
 	});
 
 	let autoRunTimer: number | undefined;
@@ -378,17 +400,23 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		if (state.route === 'script') applyEditorSettings(ctx, next);
 		if (next.mcpEnabled !== was.mcpEnabled || next.mcpPort !== was.mcpPort) {
 			// Only the card changes, so text typed in the script editor stays as it is.
-			void Promise.all([api.mcpInfo(), api.mcpError().catch(() => null)]).then(([info, why]) => {
-				state.mcp = info;
-				state.mcpError = why;
-				root.querySelector('.agent-card')?.replaceWith(agentCard());
-			}, () => undefined);
+			void Promise.all([api.mcpInfo(), api.mcpError().catch(() => null)]).then(
+				([info, why]) => {
+					state.mcp = info;
+					state.mcpError = why;
+					root.querySelector('.agent-card')?.replaceWith(agentCard());
+				},
+				() => undefined,
+			);
 		}
 		if (next.previewTarget !== was.previewTarget && state.summary) {
 			const wanted = defaultTarget(state.summary.targets.map((t) => t.full_id));
 			if (wanted !== state.previewTarget) state.previewTarget = wanted;
 		}
-		if (next.showSkippedSteps !== was.showSkippedSteps || next.previewTarget !== was.previewTarget) {
+		if (
+			next.showSkippedSteps !== was.showSkippedSteps ||
+			next.previewTarget !== was.previewTarget
+		) {
 			if (state.route === 'preview') render();
 		}
 	});
@@ -401,7 +429,10 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 			screen: state.route,
 			scriptDirty: state.scriptDirty && state.scriptPath !== '',
 		});
-		const screen = state.route === 'project' ? '' : ` · ${NAV.find((n) => n.route === state.route)?.label ?? ''}`;
+		const screen =
+			state.route === 'project'
+				? ''
+				: ` · ${NAV.find((n) => n.route === state.route)?.label ?? ''}`;
 		chrome.setTitle(state.summary ? `${state.summary.name}${screen}` : '');
 	}
 
@@ -423,14 +454,21 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 			state.problems = await api.checkProject();
 			const n = state.problems.length;
 			const errors = state.problems.filter((p) => p.severity === 'error').length;
-			showToast(n === 0 ? 'Check passed: no problems' : `Check found ${n} problem${n === 1 ? '' : 's'}${errors ? `, ${errors} with errors` : ''}`, errors > 0, 4000);
+			showToast(
+				n === 0
+					? 'Check passed: no problems'
+					: `Check found ${n} problem${n === 1 ? '' : 's'}${errors ? `, ${errors} with errors` : ''}`,
+				errors > 0,
+				4000,
+			);
 		},
 		'project.preview': async () => {
 			await ctx.runPreview(state.previewTarget);
 			ctx.go('preview');
 		},
 	};
-	for (const [route, id] of Object.entries(SCREEN_ACTIONS) as [Route, ActionId][]) actions[id] = async () => ctx.go(route);
+	for (const [route, id] of Object.entries(SCREEN_ACTIONS) as [Route, ActionId][])
+		actions[id] = async () => ctx.go(route);
 
 	function agentCard(): HTMLElement {
 		const failed = !state.mcp && state.mcpError;
@@ -438,10 +476,16 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 			'div',
 			{ class: `agent-card${failed ? ' failed' : ''}` },
 			h('span', { class: `dot ${state.mcp ? 'on' : ''}` }),
-			state.mcp ? 'Agent endpoint ready' : failed ? 'Agent endpoint did not start' : 'Agent endpoint off',
+			state.mcp
+				? 'Agent endpoint ready'
+				: failed
+					? 'Agent endpoint did not start'
+					: 'Agent endpoint off',
 			state.mcp ? h('code', {}, state.mcp.url) : null,
 			failed ? h('span', { class: 'err small', role: 'alert' }, state.mcpError) : null,
-			failed ? h('span', { class: 'dim small' }, 'Change the port in Preferences, under Agents.') : null,
+			failed
+				? h('span', { class: 'dim small' }, 'Change the port in Preferences, under Agents.')
+				: null,
 		);
 	}
 
@@ -450,7 +494,20 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		return h(
 			'div',
 			{ class: 'popover', role: 'dialog', 'aria-label': 'History' },
-			rows.length === 0 ? h('p', { class: 'dim' }, 'No changes yet.') : h('ol', {}, rows.map((r) => h('li', { class: r.undone ? 'undone' : '' }, h('span', {}, r.label), h('span', { class: 'dim' }, ` · ${r.source} · ${r.doc}`)))),
+			rows.length === 0
+				? h('p', { class: 'dim' }, 'No changes yet.')
+				: h(
+						'ol',
+						{},
+						rows.map((r) =>
+							h(
+								'li',
+								{ class: r.undone ? 'undone' : '' },
+								h('span', {}, r.label),
+								h('span', { class: 'dim' }, ` · ${r.source} · ${r.doc}`),
+							),
+						),
+					),
 		);
 	}
 
@@ -467,7 +524,17 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 	function render(): void {
 		const s = state;
 		const body = !s.summary
-			? h('section', { class: 'empty' }, h('h1', {}, 'Open a project'), h('p', {}, 'Choose a folder that holds installer.toml, or the installer folder itself.'), h('button', { class: 'btn primary', on: { click: () => void ctx.run(() => ctx.openProject()) } }, 'Open project…'))
+			? h(
+					'section',
+					{ class: 'empty' },
+					h('h1', {}, 'Open a project'),
+					h('p', {}, 'Choose a folder that holds installer.toml, or the installer folder itself.'),
+					h(
+						'button',
+						{ class: 'btn primary', on: { click: () => void ctx.run(() => ctx.openProject()) } },
+						'Open project…',
+					),
+				)
 			: s.route === 'project'
 				? projectView(ctx)
 				: s.route === 'flow'
@@ -494,9 +561,34 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 							h(
 								'span',
 								{ class: 'topbar-actions' },
-								h('button', { class: 'btn ghost', disabled: !s.history.can_undo, title: 'Undo', on: { click: () => actions['edit.undo'] && void ctx.run(actions['edit.undo']) } }, 'Undo'),
-								h('button', { class: 'btn ghost', disabled: !s.history.can_redo, title: 'Redo', on: { click: () => actions['edit.redo'] && void ctx.run(actions['edit.redo']) } }, 'Redo'),
-								h('button', { class: 'btn ghost', on: { click: () => void ctx.run(() => ctx.openProject()) } }, 'Open…'),
+								h(
+									'button',
+									{
+										class: 'btn ghost',
+										disabled: !s.history.can_undo,
+										title: 'Undo',
+										on: { click: () => actions['edit.undo'] && void ctx.run(actions['edit.undo']) },
+									},
+									'Undo',
+								),
+								h(
+									'button',
+									{
+										class: 'btn ghost',
+										disabled: !s.history.can_redo,
+										title: 'Redo',
+										on: { click: () => actions['edit.redo'] && void ctx.run(actions['edit.redo']) },
+									},
+									'Redo',
+								),
+								h(
+									'button',
+									{
+										class: 'btn ghost',
+										on: { click: () => void ctx.run(() => ctx.openProject()) },
+									},
+									'Open…',
+								),
 							),
 						)
 					: null,
@@ -506,7 +598,22 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 					{ class: 'sidebar', 'aria-label': 'Studio' },
 					h('div', { class: 'nav-label' }, 'Project'),
 					NAV.map((n) =>
-						h('a', { href: '#', class: s.route === n.route ? 'active' : '', 'aria-current': s.route === n.route ? 'page' : undefined, on: { click: (e) => { e.preventDefault(); ctx.go(n.route); } } }, icon(n.icon), n.label),
+						h(
+							'a',
+							{
+								href: '#',
+								class: s.route === n.route ? 'active' : '',
+								'aria-current': s.route === n.route ? 'page' : undefined,
+								on: {
+									click: (e) => {
+										e.preventDefault();
+										ctx.go(n.route);
+									},
+								},
+							},
+							icon(n.icon),
+							n.label,
+						),
 					),
 					agentCard(),
 				),
@@ -520,11 +627,39 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 						{ class: 'statusbar-end' },
 						s.problems.length === 0
 							? h('span', {}, 'No problems')
-							: h('button', { class: `statusbar-btn ${errors > 0 ? 'err' : 'warn'}`, id: 'status-problems', title: 'Show the checks on the Overview', on: { click: () => showChecks() } }, problemSummary(errors, warnings)),
-						h('button', { class: 'statusbar-btn', 'aria-expanded': s.showHistory, on: { click: () => { s.showHistory = !s.showHistory; render(); } } }, `History (${applied})`),
+							: h(
+									'button',
+									{
+										class: `statusbar-btn ${errors > 0 ? 'err' : 'warn'}`,
+										id: 'status-problems',
+										title: 'Show the checks on the Overview',
+										on: { click: () => showChecks() },
+									},
+									problemSummary(errors, warnings),
+								),
+						h(
+							'button',
+							{
+								class: 'statusbar-btn',
+								'aria-expanded': s.showHistory,
+								on: {
+									click: () => {
+										s.showHistory = !s.showHistory;
+										render();
+									},
+								},
+							},
+							`History (${applied})`,
+						),
 					),
 				),
-				s.toast ? h('div', { class: `toast ${s.toast.error ? 'error' : ''}`, role: 'status' }, s.toast.text) : null,
+				s.toast
+					? h(
+							'div',
+							{ class: `toast ${s.toast.error ? 'error' : ''}`, role: 'status' },
+							s.toast.text,
+						)
+					: null,
 			),
 		);
 		if (s.route === 'script') afterScriptRender(ctx);

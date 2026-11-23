@@ -40,10 +40,14 @@ function InPageDialogView({ store, host }: { store: ChromeStore; host: Host }) {
 			onClose={() => done(null)}
 			title={spec.title}
 			size={spec.kind === 'preferences' ? 'large' : 'small'}
-			{...(spec.kind === 'preferences' || spec.kind === 'new-project' ? {} : { footer: <DialogButtons spec={spec} onAnswer={done} /> })}
+			{...(spec.kind === 'preferences' || spec.kind === 'new-project'
+				? {}
+				: { footer: <DialogButtons spec={spec} onAnswer={done} /> })}
 		>
 			{spec.kind === 'preferences' ? (
-				<div className="prefs-inline"><PreferencesScreen port={store.port} host={host} /></div>
+				<div className="prefs-inline">
+					<PreferencesScreen port={store.port} host={host} />
+				</div>
 			) : spec.kind === 'shortcuts' || spec.kind === 'agent' || spec.kind === 'new-project' ? (
 				<PageDialog kind={spec.kind} host={host} settings={store.get().settings} onAnswer={done} />
 			) : (
@@ -53,7 +57,13 @@ function InPageDialogView({ store, host }: { store: ChromeStore; host: Host }) {
 	);
 }
 
-function DesktopShell({ store, host, controls, onAction, appHost }: ShellProps & { controls: WindowControls }) {
+function DesktopShell({
+	store,
+	host,
+	controls,
+	onAction,
+	appHost,
+}: ShellProps & { controls: WindowControls }) {
 	const state = useSyncExternalStore(store.subscribe, store.get);
 	const menus = useMemo(() => buildMenus(state.menu), [state.menu]);
 	const choose = useCallback(
@@ -70,12 +80,26 @@ function DesktopShell({ store, host, controls, onAction, appHost }: ShellProps &
 					start={
 						<span className="wordmark">
 							{/* With the bar on, it carries the menus, F10 and Alt, and the wordmark opens nothing. */}
-							<AppMenuButton label={APP_NAME} mark={<Mark />} items={menus.flat} onSelect={choose} interactive={!bar} />
+							<AppMenuButton
+								label={APP_NAME}
+								mark={<Mark />}
+								items={menus.flat}
+								onSelect={choose}
+								interactive={!bar}
+							/>
 						</span>
 					}
 					center={<TitleBarTitle>{state.title || APP_NAME}</TitleBarTitle>}
 				/>
-				{bar ? <MenuBar items={menus.bar} onSelect={choose} label="Menu bar" moreLabel="More" mnemonics={MNEMONICS} /> : null}
+				{bar ? (
+					<MenuBar
+						items={menus.bar}
+						onSelect={choose}
+						label="Menu bar"
+						moreLabel="More"
+						mnemonics={MNEMONICS}
+					/>
+				) : null}
 				<div id="app" className="app-host" ref={appHost} />
 				{/* Empty on the desktop, where dialogs are windows; the browser demo draws them here. */}
 				<InPageDialogView store={store} host={host} />
@@ -98,7 +122,10 @@ function PlainShell({ store, host, appHost }: ShellProps) {
  * `controls` for the desktop chrome; without them the page keeps its own header and only the dialogs
  * come from here.
  */
-export function mountShell(container: HTMLElement, props: Omit<ShellProps, 'appHost'> & { controls?: WindowControls }): Promise<HTMLElement> {
+export function mountShell(
+	container: HTMLElement,
+	props: Omit<ShellProps, 'appHost'> & { controls?: WindowControls },
+): Promise<HTMLElement> {
 	return new Promise((resolve) => {
 		let resolved = false;
 		const appHost = (element: HTMLElement | null) => {
@@ -108,6 +135,14 @@ export function mountShell(container: HTMLElement, props: Omit<ShellProps, 'appH
 			}
 		};
 		const { controls, ...rest } = props;
-		createRoot(container).render(<StrictMode>{controls ? <DesktopShell {...rest} controls={controls} appHost={appHost} /> : <PlainShell {...rest} appHost={appHost} />}</StrictMode>);
+		createRoot(container).render(
+			<StrictMode>
+				{controls ? (
+					<DesktopShell {...rest} controls={controls} appHost={appHost} />
+				) : (
+					<PlainShell {...rest} appHost={appHost} />
+				)}
+			</StrictMode>,
+		);
 	});
 }

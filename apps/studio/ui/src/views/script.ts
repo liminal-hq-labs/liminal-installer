@@ -40,7 +40,9 @@ export function peekEditor(state: State): ScriptEditor | undefined {
 	return held.get(state)?.editor;
 }
 
-const settingsOf = (s: Pick<Settings, 'editorFontSize' | 'tabWidth' | 'wrapLines' | 'lineNumbers'>): EditorSettings => ({
+const settingsOf = (
+	s: Pick<Settings, 'editorFontSize' | 'tabWidth' | 'wrapLines' | 'lineNumbers'>,
+): EditorSettings => ({
 	fontSize: s.editorFontSize,
 	tabWidth: s.tabWidth,
 	wrap: s.wrapLines,
@@ -53,7 +55,14 @@ function editorFor(ctx: Ctx): Held {
 	const state = ctx.state;
 	const existing = held.get(state);
 	if (existing) return existing;
-	const entry: Held = { editor: undefined as unknown as ScriptEditor, line: 1, column: 1, found: [], tabLeaves: false, hadFocus: true };
+	const entry: Held = {
+		editor: undefined as unknown as ScriptEditor,
+		line: 1,
+		column: 1,
+		found: [],
+		tabLeaves: false,
+		hadFocus: true,
+	};
 	entry.editor = createScriptEditor(
 		{ doc: state.scriptDraft, settings: settingsOf(ctx.settings()), label: labelFor(state) },
 		{
@@ -97,15 +106,23 @@ function refreshFooter(entry: Held): void {
 	set('script-pos', t('status.position', { line: entry.line, column: entry.column }));
 	set('script-problems', problemsText(entry.found));
 	set('script-tab-hint', entry.tabLeaves ? t('editor.tabFocus') : '');
-	document.getElementById('script-problems')?.classList.toggle('err', entry.found.some((d) => d.severity === 'error'));
+	document.getElementById('script-problems')?.classList.toggle(
+		'err',
+		entry.found.some((d) => d.severity === 'error'),
+	);
 }
 
-const clock = (d: Date) => [d.getHours(), d.getMinutes(), d.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':');
+const clock = (d: Date) =>
+	[d.getHours(), d.getMinutes(), d.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':');
 
 /** True when the run on screen no longer matches what is in the editor or the chosen target. */
 export function isStale(s: State): boolean {
 	const run = s.testRun;
-	return !!run && run.status !== 'running' && (run.text !== s.scriptDraft || run.target !== s.scriptTarget);
+	return (
+		!!run &&
+		run.status !== 'running' &&
+		(run.text !== s.scriptDraft || run.target !== s.scriptTarget)
+	);
 }
 
 /** The line beside the Test run button. */
@@ -134,7 +151,10 @@ export function refreshScriptStatus(s: State): void {
 }
 
 /** Applies the Editor settings to the editor, if there is one, without touching what is typed in it. */
-export function applyEditorSettings(ctx: Ctx, settings: Pick<Settings, 'editorFontSize' | 'tabWidth' | 'wrapLines' | 'lineNumbers'>): void {
+export function applyEditorSettings(
+	ctx: Ctx,
+	settings: Pick<Settings, 'editorFontSize' | 'tabWidth' | 'wrapLines' | 'lineNumbers'>,
+): void {
 	held.get(ctx.state)?.editor.configure(settingsOf(settings), labelFor(ctx.state));
 }
 
@@ -157,30 +177,65 @@ function consoleView(s: State): HTMLElement {
 	} else if (run.status === 'running') {
 		body.push(h('p', { class: 'dim' }, 'Running…'));
 	} else if (run.status === 'error') {
-		body.push(h('p', { class: 'err', role: 'alert' }, `✗ ${run.error ?? 'The test could not run.'}`));
+		body.push(
+			h('p', { class: 'err', role: 'alert' }, `✗ ${run.error ?? 'The test could not run.'}`),
+		);
 	} else if (run.report) {
 		const r = run.report;
 		const tests = r.tests ?? [];
 		for (const test of tests) {
-			body.push(h('div', { class: `line ${test.ok ? 'ok' : 'err'}` }, h('span', { class: 'mark' }, test.ok ? '✓' : '✗'), ` ${test.hook}(${HOOK_PARAMS[test.hook] ?? 'page'}) — ${test.summary}`));
+			body.push(
+				h(
+					'div',
+					{ class: `line ${test.ok ? 'ok' : 'err'}` },
+					h('span', { class: 'mark' }, test.ok ? '✓' : '✗'),
+					` ${test.hook}(${HOOK_PARAMS[test.hook] ?? 'page'}) — ${test.summary}`,
+				),
+			);
 			for (const line of test.lines) body.push(h('div', { class: 'line sub dim' }, line));
 		}
-		if (tests.length === 0) for (const line of r.output) body.push(h('div', { class: 'line' }, line));
+		if (tests.length === 0)
+			for (const line of r.output) body.push(h('div', { class: 'line' }, line));
 		const hookErrors = new Set(tests.filter((x) => !x.ok).map((x) => x.summary));
 		for (const d of r.diagnostics) {
 			if (d.severity === 'error' && [...hookErrors].some((m) => d.message.endsWith(m))) continue;
-			body.push(h('div', { class: `line ${d.severity === 'error' ? 'err' : 'warn'}` }, h('span', { class: 'mark' }, d.severity === 'error' ? '✗' : '!'), ` ${d.message}`));
+			body.push(
+				h(
+					'div',
+					{ class: `line ${d.severity === 'error' ? 'err' : 'warn'}` },
+					h('span', { class: 'mark' }, d.severity === 'error' ? '✗' : '!'),
+					` ${d.message}`,
+				),
+			);
 		}
 		const passed = tests.filter((x) => x.ok).length;
 		const failed = tests.length - passed;
 		const errors = r.diagnostics.filter((d) => d.severity === 'error').length;
-		body.push(h('div', { class: `summary ${r.ok ? 'ok' : 'err'}` }, r.ok ? `${passed} passed` : `${failed || errors} failed · ${passed} passed`));
+		body.push(
+			h(
+				'div',
+				{ class: `summary ${r.ok ? 'ok' : 'err'}` },
+				r.ok ? `${passed} passed` : `${failed || errors} failed · ${passed} passed`,
+			),
+		);
 	}
 	return h(
 		'section',
-		{ id: 'script-console', class: `console ${isStale(s) ? 'stale' : ''}`, 'aria-label': 'Test console' },
-		h('div', { class: 'console-head' }, h('span', { class: 'dim small' }, `Console${where ? ` · test run ${where}` : ''}`)),
-		h('p', { id: 'script-stale', class: 'warn small', hidden: !isStale(s) }, 'The script or target has changed since this run.'),
+		{
+			id: 'script-console',
+			class: `console ${isStale(s) ? 'stale' : ''}`,
+			'aria-label': 'Test console',
+		},
+		h(
+			'div',
+			{ class: 'console-head' },
+			h('span', { class: 'dim small' }, `Console${where ? ` · test run ${where}` : ''}`),
+		),
+		h(
+			'p',
+			{ id: 'script-stale', class: 'warn small', hidden: !isStale(s) },
+			'The script or target has changed since this run.',
+		),
 		h('div', { class: 'console-body', 'aria-live': 'polite' }, body),
 	);
 }
@@ -197,18 +252,114 @@ export function scriptView(ctx: Ctx): HTMLElement {
 	return h(
 		'div',
 		{ class: 'screen' },
-		h('div', { class: 'screen-head' }, h('div', {}, h('h1', {}, 'Script'), h('p', { class: 'muted' }, 'Lua 5.4. A script names the capabilities it needs; everything else is refused.'))),
+		h(
+			'div',
+			{ class: 'screen-head' },
+			h(
+				'div',
+				{},
+				h('h1', {}, 'Script'),
+				h(
+					'p',
+					{ class: 'muted' },
+					'Lua 5.4. A script names the capabilities it needs; everything else is refused.',
+				),
+			),
+		),
 		h(
 			'div',
 			{ class: 'toolbar' },
-			h('select', { 'aria-label': 'Script', on: { change: (e) => void ctx.run(() => ctx.selectScript((e.target as HTMLSelectElement).value)) } }, sum.scripts.length === 0 ? h('option', {}, '(no scripts)') : sum.scripts.map((p) => h('option', { value: p, selected: p === s.scriptPath }, p))),
-			h('button', { class: 'btn', on: { click: () => { const name = window.prompt('New script name (letters, digits, - and _)', 'my-script'); if (name && /^[A-Za-z0-9_-]+$/.test(name)) void ctx.run(async () => { const path = `scripts/${name}.lua`; await ctx.api.writeScript(path, `-- ${name}\n--\n-- capabilities: env\n\nfunction detect(page)\nend\n`, `Create ${path}`); await ctx.selectScript(path); }); } } }, 'New script'),
-			h('button', { class: 'btn primary', disabled: !s.scriptPath, title: 'Save (Ctrl+S)', on: { click: () => void ctx.run(() => ctx.saveScript()) } }, 'Save'),
-			h('button', { class: 'btn', disabled: !s.scriptPath, title: 'Format (Shift+Alt+F)', on: { click: () => ctx.formatDraft() } }, 'Format'),
-			h('label', { class: 'dim small target-pick' }, 'Test on ', h('select', { 'aria-label': 'Test target', disabled: !s.scriptPath, on: { change: (e) => { s.scriptTarget = (e.target as HTMLSelectElement).value; refreshScriptStatus(s); } } }, h('option', { value: '', selected: s.scriptTarget === '' }, 'Sample machine'), targets.map((id) => h('option', { value: id, selected: id === s.scriptTarget }, id)))),
-			h('button', { class: 'btn', disabled: !s.scriptPath || busy, title: 'Test run (Ctrl+Enter)', on: { click: () => void ctx.run(() => ctx.testScript()) } }, busy ? 'Running…' : 'Test run'),
+			h(
+				'select',
+				{
+					'aria-label': 'Script',
+					on: {
+						change: (e) =>
+							void ctx.run(() => ctx.selectScript((e.target as HTMLSelectElement).value)),
+					},
+				},
+				sum.scripts.length === 0
+					? h('option', {}, '(no scripts)')
+					: sum.scripts.map((p) => h('option', { value: p, selected: p === s.scriptPath }, p)),
+			),
+			h(
+				'button',
+				{
+					class: 'btn',
+					on: {
+						click: () => {
+							const name = window.prompt('New script name (letters, digits, - and _)', 'my-script');
+							if (name && /^[A-Za-z0-9_-]+$/.test(name))
+								void ctx.run(async () => {
+									const path = `scripts/${name}.lua`;
+									await ctx.api.writeScript(
+										path,
+										`-- ${name}\n--\n-- capabilities: env\n\nfunction detect(page)\nend\n`,
+										`Create ${path}`,
+									);
+									await ctx.selectScript(path);
+								});
+						},
+					},
+				},
+				'New script',
+			),
+			h(
+				'button',
+				{
+					class: 'btn primary',
+					disabled: !s.scriptPath,
+					title: 'Save (Ctrl+S)',
+					on: { click: () => void ctx.run(() => ctx.saveScript()) },
+				},
+				'Save',
+			),
+			h(
+				'button',
+				{
+					class: 'btn',
+					disabled: !s.scriptPath,
+					title: 'Format (Shift+Alt+F)',
+					on: { click: () => ctx.formatDraft() },
+				},
+				'Format',
+			),
+			h(
+				'label',
+				{ class: 'dim small target-pick' },
+				'Test on ',
+				h(
+					'select',
+					{
+						'aria-label': 'Test target',
+						disabled: !s.scriptPath,
+						on: {
+							change: (e) => {
+								s.scriptTarget = (e.target as HTMLSelectElement).value;
+								refreshScriptStatus(s);
+							},
+						},
+					},
+					h('option', { value: '', selected: s.scriptTarget === '' }, 'Sample machine'),
+					targets.map((id) => h('option', { value: id, selected: id === s.scriptTarget }, id)),
+				),
+			),
+			h(
+				'button',
+				{
+					class: 'btn',
+					disabled: !s.scriptPath || busy,
+					title: 'Test run (Ctrl+Enter)',
+					on: { click: () => void ctx.run(() => ctx.testScript()) },
+				},
+				busy ? 'Running…' : 'Test run',
+			),
 			h('span', { id: 'script-test-status', class: 'dim small', role: 'status' }, testStatus(s)),
-			h('span', { id: 'script-dirty', class: 'dim small' }, s.scriptDirty ? 'Unsaved changes' : 'Saved'),
+			h(
+				'span',
+				{ id: 'script-dirty', class: 'dim small' },
+				s.scriptDirty ? 'Unsaved changes' : 'Saved',
+			),
 		),
 		h(
 			'div',
@@ -218,7 +369,25 @@ export function scriptView(ctx: Ctx): HTMLElement {
 				{ class: 'script-main' },
 				frame ?? h('p', { class: 'muted' }, 'This project has no scripts yet.'),
 				entry
-					? h('div', { class: 'editor-foot dim small' }, h('span', { id: 'script-pos' }, t('status.position', { line: entry.line, column: entry.column })), h('span', {}, t('status.lua')), h('span', { id: 'script-problems', class: entry.found.some((d) => d.severity === 'error') ? 'err' : '' }, problemsText(entry.found)), h('span', { id: 'script-tab-hint' }, entry.tabLeaves ? t('editor.tabFocus') : ''))
+					? h(
+							'div',
+							{ class: 'editor-foot dim small' },
+							h(
+								'span',
+								{ id: 'script-pos' },
+								t('status.position', { line: entry.line, column: entry.column }),
+							),
+							h('span', {}, t('status.lua')),
+							h(
+								'span',
+								{
+									id: 'script-problems',
+									class: entry.found.some((d) => d.severity === 'error') ? 'err' : '',
+								},
+								problemsText(entry.found),
+							),
+							h('span', { id: 'script-tab-hint' }, entry.tabLeaves ? t('editor.tabFocus') : ''),
+						)
 					: null,
 				s.scriptPath ? consoleView(s) : null,
 			),
@@ -226,11 +395,34 @@ export function scriptView(ctx: Ctx): HTMLElement {
 				'aside',
 				{ class: 'card side' },
 				h('h3', {}, 'Hooks'),
-				h('ul', { class: 'plain' }, (r?.hooks ?? []).map((k) => h('li', {}, h('span', { class: `dot ${k.present ? 'on' : ''}` }), h('code', {}, hookSignature(k.name)), h('span', { class: 'dim small' }, ` ${k.when}`)))),
+				h(
+					'ul',
+					{ class: 'plain' },
+					(r?.hooks ?? []).map((k) =>
+						h(
+							'li',
+							{},
+							h('span', { class: `dot ${k.present ? 'on' : ''}` }),
+							h('code', {}, hookSignature(k.name)),
+							h('span', { class: 'dim small' }, ` ${k.when}`),
+						),
+					),
+				),
 				h('h3', {}, 'Capabilities'),
 				(r?.capabilities.length ?? 0) === 0
 					? h('p', { class: 'dim small' }, 'None requested.')
-					: h('ul', { class: 'plain' }, r!.capabilities.map((c) => h('li', {}, h('code', {}, c), h('div', { class: 'dim small' }, CAPABILITY_NOTES[c] ?? 'Unknown module')))),
+					: h(
+							'ul',
+							{ class: 'plain' },
+							r!.capabilities.map((c) =>
+								h(
+									'li',
+									{},
+									h('code', {}, c),
+									h('div', { class: 'dim small' }, CAPABILITY_NOTES[c] ?? 'Unknown module'),
+								),
+							),
+						),
 			),
 		),
 	);

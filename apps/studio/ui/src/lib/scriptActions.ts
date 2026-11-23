@@ -27,7 +27,9 @@ export function scriptActions(d: ScriptDeps) {
 
 	/** Runs the sample report that fills the hook and capability lists. */
 	async function refreshReport(): Promise<void> {
-		const target = state.summary?.targets.some((t) => t.full_id === state.scriptTarget) ? state.scriptTarget : '';
+		const target = state.summary?.targets.some((t) => t.full_id === state.scriptTarget)
+			? state.scriptTarget
+			: '';
 		try {
 			state.report = await api.testScript(state.scriptPath, undefined, target || undefined);
 		} catch {
@@ -135,12 +137,22 @@ export function scriptActions(d: ScriptDeps) {
 				const ms = Math.max(1, Math.round(performance.now() - started));
 				state.testRun = { status: 'done', target, text, unsaved, at: new Date(), ms, report };
 				state.report = report;
-				const failed = (report.tests ?? []).filter((x) => !x.ok).length || report.diagnostics.filter((x) => x.severity === 'error').length;
+				const failed =
+					(report.tests ?? []).filter((x) => !x.ok).length ||
+					report.diagnostics.filter((x) => x.severity === 'error').length;
 				if (report.ok) d.toast(`Test passed${target ? ` on ${target}` : ''}`, false, 3000);
 				else d.toast(`Test failed: ${failed} problem${failed === 1 ? '' : 's'}`, true, 5000);
 			} catch (e) {
 				const error = String(e instanceof Error ? e.message : e);
-				state.testRun = { status: 'error', target, text, unsaved, at: new Date(), ms: Math.round(performance.now() - started), error };
+				state.testRun = {
+					status: 'error',
+					target,
+					text,
+					unsaved,
+					at: new Date(),
+					ms: Math.round(performance.now() - started),
+					error,
+				};
 				d.toast(`Test could not run: ${error}`, true, 6000);
 			}
 		},

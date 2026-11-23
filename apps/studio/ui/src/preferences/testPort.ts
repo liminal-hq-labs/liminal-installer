@@ -56,7 +56,11 @@ export function testPort(initial: Partial<Settings> = {}): TestPort {
 
 export function testHost(overrides: Partial<Host> = {}): Host {
 	return {
-		appInfo: async () => ({ version: '9.9.9', settingsFile: '/cfg/settings.json', logDir: '/cfg/logs' }),
+		appInfo: async () => ({
+			version: '9.9.9',
+			settingsFile: '/cfg/settings.json',
+			logDir: '/cfg/logs',
+		}),
 		reveal: async () => undefined,
 		agent: async () => ({ url: 'http://127.0.0.1:5000/mcp', port: 5000 }),
 		agentError: async () => null,

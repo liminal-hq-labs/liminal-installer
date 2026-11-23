@@ -42,7 +42,10 @@ export function usePreferences(port: SettingsPort): Preferences {
 	useEffect(() => {
 		let live = true;
 		let stop: (() => void) | undefined;
-		void port.read().then((read) => live && show(read), () => undefined);
+		void port.read().then(
+			(read) => live && show(read),
+			() => undefined,
+		);
 		// A change made in another window, or by the app itself, reaches this one too.
 		void port
 			.onChange((changed) => live && show(changed))

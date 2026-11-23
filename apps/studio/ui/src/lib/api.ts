@@ -62,7 +62,8 @@ async function tauriApi(): Promise<Api> {
 		setLayout: (id, layout, label) => invoke('set_layout', { id, layout, label }),
 		readScript: (path) => invoke('read_script', { path }),
 		writeScript: (path, source, label) => invoke('write_script', { path, source, label }),
-		testScript: (path, source, target) => invoke('test_script', { path, source: source ?? null, target: target ?? null }),
+		testScript: (path, source, target) =>
+			invoke('test_script', { path, source: source ?? null, target: target ?? null }),
 		checkScriptSyntax: (source) => invoke('check_script_syntax', { source }),
 		runPreview: (target) => invoke('run_preview', { target }),
 		getPreview: () => invoke('get_preview'),
@@ -75,7 +76,11 @@ async function tauriApi(): Promise<Api> {
 		onChange: async (handler) => listen<ChangeEvent>(CHANGE_EVENT, (e) => handler(e.payload)),
 		pickProject: async (startIn) => {
 			const { open } = await import('@tauri-apps/plugin-dialog');
-			const picked = await open({ directory: true, title: 'Open installer project', ...(startIn ? { defaultPath: startIn } : {}) });
+			const picked = await open({
+				directory: true,
+				title: 'Open installer project',
+				...(startIn ? { defaultPath: startIn } : {}),
+			});
 			return typeof picked === 'string' ? picked : null;
 		},
 	};

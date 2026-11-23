@@ -24,7 +24,12 @@ function Host({ onClose }: { onClose(): void }) {
 				if (e.key === 'Escape' && !e.defaultPrevented) onClose();
 			}}
 		>
-			<input key={guard.epoch} aria-label="Name" defaultValue={value} onBlur={(e) => setValue(e.target.value)} />
+			<input
+				key={guard.epoch}
+				aria-label="Name"
+				defaultValue={value}
+				onBlur={(e) => setValue(e.target.value)}
+			/>
 			<button type="button">Other</button>
 		</div>
 	);

@@ -1,0 +1,21 @@
+# Vendored and generated files are not ours to reformat.
+**/node_modules/
+**/dist/
+**/target/
+apps/studio/ui/vendor/
+**/generated/
+# The design-token export and the CSS generated from it.
+apps/studio/ui/src/styles/tokens.json
+apps/studio/ui/src/styles/tokens.css
+bun.lock
+# Only the Studio UI sources are formatted: TypeScript, CSS and JSON.
+*.md
+*.rs
+*.toml
+*.yml
+*.yaml
+*.html
+*.svg
+retro/
+examples/
+assets/

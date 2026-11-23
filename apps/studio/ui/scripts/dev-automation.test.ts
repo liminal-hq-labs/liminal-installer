@@ -12,8 +12,12 @@ const json = (path: string) => JSON.parse(read(path)) as Record<string, any>;
 
 /** Every window label the Studio opens: the main window and the specs in `windows.rs`. */
 function windowLabels(): string[] {
-	const fixed = [...read('src/windows.rs').matchAll(/label: "([a-z-]+)"\.into\(\)/g)].map((m) => m[1]!);
-	const prefixed = [...read('src/windows.rs').matchAll(/label: format!\("([a-z-]+)-\{id\}"\)/g)].map((m) => `${m[1]}-*`);
+	const fixed = [...read('src/windows.rs').matchAll(/label: "([a-z-]+)"\.into\(\)/g)].map(
+		(m) => m[1]!,
+	);
+	const prefixed = [
+		...read('src/windows.rs').matchAll(/label: format!\("([a-z-]+)-\{id\}"\)/g),
+	].map((m) => `${m[1]}-*`);
 	return ['main', ...fixed, ...prefixed];
 }
 
@@ -28,7 +32,8 @@ describe('dev automation', () => {
 
 	it('registers the bridge only in debug builds, and not on Windows', () => {
 		const lib = read('src/lib.rs');
-		const gated = /#\[cfg\(all\(debug_assertions, not\(windows\)\)\)\]\s*\{\s*builder = builder\.plugin\(tauri_plugin_mcp_bridge::init\(\)\);\s*\}/;
+		const gated =
+			/#\[cfg\(all\(debug_assertions, not\(windows\)\)\)\]\s*\{\s*builder = builder\.plugin\(tauri_plugin_mcp_bridge::init\(\)\);\s*\}/;
 		expect(lib).toMatch(gated);
 		expect(lib.match(/tauri_plugin_mcp_bridge/g)).toHaveLength(1);
 	});
@@ -37,7 +42,9 @@ describe('dev automation', () => {
 		const cargo = read('Cargo.toml');
 		const section = cargo.slice(cargo.indexOf("[target.'cfg(not(windows))'.dependencies]"));
 		expect(section).toContain('tauri-plugin-mcp-bridge');
-		expect(cargo.slice(0, cargo.indexOf("[target.'cfg(not(windows))'.dependencies]"))).not.toContain('tauri-plugin-mcp-bridge');
+		expect(
+			cargo.slice(0, cargo.indexOf("[target.'cfg(not(windows))'.dependencies]")),
+		).not.toContain('tauri-plugin-mcp-bridge');
 	});
 
 	it('grants the bridge to every window, on Linux and macOS only', () => {
