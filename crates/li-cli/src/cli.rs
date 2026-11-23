@@ -11,12 +11,13 @@ use li_render_tui::Look;
 
 use crate::build::{BuildRequest, Builder, NativeBuilder, resolve_version};
 use crate::check::{DefaultChecker, EngineChecker, ProjectChecker, check_project};
+use crate::lpk::LpkCommand;
 use crate::plan::EnginePlanner;
 use crate::preview::{Only, PreviewOptions, preview};
 use crate::project::{self, Project};
 use crate::scaffold::{InitOptions, init};
 use crate::util::to_json_tabs;
-use crate::{CliError, CliResult, feed, keygen, theme_pack};
+use crate::{CliError, CliResult, feed, keygen, lpk, theme_pack};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -59,6 +60,9 @@ pub enum Command {
 	Theme(ThemeCommand),
 	/// Serve the project to agents over MCP, without a window
 	Studio(StudioArgs),
+	/// Pack, list, unpack and verify Liminal Packs (.LPK)
+	#[command(subcommand)]
+	Lpk(LpkCommand),
 }
 
 #[derive(Debug, Args)]
@@ -447,6 +451,10 @@ pub fn execute(cli: &Cli) -> CliResult<u8> {
 				Some(sig) => println!("Signed: {}", sig.display()),
 				None => println!("Note: the theme is unsigned; pass --sign-key to sign it."),
 			}
+			Ok(0)
+		}
+		Command::Lpk(c) => {
+			lpk::run(c)?;
 			Ok(0)
 		}
 		Command::Studio(a) => {

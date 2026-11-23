@@ -54,8 +54,8 @@ fn builds_the_files_the_zip_and_the_floppy() {
 		said.contains("zip:") && said.contains("floppy-1440:"),
 		"{said}"
 	);
-	let dat = std::fs::read(out.join("dos/SETUP.DAT")).unwrap();
-	assert_eq!(&dat[..8], b"LIRDAT1\0");
+	let dat = std::fs::read(out.join("dos/SETUP.LPK")).unwrap();
+	assert_eq!(&dat[..4], b"LPK\x1a");
 	assert_eq!(
 		std::fs::read(out.join("dos/SETUP.EXE")).unwrap().len(),
 		90_000
@@ -63,7 +63,7 @@ fn builds_the_files_the_zip_and_the_floppy() {
 	let img = std::fs::read(out.join("lt-fizz-1.0.0-dos-x86-1440.img")).unwrap();
 	let files = li_package::dos::read_floppy(&img);
 	let names: Vec<&str> = files.iter().map(|(n, _)| n.as_str()).collect();
-	assert_eq!(names, ["SETUP.EXE", "SETUP.DAT", "README.TXT"]);
+	assert_eq!(names, ["SETUP.EXE", "SETUP.LPK", "README.TXT"]);
 	assert_eq!(files[1].1, dat);
 	assert!(out.join("lt-fizz-1.0.0-dos-x86.zip").is_file());
 }

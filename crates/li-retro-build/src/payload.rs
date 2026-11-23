@@ -6,7 +6,7 @@
 use li_engine::{DirPayload, Payload, Project, expand_sources};
 use li_model::{Component, Target};
 use li_retro::model::{FileEntry, Op};
-use li_retro::pack::{crc32, deflate};
+use li_retro::pack::{PROJECT_FILE, crc32};
 
 use crate::{CompileError, err};
 
@@ -46,10 +46,11 @@ pub fn dos_rel(to: &str) -> Result<String, CompileError> {
 	Ok(parts.join("\\"))
 }
 
-/// The files, the payload they live in and the launcher operations.
-pub type Built = (Vec<FileEntry>, Vec<u8>, Vec<Op>);
+/// The files, their contents in the same order, and the launcher operations.
+pub type Built = (Vec<FileEntry>, Vec<Vec<u8>>, Vec<Op>);
 
-/// Builds the file list, the payload and the launcher operations.
+/// Builds the file list, the files' contents and the launcher operations. The pack compresses
+/// them, a chunk at a time, when it is written.
 pub fn build(
 	project: &Project,
 	target: &Target,
@@ -77,21 +78,26 @@ pub fn build(
 				};
 				let dest = dos_rel(&to)
 					.map_err(|e| CompileError::Message(format!("component `{}`: {e}", c.id)))?;
+				if dest.eq_ignore_ascii_case(PROJECT_FILE) {
+					return err(format!(
+						"component `{}`: `{dest}` is reserved for the compiled project",
+						c.id
+					));
+				}
 				if files.iter().any(|(f, _)| f.dest == dest) {
 					return err(format!("component `{}`: `{dest}` is installed twice", c.id));
 				}
 				let data = source
 					.read(&src)
 					.map_err(|e| CompileError::Message(e.to_string()))?;
+				let size = u32::try_from(data.len())
+					.map_err(|_| CompileError::Message(format!("`{dest}` is larger than 4 GiB")))?;
 				files.push((
 					FileEntry {
 						component: ci as u16,
 						dest,
-						size: data.len() as u32,
-						packed: 0,
-						offset: 0,
+						size,
 						crc: crc32(&data),
-						method: 0,
 					},
 					data,
 				));
@@ -130,22 +136,8 @@ pub fn build(
 		}
 	}
 	files.sort_by(|a, b| a.0.dest.cmp(&b.0.dest));
-	let mut payload = Vec::new();
-	let mut out = Vec::new();
-	for (mut f, data) in files {
-		let packed = deflate(&data);
-		let (method, bytes) = if packed.len() < data.len() {
-			(1, packed)
-		} else {
-			(0, data)
-		};
-		f.method = method;
-		f.offset = payload.len() as u32;
-		f.packed = bytes.len() as u32;
-		payload.extend_from_slice(&bytes);
-		out.push(f);
-	}
-	Ok((out, payload, ops))
+	let (entries, data) = files.into_iter().unzip();
+	Ok((entries, data, ops))
 }
 
 #[cfg(test)]

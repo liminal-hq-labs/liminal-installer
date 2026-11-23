@@ -7,7 +7,7 @@
 //!
 //! | Output | Is |
 //! |---|---|
-//! | `files` (always) | `dos/` beside the other outputs: `SETUP.EXE`, `SETUP.DAT` and `README.TXT` as they run |
+//! | `files` (always) | `dos/` beside the other outputs: `SETUP.EXE`, `SETUP.LPK` and `README.TXT` as they run |
 //! | `zip` | those three files in a zip |
 //! | `floppy-1440` | those three files on a FAT12 1.44 MB image, or a clear note when they do not fit (disk spanning is not supported) |
 //!
@@ -91,12 +91,13 @@ pub fn build(
 ) -> Result<Vec<BuiltArtefact>, BuildError> {
 	let compiled = li_retro_build::compile(req.project, &req.target.id, &req.version)
 		.map_err(|e| other(e.to_string()))?;
-	let dat = compiled.dat().map_err(|e| other(e.to_string()))?;
+	let dat = compiled.lpk().map_err(|e| other(e.to_string()))?;
+	let pack_len = dat.len();
 	let exe = runtime(req)?;
 	let readme = readme(&req.project.installer.product.name, &req.version).into_bytes();
 	let files = vec![
 		("SETUP.EXE".to_owned(), exe),
-		("SETUP.DAT".to_owned(), dat),
+		("SETUP.LPK".to_owned(), dat),
 		("README.TXT".to_owned(), readme),
 	];
 	let loose = dir.join("dos");
@@ -109,9 +110,9 @@ pub fn build(
 		kind: "files".into(),
 		path: Some(loose),
 		note: Some(format!(
-			"SETUP.EXE, SETUP.DAT and README.TXT; {} bytes installed from {} compressed",
+			"SETUP.EXE, SETUP.LPK and README.TXT; {} bytes installed from a {}-byte pack",
 			compiled.install_bytes(),
-			compiled.payload.len()
+			pack_len
 		)),
 	}];
 	for w in &compiled.warnings {

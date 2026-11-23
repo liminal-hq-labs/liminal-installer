@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 //! The installer engine for DOS. An install makes the install directory, extracts each selected
-//! file straight from `SETUP.DAT` to disk (checking its CRC-32 as it goes), performs the plan
+//! file straight from `SETUP.LPK` to disk (checking its CRC-32 as it goes), performs the plan
 //! operations and writes the receipt `INSTALL.LIR` last. It keeps no journal: it remembers what
 //! it created in memory, and a cancel or a failure removes exactly that. A file that was already
 //! there is overwritten and, if the install is rolled back, left as the new copy.
@@ -38,8 +38,8 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
 use crate::Error;
-use crate::model::{FileEntry, Op, Project, dat};
-use crate::pack::{Crc, Inflater};
+use crate::model::{FileEntry, Op, Project};
+use crate::pack::{Crc, Pack};
 use crate::platform::Platform;
 use crate::ui::Values;
 
@@ -135,12 +135,13 @@ fn make_dirs<P: Platform>(p: &mut P, dir: &str, j: &mut Journal) -> Result<(), E
 	Ok(())
 }
 
-/// Reads one file out of the payload and writes it to `to`, checking size and CRC-32. `on_bytes`
-/// gets the bytes written so far and returns false to cancel.
+/// Reads one file out of the pack and writes it to `to`, checking size and CRC-32. `on_bytes`
+/// gets the bytes written so far and returns false to cancel. The pack checks each chunk before
+/// it is returned, so a damaged chunk is never written.
 fn extract<P: Platform>(
 	p: &mut P,
+	pack: &mut Pack,
 	f: &FileEntry,
-	payload_off: u32,
 	to: &str,
 	j: &mut Journal,
 	on_bytes: &mut dyn FnMut(&mut P, u64) -> bool,
@@ -153,31 +154,16 @@ fn extract<P: Platform>(
 	let mut crc = Crc::default();
 	let mut total = 0u64;
 	let result = (|| {
-		let mut at = payload_off + f.offset;
-		let mut left = f.packed;
-		let mut buf = alloc::vec![0u8; 4096];
-		let mut inflater = (f.method == 1).then(Inflater::default);
-		while left > 0 {
-			let n = buf.len().min(left as usize);
-			let got = p.data_read(at, &mut buf[..n])?;
-			if got == 0 {
-				return Err(Error::Corrupt("SETUP.DAT ends early".to_string()));
-			}
-			at += got as u32;
-			left -= got as u32;
-			let mut put = |chunk: &[u8]| -> Result<(), Error> {
-				crc.update(chunk);
-				total += chunk.len() as u64;
-				p.write(handle, chunk)?;
-				if on_bytes(p, total) {
-					Ok(())
-				} else {
-					Err(Error::Cancelled)
+		let mut x = pack.begin(p, &Pack::name_of(&f.dest))?;
+		while let Some(chunk) = pack.next(p, &mut x)? {
+			// Written in pieces, so progress and Esc are answered a few times a second on a floppy.
+			for piece in chunk.chunks(4096) {
+				crc.update(piece);
+				total += piece.len() as u64;
+				p.write(handle, piece)?;
+				if !on_bytes(p, total) {
+					return Err(Error::Cancelled);
 				}
-			};
-			match &mut inflater {
-				None => put(&buf[..got])?,
-				Some(i) => i.feed(&buf[..got], &mut put)?,
 			}
 		}
 		Ok(())
@@ -185,7 +171,7 @@ fn extract<P: Platform>(
 	let closed = p.close(handle);
 	result?;
 	closed?;
-	if total != u64::from(f.size) || crc.finish() != f.crc {
+	if total != u64::from(f.size) || crc.value() != f.crc {
 		return Err(Error::Corrupt(format!(
 			"{} does not match its checksum; the disk may be damaged",
 			f.dest
@@ -253,13 +239,13 @@ struct Made {
 
 /// Installs the selected components (and the required ones) into `dir`.
 ///
-/// `payload_off` is where the payload starts in `SETUP.DAT`. `v` supplies the values INI
+/// `pack` is the open `SETUP.LPK`. `v` supplies the values INI
 /// operations are written from. `progress` is called as files are copied and returns false to
 /// cancel, which removes everything this call made and returns [`Error::Cancelled`].
 pub fn install<P: Platform>(
 	p: &mut P,
 	project: &Project,
-	payload_off: u32,
+	pack: &mut Pack,
 	dir: &str,
 	selected: &[String],
 	v: &Values,
@@ -282,17 +268,7 @@ pub fn install<P: Platform>(
 		batches: Vec::new(),
 	};
 	let result = do_install(
-		p,
-		project,
-		payload_off,
-		&dir,
-		selected,
-		v,
-		&files,
-		free,
-		&mut j,
-		&mut made,
-		progress,
+		p, project, pack, &dir, selected, v, &files, free, &mut j, &mut made, progress,
 	);
 	if result.is_err() {
 		rollback(p, &j);
@@ -304,7 +280,7 @@ pub fn install<P: Platform>(
 fn do_install<P: Platform>(
 	p: &mut P,
 	project: &Project,
-	payload_off: u32,
+	pack: &mut Pack,
 	dir: &str,
 	selected: &[String],
 	v: &Values,
@@ -336,7 +312,7 @@ fn do_install<P: Platform>(
 		let mut cancelled = false;
 		let size = u64::from(f.size).max(1);
 		let base = done_bytes;
-		extract(p, f, payload_off, &to, j, &mut |p, n| {
+		extract(p, pack, f, &to, j, &mut |p, n| {
 			pr.file_pct = (n * 100 / size).min(100) as u32;
 			pr.bytes_done = base + n;
 			let keep = progress(p, &pr);
@@ -555,13 +531,6 @@ pub fn uninstall<P: Platform>(
 		let _ = p.remove_dir(&join(&dir, d));
 	}
 	Ok(removed)
-}
-
-/// Reads the payload offset out of `SETUP.DAT`.
-pub fn payload_offset<P: Platform>(p: &mut P) -> Result<u32, Error> {
-	let mut head = [0u8; dat::HEADER];
-	let n = p.data_read(0, &mut head)?;
-	Ok(dat::parse_header(&head[..n])?.payload_off)
 }
 
 #[cfg(test)]

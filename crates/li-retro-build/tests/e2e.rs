@@ -40,24 +40,39 @@ fn install_keys() -> Vec<Key> {
 #[test]
 fn compiles_the_example_and_round_trips() {
 	let c = compiled();
-	let dat = c.dat().unwrap();
-	let p = li_retro::model::dat::parse_header(&dat).unwrap();
-	let again = li_retro::model::Project::decode(
-		&dat[p.project_off as usize..(p.project_off + p.project_len) as usize],
-	)
-	.unwrap();
+	let dat = c.lpk().unwrap();
+	let again = li_retro::model::Project::decode(&project_bytes(&dat)).unwrap();
 	assert_eq!(again, c.project);
 	assert_eq!(c.project.default_dir, "C:\\LTFIZZ");
 	assert!(c.project.files.iter().any(|f| f.dest == "SOUND\\ADLIB.DRV"));
 	eprintln!(
-		"SETUP.DAT is {} bytes; warnings: {:?}",
+		"SETUP.LPK is {} bytes; warnings: {:?}",
 		dat.len(),
 		c.warnings
 	);
 }
 
+/// The compiled project, which is the first entry of `SETUP.LPK`.
+fn project_bytes(lpk: &[u8]) -> Vec<u8> {
+	let vols = [lpk];
+	let mut src = li_lpk::SliceSource::new(&vols);
+	let mut r = li_lpk::Reader::open(&mut src).unwrap();
+	let mut dir_bytes = vec![0u8; r.directory_len()];
+	let dir = r.read_directory(&mut src, &mut dir_bytes).unwrap();
+	let e = dir.entries().next().unwrap().unwrap();
+	assert_eq!(e.short_name, li_retro::pack::PROJECT_FILE.as_bytes());
+	let mut out = Vec::new();
+	let mut window = vec![0u8; 32768];
+	r.extract(&mut src, &e, &mut window, &mut |d: &[u8]| {
+		out.extend_from_slice(d);
+		Ok::<(), li_lpk::SinkError>(())
+	})
+	.unwrap();
+	out
+}
+
 fn install(c: &li_retro_build::Compiled, root: &Path) -> (HostPlatform, i32) {
-	let mut p = HostPlatform::new(root, c.dat().unwrap());
+	let mut p = HostPlatform::new(root, c.lpk().unwrap());
 	p.keys(&install_keys());
 	let rc = app::run(&mut p, "");
 	(p, rc)
@@ -117,7 +132,7 @@ fn run_keys(
 	keys: &[Key],
 	args: &str,
 ) -> (HostPlatform, i32) {
-	let mut p = HostPlatform::new(root, c.dat().unwrap());
+	let mut p = HostPlatform::new(root, c.lpk().unwrap());
 	p.keys(keys);
 	let rc = app::run(&mut p, args);
 	(p, rc)
@@ -177,7 +192,7 @@ fn a_write_failure_rolls_back() {
 	let tmp = tempfile::tempdir().unwrap();
 	let mut keys = up_to_ready();
 	keys.extend([Key::Enter, Key::Enter]);
-	let mut p = HostPlatform::new(tmp.path(), c.dat().unwrap());
+	let mut p = HostPlatform::new(tmp.path(), c.lpk().unwrap());
 	p.fail_after = Some(300);
 	p.keys(&keys);
 	let rc = app::run(&mut p, "");
@@ -191,7 +206,7 @@ fn a_full_drive_is_refused_before_anything_is_written() {
 	let tmp = tempfile::tempdir().unwrap();
 	let mut keys = up_to_ready();
 	keys.extend([Key::Enter, Key::Enter, Key::F(3)]); // Install, dismiss the message, quit
-	let mut p = HostPlatform::new(tmp.path(), c.dat().unwrap());
+	let mut p = HostPlatform::new(tmp.path(), c.lpk().unwrap());
 	p.capacity = 2000;
 	p.keys(&keys);
 	let rc = app::run(&mut p, "");
@@ -298,7 +313,7 @@ fn the_licence_must_be_accepted_and_hotkeys_work() {
 fn the_sound_page_takes_blaster_and_writes_the_ini() {
 	let c = compiled();
 	let tmp = tempfile::tempdir().unwrap();
-	let mut p = HostPlatform::new(tmp.path(), c.dat().unwrap());
+	let mut p = HostPlatform::new(tmp.path(), c.lpk().unwrap());
 	p.env.insert("BLASTER".into(), "A240 I7 D3 T6".into());
 	p.keys(&install_keys());
 	assert_eq!(app::run(&mut p, ""), 0);
@@ -318,9 +333,10 @@ fn the_sound_page_takes_blaster_and_writes_the_ini() {
 fn a_damaged_payload_is_caught_and_rolled_back() {
 	let c = compiled();
 	let tmp = tempfile::tempdir().unwrap();
-	let mut dat = c.dat().unwrap();
+	let mut dat = c.lpk().unwrap();
+	// Inside the last file's data, just before the footer.
 	let n = dat.len();
-	dat[n - 3] ^= 0xff;
+	dat[n - li_lpk::FOOTER_LEN - 3] ^= 0xff;
 	let mut p = HostPlatform::new(tmp.path(), dat);
 	let mut keys = up_to_ready();
 	keys.extend([Key::Enter, Key::Enter]);
@@ -330,18 +346,18 @@ fn a_damaged_payload_is_caught_and_rolled_back() {
 }
 
 #[test]
-fn a_damaged_setup_dat_is_refused() {
+fn a_damaged_setup_lpk_is_refused() {
 	let c = compiled();
 	let tmp = tempfile::tempdir().unwrap();
-	let mut dat = c.dat().unwrap();
+	let mut dat = c.lpk().unwrap();
 	dat[0] = b'X';
 	let mut p = HostPlatform::new(tmp.path(), dat);
 	assert_eq!(app::run(&mut p, ""), 2);
-	let mut dat = c.dat().unwrap();
+	let mut dat = c.lpk().unwrap();
 	dat.truncate(40);
 	let mut p = HostPlatform::new(tmp.path(), dat);
 	assert_eq!(app::run(&mut p, ""), 2);
-	let mut p = HostPlatform::new(tmp.path(), c.dat().unwrap());
+	let mut p = HostPlatform::new(tmp.path(), c.lpk().unwrap());
 	assert_eq!(app::run(&mut p, "/X"), 2);
 	assert_eq!(app::run(&mut p, "/V"), 0);
 }
@@ -373,7 +389,7 @@ pub fn golden(name: &str, text: &str) {
 fn the_screens_match_their_goldens() {
 	let c = compiled();
 	let tmp = tempfile::tempdir().unwrap();
-	let mut p = HostPlatform::new(tmp.path(), c.dat().unwrap());
+	let mut p = HostPlatform::new(tmp.path(), c.lpk().unwrap());
 	p.capacity = 64 * 1024 * 1024;
 	p.keys(&install_keys());
 	assert_eq!(app::run(&mut p, ""), 0);

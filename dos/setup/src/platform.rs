@@ -38,14 +38,14 @@ fn drive_of(path: &str) -> u8 {
 	}
 }
 
-/// `SETUP.DAT` beside the running program, else in the current directory.
+/// `SETUP.LPK` beside the running program, else in the current directory.
 fn data_path() -> String {
 	match env::program_path() {
 		Some(p) => match p.rfind('\\') {
-			Some(i) => format!("{}SETUP.DAT", &p[..=i]),
-			None => "SETUP.DAT".to_string(),
+			Some(i) => format!("{}SETUP.LPK", &p[..=i]),
+			None => "SETUP.LPK".to_string(),
 		},
-		None => "SETUP.DAT".to_string(),
+		None => "SETUP.LPK".to_string(),
 	}
 }
 
@@ -215,10 +215,10 @@ impl Platform for DosPlatform {
 		let f = self
 			.data
 			.as_mut()
-			.ok_or_else(|| Error::Io("SETUP.DAT was not found beside SETUP.EXE".to_string()))?;
+			.ok_or_else(|| Error::Io("SETUP.LPK was not found beside SETUP.EXE".to_string()))?;
 		f.seek_start(offset)
-			.map_err(|e| Error::Io(format!("SETUP.DAT: DOS error {}", e.0)))?;
-		f.read(buf).map_err(|e| Error::Io(format!("SETUP.DAT: DOS error {}", e.0)))
+			.map_err(|e| Error::Io(format!("SETUP.LPK: DOS error {}", e.0)))?;
+		f.read(buf).map_err(|e| Error::Io(format!("SETUP.LPK: DOS error {}", e.0)))
 	}
 
 	fn port_in(&mut self, port: u16) -> u8 {

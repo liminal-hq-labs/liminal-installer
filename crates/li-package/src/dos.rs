@@ -5,7 +5,7 @@
 
 //! Both writers take a list of `(name, bytes)` and nothing else.
 //!
-//! - [`zip`] writes a stored (uncompressed) zip: `SETUP.DAT` is already compressed, and a stored
+//! - [`zip`] writes a stored (uncompressed) zip: `SETUP.LPK` is already compressed, and a stored
 //!   zip opens everywhere, DOS unzippers included.
 //! - [`floppy_1440`] writes a bare FAT12 image of a 1.44 MB disk: 512-byte sectors, one sector to a
 //!   cluster, two 9-sector FATs and 224 root entries. Files go in the root directory under 8.3
@@ -278,7 +278,7 @@ mod tests {
 				"SETUP.EXE".into(),
 				(0..160_000u32).map(|i| (i * 7 % 251) as u8).collect(),
 			),
-			("setup.dat".into(), vec![9u8; 513]),
+			("setup.lpk".into(), vec![9u8; 513]),
 			("README".into(), b"hello".to_vec()),
 			("EMPTY.TXT".into(), vec![]),
 		]

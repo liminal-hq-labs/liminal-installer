@@ -1,175 +1,128 @@
-// CRC-32 and the streaming decompressor for the payload.
+// `SETUP.LPK`: the compiled project and the payload, read through `li-lpk`.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use alloc::string::ToString;
+//! `SETUP.LPK` is a Liminal Pack (`docs/lpk-format.md`). Its first entry is the compiled project
+//! ([`PROJECT_FILE`], a `postcard` encoding of [`crate::model::Project`]); every other entry is a
+//! file to install, named by its 8.3 destination with `/` for `\`, in the order the install
+//! copies them. [`Pack`] reads it through [`Platform::data_read`], one chunk at a time, in a
+//! 32 KiB window, whatever the size of the file.
+
+use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
-use miniz_oxide::inflate::stream::{InflateState, inflate};
-use miniz_oxide::{DataFormat, MZError, MZFlush, MZStatus};
+
+use li_lpk::{Error as LpkError, Extract, Reader, Source, SourceError};
 
 use crate::Error;
+use crate::platform::Platform;
 
-const fn table() -> [u32; 256] {
-	let mut t = [0u32; 256];
-	let mut i = 0;
-	while i < 256 {
-		let mut c = i as u32;
-		let mut k = 0;
-		while k < 8 {
-			c = if c & 1 != 0 {
-				0xedb8_8320 ^ (c >> 1)
-			} else {
-				c >> 1
-			};
-			k += 1;
-		}
-		t[i] = c;
-		i += 1;
-	}
-	t
-}
+pub use li_lpk::{Crc, crc32};
 
-static TABLE: [u32; 256] = table();
+/// The directory entry that holds the compiled project. It is first in the pack, and a payload
+/// file may not have this destination.
+pub const PROJECT_FILE: &str = "SETUP.PRJ";
 
-/// A running CRC-32 (the zip and PNG one).
-#[derive(Debug, Clone, Copy)]
-pub struct Crc(u32);
+/// The pack's volume 1 is `SETUP.LPK` beside `SETUP.EXE`; a set of disks is not supported yet.
+struct PlatformSource<'a, P: Platform>(&'a mut P);
 
-impl Default for Crc {
-	fn default() -> Self {
-		Crc(!0)
-	}
-}
-
-impl Crc {
-	pub fn update(&mut self, data: &[u8]) {
-		for &b in data {
-			self.0 = TABLE[usize::from((self.0 as u8) ^ b)] ^ (self.0 >> 8);
-		}
-	}
-
-	pub fn finish(self) -> u32 {
-		!self.0
-	}
-}
-
-pub fn crc32(data: &[u8]) -> u32 {
-	let mut c = Crc::default();
-	c.update(data);
-	c.finish()
-}
-
-/// Compresses to a raw deflate stream (the host side).
-pub fn deflate(data: &[u8]) -> Vec<u8> {
-	miniz_oxide::deflate::compress_to_vec(data, 9)
-}
-
-/// A raw deflate decoder fed in pieces. Memory use is the decoder's 32 KiB window and one 8 KiB
-/// output buffer, whatever the size of the file.
-pub struct Inflater {
-	state: alloc::boxed::Box<InflateState>,
-	out: Vec<u8>,
-	done: bool,
-}
-
-impl Default for Inflater {
-	fn default() -> Self {
-		Inflater {
-			state: InflateState::new_boxed(DataFormat::Raw),
-			out: vec![0u8; 8192],
-			done: false,
-		}
-	}
-}
-
-impl Inflater {
-	/// Whether the end of the stream has been reached.
-	pub fn finished(&self) -> bool {
-		self.done
-	}
-
-	/// Decodes `input`, handing the output to `sink` in pieces of at most 8 KiB.
-	pub fn feed(
-		&mut self,
-		mut input: &[u8],
-		sink: &mut dyn FnMut(&[u8]) -> Result<(), Error>,
-	) -> Result<(), Error> {
-		let corrupt = || Error::Corrupt("the compressed data is damaged".to_string());
-		loop {
-			if self.done {
-				return Ok(());
-			}
-			let r = inflate(&mut self.state, input, &mut self.out, MZFlush::None);
-			input = &input[r.bytes_consumed..];
-			if r.bytes_written > 0 {
-				sink(&self.out[..r.bytes_written])?;
-			}
-			match r.status {
-				Ok(MZStatus::StreamEnd) => {
-					self.done = true;
-					return Ok(());
-				}
-				Ok(_) | Err(MZError::Buf) => {}
-				Err(_) => return Err(corrupt()),
-			}
-			if r.bytes_written == 0 {
-				if input.is_empty() {
-					return Ok(());
-				}
-				if r.bytes_consumed == 0 {
-					return Err(corrupt());
-				}
-			}
-		}
-	}
-}
-
-#[cfg(test)]
-mod tests {
-	use super::*;
-
-	#[test]
-	fn crc_matches_the_check_value() {
-		assert_eq!(crc32(b"123456789"), 0xcbf4_3926);
-	}
-
-	fn inflate_all(packed: &[u8], piece: usize) -> Result<Vec<u8>, Error> {
-		let mut inf = Inflater::default();
-		let mut out = Vec::new();
-		for chunk in packed.chunks(piece) {
-			inf.feed(chunk, &mut |c| {
-				out.extend_from_slice(c);
-				Ok(())
-			})?;
-		}
-		if inf.finished() {
-			Ok(out)
+impl<P: Platform> Source for PlatformSource<'_, P> {
+	fn open_volume(&mut self, volume: u16) -> Result<(), SourceError> {
+		if volume == 1 {
+			Ok(())
 		} else {
-			Err(Error::Corrupt("cut short".into()))
+			Err(SourceError::NoVolume)
 		}
 	}
 
-	#[test]
-	fn inflates_in_small_pieces() {
-		let data: Vec<u8> = (0..50_000u32)
-			.map(|i| (i % 251) as u8 ^ (i / 7) as u8)
-			.collect();
-		let packed = deflate(&data);
-		assert_eq!(inflate_all(&packed, 100).unwrap(), data);
-		assert_eq!(inflate_all(&packed, 1).unwrap(), data);
-		assert_eq!(inflate_all(&packed, 1 << 20).unwrap(), data);
+	fn read_at(&mut self, offset: u32, buf: &mut [u8]) -> Result<(), SourceError> {
+		let mut done = 0;
+		while done < buf.len() {
+			match self.0.data_read(offset + done as u32, &mut buf[done..]) {
+				Ok(0) => return Err(SourceError::Eof),
+				Ok(n) => done += n,
+				Err(_) => return Err(SourceError::Io),
+			}
+		}
+		Ok(())
+	}
+}
+
+/// Turns a pack error into the runtime's.
+pub fn from_lpk(e: LpkError) -> Error {
+	match e {
+		LpkError::BadMagic | LpkError::UnsupportedVersion | LpkError::UnsupportedFeature => {
+			Error::Format(e.message().to_string())
+		}
+		LpkError::Source(SourceError::Cancelled) | LpkError::Sink => Error::Cancelled,
+		e => Error::Corrupt(e.message().to_string()),
+	}
+}
+
+/// An open `SETUP.LPK`: the reader, the directory and the decoded-chunk window.
+pub struct Pack {
+	reader: Reader,
+	dir: Vec<u8>,
+	window: Vec<u8>,
+}
+
+/// One file being unpacked. See [`Pack::begin`].
+pub struct Unpack(Extract);
+
+impl Pack {
+	/// Opens volume 1 and reads the directory.
+	pub fn open<P: Platform>(p: &mut P) -> Result<Pack, Error> {
+		let mut src = PlatformSource(p);
+		let mut reader = Reader::open(&mut src).map_err(from_lpk)?;
+		let mut dir = vec![0u8; reader.directory_len()];
+		reader
+			.read_directory(&mut src, &mut dir)
+			.map_err(from_lpk)?;
+		let window = vec![0u8; reader.header().chunk_size()];
+		Ok(Pack {
+			reader,
+			dir,
+			window,
+		})
 	}
 
-	#[test]
-	fn damaged_data_is_an_error() {
-		let mut packed = deflate(&[7u8; 4000]);
-		let n = packed.len();
-		packed.truncate(n / 2);
-		assert!(inflate_all(&packed, 64).is_err());
-		let mut junk = deflate(b"hello hello hello hello");
-		junk[0] = 0xff;
-		assert!(inflate_all(&junk, 64).is_err());
+	/// Starts unpacking the entry named `name` (`/` between parts), or fails when the pack has no
+	/// such file.
+	pub fn begin<P: Platform>(&mut self, p: &mut P, name: &str) -> Result<Unpack, Error> {
+		let dir = self.reader.directory(&self.dir).map_err(from_lpk)?;
+		let entry = dir
+			.find(name.as_bytes())
+			.map_err(from_lpk)?
+			.ok_or_else(|| Error::Corrupt(alloc::format!("{name} is not in the pack")))?;
+		let mut src = PlatformSource(p);
+		let x = self.reader.begin(&mut src, &entry).map_err(from_lpk)?;
+		Ok(Unpack(x))
+	}
+
+	/// The next decoded chunk of the file, or `None` when it is complete and its checksum matched.
+	/// The bytes are valid until the next call.
+	pub fn next<P: Platform>(&mut self, p: &mut P, x: &mut Unpack) -> Result<Option<&[u8]>, Error> {
+		let mut src = PlatformSource(p);
+		let n = self
+			.reader
+			.step(&mut src, &mut x.0, &mut self.window)
+			.map_err(from_lpk)?;
+		Ok(n.map(|n| &self.window[..n]))
+	}
+
+	/// The compiled project, which is the first entry.
+	pub fn project_bytes<P: Platform>(&mut self, p: &mut P) -> Result<Vec<u8>, Error> {
+		let mut x = self.begin(p, PROJECT_FILE)?;
+		let mut out = Vec::new();
+		while let Some(chunk) = self.next(p, &mut x)? {
+			out.extend_from_slice(chunk);
+		}
+		Ok(out)
+	}
+
+	/// The destination of the file for `dest` (`SOUND\ADLIB.DRV`) as the pack names it.
+	pub fn name_of(dest: &str) -> String {
+		dest.replace('\\', "/")
 	}
 }

@@ -153,6 +153,10 @@ jobs:
       - name: Run clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
+      # The workspace build turns `li-lpk`'s `std` feature on through the CLI; the reader alone must still build as `no_std`.
+      - name: Run clippy on the no_std reader
+        run: cargo clippy -p li-lpk --no-default-features --locked -- -D warnings
+
   bindings:
     name: Bindings drift
     runs-on: ubuntu-24.04

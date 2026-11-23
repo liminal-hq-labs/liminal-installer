@@ -29,6 +29,7 @@ pub mod diag;
 pub mod dos;
 pub mod feed;
 pub mod keygen;
+pub mod lpk;
 pub mod plan;
 pub mod preview;
 pub mod project;

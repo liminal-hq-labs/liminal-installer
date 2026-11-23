@@ -14,13 +14,13 @@ rust-version.workspace = true
 
 [features]
 default = ["std"]
-# The host build: the encoder's compressor, the `HostPlatform` simulator and tests. The DOS build turns it off.
-std = ["miniz_oxide/std", "serde/std", "postcard/use-std"]
+# The host build: the `HostPlatform` simulator and tests. The DOS build turns it off.
+std = ["serde/std", "postcard/use-std"]
 
 [dependencies]
 serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
 postcard = { version = "1", default-features = false, features = ["alloc"] }
-miniz_oxide = { version = "0.8", default-features = false, features = ["with-alloc"] }
+li-lpk = { workspace = true }
 
 [dev-dependencies]
 tempfile.workspace = true

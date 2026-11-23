@@ -7,7 +7,7 @@ The file formats, operations and interfaces behind the [architecture](docs/archi
 Everything in this specification is in progress. Nothing is released, and any part may change between commits.
 
 - **Engine** (plan, stage, commit, record): in progress. Install, update, modify, repair, uninstall and launch work end to end on Linux through the runner (§14).
-- **CLI** (`check`, `preview`, `build`, `keygen`, `feed`, `theme`, `studio`): in progress. `check`, `preview`, the Linux `build` (themed `.run` and `.lip`) and the DOS `build` (`SETUP.DAT`, `zip`, `floppy-1440`) work, and feeds and themes are signed.
+- **CLI** (`check`, `preview`, `build`, `keygen`, `feed`, `theme`, `studio`): in progress. `check`, `preview`, the Linux `build` (themed `.run` and `.lip`) and the DOS `build` (`SETUP.LPK`, `zip`, `floppy-1440`) work, and feeds and themes are signed.
 - **Renderers**: `tui` is in progress; `tui-retro` works for DOS (`SETUP.EXE` in Rust, see [docs/retro-dos.md](docs/retro-dos.md)); `win16`, `win32-classic`, `canvas` and `web` are in progress as scaffolds or designs.
 - **Studio** and its MCP server: in progress. GraphQL is deferred (D26).
 - **Example installers** for Planboard and Lt. Fizz: in progress.
@@ -279,12 +279,13 @@ A feed is published with a detached signature at `feed.json.sig`: the Ed25519 si
 | `feed add` | Add the built release to a feed; `--sign-key` signs it |
 | `theme pack` | Package a theme for sharing; `--sign-key` signs it |
 | `studio --mcp` | Serve the project to agents over MCP, with no window; `--port` picks the port |
+| `lpk pack`, `list`, `unpack`, `verify` | Make, list, unpack and check a Liminal Pack (`.LPK`, [docs/lpk-format.md](docs/lpk-format.md)); `pack` takes `--volume-size` (a number, `k`, `m` or `floppy-1440`), `--first-volume-size`, `--chunk-log2`, `--target` and `--fixed-time`, and writes `NAME.LPK`, `NAME.L02` and so on when the pack spans volumes; `verify` exits 2 on the first damaged chunk, file or missing volume |
 
 Table 7. `liminst` commands.
 
 `check` loads the project with the engine and reports the CLI's checks (flows, themes, layouts, accessible names, components) with the engine's condition, component and hook checks. `preview` prints the engine's Plan phase against a simulated machine, so it shows the same operations, hashes and script hooks an install runs. Exit codes: 0 success, 1 the project has errors, 2 the command could not run.
 
-`build` outputs, by name: for a `tui-retro` target, `zip` and `floppy-1440` (`SETUP.EXE`, `SETUP.DAT` and `README.TXT`, also written loose under `dos/`; `--dos-runtime PATH` names a prebuilt `SETUP.EXE`, else one is found or built from `dos/`; a payload too big for a floppy is reported, and disks do not span); for the others, `lip` (the payload and bundled project, §14), `run` (with `--engine PATH`, a themed self-extracting installer that carries the runner and the `.lip`; without it, a `.run` that only extracts the files and a receipt), and the native formats `deb`, `rpm`, `arch`, `msi`, `msix` and `pkg`. A themed `run` also writes its `.lip`, which is what `feed add` publishes. `feed add --sign-key FILE` writes `<feed>.sig`; without a key it removes a signature that no longer matches. `theme pack --sign-key FILE` writes `<archive>.sig`, the hex signature over the archive.
+`build` outputs, by name: for a `tui-retro` target, `zip` and `floppy-1440` (`SETUP.EXE`, `SETUP.LPK`, a Liminal Pack that holds the compiled project and the files, and `README.TXT`, also written loose under `dos/`; `--dos-runtime PATH` names a prebuilt `SETUP.EXE`, else one is found or built from `dos/`; a payload too big for a floppy is reported, and disks do not span yet); for the others, `lip` (the payload and bundled project, §14), `run` (with `--engine PATH`, a themed self-extracting installer that carries the runner and the `.lip`; without it, a `.run` that only extracts the files and a receipt), and the native formats `deb`, `rpm`, `arch`, `msi`, `msix` and `pkg`. A themed `run` also writes its `.lip`, which is what `feed add` publishes. `feed add --sign-key FILE` writes `<feed>.sig`; without a key it removes a signature that no longer matches. `theme pack --sign-key FILE` writes `<archive>.sig`, the hex signature over the archive.
 
 Example 2. A CI job.
 
@@ -295,6 +296,8 @@ Example 2. A CI job.
     sign-key: ${{ secrets.FEED_KEY }}
     feed: feed/stable.json
 ```
+
+The **Liminal Pack** (`.LPK`) is the pack format the retro runtimes read, specified byte by byte in [docs/lpk-format.md](docs/lpk-format.md) (D47 to D50). A pack is one or more volumes. Each volume has a 48-byte header and a 32-byte footer with CRC-32s; volume 1 has the directory of files (8.3 and long names, size, DOS date and time, attributes, CRC-32, the flags `EXECUTABLE`, `REPLACE_IF_NEWER` and `SHARED`, and a target mask). File data is in chunks of at most 32 KiB, each stored or raw deflate, so a 16-bit unpacker needs one 32 KiB buffer. A set of disks is a set of volumes: a chunk is never split across two, a next-volume marker ends a volume in the middle of a file, and the reader asks its caller for each volume. The reader (`li-lpk`, `no_std`, no allocation) refuses any damage with a typed error and never hands on a chunk that failed its checksum. The format has a major and a minor version: a reader accepts every minor of its major and refuses must-understand flags it does not know.
 
 ## 13 · Studio API for agents
 
