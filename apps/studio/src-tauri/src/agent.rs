@@ -18,6 +18,8 @@ pub struct AgentInfo {
 pub struct Agent {
 	studio: Arc<Studio>,
 	server: Mutex<Option<(McpServer, u16)>>,
+	/// Why the last attempt to apply the settings failed. Shown only while no server runs.
+	failure: Mutex<Option<String>>,
 }
 
 impl Agent {
@@ -25,6 +27,7 @@ impl Agent {
 		Self {
 			studio,
 			server: Mutex::new(None),
+			failure: Mutex::new(None),
 		}
 	}
 
@@ -35,6 +38,23 @@ impl Agent {
 	/// Makes the server match the settings: stopped when disabled, otherwise listening on `port` (0 for any free
 	/// one). A port that is taken is refused with the reason and the server that was running keeps running.
 	pub fn apply(&self, enabled: bool, port: u32) -> Result<(), String> {
+		let result = self.apply_settings(enabled, port);
+		*self.failure.lock().unwrap_or_else(|e| e.into_inner()) = result.clone().err();
+		result
+	}
+
+	/// The reason the server is off although it was asked for, or nothing while it runs or is off by choice.
+	pub fn error(&self) -> Option<String> {
+		if self.lock().is_some() {
+			return None;
+		}
+		self.failure
+			.lock()
+			.unwrap_or_else(|e| e.into_inner())
+			.clone()
+	}
+
+	fn apply_settings(&self, enabled: bool, port: u32) -> Result<(), String> {
 		let port = u16::try_from(port).map_err(|_| "the port is out of range".to_string())?;
 		let mut slot = self.lock();
 		if !enabled {
@@ -107,6 +127,21 @@ mod tests {
 		assert_eq!(a.token().unwrap().len(), 48);
 		a.apply(false, 0).unwrap();
 		assert!(a.info().is_none());
+	}
+
+	#[test]
+	fn a_failed_start_is_kept_as_the_reason_until_the_next_good_apply() {
+		let held = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+		let port = u32::from(held.local_addr().unwrap().port());
+		let a = agent();
+		assert!(a.error().is_none());
+		assert!(a.apply(true, port).is_err());
+		assert!(a.error().is_some_and(|e| e.contains("in use")));
+		a.apply(true, 0).unwrap();
+		assert!(a.error().is_none());
+		// A refused move leaves the running server alone, so nothing is wrong to show.
+		assert!(a.apply(true, port).is_err());
+		assert!(a.error().is_none());
 	}
 
 	#[test]

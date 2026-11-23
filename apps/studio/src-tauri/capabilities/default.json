@@ -6,6 +6,9 @@
 		"main",
 		"about",
 		"preferences",
+		"shortcuts",
+		"agent",
+		"new-project",
 		"confirm-*"
 	],
 	"permissions": [

@@ -37,6 +37,27 @@ pub fn spec(kind: &str, id: Option<&str>) -> Option<Spec> {
 			min_size: (420.0, 360.0),
 			modal: false,
 		}),
+		"shortcuts" => Some(Spec {
+			label: "shortcuts".into(),
+			title: "Keyboard Shortcuts",
+			size: (460.0, 520.0),
+			min_size: (360.0, 320.0),
+			modal: false,
+		}),
+		"agent" => Some(Spec {
+			label: "agent".into(),
+			title: "Connect an Agent",
+			size: (560.0, 560.0),
+			min_size: (420.0, 380.0),
+			modal: false,
+		}),
+		"new-project" => Some(Spec {
+			label: "new-project".into(),
+			title: "New Project",
+			size: (500.0, 420.0),
+			min_size: (500.0, 420.0),
+			modal: true,
+		}),
 		"confirm" => {
 			let id = id.filter(|s| {
 				!s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
@@ -144,6 +165,13 @@ mod tests {
 		assert_eq!(spec("about", None).unwrap().label, "about");
 		assert!(spec("preferences", None).is_some_and(|s| !s.modal));
 		assert!(spec("about", None).is_some_and(|s| s.modal));
+	}
+
+	#[test]
+	fn the_shortcut_agent_and_new_project_windows_are_known() {
+		assert!(spec("shortcuts", None).is_some_and(|s| !s.modal));
+		assert!(spec("agent", None).is_some_and(|s| !s.modal));
+		assert!(spec("new-project", None).is_some_and(|s| s.modal));
 	}
 
 	#[test]

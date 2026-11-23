@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 mod agent;
+#[cfg(test)]
+mod api_contract;
 mod settings;
 mod tools;
 mod windows;
@@ -14,7 +16,9 @@ use std::sync::Arc;
 use agent::{Agent, AgentInfo};
 use li_model::{Flow, Layout};
 use li_studio::studio::{FlowView, HistoryView, ProjectSummary, TargetInfo};
-use li_studio::{EngineBackend, Preview, Problem, ScriptReport, Source, Studio, StudioError};
+use li_studio::{
+	EngineBackend, Preview, Problem, ScriptReport, Source, Studio, StudioError, scaffold,
+};
 use serde::Serialize;
 use tauri::{Emitter, Manager, State};
 
@@ -123,6 +127,12 @@ fn mcp_info(agent: State<Agent>) -> Option<AgentInfo> {
 	agent.info()
 }
 
+/// Why the agent server is not running although it is switched on, such as a taken port.
+#[tauri::command]
+fn mcp_error(agent: State<Agent>) -> Option<String> {
+	agent.error()
+}
+
 /// The token, shown only when a person asks for it. It is never logged.
 #[tauri::command]
 fn mcp_token(agent: State<Agent>) -> Option<String> {
@@ -132,6 +142,26 @@ fn mcp_token(agent: State<Agent>) -> Option<String> {
 #[tauri::command]
 fn mcp_regenerate_token(agent: State<Agent>) -> Result<String, String> {
 	agent.regenerate_token()
+}
+
+/// Writes a new project's files into `folder` with the scaffold `liminst init` uses. The folder is made when it
+/// is missing and must not already hold a project. Returns the folder, for the window to open.
+#[tauri::command]
+fn new_project(
+	folder: String,
+	name: String,
+	id: String,
+	publisher: String,
+) -> Result<String, StudioError> {
+	let opts = scaffold::InitOptions {
+		id,
+		name,
+		publisher,
+		force: false,
+	};
+	scaffold::validate(&opts)?;
+	scaffold::init(&PathBuf::from(&folder), &opts)?;
+	Ok(folder)
 }
 
 #[tauri::command]
@@ -200,6 +230,7 @@ pub fn run() {
 						println!("{line}");
 					}
 				}
+				// The agent card and Preferences show the reason too.
 				Err(e) => eprintln!("Studio MCP server did not start: {e}"),
 			}
 			studio.on_change(move |event| {
@@ -217,6 +248,7 @@ pub fn run() {
 		})
 		.invoke_handler(tauri::generate_handler![
 			open_project,
+			new_project,
 			project_summary,
 			list_targets,
 			get_flow,
@@ -233,6 +265,7 @@ pub fn run() {
 			undo,
 			redo,
 			mcp_info,
+			mcp_error,
 			mcp_token,
 			mcp_regenerate_token,
 			app_info,
