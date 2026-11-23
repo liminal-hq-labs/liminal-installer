@@ -140,7 +140,7 @@ crates/        li-model, li-engine, li-script, li-render-tui, li-pack, li-packag
                li-retro (the `no_std` DOS runtime core), li-retro-build (its compiler) and li-lpk (the `.LPK` pack format: a `no_std` reader and a host packer)
 apps/studio/   the Studio: index.html, vite.config.ts, src/ (React) and src-tauri/ (the desktop shell)
 packages/      chrome/ (`@liminal-hq/studio-chrome`, vendored, see its PROVENANCE.md) and protocol/ (`@liminal-hq/installer-protocol`: ts-rs bindings, generated, committed)
-examples/      lt-fizz, planboard and neutral projects
+examples/      lt-fizz, planboard, neutral and tauri-notes projects
 dos/           the DOS runtime: Desk's Rust-on-DOS foundation (PROVENANCE.md), `rt`, `setup` (`SETUP.EXE`); its own Cargo workspace
 retro/         the Open Watcom spike and its build container (Windows 3.1, which stays C)
 assets/        hero banner

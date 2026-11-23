@@ -6,9 +6,9 @@ How the Studio window is put together, and how to drive it while developing. `SP
 
 `apps/studio` is the house layout: `index.html`, `vite.config.ts` and `src/` (React 19) with `src-tauri/` beside them. The shared window chrome is the workspace package `packages/chrome`. The Studio's own folders:
 
-- `src/app/` has `startApp.tsx` (mounts the app, returns the `App` a shell drives), `Shell.tsx` (sidebar, status bar, history popover, toast), `router.tsx` (the five routes on memory history) and `StudioContext.tsx` (the hooks that read the stores).
+- `src/app/` has `startApp.tsx` (mounts the app, returns the `App` a shell drives), `Shell.tsx` (sidebar, status bar, history popover, toast), `router.tsx` (the six routes on memory history) and `StudioContext.tsx` (the hooks that read the stores).
 - `src/stores/` has the zustand stores (project, preview, script draft, toasts) and `studio.ts`, where `createStudio` holds the actions. The backend arrives as `api`, so `src/app/*.test.tsx` runs the whole app against a fake one under happy-dom.
-- `src/screens/` has Project, Flow, Layouts, Scripts and Dry-run, each with its CSS Module. `src/preview/` draws a layout tree in the four looks. `src/ui/` has the shared CSS Modules (cards, buttons, fields, text colours).
+- `src/screens/` has Project, Flow, Layouts, Scripts, Dry-run and Tauri, each with its CSS Module. `src/preview/` draws a layout tree in the four looks. `src/ui/` has the shared CSS Modules (cards, buttons, fields, text colours).
 - `src/chrome/` is the layer around the chrome package, described below. `src/i18n/` is the message catalogue. `src/theme/` has the tokens. `src/services/logger.ts` forwards `console.*` to `tauri-plugin-log`.
 
 Imports of the chrome are by deep path (`@liminal-hq/studio-chrome/TitleBar`), never a barrel.

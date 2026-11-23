@@ -10,7 +10,8 @@ Everything in this specification is in progress. Nothing is released, and any pa
 - **CLI** (`check`, `preview`, `build`, `keygen`, `feed`, `theme`, `studio`): in progress. `check`, `preview`, the Linux `build` (themed `.run` and `.lip`) and the DOS `build` (`SETUP.LPK`, `zip`, `floppy-1440`) work, and feeds and themes are signed.
 - **Renderers**: `tui` is in progress; `tui-retro` works for DOS (`SETUP.EXE` in Rust, see [docs/retro-dos.md](docs/retro-dos.md)); `win16`, `win32-classic`, `canvas` and `web` are in progress as scaffolds or designs.
 - **Studio** and its MCP server: in progress. GraphQL is deferred (D26).
-- **Example installers** for Planboard and Lt. Fizz: in progress.
+- **Tauri apps** (`[tauri]`, `liminst import tauri`, WebView2, the two Windows modes, per-product updates): in progress. Built and tested against the simulated machine; the real machine's registry is still a stand-in (§15).
+- **Example installers** for Planboard, Lt. Fizz, Neutral and Plume Notes (a Tauri app): in progress.
 - **Feeds, the web stub and the Hub**: in progress.
 - **Delta updates, a theme gallery and macOS notarization in the CI step**: in progress as designs only.
 
@@ -68,6 +69,18 @@ outputs  = ["setup-exe", "msix"]
 feed_key = "keys/feed.pub"   # pinned into every build
 ```
 
+```toml
+[tauri]                    # optional: a Tauri 2 product (§15)
+config   = "../src-tauri/tauri.conf.json"
+windows  = "native"        # native | wrap
+
+[updates]                  # optional: who updates the installed product (§15)
+mode     = "both"          # none | liminal | tauri | both
+feed     = "https://example.org/feed.json"
+channel  = "stable"
+check_interval_hours = 24
+```
+
 `feed_key` is the public half of a key made by `liminst keygen`. A relative path is looked up beside `installer.toml`, then in the project folder. `build` reads it and carries it in the `.lip` (§14), where the installed runner keeps it. A product with no `feed_key` cannot update from a feed unless the person names a key.
 
 ## 4 · Components
@@ -87,7 +100,7 @@ targets = ["dos-x86", "win16-x86"]
 files   = [{ from = "dist/sound/*.DRV", to = "{install}/SOUND/" }]
 ```
 
-A component may also declare `file_types`, `url_schemes`, `services` (systemd user units, launchd agents, Windows services), `path` additions and `registrations` (such as an agent plugin folder). Each turns into plan operations (§8).
+A component may also declare `file_types`, `url_schemes`, `services` (systemd user units, launchd agents, Windows services), `path` additions and `registrations` (such as an agent plugin folder). Each turns into plan operations (§8). `origin = "tauri"` marks a component that `liminst import tauri` generated between marker comments in `components.toml`; the next import replaces it (§15).
 
 ## 5 · Flows
 
@@ -206,9 +219,13 @@ A plan is an ordered list of operations. Each records enough to undo itself befo
 | `registry.set` (Windows) | Restore or delete the value |
 | `path.add`, `service.install` | Remove the entry; stop and remove the service |
 | `os.register` | Remove the Add/Remove Programs entry or package database record |
+| `prereq.webview2` (Windows) | None: WebView2 is shared by other apps and is never removed |
+| `tauri.wrap` (Windows) | Run the product's own uninstaller silently and in place, then remove `uninstall.exe` and the publisher key it leaves |
 | `receipt.write` | Always last; never undone, only replaced |
 
 Table 4. Operations.
+
+A `registry.set` value may be written `dword:xxxxxxxx` (a `REG_DWORD`, as in a `.reg` file), and a `{placeholder}` in a value is resolved when it is written; the receipt keeps the placeholder form. `prereq.webview2` and `tauri.wrap` are the Windows operations of a Tauri product (§15). Each records what it did in the receipt: the version the WebView2 step found and whether it ran an installer, and the uninstall entry the wrapped setup left.
 
 The DOS runtime performs `mkdir`, `copy`, `write_ini` and `shortcut` (a launcher batch file), then writes the receipt. File types, URL schemes and `PATH` entries are skipped with a build warning.
 
@@ -234,6 +251,8 @@ Example 1. A receipt, shortened.
 	"components": ["game", "levels"],
 	"operations": [ { "op": "copy", "to": "{install}/FIZZ.EXE", "sha256": "…" } ] }
 ```
+
+A receipt also records `updates`, the product's `[updates]` section at install time (absent on older receipts, which the installer updates), and a wrapped install's `external` entry inside its `tauri.wrap` operation (§15).
 
 Receipts are kept in `{install}/.liminal/receipt.json` and indexed per user and per machine, so the Hub can find every installed product. The retro runtime writes the same data as `INSTALL.LIR`: a text file of `LIR 1`, `product=`, `version=`, `target=`, `dir=`, `components=` lines and one `D` (directory made), `F name size crc` (file, with a CRC-32), `I` (INI) or `B` (launcher batch) record per line. It records CRC-32, not SHA-256; uninstall removes the files, then the directories it made when they are empty. See [docs/retro-dos.md](docs/retro-dos.md).
 
@@ -280,6 +299,7 @@ A feed is published with a detached signature at `feed.json.sig`: the Ed25519 si
 | `theme pack` | Package a theme for sharing; `--sign-key` signs it |
 | `studio --mcp` | Serve the project to agents over MCP, with no window; `--port` picks the port |
 | `lpk pack`, `list`, `unpack`, `verify` | Make, list, unpack and check a Liminal Pack (`.LPK`, [docs/lpk-format.md](docs/lpk-format.md)); `pack` takes `--volume-size` (a number, `k`, `m` or `floppy-1440`), `--first-volume-size`, `--chunk-log2`, `--target` and `--fixed-time`, and writes `NAME.LPK`, `NAME.L02` and so on when the pack spans volumes; `verify` exits 2 on the first damaged chunk, file or missing volume |
+| `import tauri [PATH]` | Import a Tauri 2 `tauri.conf.json` into the project (§15); with no `PATH`, the one `[tauri] config` names; `--json` prints the report |
 
 Table 7. `liminst` commands.
 
@@ -314,6 +334,7 @@ The Studio serves MCP on `127.0.0.1`, protected by a token, as the Planboard ser
 | `check_script_syntax` | Check Lua source without running it: syntax errors and warnings |
 | `run_preview`, `get_preview` | Dry-run a target; get the plan, problems and a screenshot of each step |
 | `tui_render`, `tui_key` | Open a live session on a `tui` target's page and press keys in it; get the real terminal screen as text and ANSI (and the cell grid on request) |
+| `get_tauri`, `import_tauri`, `update_tauri_settings` | Read the Tauri state (import, drift, product fields, WebView2, Windows mode, updates); import a `tauri.conf.json`; change `windows`, `overrides`, `webview2` and `updates`. Each change is one undoable entry (§15) |
 | `check_project` | The same checks as `liminst check` |
 
 Table 8. MCP tools.
@@ -326,11 +347,11 @@ The Studio runs the engine itself, not a stand-in. `check_project` is the Studio
 
 ### The Studio window
 
-The Studio draws the shared Liminal HQ window chrome in its desktop window: a 40px title bar with the gradient wordmark, an app menu, window buttons and an optional menu bar. The app menu is one flat list of groups (New project…, Open project…, Open recent, Reload; Save; Undo, Redo; the five screens and Show menu bar; Run check, Run dry-run preview; Preferences…, Keyboard shortcuts, Connect an agent…, About, Quit) opened from the wordmark, `F10` or a lone `Alt`. The menu bar (File, Edit, View, Project, Help) holds the same commands and takes `F10`, `Alt` and `Alt` plus a letter while it shows. Preferences, Keyboard shortcuts, Connect an agent, New project, About and confirmations are child windows of the main window. New project (`Ctrl+N`) asks for a name, id, publisher and a folder, writes the same files as `liminst init` into a folder named after the project, and opens it; it refuses an id that is not reverse-DNS and a folder that already holds a project. Keyboard shortcuts lists the table every shortcut is matched against. Connect an agent shows the endpoint, copies the URL, the token or a sample `mcpServers` client configuration, and says why the server is off when it failed to start. Opening another project drops the previous project's selections and loaded documents. The status bar counts errors and warnings (a click opens the Overview's checks), and its History count leaves out undone entries. A browser tab, used for development only, draws a plain header instead. Preferences, opened with `Ctrl+,`, the app menu or File, is a child window with a side nav that becomes a select when narrow. See "Studio preferences" below for the settings.
+The Studio draws the shared Liminal HQ window chrome in its desktop window: a 40px title bar with the gradient wordmark, an app menu, window buttons and an optional menu bar. The app menu is one flat list of groups (New project…, Open project…, Open recent, Reload; Save; Undo, Redo; the six screens and Show menu bar; Run check, Run dry-run preview; Preferences…, Keyboard shortcuts, Connect an agent…, About, Quit) opened from the wordmark, `F10` or a lone `Alt`. The menu bar (File, Edit, View, Project, Help) holds the same commands and takes `F10`, `Alt` and `Alt` plus a letter while it shows. Preferences, Keyboard shortcuts, Connect an agent, New project, About and confirmations are child windows of the main window. New project (`Ctrl+N`) asks for a name, id, publisher and a folder, writes the same files as `liminst init` into a folder named after the project, and opens it; it refuses an id that is not reverse-DNS and a folder that already holds a project. Keyboard shortcuts lists the table every shortcut is matched against. Connect an agent shows the endpoint, copies the URL, the token or a sample `mcpServers` client configuration, and says why the server is off when it failed to start. Opening another project drops the previous project's selections and loaded documents. The status bar counts errors and warnings (a click opens the Overview's checks), and its History count leaves out undone entries. A browser tab, used for development only, draws a plain header instead. Preferences, opened with `Ctrl+,`, the app menu or File, is a child window with a side nav that becomes a select when narrow. See "Studio preferences" below for the settings.
 
 **Studio preferences.** Every change applies at once and is written to `settings.json` in the app's config directory (`app_config_dir()`: `$XDG_CONFIG_HOME/ca.liminalhq.installerstudio` on Linux, `~/Library/Application Support/ca.liminalhq.installerstudio` on macOS, `%APPDATA%\ca.liminalhq.installerstudio` on Windows) as a merge. A write that is refused leaves the value as it was and the row says why. Every open window follows a change at once, the theme included. The file has a `version` (1); a file written before it, with only `menuBar` and `theme`, is read as version 1, a field that is missing or invalid takes its default, and keys the Studio does not know are kept. The size of the main and Preferences windows is kept in `.window-state.json` beside it. A settings file left in the config directory of the earlier identifier (`hq.liminal.installer-studio`) is copied across once, when the new directory has none.
 
-**The window and its text.** The Studio's page is React 19. Every string a person sees comes from a message catalogue (`en-CA`, with the accented `en-XA` and the right-to-left `ar-XB` pseudo-locales in a development build, chosen with `?locale=` in the address), so the layout can be checked against longer and mirrored text. The five screens (Overview, Flow, Layouts, Scripts, Dry run) are routes in the main window, and every other window (Preferences, About, Keyboard shortcuts, Connect an agent, New project, confirmations) is the same page with a `?window=` label. The Scripts screen keeps the draft when another screen is shown, and its undo history starts afresh when the screen is shown again.
+**The window and its text.** The Studio's page is React 19. Every string a person sees comes from a message catalogue (`en-CA`, with the accented `en-XA` and the right-to-left `ar-XB` pseudo-locales in a development build, chosen with `?locale=` in the address), so the layout can be checked against longer and mirrored text. The six screens (Overview, Flow, Layouts, Scripts, Dry run, Tauri) are routes in the main window, and every other window (Preferences, About, Keyboard shortcuts, Connect an agent, New project, confirmations) is the same page with a `?window=` label. The Scripts screen keeps the draft when another screen is shown, and its undo history starts afresh when the screen is shown again.
 
 **The script editor.** The Scripts screen is a CodeMirror 6 editor with Lua 5.4 colouring that follows the theme, line numbers, active-line highlight, bracket matching and closing, folding by block, undo and redo, and find and replace. Completion and hover text come from the `li-script` API: the modules `li.env`, `li.fs`, `li.ui`, `li.plan` and `li.net` (each member shows the capability it needs), the hooks `detect(page)`, `validate(page)`, `on_commit(plan)` and `on_uninstall(plan)`, `page.fields`, `plan:add`, and the capability names in a `-- capabilities:` header. Findings from `check_script_syntax` are drawn as squiggles and gutter markers after a pause in typing. The editor's text is a draft held in the app: it survives redraws and other screens, File > Save saves it from any screen, "Discard changes" in the unsaved-changes confirmation clears it, and choosing another script with unsaved edits asks first. Keys: Tab indents (Esc then Tab moves focus out), Ctrl+S saves, Ctrl+Enter runs the test, Shift+Alt+F formats. Format re-indents by block and bracket depth with tabs, trims trailing space, uses line feeds and ends the file with one newline, and never touches the inside of a long string or comment. Test run shows "Running…", then "Tested at HH:MM:SS · n ms" with "(unsaved text)" or "(saved file)", toasts pass or fail, marks the report out of date when the draft or the target changes, and prints a console with a line for each hook, its errors and a summary. The target picker chooses whose sample the test uses. The footer shows "Ln n, Col n" and "Lua 5.4 · retro subset checked".
 
@@ -388,3 +409,22 @@ Table 10. Runner commands.
 - **Feeds.** A feed is a `feed.json` path, the folder that holds it, or a URL (fetched with `curl`). The detached `feed.json.sig` must verify against the key pinned at install (or `--feed-key`) before anything is read; a feed older than the last one verified is refused.
 - **Scope.** The runner installs for the person running it, with the user-scope directories of `li-engine`'s `RealMachine`. Elevation is not implemented yet.
 - **Exit codes.** 0 success, 1 failure (the engine rolled every change back), 2 bad arguments, 3 the person cancelled.
+- **Updates.** `update` does nothing but say so for a product whose receipt says the app updates itself (`updates` mode `tauri`), and `launch` offers no update for it. `launch` checks the feed only when the receipt's `check_interval_hours` has passed since `{install}/.liminal/last-update-check` (always, with none), and first catches the receipt up when the app updated itself (§15).
+
+## 15 · Tauri apps
+
+Design and reasons: [docs/tauri-apps.md](docs/tauri-apps.md); Windows facts: [docs/tauri-windows-spike.md](docs/tauri-windows-spike.md); decisions D47 to D50.
+
+**Import.** `[tauri] config` names a Tauri 2 `tauri.conf.json` relative to `installer/`; `tauri.windows.conf.json`, `tauri.macos.conf.json` and `tauri.linux.conf.json` beside it are read too (the Windows one is merged over the base with RFC 7396 for the Windows settings). `liminst import tauri` writes `installer/tauri.json`, a snapshot with `product_name`, `identifier`, `app_version`, `main_binary_name`, `publisher`, `homepage`, `description`, `targets`, `windows` (`webview2`, `install_mode`, `allow_downgrades`, `start_menu_folder`, `has_installer_hooks`, `has_custom_template`), `resources` (`from`, `to`), `external_bin`, `file_associations`, `deep_link_schemes` and `updater` (`endpoints`, `pubkey`, `windows_install_mode`, `create_artifacts`), and `sources`, the SHA-256 of each file it read. It fills `[product]` `id`, `name`, `publisher` and a literal `version` (not a field named in `[tauri] override`, and not a version written as `{ from = … }`), adds `[updates] mode = "tauri"` when the app has an updater and the project has no `[updates]`, and replaces the generated block of `components.toml` (components with `origin = "tauri"`). The Studio does the same through `import_tauri` as one undoable change.
+
+**Drift.** `check` reports `tauri-drift` (error) for each source file whose hash differs from the snapshot, that is new, or that is gone; `tauri-not-imported` and `tauri-config-missing` (errors) when `tauri.json` or the config is not there. It also reports `tauri-webview2-skip`, `tauri-webview2-path`, `tauri-webview2-installer`, `tauri-native-hooks`, `tauri-wrap-installer`, `tauri-wrap-unsupported` and `tauri-bad-override`, and for updates `updates-needs-tauri` (error), `updates-no-updater`, `updates-no-feed`, `updates-conflict` and `updates-native-updater` (warnings).
+
+**WebView2.** `prereq.webview2` has `mode` (`downloadBootstrapper`, `embedBootstrapper`, `offlineInstaller`, `fixedRuntime`, `skip`, with Tauri's names), `silent`, `path` (`fixedRuntime`) and `min_version`; an operation exists for every mode but `skip`. The runtime is present when `pv` under `{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}` in `HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients`, else in `HKCU\SOFTWARE\Microsoft\EdgeUpdate\Clients`, is a version other than empty or `0.0.0.0` and at least `min_version`. When it is not, the engine runs the bootstrapper (`downloadBootstrapper` fetches `https://go.microsoft.com/fwlink/p/?LinkId=2124703` with `curl`; `embedBootstrapper` carries `dist/webview2/MicrosoftEdgeWebview2Setup.exe`) or the offline installer (`dist/webview2/MicrosoftEdgeWebView2RuntimeInstallerX64.exe`, from `https://go.microsoft.com/fwlink/?linkid=2124701`) as `<exe> /silent /install` (`/install` when `silent` is false), and fails the install, rolling it back, on any exit code but 0 or when the runtime is still missing. `fixedRuntime` copies the runtime folder with the app and checks it is there. The Dry-run's plan records what a machine with the runtime shows (`found`).
+
+**Windows modes.** `[tauri] windows` is `native` (the default) or `wrap`, per product; macOS and Linux are always native. `native` plans, after WebView2 and the components, the `registry.set` operations Tauri's installer writes (the Add or Remove Programs key with the engine's own `UninstallString`, the publisher and product key, the file-type and URL-scheme classes), in `HKCU` for a user scope and `HKLM` for a machine scope. `wrap` plans WebView2, a copy of `dist/{target}/<productName>-setup.exe` (or `[tauri.wrap] installer`) to `{temp}` and `tauri.wrap`, and leaves out the generated components' files, shortcuts and registrations. `tauri.wrap` runs `setup.exe /S [/UPDATE] [/currentuser|/allusers] /D=<dir>` (`/UPDATE` when the product's key exists; the scope switch for `nsis.installMode: both`; `/D=` last), reads exit 0 as success, 2 as stopped and 740 as needs elevation, then records `external` (`kind`, `hive`, `uninstall_key`, `uninstaller`, `install_location`, `version`, `main_binary`, `publisher_key`) from the setup's Uninstall key. Its undo runs `uninstaller /S _?=<dir>` and removes `uninstall.exe` and the publisher key.
+
+**Updates.** `[updates] mode` is `none`, `liminal` (the default), `tauri` or `both`; `feed`, `channel` and `check_interval_hours` are optional. The installer applies feed updates for `liminal` and `both` only. The version on the machine wins: a feed release applies only when it is newer than what is installed, and when the app updated itself the engine moves the receipt to the installed version before `launch`, `update` and `repair` (a wrapped install's `external` is read again; a native install's copies lose their hash so a repair never restores old content). The receipt records `updates`.
+
+**The simulated machine.** `SimMachine` answers for WebView2 (`with_webview2`, `offline`, `elevated`, `with_os`), for `curl` and the WebView2 installers, and, through `SimNsis`, for the Tauri setup and its uninstaller as the spike observed them. `Machine` gained `run`, `registry_value` and `download`.
+
+**Studio.** `get_tauri` returns a `TauriView`: `configured`, `config`, `config_found`, `imported`, `stale`, `drift`, `pending` (the values a re-import would change), `snapshot`, `windows`, `needs_wrap`, `identity` (imported against project value, `overridden`, `differs`), `webview2` (imported, override, effective, each mode's size and network need, and what the step does with and without the runtime), `updates` and `problems`. `import_tauri` and `update_tauri_settings` change `installer.toml`, `components.toml` and `tauri.json` as one history entry (`DocKey` `tauri`). The same state is on the Tauri screen.
