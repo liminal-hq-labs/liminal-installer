@@ -31,5 +31,5 @@ ln -s /opt/lt-fizz/bin/fizz %{buildroot}/usr/bin/lt-fizz
 /usr/bin/lt-fizz
 
 %changelog
-* Thu Jan 01 1970 Liminal HQ <noreply@localhost> - 1.0.0-1
+* Mon Jan 05 2026 Liminal HQ <noreply@localhost> - 1.0.0-1
 - Packaged by liminst

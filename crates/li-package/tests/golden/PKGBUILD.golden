@@ -6,7 +6,7 @@ pkgdesc='A space adventure about carbonated heroics.'
 arch=('x86_64')
 url='https://example.org/fizz'
 license=('MIT')
-options=('!strip')
+options=('!strip' '!debug')
 source=("$pkgname-$pkgver.tar.gz")
 sha256sums=('27b105f3536cb43a4b53a4b918dab51a93b9d4d5ada5f7e11d9c7affe713f2b3')
 

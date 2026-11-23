@@ -62,7 +62,7 @@ pub enum PackageError {
 }
 
 impl PackageError {
-	pub(crate) fn io(path: impl AsRef<std::path::Path>, source: std::io::Error) -> Self {
+	pub fn io(path: impl AsRef<std::path::Path>, source: std::io::Error) -> Self {
 		PackageError::Io {
 			path: path.as_ref().display().to_string(),
 			source,

@@ -33,7 +33,7 @@ pub fn pkgbuild(info: &PackageInfo, source_sha256: &str) -> String {
 		"license=({})\n",
 		sh_quote(info.licence.as_deref().unwrap_or("custom"))
 	));
-	out.push_str("options=('!strip')\n");
+	out.push_str("options=('!strip' '!debug')\n");
 	out.push_str("source=(\"$pkgname-$pkgver.tar.gz\")\n");
 	out.push_str(&format!("sha256sums=({})\n\n", sh_quote(source_sha256)));
 	out.push_str("package() {\n");

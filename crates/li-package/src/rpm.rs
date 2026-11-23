@@ -48,7 +48,7 @@ pub fn spec(info: &PackageInfo) -> String {
 		out.push_str(&format!("/usr/bin/{slug}\n"));
 	}
 	out.push_str(&format!(
-		"\n%changelog\n* Thu Jan 01 1970 {} <noreply@localhost> - {}-1\n- Packaged by liminst\n",
+		"\n%changelog\n* Mon Jan 05 2026 {} <noreply@localhost> - {}-1\n- Packaged by liminst\n",
 		info.publisher,
 		info.package_version()
 	));
