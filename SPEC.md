@@ -6,8 +6,8 @@ The file formats, operations and interfaces behind the [architecture](docs/archi
 
 Everything in this specification is in progress. Nothing is released, and any part may change between commits.
 
-- **Engine** (plan, stage, commit, record): in progress.
-- **CLI** (`check`, `preview`, `build`, `feed`, `theme`, `studio`): in progress. `check` and `preview` come first, on one modern target with the default theme.
+- **Engine** (plan, stage, commit, record): in progress. Install, update, modify, repair, uninstall and launch work end to end on Linux through the runner (§14).
+- **CLI** (`check`, `preview`, `build`, `keygen`, `feed`, `theme`, `studio`): in progress. `check`, `preview` and the Linux `build` (themed `.run` and `.lip`) work, and feeds and themes are signed.
 - **Renderers**: `tui` is in progress; `tui-retro`, `win16`, `win32-classic`, `canvas` and `web` are in progress as scaffolds or designs.
 - **Studio** and its MCP and GraphQL API: in progress.
 - **Example installers** for Planboard and Lt. Fizz: in progress.
@@ -66,6 +66,8 @@ outputs  = ["setup-exe", "msix"]
 [signing]
 feed_key = "keys/feed.pub"   # pinned into every build
 ```
+
+`feed_key` is the public half of a key made by `liminst keygen`. A relative path is looked up beside `installer.toml`, then in the project folder. `build` reads it and carries it in the `.lip` (§14), where the installed runner keeps it. A product with no `feed_key` cannot update from a feed unless the person names a key.
 
 ## 4 · Components
 
@@ -222,7 +224,7 @@ Table 6. Where each platform's registrations go.
 		"themes": ["afterglow"] } ] }
 ```
 
-A feed is published with a detached signature at `feed.json.sig`. Clients check it against the pinned key before reading anything else, and refuse a feed whose version or timestamp goes backwards. A feed may also carry a `themes` section that lists shareable themes (see D8 in [docs/decisions.md](docs/decisions.md)).
+A feed is published with a detached signature at `feed.json.sig`: the Ed25519 signature, as hex, over the exact bytes of `feed.json`. Clients check it against the pinned key before reading anything else, and refuse a feed whose version or timestamp goes backwards (the runner remembers the last feed it verified). An artefact's `url` may be an `http(s)` URL, an absolute path, or a path beside the feed. A feed may also carry a `themes` section that lists shareable themes (see D8 in [docs/decisions.md](docs/decisions.md)).
 
 ## 12 · CLI
 
@@ -230,13 +232,18 @@ A feed is published with a detached signature at `feed.json.sig`. Clients check 
 |---|---|
 | `init` | Create `installer/` in a product repository |
 | `check` | Validate the project for every target |
-| `preview --target t` | Dry run; prints the plan, or opens the renderer |
+| `preview --target t` | Dry run; prints the plan the engine would build, and draws each step |
 | `build --target t` | Write the themed and native outputs for a target |
-| `feed add` | Add the built release to a feed and sign it |
-| `theme pack` | Package and sign a theme for sharing |
+| `keygen` | Make an Ed25519 key pair: `<out>.key` (secret) and `<out>.pub` (public, as hex) |
+| `feed add` | Add the built release to a feed; `--sign-key` signs it |
+| `theme pack` | Package a theme for sharing; `--sign-key` signs it |
 | `studio --mcp` | Serve the project to the Studio and agents |
 
 Table 7. `liminst` commands.
+
+`check` loads the project with the engine and reports the CLI's checks (flows, themes, layouts, accessible names, components) with the engine's condition, component and hook checks. `preview` prints the engine's Plan phase against a simulated machine, so it shows the same operations, hashes and script hooks an install runs. Exit codes: 0 success, 1 the project has errors, 2 the command could not run.
+
+`build` outputs, by name: `lip` (the payload and bundled project, §14), `run` (with `--engine PATH`, a themed self-extracting installer that carries the runner and the `.lip`; without it, a `.run` that only extracts the files and a receipt), and the native formats `deb`, `rpm`, `arch`, `msi`, `msix` and `pkg`. A themed `run` also writes its `.lip`, which is what `feed add` publishes. `feed add --sign-key FILE` writes `<feed>.sig`; without a key it removes a signature that no longer matches. `theme pack --sign-key FILE` writes `<archive>.sig`, the hex signature over the archive.
 
 Example 2. A CI job.
 
@@ -262,3 +269,38 @@ The Studio serves MCP and GraphQL on `127.0.0.1`, protected by a token it prints
 | `check_project` | The same checks as `liminst check` |
 
 Table 8. MCP tools.
+
+## 14 · The runner
+
+`liminal-engine` is the small program a themed installer hands over to. It reads a `.lip`, loads the project bundled in it, and runs the real flows with the `tui` renderer.
+
+A `.lip` is the container of `li-pack`: the files the target's components name, at their project-relative paths, plus a bundle under `_project/`:
+
+| Entry | Holds |
+|---|---|
+| `_project/installer/…` | `installer.toml`, `components.toml`, `flows/`, `themes/` and `scripts/` |
+| `_project/target` | The target id the payload was packed for, such as `linux-x86_64` |
+| `_project/version` | The product version of the build |
+| `_project/feed.pub` | The pinned feed key, as hex, when `signing.feed_key` is set |
+
+Table 9. A bundled `.lip`.
+
+The themed `.run` is the shell stub of `li-package` followed by a gzip tar of `engine/liminal-engine` and `payload.lip`. The stub verifies the checksum, extracts to the prefix (`--prefix`, else `/opt/<slug>` as root, else `$XDG_DATA_HOME/<slug>`) and runs `engine/liminal-engine install --from <prefix>`, passing on everything after `--`.
+
+| Command | Does |
+|---|---|
+| `install [--from DIR] [--lip FILE] [--component ID]… [--feed F] [--channel C]` | Runs the install flow. The install directory is the flow's `install_dir` answer, else `--install-dir`, else `--from`. `--feed` is kept in the receipt for later updates |
+| `update [--feed URL\|PATH] [--feed-key FILE]` | Verifies the feed, downloads the release's `.lip`, checks its size and SHA-256 against the feed, and updates with the new `.lip`'s project, keeping the installed components |
+| `modify [--component ID]…` | Installs exactly these components (the default is those installed now) |
+| `repair` | Redoes every recorded operation whose file is missing or changed |
+| `uninstall` | Undoes the receipt in reverse, then removes the runner's own files |
+| `launch [--feed F]` | Starts the first shortcut's target; if the feed has a newer release it says so first, then starts the product |
+
+Table 10. Runner commands.
+
+- **Flows.** `install` needs an install flow. `update`, `modify` and `uninstall` run the project's flow of that name when it has one, with the work at its `commit` step, and otherwise just do the work. `repair` and `launch` have no flow.
+- **Interactive and headless.** With a terminal each page is drawn with the `tui` renderer (`--look retro|plain`, else `retro` for `tui-retro` targets); the commit page redraws as `Progress` events arrive, and Esc on it cancels and rolls back. With `--headless`, or with no terminal, every page is answered from `--answer key=value` (a value is JSON when it parses, else text; `components=a,b` selects components) and Next is pressed.
+- **Where it lives.** After an install the runner copies itself, the `.lip` and the pinned key to `{install}/.liminal/runner/`, and removes what the stub extracted. Later commands find the install from their own location, or from `--install-dir`. `uninstall` removes that folder, then `.liminal` and the install directory if they are empty.
+- **Feeds.** A feed is a `feed.json` path, the folder that holds it, or a URL (fetched with `curl`). The detached `feed.json.sig` must verify against the key pinned at install (or `--feed-key`) before anything is read; a feed older than the last one verified is refused.
+- **Scope.** The runner installs for the person running it, with the user-scope directories of `li-engine`'s `RealMachine`. Elevation is not implemented yet.
+- **Exit codes.** 0 success, 1 failure (the engine rolled every change back), 2 bad arguments, 3 the person cancelled.

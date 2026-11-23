@@ -10,13 +10,13 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 use li_render_tui::Look;
 
 use crate::build::{BuildRequest, Builder, NativeBuilder, resolve_version};
-use crate::check::{DefaultChecker, check_project};
-use crate::plan::StaticPlanner;
+use crate::check::{DefaultChecker, EngineChecker, ProjectChecker, check_project};
+use crate::plan::EnginePlanner;
 use crate::preview::{Only, PreviewOptions, preview};
-use crate::project::Project;
+use crate::project::{self, Project};
 use crate::scaffold::{InitOptions, init};
 use crate::util::to_json_tabs;
-use crate::{CliError, CliResult, feed, theme_pack};
+use crate::{CliError, CliResult, feed, keygen, theme_pack};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -49,6 +49,8 @@ pub enum Command {
 	Preview(PreviewArgs),
 	/// Write the outputs for a target
 	Build(BuildArgs),
+	/// Make an Ed25519 key pair for signing feeds and themes
+	Keygen(KeygenArgs),
 	/// Work with release feeds
 	#[command(subcommand)]
 	Feed(FeedCommand),
@@ -71,6 +73,16 @@ pub struct InitArgs {
 	#[arg(long, default_value = "Unknown publisher")]
 	pub publisher: String,
 	/// Overwrite an existing scaffold
+	#[arg(long)]
+	pub force: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct KeygenArgs {
+	/// Where to write the pair: `<OUT>.key` (secret) and `<OUT>.pub` (public)
+	#[arg(long, default_value = "feed", value_name = "OUT")]
+	pub out: PathBuf,
+	/// Replace existing key files
 	#[arg(long)]
 	pub force: bool,
 }
@@ -134,7 +146,7 @@ pub struct BuildArgs {
 	/// Build only these outputs, for example run or deb (repeatable; default: the target's outputs)
 	#[arg(long = "output", value_name = "NAME")]
 	pub outputs: Vec<String>,
-	/// An engine binary to carry in the installer and start after extraction
+	/// The `liminal-engine` runner to carry in the `.run`; without it the `.run` only extracts
 	#[arg(long, value_name = "PATH")]
 	pub engine: Option<PathBuf>,
 }
@@ -168,7 +180,7 @@ pub struct FeedAddArgs {
 	/// The channel to point at this version
 	#[arg(long, default_value = "stable")]
 	pub channel: String,
-	/// Sign the feed with this key (not available yet)
+	/// Sign the feed with this secret key (from `liminst keygen`); writes `<feed>.sig`
 	#[arg(long, value_name = "FILE")]
 	pub sign_key: Option<PathBuf>,
 }
@@ -186,7 +198,7 @@ pub struct ThemePackArgs {
 	/// The archive to write (default: <theme id>.litheme in the project folder)
 	#[arg(short, long, value_name = "FILE")]
 	pub out: Option<PathBuf>,
-	/// Sign the theme with this key (not available yet)
+	/// Sign the theme with this secret key (from `liminst keygen`); writes `<archive>.sig`
 	#[arg(long, value_name = "FILE")]
 	pub sign_key: Option<PathBuf>,
 }
@@ -199,7 +211,7 @@ pub struct StudioArgs {
 }
 
 fn load(cli: &Cli) -> CliResult<Project> {
-	Project::load(&cli.project).map_err(Into::into)
+	project::load(&cli.project).map_err(Into::into)
 }
 
 fn find_target<'a>(project: &'a Project, id: &str) -> CliResult<&'a li_model::Target> {
@@ -248,6 +260,8 @@ fn titleize(slug: &str) -> String {
 		.join(" ")
 }
 
+const CHECKERS: &[&dyn ProjectChecker] = &[&DefaultChecker, &EngineChecker];
+
 /// Runs a parsed command line and returns its exit code.
 pub fn execute(cli: &Cli) -> CliResult<u8> {
 	match &cli.command {
@@ -282,7 +296,7 @@ pub fn execute(cli: &Cli) -> CliResult<u8> {
 			Ok(0)
 		}
 		Command::Check(a) => {
-			let project = match Project::load(&cli.project) {
+			let project = match project::load(&cli.project) {
 				Ok(p) => p,
 				Err(crate::LoadError::Invalid(d)) => {
 					let report = crate::diag::Report::new(vec![], vec![d]);
@@ -294,7 +308,7 @@ pub fn execute(cli: &Cli) -> CliResult<u8> {
 			for t in &a.targets {
 				find_target(&project, t)?;
 			}
-			let report = check_project(&project, &a.targets, &[&DefaultChecker]);
+			let report = check_project(&project, &a.targets, CHECKERS);
 			print_report(&report, a.json);
 			Ok(report.exit_code())
 		}
@@ -317,17 +331,13 @@ pub fn execute(cli: &Cli) -> CliResult<u8> {
 				height,
 				json: a.json,
 			};
-			print!("{}", preview(&project, target, &StaticPlanner, &opts)?);
+			print!("{}", preview(&project, target, &EnginePlanner, &opts)?);
 			Ok(0)
 		}
 		Command::Build(a) => {
 			let project = load(cli)?;
 			let target = find_target(&project, &a.target)?;
-			let report = check_project(
-				&project,
-				std::slice::from_ref(&a.target),
-				&[&DefaultChecker],
-			);
+			let report = check_project(&project, std::slice::from_ref(&a.target), CHECKERS);
 			if !report.ok {
 				eprint!("{}", report.render_text());
 				eprintln!("Not building: fix the errors above (run `liminst check`).");
@@ -359,12 +369,21 @@ pub fn execute(cli: &Cli) -> CliResult<u8> {
 			}
 			Ok(0)
 		}
+		Command::Keygen(a) => {
+			let keys = keygen::generate(&a.out, a.force)?;
+			println!(
+				"Secret key: {} (keep it out of the repository)",
+				keys.secret.display()
+			);
+			println!("Public key: {}", keys.public.display());
+			println!("Public key (hex): {}", keys.public_hex);
+			println!(
+				"Next: copy the public key into installer/ and set `signing.feed_key` in installer.toml to its path, then `liminst feed add --sign-key {}`.",
+				keys.secret.display()
+			);
+			Ok(0)
+		}
 		Command::Feed(FeedCommand::Add(a)) => {
-			if a.sign_key.is_some() {
-				return Err(CliError::new(
-					"feed signing is not available yet; run without --sign-key",
-				));
-			}
 			let project = load(cli)?;
 			let target = find_target(&project, &a.target)?;
 			let version = resolve_version(&project, a.version.as_deref())
@@ -377,8 +396,9 @@ pub fn execute(cli: &Cli) -> CliResult<u8> {
 				url: &a.url,
 				version: &version,
 				channel: &a.channel,
+				sign_key: a.sign_key.as_deref(),
 			};
-			feed::add(&project, &req)?;
+			let (_, signature) = feed::add(&project, &req)?;
 			println!(
 				"Added {} {} ({}) to {}",
 				project.installer.product.id,
@@ -386,15 +406,18 @@ pub fn execute(cli: &Cli) -> CliResult<u8> {
 				target.full_id(),
 				a.feed.display()
 			);
-			println!("Note: the feed is unsigned; signing is not available yet.");
+			match signature {
+				feed::Signature::Signed(sig) => println!("Signed: {}", sig.display()),
+				feed::Signature::Unsigned { removed_stale } => {
+					println!("Note: the feed is unsigned; pass --sign-key to sign it.");
+					if removed_stale {
+						println!("Removed the old signature, which no longer matched.");
+					}
+				}
+			}
 			Ok(0)
 		}
 		Command::Theme(ThemeCommand::Pack(a)) => {
-			if a.sign_key.is_some() {
-				return Err(CliError::new(
-					"theme signing is not available yet; run without --sign-key",
-				));
-			}
 			let project = load(cli)?;
 			let name = match &a.theme {
 				Some(n) => n.clone(),
@@ -402,14 +425,18 @@ pub fn execute(cli: &Cli) -> CliResult<u8> {
 					CliError::new("name a theme to pack; the project sets no default theme")
 				})?,
 			};
-			let packed = theme_pack::pack(&project, &name, a.out.as_deref())?;
+			let packed =
+				theme_pack::pack(&project, &name, a.out.as_deref(), a.sign_key.as_deref())?;
 			println!(
 				"Packed theme `{name}`: {} files, sha256 {}\n  {}",
 				packed.files,
 				packed.sha256,
 				packed.path.display()
 			);
-			println!("Note: the theme is unsigned; signing is not available yet.");
+			match &packed.signature {
+				Some(sig) => println!("Signed: {}", sig.display()),
+				None => println!("Note: the theme is unsigned; pass --sign-key to sign it."),
+			}
 			Ok(0)
 		}
 		Command::Studio(a) => {

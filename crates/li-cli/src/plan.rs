@@ -1,82 +1,47 @@
-// Dry-run plans: what installing a target would do, before any scripts run.
+// Dry-run plans: what installing a target would do, from the engine's Plan phase.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::collections::BTreeSet;
+use std::path::PathBuf;
 
+use li_engine::{DirPayload, InstallRequest, SimMachine};
 use li_model::{Operation, Plan, Target};
 
-use crate::CliResult;
 use crate::project::Project;
+use crate::{CliError, CliResult};
 
-/// Builds the plan `preview` prints. The engine implements this by running the flow against a
-/// simulated machine; [`StaticPlanner`] is the default until it does.
+/// Builds the plan `preview` prints.
 pub trait Planner {
 	fn plan(&self, project: &Project, target: &Target) -> CliResult<Plan>;
 }
 
-/// A plan read straight from `components.toml`: directories, copies, shortcuts, file types,
-/// URL schemes and PATH entries for every component that applies to the target, then
-/// `receipt.write`. It runs no scripts and chooses no optional components.
-pub struct StaticPlanner;
+/// The engine's Plan phase against a simulated machine: every component that applies to the
+/// target, the `on_commit` script hooks, the file hashes and `receipt.write` last. Nothing on
+/// the machine is touched.
+pub struct EnginePlanner;
 
-impl Planner for StaticPlanner {
+impl Planner for EnginePlanner {
 	fn plan(&self, project: &Project, target: &Target) -> CliResult<Plan> {
-		let mut ops = Vec::new();
-		let mut dirs = BTreeSet::new();
-		for c in project
-			.components
-			.components
-			.iter()
-			.filter(|c| c.applies_to(&target.id))
-		{
-			for rule in &c.files {
-				let to_dir = match rule.to.rfind('/') {
-					Some(i) if !rule.to.ends_with('/') => &rule.to[..i],
-					_ => rule.to.trim_end_matches('/'),
-				};
-				if !to_dir.is_empty() && to_dir != "{install}" && dirs.insert(to_dir.to_owned()) {
-					ops.push(Operation::Mkdir {
-						path: to_dir.to_owned(),
-					});
-				}
-				ops.push(Operation::Copy {
-					from: rule.from.replace("{target}", &target.id),
-					to: rule.to.clone(),
-					sha256: None,
-				});
-			}
-			for s in &c.shortcut {
-				ops.push(Operation::Shortcut {
-					name: s.name.clone(),
-					target: s.target.clone(),
-					place: s.place.clone(),
-				});
-			}
-			for ft in &c.file_types {
-				ops.push(Operation::FileType {
-					extension: ft.extension.clone(),
-					name: ft.name.clone(),
-					open_with: ft.open_with.clone(),
-				});
-			}
-			for scheme in &c.url_schemes {
-				ops.push(Operation::UrlScheme {
-					scheme: scheme.clone(),
-					open_with: format!("{{install}}/{}", c.id),
-				});
-			}
-			for entry in &c.path {
-				ops.push(Operation::PathAdd {
-					entry: entry.clone(),
-				});
-			}
-		}
-		ops.push(Operation::ReceiptWrite {
-			path: format!("{{install}}/{}", li_model::Receipt::PATH),
-		});
-		Ok(Plan { ops })
+		let payload = DirPayload::new(&project.dir).map_err(|e| CliError::new(e.to_string()))?;
+		let slug = project
+			.installer
+			.product
+			.id
+			.rsplit('.')
+			.next()
+			.unwrap_or("app");
+		let req = InstallRequest {
+			target: target.id.clone(),
+			install_dir: PathBuf::from(format!("/opt/{slug}")),
+			scope: project.installer.defaults.scope,
+			components: None,
+			version: None,
+			feed: None,
+			channel: None,
+		};
+		li_engine::preview(project, &payload, &req, &SimMachine::new())
+			.map_err(|e| CliError::new(e.to_string()))
 	}
 }
 

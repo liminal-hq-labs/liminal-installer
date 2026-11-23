@@ -30,7 +30,9 @@ pub struct BuildRequest<'a> {
 	pub out_dir: PathBuf,
 	/// Output names to build; empty means the target's `outputs`, else the platform defaults.
 	pub outputs: Vec<String>,
-	/// The engine binary the themed installer hands over to, if any.
+	/// The `liminal-engine` runner to carry in the `.run`. With it the `.run` is themed: it
+	/// extracts the runner and the `.lip`, and the runner walks the install flow. Without it the
+	/// `.run` only extracts the files and a receipt.
 	pub engine: Option<PathBuf>,
 }
 
@@ -44,13 +46,13 @@ pub struct BuiltArtefact {
 	pub note: Option<String>,
 }
 
-/// Writes a target's outputs. [`NativeBuilder`] is the implementation that uses `li-package`;
-/// a themed-installer builder that links the engine and renderer would implement this too.
+/// Writes a target's outputs. [`NativeBuilder`] is the implementation: it packs the payload with
+/// the engine and uses `li-package` for the formats.
 pub trait Builder {
 	fn build(&self, req: &BuildRequest) -> Result<Vec<BuiltArtefact>, BuildError>;
 }
 
-/// Writes the self-extracting `.run` and the native package outputs from `li-package`. Outputs
+/// Writes the `.lip` payload, the self-extracting `.run` and the native package outputs. Outputs
 /// that need another toolchain (floppy images, `setup.exe`, signing) are reported as skipped.
 pub struct NativeBuilder;
 
@@ -107,14 +109,6 @@ impl Builder for NativeBuilder {
 			&req.project.dir,
 		)?;
 		info.licence = req.project.installer.product.licence.clone();
-		if let Some(engine) = &req.engine {
-			info.files.push(Entry {
-				dest: "engine/liminal-engine".into(),
-				content: Content::File(engine.clone()),
-				executable: true,
-			});
-			info.engine = Some("engine/liminal-engine".into());
-		}
 		let outputs = if !req.outputs.is_empty() {
 			req.outputs.clone()
 		} else if !req.target.outputs.is_empty() {
@@ -126,7 +120,7 @@ impl Builder for NativeBuilder {
 		std::fs::create_dir_all(dir).map_err(|e| PackageError::io(dir, e))?;
 		let mut built = Vec::new();
 		for name in &outputs {
-			built.push(build_one(name, &info, req, dir)?);
+			built.extend(build_one(name, &info, req, dir)?);
 		}
 		Ok(built)
 	}
@@ -144,7 +138,106 @@ fn done(kind: &str, path: PathBuf, note: Option<&str>) -> BuiltArtefact {
 	}
 }
 
+/// The pinned feed key from `signing.feed_key`: a path relative to `installer/`, else to the
+/// project folder.
+fn pinned_key(project: &Project) -> Result<Option<li_pack::VerifyingKey>, BuildError> {
+	let Some(rel) = &project.installer.signing.feed_key else {
+		return Ok(None);
+	};
+	let path = [project.dir.join(rel), project.root.join(rel)]
+		.into_iter()
+		.find(|p| p.is_file())
+		.ok_or_else(|| {
+			BuildError::Other(format!(
+				"signing.feed_key `{rel}` does not exist (looked beside installer.toml and in the project folder); run `liminst keygen`"
+			))
+		})?;
+	li_pack::read_public_key(&path)
+		.map(Some)
+		.map_err(|e| BuildError::Other(format!("{}: {e}", path.display())))
+}
+
+/// The `.lip` for the target: the payload files and the bundled project.
+fn lip_bytes(req: &BuildRequest) -> Result<Vec<u8>, BuildError> {
+	let plain = li_engine::pack_payload(req.project, &req.target.id)
+		.map_err(|e| BuildError::Other(e.to_string()))?;
+	li_engine::bundle::bundle_project(
+		req.project,
+		&plain,
+		&req.target.id,
+		&req.version,
+		pinned_key(req.project)?.as_ref(),
+	)
+	.map_err(|e| BuildError::Other(e.to_string()))
+}
+
+fn write_lip(info: &PackageInfo, req: &BuildRequest, dir: &Path) -> Result<PathBuf, BuildError> {
+	let out = dir.join(format!(
+		"{}-{}-{}.lip",
+		info.slug(),
+		info.version,
+		req.target.id
+	));
+	std::fs::write(&out, lip_bytes(req)?).map_err(|e| PackageError::io(&out, e))?;
+	Ok(out)
+}
+
 fn build_one(
+	name: &str,
+	info: &PackageInfo,
+	req: &BuildRequest,
+	dir: &Path,
+) -> Result<Vec<BuiltArtefact>, BuildError> {
+	if matches!(name, "lip" | "payload") {
+		let out = write_lip(info, req, dir)?;
+		return Ok(vec![done(
+			"lip",
+			out,
+			Some("the payload and project; publish it with `liminst feed add`"),
+		)]);
+	}
+	if matches!(name, "run" | "self-extracting")
+		&& let Some(engine) = &req.engine
+	{
+		return themed_run(info, req, engine, dir);
+	}
+	build_native(name, info, req, dir).map(|b| vec![b])
+}
+
+/// The themed `.run`: the runner and the `.lip`, nothing else. The runner makes the install, so
+/// the receipt records what it did.
+fn themed_run(
+	info: &PackageInfo,
+	req: &BuildRequest,
+	engine: &Path,
+	dir: &Path,
+) -> Result<Vec<BuiltArtefact>, BuildError> {
+	let lip = write_lip(info, req, dir)?;
+	let bytes = std::fs::read(&lip).map_err(|e| PackageError::io(&lip, e))?;
+	let mut themed = info.clone();
+	themed.engine = Some("engine/liminal-engine".into());
+	let entries = [
+		Entry {
+			dest: "engine/liminal-engine".into(),
+			content: Content::File(engine.to_owned()),
+			executable: true,
+		},
+		Entry::bytes("payload.lip", &bytes, false),
+	];
+	let out = dir.join(format!(
+		"{}-{}-{}.run",
+		info.slug(),
+		info.version,
+		req.target.id
+	));
+	run::build_engine(&themed, &entries, &out)?;
+	Ok(vec![
+		done("run", out, Some("themed; runs the install flow")),
+		done("lip", lip, Some("publish it with `liminst feed add`")),
+	])
+}
+
+fn build_native(
 	name: &str,
 	info: &PackageInfo,
 	req: &BuildRequest,

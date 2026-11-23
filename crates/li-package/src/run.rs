@@ -6,12 +6,17 @@
 //! The stub verifies the payload's SHA-256 when a hashing tool is present, extracts it to a
 //! prefix (`/opt/<slug>` as root, `$XDG_DATA_HOME/<slug>` otherwise, or `--prefix`), and then
 //! runs the project's engine from the payload with `install --from <prefix>` when the
-//! package names one. Options: `--prefix DIR`, `--list`, `--check`, `--noexec`, `--help`.
+//! package names one. Options: `--prefix DIR`, `--list`, `--check`, `--noexec`, `--help`, and
+//! `--` to pass the rest to the engine.
+//!
+//! [`build_engine`] writes the themed form: the archive holds only the engine and the files it
+//! needs (no receipt), and the engine makes the install, so the receipt records what it did.
 
 use std::path::Path;
 
+use crate::info::Entry;
 use crate::info::PackageInfo;
-use crate::payload::payload_tar_gz;
+use crate::payload::{entries_tar_gz, payload_tar_gz};
 use crate::xml::{sh_quote, sha256_hex};
 use crate::{PackageError, Result};
 
@@ -45,6 +50,7 @@ Options:
   --check       Verify the payload checksum and exit
   --noexec      Extract only; do not run the installer engine
   -h, --help    Show this help
+  --            Pass everything after it to the installer engine
 EOF
 }
 
@@ -104,6 +110,10 @@ while [ "$#" -gt 0 ]; do
 		usage
 		exit 0
 		;;
+	--)
+		shift
+		break
+		;;
 	*)
 		die "unknown option: $1 (try --help)"
 		;;
@@ -133,7 +143,7 @@ mkdir -p "$prefix" || die "cannot create $prefix"
 payload | tar -xzf - -C "$prefix" || die "extraction failed"
 
 if [ -n "$ENGINE" ] && [ "$noexec" = 0 ] && [ -x "$prefix/$ENGINE" ]; then
-	exec "$prefix/$ENGINE" install --from "$prefix"
+	exec "$prefix/$ENGINE" install --from "$prefix" "$@"
 fi
 echo "$PRODUCT $VERSION extracted to $prefix"
 exit 0
@@ -167,9 +177,26 @@ pub fn assemble(info: &PackageInfo) -> Result<Vec<u8>> {
 	Ok(out)
 }
 
+/// The complete `.run` for an engine-driven install: `entries` replace the product files and no
+/// receipt is added. `info.engine` must name one of the entries.
+pub fn assemble_engine(info: &PackageInfo, entries: &[Entry]) -> Result<Vec<u8>> {
+	let payload = entries_tar_gz(entries, None)?;
+	let mut out = stub(info, &sha256_hex(&payload)).into_bytes();
+	out.extend_from_slice(&payload);
+	Ok(out)
+}
+
 /// Writes the `.run` to `out` and marks it executable.
 pub fn build(info: &PackageInfo, out: &Path) -> Result<()> {
-	let bytes = assemble(info)?;
+	write_executable(&assemble(info)?, out)
+}
+
+/// Writes the engine-driven `.run` to `out` and marks it executable.
+pub fn build_engine(info: &PackageInfo, entries: &[Entry], out: &Path) -> Result<()> {
+	write_executable(&assemble_engine(info, entries)?, out)
+}
+
+fn write_executable(bytes: &[u8], out: &Path) -> Result<()> {
 	if let Some(dir) = out.parent() {
 		std::fs::create_dir_all(dir).map_err(|e| PackageError::io(dir, e))?;
 	}

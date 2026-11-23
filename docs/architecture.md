@@ -57,7 +57,7 @@ The Studio writes these files; nothing lives only inside the Studio. Hand-writte
 
 ## 2 · The engine
 
-The engine is a Rust library and a small host program. Every lifecycle operation runs in four phases:
+The engine is a Rust library and a small host program, the `liminal-engine` runner (see §14 of the [specification](../SPEC.md)). Every lifecycle operation runs in four phases:
 
 1. **Plan.** The flow runs and collects choices. Nothing on the machine changes; the result is an ordered list of operations, each with its undo.
 2. **Stage.** Payloads are downloaded or unpacked to a staging folder and checked against their hashes and signatures.

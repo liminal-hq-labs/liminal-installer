@@ -8,10 +8,16 @@
 //! The binary is a thin wrapper over this library. The parts the engine and the Studio plug
 //! into are traits:
 //!
-//! - [`ProjectChecker`]: one set of project checks ([`DefaultChecker`] uses `li-model` only).
+//! - [`ProjectChecker`]: one set of project checks ([`DefaultChecker`] is the CLI's own;
+//!   [`EngineChecker`] adds the engine's condition and hook checks).
 //! - [`Planner`]: turns a project and a target into a [`li_model::Plan`] for `preview`
-//!   ([`StaticPlanner`] lists what the components declare, without running scripts).
-//! - [`Builder`]: writes a target's outputs ([`NativeBuilder`] uses `li-package`).
+//!   ([`EnginePlanner`] runs the engine's Plan phase, scripts included, against a simulated
+//!   machine).
+//! - [`Builder`]: writes a target's outputs ([`NativeBuilder`] packs the payload with the
+//!   engine and uses `li-package` for the formats).
+//!
+//! Projects load through `li-engine`, so `check`, `preview` and `build` see what the runner
+//! will see.
 //!
 //! Exit codes: 0 means success, 1 means the project has errors, 2 means the command could not
 //! run (no project, bad arguments, an unavailable feature).
@@ -21,6 +27,7 @@ pub mod check;
 pub mod cli;
 pub mod diag;
 pub mod feed;
+pub mod keygen;
 pub mod plan;
 pub mod preview;
 pub mod project;
@@ -29,11 +36,11 @@ pub mod theme_pack;
 pub mod util;
 
 pub use build::{BuildError, BuildRequest, Builder, BuiltArtefact, NativeBuilder};
-pub use check::{DefaultChecker, ProjectChecker, check_project};
+pub use check::{DefaultChecker, EngineChecker, ProjectChecker, check_project};
 pub use cli::{Cli, run};
 pub use diag::{Diagnostic, Report, Severity};
-pub use plan::{Planner, StaticPlanner};
-pub use project::{LoadError, LoadedTheme, Project};
+pub use plan::{EnginePlanner, Planner};
+pub use project::{LoadError, Project};
 
 /// A command failure that stops `liminst` with exit code 2.
 #[derive(Debug, thiserror::Error)]
