@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { lex } from '../editor/luaLex';
 import { validateFlow } from './flowEdit';
 import { resolveForRenderer } from './layoutEdit';
 import type {
@@ -16,6 +17,7 @@ import type {
 	Preview,
 	Problem,
 	ProjectSummary,
+	ScriptDiagnostic,
 	ScriptReport,
 	Source,
 	TargetInfo,
@@ -141,18 +143,28 @@ export function demoApi(): Api {
 		layouts: [...layouts.keys()],
 		scripts: [...scripts.keys()],
 	});
-	const report = (path: string, source: string): ScriptReport => {
+	const report = (path: string, source: string, target?: string): ScriptReport => {
 		const hooks = [
 			['detect', 'A page opens'],
 			['validate', 'Before Next'],
 			['on_commit', 'Plan is built'],
 			['on_uninstall', 'Uninstall plan is built'],
 		].map(([name, when]) => ({ name: name!, when: when!, present: source.includes(`function ${name}(`) }));
-		const capabilities = [...new Set([...source.matchAll(/require\s*\(?\s*["'](li\.[a-z.]+)["']/g)].map((m) => m[1]!))];
+		const header = source.split('\n').filter((l) => /^\s*--/.test(l)).flatMap((l) => (/capabilities:(.*)$/.exec(l)?.[1] ?? '').split(/[,\s]+/).filter(Boolean));
+		const capabilities = [...new Set(header.map((c) => `li.${c.split('.')[0]}`))].sort();
 		const diagnostics: Problem[] = hooks.some((h) => h.present)
 			? []
 			: [{ severity: 'error', scope: `script:${path}`, message: 'the script defines no hook' }];
-		return { ok: diagnostics.length === 0, hooks, capabilities, diagnostics, output: hooks.filter((h) => h.present).map((h) => `${h.name}: ok (demo run)`) };
+		const present = hooks.filter((h) => h.present);
+		return {
+			ok: diagnostics.length === 0,
+			hooks,
+			capabilities,
+			diagnostics,
+			output: present.map((h) => `${h.name}: ok (demo run)`),
+			target: target ?? null,
+			tests: present.map((h) => ({ hook: h.name, ok: true, summary: 'ok (demo run)', lines: target ? [`sample: ${target}`] : [] })),
+		};
 	};
 
 	return {
@@ -183,7 +195,11 @@ export function demoApi(): Api {
 			return s;
 		},
 		writeScript: async (path, source, label) => edit({ type: 'script', id: path }, source, label),
-		testScript: async (path, source) => report(path, source ?? scripts.get(path) ?? ''),
+		testScript: async (path, source, target) => {
+			await new Promise((resolve) => setTimeout(resolve, 150));
+			return report(path, source ?? scripts.get(path) ?? '', target);
+		},
+		checkScriptSyntax: async (source) => demoCheck(source),
 		runPreview: async (target) => {
 			const flow = flows.get('install')!;
 			const [targetId = '', renderer = 'canvas'] = target.split(':');
@@ -264,4 +280,56 @@ export function demoApi(): Api {
 		},
 		pickProject: async () => null,
 	};
+}
+
+/**
+ * A stand-in for the backend's check, for the browser demo only: it balances blocks and warns about modules used without
+ * their capability. The desktop shell compiles the source with Lua and reports far more.
+ */
+export function demoCheck(source: string): ScriptDiagnostic[] {
+	const found: ScriptDiagnostic[] = [];
+	const lines = lex(source);
+	const stack: { word: string; line: number; col: number }[] = [];
+	const pairs: Record<string, string> = { ')': '(', ']': '[', '}': '{' };
+	for (const [index, line] of lines.entries()) {
+		if (line.startsInside) continue;
+		for (const t of line.tokens) {
+			const at = { line: index + 1, column: t.from + 1, end_line: index + 1, end_column: t.to + 1 };
+			if (['function', 'if', 'do', 'repeat', '(', '[', '{'].includes(t.text)) stack.push({ word: t.text, line: index + 1, col: t.from + 1 });
+			else if (['end', 'until', ')', ']', '}'].includes(t.text)) {
+				const top = stack[stack.length - 1];
+				const wants = pairs[t.text];
+				const ok = top && (wants ? top.word === wants : t.text === 'until' ? top.word === 'repeat' : ['function', 'if', 'do'].includes(top.word));
+				if (ok) stack.pop();
+				else found.push({ severity: 'error', code: 'syntax', message: `unexpected symbol near '${t.text}'`, ...at });
+			}
+		}
+	}
+	for (const open of stack) {
+		const last = Math.max(lines.length - 1, 1);
+		const closers: Record<string, string> = { repeat: "'until'", '(': "')'", '[': "']'", '{': "'}'" };
+		const closer = closers[open.word] ?? "'end'";
+		found.push({ severity: 'error', code: 'syntax', message: `${closer} expected (to close '${open.word}' at line ${open.line}) near <eof>`, line: last, column: 1, end_line: last, end_column: (lines[last - 1]?.text.length ?? 0) + 2 });
+	}
+	if (found.length > 0) return found;
+	const declared = new Set(
+		source
+			.split('\n')
+			.filter((l) => /^\s*--/.test(l))
+			.flatMap((l) => (/capabilities:(.*)$/.exec(l)?.[1] ?? '').split(/[,\s]+/).filter(Boolean)),
+	);
+	const need: Record<string, string> = { env: 'env', fs: 'fs.read', ui: 'ui', plan: 'plan', net: 'net' };
+	const warned = new Set<string>();
+	for (const [index, line] of lines.entries()) {
+		if (line.startsInside) continue;
+		line.tokens.forEach((t, i) => {
+			const m = line.tokens[i + 2];
+			if (t.text !== 'li' || line.tokens[i + 1]?.text !== '.' || !m || !(m.text in need) || warned.has(m.text)) return;
+			const cap = need[m.text]!;
+			if (declared.has(cap) || (cap === 'fs.read' && declared.has('fs.write'))) return;
+			warned.add(m.text);
+			found.push({ severity: 'warning', code: 'undeclared-capability', message: `\`li.${m.text}\` needs the \`${cap}\` capability; add \`-- capabilities: ${cap}\` at the top of the file`, line: index + 1, column: t.from + 1, end_line: index + 1, end_column: m.to + 1 });
+		});
+	}
+	return found;
 }

@@ -151,6 +151,28 @@ export interface ScriptReport {
 	capabilities: string[];
 	diagnostics: Problem[];
 	output: string[];
+	/** The `os-arch:renderer` target the test ran against, if one was named. */
+	target?: string | null;
+	/** One result per hook that ran, in order. */
+	tests?: HookRun[];
+}
+
+export interface HookRun {
+	hook: string;
+	ok: boolean;
+	summary: string;
+	lines: string[];
+}
+
+/** A finding about a script's source, from `check_script_syntax`. Lines and columns start at 1. */
+export interface ScriptDiagnostic {
+	severity: 'error' | 'warning';
+	code: string;
+	message: string;
+	line: number;
+	column: number;
+	end_line: number;
+	end_column: number;
 }
 
 export interface McpInfo {

@@ -39,7 +39,8 @@ pub fn tool_list() -> Value {
 		{"name": "update_layout", "description": "Replace a layout (`layout`), patch it (`patch`), or replace the node at `path` (child indexes) with `node`. With `renderer`, `node` becomes that renderer's override of the node; with `renderer` and no `node`, the override is removed.", "inputSchema": schema(json!({"id": id, "layout": {"type": "object"}, "patch": {"type": "object"}, "path": {"type": "array", "items": {"type": "integer"}}, "renderer": {"type": "string"}, "node": {"type": "object"}, "label": label}), &["id"])},
 		{"name": "read_script", "description": "Read a Lua script by its path under installer/, such as scripts/sound-setup.lua.", "inputSchema": schema(json!({"path": {"type": "string"}}), &["path"])},
 		{"name": "write_script", "description": "Create or replace a Lua script.", "inputSchema": schema(json!({"path": {"type": "string"}, "source": {"type": "string"}, "label": label}), &["path", "source"])},
-		{"name": "test_script", "description": "Run a script's tests; `source` tests unsaved text instead of the file.", "inputSchema": schema(json!({"path": {"type": "string"}, "source": {"type": "string"}}), &["path"])},
+		{"name": "test_script", "description": "Run a script's tests; `source` tests unsaved text instead of the file, and `target` (os-arch:renderer) runs them against that target's machine and components.", "inputSchema": schema(json!({"path": {"type": "string"}, "source": {"type": "string"}, "target": {"type": "string"}}), &["path"])},
+		{"name": "check_script_syntax", "description": "Check Lua source without running it: syntax errors with line and column, and warnings for capabilities used but not declared and for features the retro Lua subset lacks.", "inputSchema": schema(json!({"source": {"type": "string"}}), &["source"])},
 		{"name": "run_preview", "description": "Dry-run a target (os-arch:renderer): the plan, problems and an image of each step.", "inputSchema": schema(json!({"target": {"type": "string"}}), &["target"])},
 		{"name": "get_preview", "description": "The last preview, or null if the project changed since it ran.", "inputSchema": schema(json!({}), &[])},
 		{"name": "check_project", "description": "The same checks as `liminst check`.", "inputSchema": schema(json!({}), &[])}
@@ -139,7 +140,9 @@ pub fn call_tool(studio: &Studio, name: &str, args: &Value) -> Result<Value, Stu
 		"test_script" => to_value(&studio.test_script(
 			str_arg(args, "path")?,
 			args.get("source").and_then(Value::as_str),
+			args.get("target").and_then(Value::as_str),
 		)?),
+		"check_script_syntax" => to_value(&studio.check_script_syntax(str_arg(args, "source")?)),
 		"run_preview" => to_value(&studio.run_preview(str_arg(args, "target")?)?),
 		"get_preview" => to_value(&studio.get_preview()?),
 		"check_project" => to_value(&studio.check_project()?),
@@ -403,6 +406,7 @@ mod tests {
 				"read_script",
 				"write_script",
 				"test_script",
+				"check_script_syntax",
 				"run_preview",
 				"get_preview",
 				"check_project"
@@ -537,6 +541,31 @@ mod tests {
 			json!({"path": "scripts/hello.lua", "source": "-- empty"}),
 		);
 		assert_eq!(bad["ok"], false);
+	}
+
+	#[test]
+	fn script_syntax_is_checked_without_running_it() {
+		let (_d, s, _r) = open_example("neutral");
+		let (err, found) = call(
+			&s,
+			"check_script_syntax",
+			json!({"source": "function detect(page)\n\tlocal a = li.env.get('x')\n"}),
+		);
+		assert!(!err);
+		assert_eq!(found[0]["code"], "syntax");
+		assert_eq!(found[0]["severity"], "error");
+		assert_eq!(found[0]["line"], 2);
+		let (_, warned) = call(
+			&s,
+			"check_script_syntax",
+			json!({"source": "function detect(page)\n\tlocal a = li.env.get('x')\nend\n"}),
+		);
+		assert_eq!(warned[0]["code"], "undeclared-capability");
+		assert_eq!(warned[0]["severity"], "warning");
+		assert_eq!(
+			(warned[0]["line"].clone(), warned[0]["column"].clone()),
+			(json!(2), json!(12))
+		);
 	}
 
 	#[test]

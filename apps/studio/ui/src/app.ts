@@ -19,15 +19,28 @@ import type {
 } from './lib/types';
 import { SCREEN_ACTIONS, type ActionId, type Screen } from './chrome/menuModel';
 import type { ChromeStore } from './chrome/chromeStore';
-import { formatScript } from './lib/scriptText';
+import { scriptActions } from './lib/scriptActions';
 import type { Settings } from './lib/settings';
 import { layoutView } from './views/layouts';
 import { flowView } from './views/flow';
 import { previewView } from './views/preview';
 import { projectView } from './views/project';
-import { applyEditorSettings, scriptView } from './views/script';
+import { afterScriptRender, applyEditorSettings, scriptView } from './views/script';
 
 export type Route = Screen;
+
+export interface TestRun {
+	status: 'running' | 'done' | 'error';
+	target: string;
+	/** The text that was run. */
+	text: string;
+	/** True when it differed from the saved file. */
+	unsaved: boolean;
+	at?: Date;
+	ms?: number;
+	report?: ScriptReport;
+	error?: string;
+}
 
 export interface State {
 	route: Route;
@@ -48,7 +61,14 @@ export interface State {
 	overrideRenderer: string | null;
 	scriptPath: string;
 	scriptSource: string;
+	/** The text in the editor. It equals `scriptSource` until there are unsaved edits, and `scriptDirty` is whether it does not. */
+	scriptDraft: string;
 	scriptDirty: boolean;
+	/** The target a test runs against (`os-arch:renderer`), or empty for the sample machine. */
+	scriptTarget: string;
+	/** The last test run on this script, which goes out of date as the draft changes. */
+	testRun: TestRun | null;
+	/** The hooks and capabilities the script has, from the last report. */
 	report: ScriptReport | null;
 	previewTarget: string;
 	preview: Preview | null;
@@ -76,8 +96,18 @@ export interface Ctx {
 	loadFlow(id: string): Promise<void>;
 	loadLayout(id: string): Promise<void>;
 	loadScript(path: string): Promise<void>;
-	saveScript(source: string): Promise<void>;
-	testScript(source?: string): Promise<void>;
+	/** Opens another script, asking first when the open one has unsaved edits. */
+	selectScript(path: string): Promise<void>;
+	/** Saves the draft. */
+	saveScript(): Promise<void>;
+	/** Runs the draft against the chosen target. */
+	testScript(): Promise<void>;
+	/** The editor's text changed. */
+	setDraft(text: string): void;
+	discardDraft(): void;
+	formatDraft(): void;
+	/** Shows a message for a moment. */
+	toast(text: string, error: boolean, ms?: number): void;
 	runPreview(target: string): Promise<void>;
 	openProject(): Promise<void>;
 	/** Opens the project in a folder, and remembers it as a recent one. */
@@ -94,6 +124,8 @@ export interface App {
 	dispatch(id: ActionId): Promise<boolean>;
 	/** Opens the project in a folder, as the Open recent menu does. Resolves true when it opened. */
 	openPath(path: string): Promise<boolean>;
+	/** Throws away unsaved script edits. */
+	discard(): void;
 }
 
 const NAV: { route: Route; label: string; icon: string }[] = [
@@ -121,13 +153,13 @@ const icon = (d: string) => {
 	return s;
 };
 
-export async function startApp(root: HTMLElement, chrome: ChromeStore, options: { header: boolean; /** The backend to use instead of the desktop shell or the demo. For tests. */ api?: Api }): Promise<App> {
+export async function startApp(root: HTMLElement, chrome: ChromeStore, options: { header: boolean; /** The backend to use instead of the desktop shell or the demo. For tests. */ api?: Api; /** Settles unsaved script edits before they would be lost: true to go on. */ settleUnsaved?: () => Promise<boolean> }): Promise<App> {
 	let api: Api;
 	try {
 		api = options.api ?? (await createApi());
 	} catch (e) {
 		mount(root, h('p', { class: 'fatal' }, String(e)));
-		return { dispatch: async () => false, openPath: async () => false };
+		return { dispatch: async () => false, openPath: async () => false, discard: () => undefined };
 	}
 	const state: State = {
 		route: 'project',
@@ -147,7 +179,10 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		overrideRenderer: null,
 		scriptPath: '',
 		scriptSource: '',
+		scriptDraft: '',
 		scriptDirty: false,
+		scriptTarget: '',
+		testRun: null,
 		report: null,
 		previewTarget: '',
 		preview: null,
@@ -166,11 +201,28 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		}, ms);
 	}
 
+	const script = scriptActions({
+		state,
+		api,
+		formatOnSave: () => chrome.get().settings.formatOnSave,
+		render: () => render(),
+		syncChrome: () => syncChrome(),
+		toast: (text, error, ms = 3000) => showToast(text, error, ms),
+		// Without a window to ask in, unsaved edits are discarded.
+		guard:
+			options.settleUnsaved ??
+			(async () => {
+				script.discardDraft();
+				return true;
+			}),
+	});
+
 	const ctx: Ctx = {
 		api,
 		state,
 		render,
 		syncChrome,
+		toast: (text, error, ms = 3000) => showToast(text, error, ms),
 		go(route) {
 			state.route = route;
 			state.connectFrom = null;
@@ -208,27 +260,7 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		async saveLayout(layout, label) {
 			state.layout = await api.setLayout(layout.id, layout, label);
 		},
-		async loadScript(path) {
-			state.scriptPath = path;
-			state.scriptSource = await api.readScript(path);
-			state.scriptDirty = false;
-			state.report = await api.testScript(path);
-		},
-		async saveScript(source) {
-			if (chrome.get().settings.formatOnSave) {
-				const formatted = formatScript(source);
-				const area = document.getElementById('script-editor') as HTMLTextAreaElement | null;
-				if (area && area.value !== formatted) area.value = formatted;
-				source = formatted;
-			}
-			await api.writeScript(state.scriptPath, source, `Edit ${state.scriptPath}`);
-			state.scriptSource = source;
-			state.scriptDirty = false;
-			state.report = await api.testScript(state.scriptPath);
-		},
-		async testScript(source) {
-			state.report = await api.testScript(state.scriptPath, source);
-		},
+		...script,
 		async runPreview(target) {
 			state.previewTarget = target;
 			state.preview = await api.runPreview(target);
@@ -272,10 +304,7 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		state.layout = null;
 		state.layoutPath = [];
 		state.overrideRenderer = null;
-		state.scriptPath = '';
-		state.scriptSource = '';
-		state.scriptDirty = false;
-		state.report = null;
+		script.clearScript();
 		state.previewTarget = '';
 		state.previewStep = 0;
 		state.preview = null;
@@ -310,10 +339,7 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		if (state.layoutId) await ctx.loadLayout(state.layoutId);
 		if (state.scriptPath && !sum.scripts.includes(state.scriptPath)) {
 			// The script is gone from this project. The Scripts screen opens the first one when it is next shown.
-			state.scriptPath = '';
-			state.scriptSource = '';
-			state.scriptDirty = false;
-			state.report = null;
+			script.clearScript();
 		} else if (state.scriptPath && !state.scriptDirty) await ctx.loadScript(state.scriptPath);
 	}
 
@@ -349,7 +375,7 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		const next = chrome.get().settings;
 		const was = seen;
 		seen = next;
-		if (state.route === 'script') applyEditorSettings(root, next);
+		if (state.route === 'script') applyEditorSettings(ctx, next);
 		if (next.mcpEnabled !== was.mcpEnabled || next.mcpPort !== was.mcpPort) {
 			// Only the card changes, so text typed in the script editor stays as it is.
 			void Promise.all([api.mcpInfo(), api.mcpError().catch(() => null)]).then(([info, why]) => {
@@ -379,9 +405,6 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		chrome.setTitle(state.summary ? `${state.summary.name}${screen}` : '');
 	}
 
-	/** The text in the script editor, which is ahead of `scriptSource` while there are unsaved edits. */
-	const editorText = () => (document.getElementById('script-editor') as HTMLTextAreaElement | null)?.value ?? state.scriptSource;
-
 	const actions: Partial<Record<ActionId, () => Promise<void>>> = {
 		'file.open': () => ctx.openProject(),
 		'file.reload': async () => {
@@ -392,7 +415,7 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 			showToast('Reloaded from disk', false, 2500);
 		},
 		'file.save': async () => {
-			if (state.route === 'script' && state.scriptPath) await ctx.saveScript(editorText());
+			if (state.scriptPath && state.scriptDirty) await ctx.saveScript();
 		},
 		'edit.undo': async () => void (await api.undo()),
 		'edit.redo': async () => void (await api.redo()),
@@ -504,10 +527,7 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 				s.toast ? h('div', { class: `toast ${s.toast.error ? 'error' : ''}`, role: 'status' }, s.toast.text) : null,
 			),
 		);
-		if (s.route === 'script') {
-			applyEditorSettings(root, chrome.get().settings);
-			document.getElementById('script-editor')?.focus({ preventScroll: true });
-		}
+		if (s.route === 'script') afterScriptRender(ctx);
 		syncChrome();
 	}
 
@@ -533,5 +553,9 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 			return action ? ctx.run(action) : Promise.resolve(false);
 		},
 		openPath: (path) => ctx.run(() => ctx.openPath(path)),
+		discard: () => {
+			ctx.discardDraft();
+			render();
+		},
 	};
 }

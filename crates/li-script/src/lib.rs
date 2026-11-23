@@ -44,6 +44,8 @@
 //! Long-running work inside a single library call, such as a pathological pattern match, is not
 //! interrupted by the instruction count.
 
+pub mod check;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};

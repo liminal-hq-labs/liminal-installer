@@ -13,6 +13,7 @@ import type {
 	Preview,
 	Problem,
 	ProjectSummary,
+	ScriptDiagnostic,
 	ScriptReport,
 	TargetInfo,
 } from './types';
@@ -27,7 +28,10 @@ export interface Api {
 	setLayout(id: string, layout: Layout, label: string): Promise<Layout>;
 	readScript(path: string): Promise<string>;
 	writeScript(path: string, source: string, label: string): Promise<void>;
-	testScript(path: string, source?: string): Promise<ScriptReport>;
+	/** Runs the script's hooks against a sample; `target` (`os-arch:renderer`) builds the sample from that target. */
+	testScript(path: string, source?: string, target?: string): Promise<ScriptReport>;
+	/** Checks Lua source without running it: syntax errors and warnings, with lines and columns. */
+	checkScriptSyntax(source: string): Promise<ScriptDiagnostic[]>;
 	runPreview(target: string): Promise<Preview>;
 	getPreview(): Promise<Preview | null>;
 	checkProject(): Promise<Problem[]>;
@@ -58,7 +62,8 @@ async function tauriApi(): Promise<Api> {
 		setLayout: (id, layout, label) => invoke('set_layout', { id, layout, label }),
 		readScript: (path) => invoke('read_script', { path }),
 		writeScript: (path, source, label) => invoke('write_script', { path, source, label }),
-		testScript: (path, source) => invoke('test_script', { path, source: source ?? null }),
+		testScript: (path, source, target) => invoke('test_script', { path, source: source ?? null, target: target ?? null }),
+		checkScriptSyntax: (source) => invoke('check_script_syntax', { source }),
 		runPreview: (target) => invoke('run_preview', { target }),
 		getPreview: () => invoke('get_preview'),
 		checkProject: () => invoke('check_project'),

@@ -261,13 +261,32 @@ ul.tree li.selected { background: var(--lh-accent-soft); color: var(--lh-accent)
 .chip { font: 11px var(--lh-font-mono); padding: 0 6px; border-radius: var(--lh-radius-pill); background: rgba(167, 139, 250, 0.15); color: var(--lh-brand-purple); }
 
 .script-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; align-items: start; }
-/* The editor is a textarea beside a gutter of line numbers; the Editor settings set the variables on `.editor`. */
-.editor { display: flex; min-width: 0; min-height: 62vh; border: 1px solid var(--lh-border-default); border-radius: var(--lh-radius-sm); background: var(--lh-bg-sidebar); overflow: hidden; }
-.editor-gutter { flex: 0 0 auto; overflow: hidden; padding: 4px 8px 4px 10px; text-align: right; color: var(--lh-text-muted); border-right: 1px solid var(--lh-border-subtle); user-select: none; font: var(--editor-font-size, 13px)/1.5 var(--lh-font-mono); }
-.editor-gutter div { white-space: pre; }
-.editor[data-numbers="off"] .editor-gutter { display: none; }
-textarea.code { flex: 1 1 auto; width: 100%; min-height: 62vh; resize: none; border: 0; border-radius: 0; background: transparent; tab-size: var(--editor-tab, 4); line-height: 1.5; font-size: var(--editor-font-size, 13px); white-space: pre; overflow: auto; }
-.editor[data-wrap="on"] textarea.code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.script-main { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.target-pick { display: inline-flex; align-items: center; gap: 6px; }
+/* The editor is CodeMirror, mounted by script.ts; the Editor settings set `--editor-font-size` on `.script-editor`. */
+.editor-frame { display: flex; min-width: 0; height: 56vh; min-height: 280px; border: 1px solid var(--lh-border-default); border-radius: var(--lh-radius-sm); background: var(--lh-bg-sidebar); overflow: hidden; }
+.script-editor { flex: 1 1 auto; min-width: 0; height: 100%; }
+.script-editor .cm-editor { height: 100%; }
+.script-editor .cm-scroller { overflow: auto; }
+.editor-foot { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center; }
+.editor-foot .err { color: var(--lh-colour-error); }
+.console { border: 1px solid var(--lh-border-subtle); border-radius: var(--lh-radius-sm); background: var(--lh-bg-panel); padding: 8px 12px; }
+.console.stale .console-body { opacity: 0.55; }
+.console-body { font: 12px/1.8 var(--lh-font-mono); color: var(--lh-text-secondary); }
+.console .line { white-space: pre-wrap; }
+.console .line.sub { padding-left: 18px; line-height: 1.5; }
+.console .mark { display: inline-block; width: 1.2em; }
+.console .ok { color: var(--lh-colour-success); }
+.console .err { color: var(--lh-colour-error); }
+.console .warn { color: var(--lh-colour-warning); }
+.console .line.ok, .console .line.err { color: var(--lh-text-secondary); }
+.console .line.ok .mark { color: var(--lh-colour-success); }
+.console .line.err .mark { color: var(--lh-colour-error); }
+.console .line.warn .mark { color: var(--lh-colour-warning); }
+.console .summary { margin-top: 4px; }
+/* Syntax colours for the editor, from the design tokens. Light themes take the deeper steps of the palette. */
+:root { --ed-keyword: var(--lh-brand-purple); --ed-function: var(--lh-brand-blue); --ed-string: var(--lh-brand-green); --ed-number: var(--lh-syntax-number); --ed-atom: var(--lh-brand-orange); --ed-comment: var(--lh-text-muted); --ed-definition: var(--lh-brand-cyan); --ed-property: var(--lh-text-secondary); --ed-punct: var(--lh-text-secondary); --ed-error: var(--lh-colour-error); }
+:root[data-theme="afterglow-light"] { --ed-keyword: var(--lh-purple-400); --ed-function: var(--lh-blue-400); --ed-string: var(--lh-green-400); --ed-number: #b4236b; --ed-atom: var(--lh-orange-400); --ed-definition: var(--lh-cyan-500); }
 pre.output { background: var(--lh-bg-sidebar); padding: 8px; border-radius: var(--lh-radius-sm); white-space: pre-wrap; margin: 0; }
 
 .preview-grid { display: grid; grid-template-columns: 220px minmax(0, 1fr) 360px; gap: 12px; align-items: start; }

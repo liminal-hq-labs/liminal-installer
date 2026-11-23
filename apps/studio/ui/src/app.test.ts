@@ -80,6 +80,7 @@ function fakeApi(overrides: Partial<Api> = {}): Fake {
 		readScript: async () => '',
 		writeScript: async () => undefined,
 		testScript: async () => ({ ok: true, hooks: [], capabilities: [], diagnostics: [], output: [] }),
+		checkScriptSyntax: async () => [],
 		runPreview: async () => {
 			throw new Error('not used');
 		},
