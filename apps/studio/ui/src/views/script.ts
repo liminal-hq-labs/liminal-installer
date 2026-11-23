@@ -31,6 +31,7 @@ export function scriptView(ctx: Ctx): HTMLElement {
 				s.scriptDirty = v !== s.scriptSource;
 				const flag = document.getElementById('script-dirty');
 				if (flag) flag.textContent = s.scriptDirty ? 'Unsaved changes' : 'Saved';
+				ctx.syncChrome();
 			},
 			keydown: (e) => {
 				const k = e as KeyboardEvent;

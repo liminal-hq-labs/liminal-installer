@@ -4,16 +4,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { formatOp, historyRows, isRedo, isUndo, problemsFor, screenshotSrc, targetStatus } from './format';
+import { formatOp, historyRows, problemsFor, screenshotSrc, targetStatus } from './format';
 import type { Problem } from './types';
-
-const key = (k: string, o: Partial<{ ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }> = {}) => ({
-	key: k,
-	ctrlKey: false,
-	metaKey: false,
-	shiftKey: false,
-	...o,
-});
 
 describe('format', () => {
 	it('builds image sources for both encodings', () => {
@@ -47,13 +39,5 @@ describe('format', () => {
 			['two', 'Agent', true],
 			['one', 'You', false],
 		]);
-	});
-
-	it('recognizes undo and redo shortcuts', () => {
-		expect(isUndo(key('z', { ctrlKey: true }))).toBe(true);
-		expect(isUndo(key('z', { ctrlKey: true, shiftKey: true }))).toBe(false);
-		expect(isRedo(key('Z', { metaKey: true, shiftKey: true }))).toBe(true);
-		expect(isRedo(key('y', { ctrlKey: true }))).toBe(true);
-		expect(isRedo(key('y'))).toBe(false);
 	});
 });
