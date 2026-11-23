@@ -2,7 +2,7 @@
 
 `liminst build -t win16-x86` turns an installer project into `SETUP.LPK`, the Liminal Pack the Windows 3.1 runtime reads ([lpk-format.md](lpk-format.md)), and carries a Windows 3.1 `SETUP.EXE` when there is one. The runtime is Rust built for a 16-bit code segment and packed into an NE executable (D46, [win16-spike.md](win16-spike.md)), on the same portable core as the DOS runtime ([retro-dos.md](retro-dos.md)).
 
-**Status.** The compiler, the page model, the shared flow VM hooks, the pack, the installer engine and the native pages all work and are tested. The whole `SETUP.EXE` does not link yet: its code is 97 265 bytes and a Win16 code segment holds 65 535. What is built instead are the two halves that each fit, `ENGINE.EXE` (install and uninstall from `SETUP.LPK`) and `UIDEMO.EXE` (the compiled project's pages in real Windows controls), both run on Windows 3.11, with an intermittent start-up failure described under [What is not done](#what-is-not-done). [The code limit](#the-code-limit-and-the-multi-segment-plan) says why, what was cut to get here and what the next step is.
+**Status.** The compiler, the page model, the shared flow VM hooks, the pack, the installer engine and the native pages all work and are tested. The whole `SETUP.EXE` does not link yet: its code is 111 211 bytes and a Win16 code segment holds 65 535. What is built instead are the two halves that each fit, `ENGINE.EXE` (install and uninstall from `SETUP.LPK`) and `UIDEMO.EXE` (the compiled project's pages in real Windows controls), both run on Windows 3.11, with an intermittent fault that is not about size ([the start-up fault](#the-start-up-fault-on-windows-311)). [The code limit](#the-code-limit-and-the-multi-segment-plan) says why, what was cut to get here and what the next step is.
 
 ## Table of contents
 
@@ -13,6 +13,7 @@
 - [The runtime](#the-runtime)
 - [Sizes](#sizes)
 - [The code limit and the multi-segment plan](#the-code-limit-and-the-multi-segment-plan)
+- [The start-up fault on Windows 3.11](#the-start-up-fault-on-windows-311)
 - [Where each test ran](#where-each-test-ran)
 - [What is not done](#what-is-not-done)
 - [Limits](#limits)
@@ -21,7 +22,7 @@
 
 | Piece | Where | Is |
 |---|---|---|
-| `crates/li-retro` | host, DOS, Windows 3.1 | The flow VM, the condition VM, the installer engine, the pack reader and the hand-written project decoder. `Platform` gained the native-page hooks (D69) |
+| `crates/li-retro` | host, DOS, Windows 3.1 | The flow VM, the condition VM, the installer engine, the pack reader and the hand-written project decoder. The seams are `Gui` (a window that shows pages, shared with Win32) and `Shell` (shortcuts, uninstall entry, long names; D69, D73) |
 | `crates/li-retro-build` | host | The compiler. A `win16` target compiles to screens that are widgets in reading order and no text cells |
 | `retro/win16/src/bin/lisetup/` | Windows 3.1 | `dosio` (INT 21h and KERNEL file calls), `heap` (the allocator), `plat` (the `Platform`), `ui` (the wizard window) and `main` |
 | `retro/win16/src/bin/engine.rs` | Windows 3.1 | `ENGINE I dir` and `ENGINE U dir`: the engine with no pages |
@@ -50,7 +51,7 @@ liminst build -t win16-x86 --win16-runtime retro/win16/out/SETUP.EXE   # when th
 The tests, in the order they cost:
 
 - **Packer** (`retro/win16/tests/test_ne_pack.py`): header, segments, imports, exports, the zero tail, size limits.
-- **Host goldens** (`li-retro-build/tests/win16.rs`): Lt. Fizz is compiled for `dos-x86` and for `win16-x86`; the DOS run is driven by keys and the Windows run by `li_retro::sim::accept_defaults`, which stands in for the person at the native hooks. The sequence of `(step, screen)` pairs must be identical, the file trees must be identical, and the receipts must be identical except for the `target=` line and the game executable (a different binary for each target). The Windows receipt is also compared with `tests/golden/win16-receipt.txt`. The same file checks that the hand-written decoder agrees with serde's, and that the Windows uninstall removes everything.
+- **Host goldens** (`li-retro-build/tests/win16.rs`): Lt. Fizz is compiled for `dos-x86` and for `win16-x86`; the DOS run is driven by keys and the Windows run by a scripted `ScriptGui` (`li_retro::sim`), which stands in for the person at the `Gui` seam. The sequence of `(step, screen)` pairs must be identical, the file trees must be identical, and the receipts must be identical except for the `target=` line and the game executable (a different binary for each target). The Windows receipt is also compared with `tests/golden/win16-receipt.txt`. The same file checks that the hand-written decoder agrees with serde's, and that the Windows uninstall removes everything.
 - **Wine** (`tools/e2e-wine.sh`): both examples, installed and uninstalled by `ENGINE.EXE`.
 - **Windows 3.11** (`tools/e2e-w31.sh`, manual): the same under DOSBox-X, then `UIDEMO.EXE` with screenshots. It needs a Windows 3.11 tree the repository cannot carry.
 
@@ -122,13 +123,23 @@ LLVM's `code16` mode emits 32-bit near calls (`66 E8 rel32`) and 16-bit jumps. I
 
 `ENGINE.EXE` is the base and the engine, `UIDEMO.EXE` is the base and the pages, and `LISETUP` is both plus the flow VM (about 4 KB over their union less the shared base). More trimming can take perhaps 10 to 15 KB out of `LISETUP`; it cannot take 33 KB out, and the next feature would break it again. This is a limit of the toolchain D46 chose, and it is the first thing the spike's recommendation warned about ("the packer does not split code across segments").
 
-The plan, in the order to try it:
+The plan changed while this was written. The first idea was `SETUP.EXE` (flow VM and pages) plus `LIENGINE.DLL` (pack, install, uninstall). Measured against the merged code, `LISETUP` is 111 211 bytes (the Win32 work added shortcuts, the uninstaller and the registry entry to `install`), so the EXE side would still be about 80 KB with the engine moved out: a DLL alone does not make it fit. It was not built. Multi-segment code in the `rust-win16` packer (several NE code segments with far-call gates between them) is being built by another agent for this project and for Quill, and `retro/win16` will vendor that packer, with a provenance note, and relink the whole `SETUP.EXE` then. The other alternative remains Open Watcom C (D46's fallback), which does medium and large models but shares nothing with the portable core.
 
-1. **Two modules on the machinery that already works.** `SETUP.EXE` holds the flow VM and the pages (about 60 KB with the base); `LIENGINE.DLL` holds the pack reader, inflate, install and uninstall (about 60 KB with its own copy of the base). A DLL is a separate NE module with its own code and data segments, reached by the same far-call imports by ordinal that the stubs already make to KERNEL and USER. The packer needs: the library flag, a `LibMain` entry that returns 1, exports by ordinal with their own entry table, and imports from a module the program names. The EXE passes a request block (a pointer to a structure in a global memory block) and the DLL calls back through an exported far procedure for progress and cancel. It also gives the engine its own 64 KB of data, so the 32 KiB window the DOS pack uses would fit again. The cost is about 300 lines in the packer and its tests, an exported-procedure prologue for a DLL (`DS` from the module's own data selector, which the packer already supports as a selector fixup) and a pass over `li-retro::install` to take a `&mut dyn Platform` so one copy serves both sides.
-2. **Several code segments in one module.** The NE format allows it and Windows loads them on demand. It needs far-call gates between the segments and a separate link for each (two ELF files with their own copies of `core` and `alloc`, one shared data segment, the allocator's state reached through a gate), which is the same work as the DLL with more risk, and no advantage unless the DLL is unwanted.
-3. **Open Watcom C** (D46's fallback), which does medium and large models. It would not share the portable core, so it is the choice of last resort.
+Until then, `liminst build -t win16-x86` writes `SETUP.LPK`, `README.TXT` and, when `--win16-runtime`, `LIMINST_WIN16_RUNTIME` or `retro/win16/out/SETUP.EXE` names a program, `SETUP.EXE`; without one it says so, and the `zip` and `floppy-1440` hold what there is.
 
-Until step 1 is done, `liminst build -t win16-x86` writes `SETUP.LPK`, `README.TXT` and, when `--win16-runtime`, `LIMINST_WIN16_RUNTIME` or `retro/win16/out/SETUP.EXE` names a program, `SETUP.EXE`; without one it says so, and the `zip` and `floppy-1440` hold what there is.
+## The start-up fault on Windows 3.11
+
+`ENGINE.EXE` and `UIDEMO.EXE` sometimes died on Windows 3.11 in DOSBox-X: a General Protection Fault at a `rep movs` that copies a value built with `lea esi, [esp+x]`, a `Rust panic` box, or a fault inside `KRNL386`, at a different place from run to run. What was found, with the probe programs that found it (scratch, not committed):
+
+- **The high half of ESP is dirtied at every timer tick.** A probe that loops in assembler, touching no stack memory, found ESP above 0xFFFF (always `8001xxxx`) 130 times in 6.3 s, about 20 a second, and cleaned it each time. Left alone it stays dirty until something rewrites ESP (the import stubs do, after each API call). code16 addresses the stack through ESP (`mov esi, [esp+0x14]` carries an address-size prefix and uses all 32 bits), so the first stack access after a tick faults. A stretch of computation of a few milliseconds between API calls (decoding the project, inflating a chunk) is hit with a probability that grows with its length, which fits the failure rates seen. A long inflate loop would almost always be hit.
+- **Hooking the tick does not help.** A protected-mode handler on INT 1Ch and on INT 08h that cleaned ESP and chained on left the count at 133 and 129: the dirt is made after the handlers, where a task cannot reach.
+- **A frame pointer does not help.** `mov ebp, esp` copies the dirt into EBP, and locals addressed through EBP fault the same way.
+- **A 32-bit stack stopped the dirt but broke more.** Making SS an alias of DS with the big bit set (`AllocSelector`, then DPMI `0009h` with access rights `40F3h`, then `mov ss, ax` and `movzx esp, sp`) gave 0 dirty events in the same loop, and installs ran. Uninstalls then faulted inside `KRNL386` in 3 of 3 runs, and a probe moved the fault from place to place by changing the code's layout, so the dirt is probably still being made somewhere KERNEL's own stack operations see it. It was not adopted; the DOSBox-X debugger is the next tool.
+- **Jump tables** were present (six indirect `jmp [reg*4+table]` in `ENGINE`), as in the Quill probes. They are off now (`-C jump-tables=no`), at a cost of about 1 KB of code.
+- **The stubs save and restore all four of EBX, ESI, EDI and EBP** (each is pushed and popped at full width around every API call and in `export_proc!`), ES is reloaded after each call, and the runtime uses neither FS nor GS.
+- **Cleared memory.** Windows 3.11 does not zero the part of a segment past its file length or the unused stack, so the entry code clears both (D71). That took the failure rate from about 2 in 5 to about 1 in 6 on the earlier, smaller build; the final build, which is bigger, fails more often (4 of 10).
+
+So the Rust `code16` approach has a hard problem on Windows 3.x in 386 Enhanced mode that is not about size: any code that uses ESP-relative addresses is exposed to a clobbered ESP at every tick. The options, in the order to try: find out where the dirt is made with a debugger and whether a 32-bit stack plus cleaning around KERNEL's own stack use closes it; generate 16-bit addressing (`[bp+x]`, which ignores the high half) for stack accesses in the packer by rewriting the code; run the computation in short stretches that end in an API call; or the Open Watcom C fallback, whose 16-bit code never uses ESP. Another agent is building multi-segment support in the `rust-win16` packer, and this finding belongs in the same discussion.
 
 ## Where each test ran
 
@@ -144,9 +155,9 @@ Table 4. Where it ran.
 
 ## What is not done
 
-- **The whole `SETUP.EXE`.** See the plan above. `ENGINE.EXE` and `UIDEMO.EXE` are the two halves.
-- **An intermittent failure on Windows 3.11.** About 2 runs in 5 died at start-up (a `Rust panic` box, or a General Protection Fault at a `rep movs` that copies a value built with `lea esi, [esp+x]`) before the stack was cleared at start, and about 1 in 6 after it (6 `ENGINE` runs: 5 passed). Wine never shows it. The faulting instruction fits a dirty high half of ESP or a read of uninitialised stack; neither was proved. The 36 KiB heap running out and another tool rewriting the shared Windows tree's `WIN.INI` were found and fixed on the way, so the numbers above are from a private copy of the tree and the 40 KiB heap. Until it is understood, `ENGINE.EXE` is not something to ship. The next step is a register dump at the fault (DOSBox-X's debugger) and, if ESP is the cause, building the stack frames with a frame pointer that the stubs also clear.
-- **A Program Manager group.** The `shortcut` operation still writes the DOS batch launcher and nothing else. A group is a DDE conversation with `PROGMAN` (`[CreateGroup]`, `[AddItem]`); there is no stub for it and the atom functions' ordinals have not been checked against Windows 3.1. The receipt has a place for it (a `G` line, like the `B` line) once it exists.
+- **The whole `SETUP.EXE`.** It waits for multi-segment code in the packer (above). `ENGINE.EXE` and `UIDEMO.EXE` are the two halves.
+- **A reliable start on Windows 3.11.** With the merged code and jump tables off, 4 of the last 10 `ENGINE` runs on 3.11 (5 installs and 5 uninstalls) faulted, and a long computation would nearly always: the high half of ESP is dirtied at every timer tick (see [the start-up fault](#the-start-up-fault-on-windows-311) for the probes, what was ruled out and what is next).
+- **A Program Manager group.** The `shortcut` operation still writes the DOS batch launcher. The seam is in place: Windows 3.1's `Shell` says `ShortcutKind::GroupItem`, the install calls `add_group_item` and records a `G group|item` receipt line (tested on the host with a pretend Program Manager), and an uninstall calls `remove_group_item`. What is missing is the DDE conversation with `PROGMAN` (`[CreateGroup]`, `[AddItem]`) behind `add_group_item`: there is no stub for it, and the atom functions' ordinals have not been checked against Windows 3.1.
 - **Launch after setup, repair and update**, as on DOS.
 - **Uninstall from the install folder.** `SETUP /U` runs from the media, as on DOS.
 - **Browse for a folder**, icons, bold headings and any colour: the pages use the system font and the system colours.

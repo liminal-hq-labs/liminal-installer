@@ -78,7 +78,7 @@ A theme describes an experience; a renderer draws it with whatever is native to 
 |---|---|---|---|
 | `tui-retro` | DOS 5+ on a 386 or later, with a DOS extender | Retro runtime (Rust on Desk's DOS foundation), text-mode video | Blue-screen setup, real period installs |
 | `tui` | Any terminal | Rust, crossterm | Servers, SSH, headless installs |
-| `win16` | Windows 3.1 | Retro runtime (C, Open Watcom), GDI and USER | Floppy-era Windows setup |
+| `win16` | Windows 3.1 in 386 Enhanced mode | Retro runtime (Rust for a 16-bit code segment, packed as an NE executable), USER controls | Floppy-era Windows setup |
 | `win32-classic` | Windows 95 to 11 (32-bit x86 `SETUP.EXE`) | Rust `no_std`, plain Win32 controls, no C runtime (`win32/`) | Bevelled 90s dialogs, tiny downloads |
 | `canvas` | Windows 10/11, Linux, macOS, FreeBSD | Rust, its own drawing (winit with a 2D renderer), no webview | Rich custom windows with a small binary |
 | `web` | Modern desktops | Tauri webview, HTML, CSS and JS | Anything goes: video, games, wild layouts |
@@ -87,9 +87,10 @@ Table 1. Renderers in the first version.
 
 ## 4 · Two runtimes
 
-Modern targets use the Rust engine. DOS and Windows 3.1 can't run it, so they get a **retro runtime** that reads a compiled form of the same project. DOS is Rust; Windows 3.1 stays a small C program built with Open Watcom.
+Modern targets use the Rust engine. DOS and Windows 3.1 can't run it, so they get a **retro runtime** that reads a compiled form of the same project. DOS and Windows 3.1 are Rust; Open Watcom C is the fallback for Windows 3.1 (D46).
 
 - **DOS (`tui-retro`).** `SETUP.EXE` is Rust with no C compiler or C library, on the foundation copied from Desk (`dos/`, see D40 and [retro-dos.md](retro-dos.md)). A `no_std` plus `alloc` core, `li-retro`, holds the compiled format, the flow VM, the text-mode renderer and the installer engine, and runs on the host as well as on DOS; a thin DOS crate supplies the screen, the keys and the files.
+- **Windows 3.1 (`win16`).** The same `li-retro` core, built for `code16` and packed into an NE executable by `retro/win16/tools/ne_pack.py`, with a `Gui` that draws each page as Windows controls and a `Platform` that copies files with INT 21h and KERNEL (D68 to D72, [retro-win16.md](retro-win16.md)). The pack, the engine and the pages run on Windows 3.11; the whole `SETUP.EXE` is over the 64 KB a code segment holds and is not built yet.
 - **Web (`web`).** The web runner (`apps/runner`) is a Tauri window over the real flow. `li-render-web` sends each page of the flow to the webview and waits for the answer, and the page is drawn by `packages/renderer`, the same React renderer the Studio previews with (see D56 to D61 and [web-runner.md](web-runner.md)).
 - **Windows 95 and later (`win32-classic`).** `SETUP.EXE` is the same Rust flow VM and installer engine (`li-retro`) with a native wizard window behind its `Gui` trait: real controls, `.lnk` shortcuts, an Add/Remove Programs entry and an uninstaller. Pentium code only, ANSI imports only (D62 to D66, [retro-win32.md](retro-win32.md)).
 - The CLI compiles the flow to a compact bytecode, flattens layouts into 80 by 25 text-cell screens (DOS) or dialog templates (Win16), and converts assets to the target's palette and formats. A DOS build writes `SETUP.LPK`, a zip and a 1.44 MB floppy image.

@@ -1,6 +1,6 @@
 # Win16 runtime spike: Rust for a 16-bit code segment
 
-Question: can the `win16` renderer and runtime be 16-bit (no Win32s) and written in Rust, with Open Watcom C as the fallback? The code is in [`retro/win16/`](../retro/win16/).
+Question: can the `win16` renderer and runtime be 16-bit (no Win32s) and written in Rust, with Open Watcom C as the fallback? The code is in [`retro/win16/`](../retro/win16/). The runtime built on it is described in [retro-win16.md](retro-win16.md), which also records what the spike did not measure: a whole installer's code does not fit one 64 KB segment.
 
 ## Table of contents
 
