@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { StrictMode, useEffect, useSyncExternalStore } from 'react';
+import { StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { ButtonLayout } from '@liminal-hq/studio-chrome/TitleBar/buttonLayout';
 import { TitleBar } from '@liminal-hq/studio-chrome/TitleBar';
@@ -14,7 +14,8 @@ import { WindowFrame } from '@liminal-hq/studio-chrome/WindowFrame';
 import type { ChromeStore } from './chromeStore';
 import { DialogButtons, DialogMessage } from './DialogBodies';
 import { DIALOG_RESULT_EVENT, decodeSpec, type DialogAnswer, type DialogResult, type DialogSpec } from './dialogWindow';
-import { PreferencesScreen } from './PreferencesScreen';
+import type { Host } from '../lib/host';
+import { PreferencesScreen } from '../preferences/PreferencesScreen';
 import { inTauri } from './windowControls';
 
 /** Only the Close button, on the end side. */
@@ -25,24 +26,21 @@ interface InfoWindowProps {
 	/** Ties the answer to the window that asked. */
 	id: string;
 	store: ChromeStore;
+	host: Host;
 	controls: WindowControls;
 }
 
 /** Tells the window that opened this one what was chosen, then closes. */
 async function answer(id: string, result: DialogResult, controls: WindowControls): Promise<void> {
 	if (inTauri()) {
-		const { emitTo } = await import('@tauri-apps/api/event');
+		const { emit } = await import('@tauri-apps/api/event');
 		const payload: DialogAnswer = { id, result };
-		await emitTo('main', DIALOG_RESULT_EVENT, payload);
+		await emit(DIALOG_RESULT_EVENT, payload);
 	}
 	await controls.close();
 }
 
-function InfoWindow({ spec, id, store, controls }: InfoWindowProps) {
-	const { settings } = useSyncExternalStore(store.subscribe, store.get);
-	useEffect(() => {
-		document.documentElement.dataset.theme = settings.theme;
-	}, [settings.theme]);
+function InfoWindow({ spec, id, store, host, controls }: InfoWindowProps) {
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
 			if (e.key === 'Escape' && !e.defaultPrevented) void answer(id, null, controls);
@@ -56,9 +54,9 @@ function InfoWindow({ spec, id, store, controls }: InfoWindowProps) {
 		let stop: (() => void) | undefined;
 		void import('@tauri-apps/api/window').then(async ({ getCurrentWindow }) => {
 			stop = await getCurrentWindow().onCloseRequested(async () => {
-				const { emitTo } = await import('@tauri-apps/api/event');
+				const { emit } = await import('@tauri-apps/api/event');
 				const payload: DialogAnswer = { id, result: null };
-				await emitTo('main', DIALOG_RESULT_EVENT, payload);
+				await emit(DIALOG_RESULT_EVENT, payload);
 			});
 		});
 		return () => stop?.();
@@ -70,7 +68,7 @@ function InfoWindow({ spec, id, store, controls }: InfoWindowProps) {
 				<TitleBar buttonLayout={closeOnly} titleAlign="start" center={<TitleBarTitle>{spec.title}</TitleBarTitle>} />
 				{spec.kind === 'preferences' ? (
 					<div className="app-host prefs-host">
-						<PreferencesScreen store={store} />
+						<PreferencesScreen port={store.port} host={host} />
 					</div>
 				) : (
 					<div className="dlg-body">
@@ -84,14 +82,14 @@ function InfoWindow({ spec, id, store, controls }: InfoWindowProps) {
 }
 
 /** Draws the child window the page was opened as, or does nothing when the query does not describe one. */
-export function mountInfoWindow(container: HTMLElement, search: string, store: ChromeStore, controls: WindowControls): boolean {
+export function mountInfoWindow(container: HTMLElement, search: string, store: ChromeStore, host: Host, controls: WindowControls): boolean {
 	const params = new URLSearchParams(search);
 	const kind = params.get('window');
 	const spec = decodeSpec(search) ?? (kind === 'preferences' ? ({ kind: 'preferences', title: 'Preferences' } as DialogSpec) : undefined);
 	if (!spec) return false;
 	createRoot(container).render(
 		<StrictMode>
-			<InfoWindow spec={spec} id={params.get('id') ?? ''} store={store} controls={controls} />
+			<InfoWindow spec={spec} id={params.get('id') ?? ''} store={store} host={host} controls={controls} />
 		</StrictMode>,
 	);
 	return true;

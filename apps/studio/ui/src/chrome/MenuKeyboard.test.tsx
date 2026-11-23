@@ -79,7 +79,8 @@ describe('app menu keyboard', () => {
 		});
 		const menu = screen.getByRole('menu', { name: 'App' });
 		expect(menu).toBeTruthy();
-		expect(screen.queryAllByRole('menuitem').some((i) => i.getAttribute('aria-haspopup') === 'menu')).toBe(false);
+		// Open recent is the one submenu; every other row is direct.
+		expect(screen.queryAllByRole('menuitem').filter((i) => i.getAttribute('aria-haspopup') === 'menu').map((i) => i.textContent)).toEqual([expect.stringContaining('Open recent')]);
 		expect(screen.getByRole('menuitem', { name: /Open project/ })).toBeTruthy();
 		fireEvent.keyDown(menu, { key: 'Escape' });
 		expect(screen.queryByRole('menu')).toBeNull();

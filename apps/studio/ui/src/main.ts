@@ -8,10 +8,12 @@ import './styles/app.css';
 import { startApp, type App } from './app';
 import { mountShell } from './chrome/Chrome';
 import { createChromeStore, type ChromeStore } from './chrome/chromeStore';
-import { createDialogs, inPageDialogBackend, tauriDialogBackend, type DialogBackend } from './chrome/dialogWindow';
+import { createDialogs, inPageDialogBackend, openPreferencesWindow, tauriDialogBackend, type DialogBackend } from './chrome/dialogWindow';
 import { mountInfoWindow } from './chrome/InfoWindow';
-import { actionForEvent, type ActionId } from './chrome/menuModel';
+import { actionForEvent, isActionId, recentPath } from './chrome/menuModel';
 import { createWindowControls, inTauri } from './chrome/windowControls';
+import { applyAppearance, defaultSystem, followSystem } from './lib/appearance';
+import { createHost } from './lib/host';
 import { browserSettings, tauriSettings, type SettingsPort } from './lib/settings';
 
 const storage = () => {
@@ -22,13 +24,16 @@ const storage = () => {
 	}
 };
 
-/** Every window follows the theme setting. */
-function followTheme(store: ChromeStore): void {
-	const apply = () => {
-		document.documentElement.dataset.theme = store.get().settings.theme;
-	};
+/** Every window follows the appearance settings: theme (or the system's), density, text size and motion. */
+async function followAppearance(store: ChromeStore): Promise<void> {
+	let system = defaultSystem;
+	const apply = () => applyAppearance(document.documentElement, store.get().settings, system);
 	store.subscribe(apply);
 	apply();
+	await followSystem((next) => {
+		system = next;
+		apply();
+	}, inTauri());
 }
 
 /**
@@ -44,12 +49,13 @@ async function boot(): Promise<void> {
 	const port: SettingsPort = inTauri() ? await tauriSettings() : browserSettings(storage());
 	const store = createChromeStore(port);
 	await store.init();
-	followTheme(store);
+	await followAppearance(store);
 	const controls = createWindowControls();
+	const host = await createHost();
 
 	// A child window is this same page with `?window=<kind>`.
 	if (new URLSearchParams(location.search).has('window')) {
-		if (mountInfoWindow(container, location.search, store, controls)) return;
+		if (mountInfoWindow(container, location.search, store, host, controls)) return;
 	}
 
 	const chrome = wantsChrome();
@@ -60,6 +66,8 @@ async function boot(): Promise<void> {
 	/** Asks what to do with unsaved script edits. True when it is fine to go on. */
 	const settleUnsaved = async (): Promise<boolean> => {
 		if (!store.get().menu.scriptDirty) return true;
+		// With the confirmation off, unsaved edits are discarded without asking.
+		if (!store.get().settings.confirmDiscard) return true;
 		const answer = await dialogs.open({
 			kind: 'confirm',
 			title: 'Unsaved changes',
@@ -76,11 +84,20 @@ async function boot(): Promise<void> {
 	};
 
 	/** The chrome owns the actions about itself; the app runs the rest. */
-	const perform = (id: ActionId): void => {
+	const perform = (id: string): void => {
 		void (async () => {
-			if (id === 'view.menuBar') await store.toggleMenuBar();
+			const recent = recentPath(id, store.get().menu);
+			if (recent !== undefined) {
+				if (await settleUnsaved()) await app?.openPath(recent);
+			} else if (!isActionId(id)) return;
+			else if (id === 'view.menuBar') await store.toggleMenuBar();
+			else if (id === 'file.clearRecent') await store.updateSettings({ recentProjects: [] });
 			else if (id === 'help.about') await dialogs.open({ kind: 'about', title: 'About Liminal Installer Studio', buttons: [{ id: 'close', label: 'Close', primary: true }] }).result;
-			else if (id === 'app.preferences') await dialogs.open({ kind: 'preferences', title: 'Preferences' }).result;
+			else if (id === 'app.preferences') {
+				// Its own window in the desktop shell, which does not hold up other dialogs; a dialog in the page elsewhere.
+				if (inTauri()) await openPreferencesWindow();
+				else await dialogs.open({ kind: 'preferences', title: 'Preferences' }).result;
+			}
 			else if (id === 'file.quit') {
 				// In the desktop window the close request asks about unsaved edits; a tab has no such request.
 				if (inTauri() || (await settleUnsaved())) await controls.close();
@@ -90,13 +107,13 @@ async function boot(): Promise<void> {
 		})().catch(() => undefined);
 	};
 
-	const appHost = await mountShell(container, { store, onAction: perform, ...(chrome ? { controls } : {}) });
+	const appHost = await mountShell(container, { store, host, onAction: perform, ...(chrome ? { controls } : {}) });
 	app = await startApp(appHost, store, { header: !chrome });
 
 	if (inTauri()) {
 		const { getCurrentWindow } = await import('@tauri-apps/api/window');
 		await getCurrentWindow().onCloseRequested(async (event) => {
-			if (!store.get().menu.scriptDirty) return;
+			if (!store.get().menu.scriptDirty || !store.get().settings.confirmDiscard) return;
 			event.preventDefault();
 			if (await settleUnsaved()) await getCurrentWindow().destroy();
 		});

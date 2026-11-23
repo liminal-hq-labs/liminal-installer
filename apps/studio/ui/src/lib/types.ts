@@ -145,5 +145,5 @@ export interface ScriptReport {
 
 export interface McpInfo {
 	url: string;
-	token: string;
+	port: number;
 }

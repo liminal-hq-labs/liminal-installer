@@ -25,7 +25,7 @@ describe('settings in the browser', () => {
 	it('fills in defaults for anything missing or wrong', () => {
 		expect(normalizeSettings(undefined)).toEqual(defaultSettings);
 		expect(normalizeSettings({ menuBar: 'yes', theme: 'neon' })).toEqual(defaultSettings);
-		expect(normalizeSettings({ menuBar: true, theme: 'afterglow-light' })).toEqual({ menuBar: true, theme: 'afterglow-light' });
+		expect(normalizeSettings({ menuBar: true, theme: 'afterglow-light' })).toEqual({ ...defaultSettings, menuBar: true, theme: 'afterglow-light' });
 	});
 
 	it('keeps a write for the next reader', async () => {
@@ -51,6 +51,11 @@ function sharedPort(initial: Settings = defaultSettings): SettingsPort & { curre
 		read: async () => port.current,
 		write: async (patch: Partial<Settings>) => {
 			port.current = { ...port.current, ...patch };
+			for (const l of listeners) l(port.current);
+			return port.current;
+		},
+		reset: async () => {
+			port.current = { ...defaultSettings };
 			for (const l of listeners) l(port.current);
 			return port.current;
 		},
@@ -136,5 +141,39 @@ describe('chrome store', () => {
 		await store.toggleMenuBar();
 		store.setMenu({ hasProject: true, screen: 'flow' });
 		expect(store.get().menu).toMatchObject({ menuBar: true, hasProject: true, screen: 'flow' });
+	});
+});
+
+describe('recent projects', () => {
+	it('puts a project first and remembers it as the last, within the limit', async () => {
+		const port = sharedPort({ ...defaultSettings, recentLimit: 5, recentProjects: ['/a', '/b', '/c', '/d', '/e'] });
+		const store = createChromeStore(port);
+		await store.init();
+		await store.recordProject('/c');
+		expect(port.current.recentProjects).toEqual(['/c', '/a', '/b', '/d', '/e']);
+		await store.recordProject('/z');
+		expect(port.current.recentProjects).toEqual(['/z', '/c', '/a', '/b', '/d']);
+		expect(port.current.lastProject).toBe('/z');
+		expect(store.get().menu.recent).toEqual(['/z', '/c', '/a', '/b', '/d']);
+	});
+
+	it('writes nothing for a project that is already first and last', async () => {
+		const write = vi.fn();
+		const port = sharedPort({ ...defaultSettings, recentProjects: ['/a'], lastProject: '/a' });
+		port.write = write;
+		const store = createChromeStore(port);
+		await store.init();
+		await store.recordProject('/a');
+		expect(write).not.toHaveBeenCalled();
+	});
+
+	it('forgets a project that has moved, and clearing empties the menu list', async () => {
+		const port = sharedPort({ ...defaultSettings, recentProjects: ['/a', '/b'] });
+		const store = createChromeStore(port);
+		await store.init();
+		await store.forgetProject('/a');
+		expect(store.get().menu.recent).toEqual(['/b']);
+		await store.updateSettings({ recentProjects: [] });
+		expect(store.get().menu.recent).toEqual([]);
 	});
 });

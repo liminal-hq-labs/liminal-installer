@@ -14,6 +14,9 @@ import {
 	buildMenus,
 	initialMenuState,
 	matchesShortcut,
+	recentId,
+	recentPath,
+	shortPath,
 	selectableItems,
 	type ActionId,
 	type MenuState,
@@ -30,9 +33,9 @@ const key = (k: string, o: Partial<{ ctrlKey: boolean; metaKey: boolean; shiftKe
 });
 
 describe('menu model', () => {
-	it('builds the app menu flat, with separators and no submenus', () => {
+	it('builds the app menu flat, with separators and no submenus but Open recent', () => {
 		const flat = buildFlatMenu(open);
-		expect(flat.some((i) => i.type === 'submenu')).toBe(false);
+		expect(flat.filter((i) => i.type === 'submenu').map((i) => i.id)).toEqual(['menu:recent']);
 		expect(flat.some((i) => i.type === 'separator')).toBe(true);
 		expect(flat[0]?.type).not.toBe('separator');
 		expect(flat[flat.length - 1]?.type).not.toBe('separator');
@@ -47,9 +50,9 @@ describe('menu model', () => {
 	});
 
 	it('puts the same actions in both, each once', () => {
-		const { flat, bar } = buildMenus(open);
-		const fromFlat = selectableItems(flat).map((i) => i.id);
-		const fromBar = selectableItems(bar).map((i) => i.id);
+		const { flat, bar } = buildMenus({ ...open, recent: ['/a/b'] });
+		const fromFlat = selectableItems(flat).map((i) => i.id).filter((id) => !id.startsWith('recent:'));
+		const fromBar = selectableItems(bar).map((i) => i.id).filter((id) => !id.startsWith('recent:'));
 		expect([...fromFlat].sort()).toEqual([...fromBar].sort());
 		expect(new Set(fromFlat).size).toBe(fromFlat.length);
 		expect(fromFlat.sort()).toEqual((Object.keys(ACTIONS) as ActionId[]).sort());
@@ -132,5 +135,40 @@ describe('shortcuts', () => {
 				seen.set(k, id);
 			}
 		}
+	});
+
+	describe('recent projects', () => {
+		const recent = ['/home/me/work/alpha', '/home/me/work/beta'];
+		const withRecent: MenuState = { ...open, recent };
+		const submenu = (items: ReturnType<typeof buildFlatMenu>) => items.find((i) => i.type === 'submenu' && i.id === 'menu:recent');
+
+		it('lists them under Open recent in the app menu and in File, newest first', () => {
+			const { flat, bar } = buildMenus(withRecent);
+			const file = bar.find((m) => m.id === 'menu:file');
+			const inFile = file?.type === 'submenu' ? file.items.find((i) => i.id === 'menu:recent') : undefined;
+			for (const menu of [submenu(flat), inFile]) {
+				expect(menu?.type === 'submenu' && menu.items.filter((i) => i.type === 'action').map((i) => i.id)).toEqual([recentId(0), recentId(1), 'file.clearRecent']);
+			}
+		});
+
+		it('shows a disabled placeholder when there are none, and disables Clear', () => {
+			const menu = submenu(buildFlatMenu(open));
+			expect(menu?.type === 'submenu' && menu.items).toEqual([expect.objectContaining({ label: 'No recent projects', disabled: true })]);
+			expect(ACTIONS['file.clearRecent'].enabled?.(open)).toBe(false);
+			expect(ACTIONS['file.clearRecent'].enabled?.(withRecent)).toBe(true);
+		});
+
+		it('maps a row back to its path, and ignores anything else', () => {
+			expect(recentPath(recentId(1), withRecent)).toBe('/home/me/work/beta');
+			expect(recentPath(recentId(5), withRecent)).toBeUndefined();
+			expect(recentPath('file.open', withRecent)).toBeUndefined();
+			expect(recentPath('recent:none', open)).toBeUndefined();
+		});
+
+		it('labels a row with the last two parts of the path', () => {
+			expect(shortPath('/home/me/work/alpha')).toBe('work/alpha');
+			expect(shortPath('C:\\Projects\\alpha')).toBe('Projects/alpha');
+			expect(shortPath('/')).toBe('/');
+		});
 	});
 });
