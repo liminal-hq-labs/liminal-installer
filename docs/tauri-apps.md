@@ -99,29 +99,35 @@ Two ways to install, chosen per platform in `[tauri]`:
 - **`wrap`** carries Tauri's own installer (the NSIS `-setup.exe` or the MSI) as a payload and runs it silently under Liminal Installer's pages, passing the captured choices. WebView2, hooks, a custom NSIS template, the registry layout, file associations and the Start Menu entry stay exactly as Tauri's tested installer makes them. The cost is that uninstall and repair for the product go through Tauri's uninstaller, so the receipt records an `external` entry (what ran, the uninstaller's registry key, the version) instead of file-by-file operations.
 - **`native`** has the engine copy the bundle's files and write the registrations itself, as it does for the example projects. The receipt holds every operation, repair checks hashes, and uninstall is exact. The cost is that Tauri-only behaviour must be reproduced: a product that ships `installerHooks` or an NSIS `template` cannot be installed natively without porting that logic.
 
-Recommendation: `wrap` on Windows, `native` on Linux and macOS. Linux packages are already generated natively, macOS is a copy of an `.app`, and Windows is where Tauri's installer carries logic (WebView2, hooks, templates) worth keeping. Planboard, for one, ships `installerHooks` and an NSIS template today.
+**Decision:** both modes are supported on Windows, with `native` as the default. A product opts into `wrap` in `[tauri]` when it depends on logic only Tauri's installer has, such as `installerHooks` or a custom NSIS `template` (Planboard ships both today). Linux and macOS are always `native`: Linux packages are already generated natively, and macOS is a copy of an `.app`. The spike confirmed that the native path can reproduce everything the installer writes except those hooks; see [Can the native path reproduce the registrations?](tauri-windows-spike.md#implications-for-liminal-installer).
 
 ### Updates
 
-Two updaters must not fight. The Tauri updater runs the product's own installer and so bypasses our receipt. Liminal Installer's build writes both from one set of artefacts:
+Not every product Liminal Installer installs is a Tauri app, and not every product wants an in-app updater, so updates are a per-product setting in `installer.toml`: `[updates] mode = "none" | "liminal" | "tauri" | "both"`.
 
-- its signed feed, for the engine, and
-- a `latest.json` and `.sig` files for the Tauri updater, using the same URLs.
+- **`none`:** no feed is written; the engine can still repair and uninstall from the receipt.
+- **`liminal`:** the signed feed for the engine, which any product (Tauri or not) can use, and which a product can call through `liminal-engine update`.
+- **`tauri`:** for Tauri products only: a `latest.json` and `.sig` files for the Tauri updater, from the same artefacts and URLs. The engine does not update the product, but it still reconciles the receipt.
+- **`both`:** both outputs from one build.
 
-After an in-app update, the engine reconciles the receipt on the next launch or repair: it compares the installed version with the receipt and, for a `wrap` install, refreshes the `external` entry. The two signing schemes stay separate (minisign for the Tauri updater, Ed25519 for feeds); the Tauri public key comes from the imported `pubkey`.
+The Tauri updater runs the product's own installer and so bypasses our receipt. After an in-app update, the engine reconciles the receipt on the next launch or repair: it compares the installed version with the receipt and, for a `wrap` install, refreshes the `external` entry. The two signing schemes stay separate (minisign for the Tauri updater, Ed25519 for feeds); the Tauri public key comes from the imported `pubkey`.
 
 ### Studio
 
 A Tauri screen shows the imported state per platform (identity, scope, languages, WebView2 mode with its size cost, prerequisites, file types, schemes, updater, signing), marks values that are overridden, shows the drift diff and offers Re-import. Flow editing gets the new pages (`scope`, `language`, `webview2`, `prerequisites`) from templates.
 
-## What needs a spike
+## What the Windows spike found
 
-**Update:** the Windows items below were run; the results are in [`tauri-windows-spike.md`](tauri-windows-spike.md). MSI remains open.
+The Windows installer was run in a VM and the registry diffed before and after; the full results are in [`tauri-windows-spike.md`](tauri-windows-spike.md). In short:
 
-- **Silent flags.** The exact NSIS command-line switches for a silent, passive or per-machine install of a Tauri-built setup. Tauri's updater uses them, so they exist; they are not listed in the guides. **Unconfirmed.**
-- **Registry layout.** Which keys Tauri's installers write for file associations, URL schemes and the Add or Remove Programs entry. **Unconfirmed.** A Windows VM run, with the registry diffed before and after, answers this and gives the `external` receipt entry its shape.
-- **Per-user and per-machine WebView2.** Whether the bootstrapper needs elevation when the app installs per-user. **Unconfirmed.**
-- **MSI.** The `wrap` path for MSI (`msiexec /qn`, upgrade codes) needs its own check.
+- **Switches:** `/S` and `/D=` are NSIS built-ins; the template adds `/P`, `/UPDATE`, `/NS`, `/R` and, for `both`, `/currentuser` and `/allusers`.
+- **Registry:** one Uninstall key named after the product, a publisher and product key holding the install directory, and file-type and URL-scheme classes under `Software\Classes`. A silent uninstall leaves the product key and an empty extension key behind.
+- **WebView2:** a non-elevated setup installs the runtime per user.
+- **Elevation:** `perMachine` and `both` exit with 740 without it.
+- **Exit codes:** 0 success, 2 aborted, 740 needs elevation.
+- **Upgrades:** a silent re-run upgrades in place, and `allowDowngrades: false` makes a silent downgrade exit 2.
+
+Still open: MSI, a standard user without admin rights, and the interactive pages.
 
 ## Build order
 
