@@ -63,6 +63,26 @@ pub enum Command {
 	/// Pack, list, unpack and verify Liminal Packs (.LPK)
 	#[command(subcommand)]
 	Lpk(LpkCommand),
+	/// Fill the project from another build system's config
+	#[command(subcommand)]
+	Import(ImportCommand),
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ImportCommand {
+	/// Import a Tauri 2 project's `tauri.conf.json`: identity, resources, file types, deep
+	/// links, WebView2, updater. Run it again to accept a change; `check` reports a stale import
+	Tauri(ImportTauriArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct ImportTauriArgs {
+	/// The `tauri.conf.json` to read (default: the one `[tauri] config` already names)
+	#[arg(value_name = "PATH")]
+	pub config: Option<PathBuf>,
+	/// Print the report as JSON
+	#[arg(long)]
+	pub json: bool,
 }
 
 #[derive(Debug, Args)]
@@ -457,6 +477,7 @@ pub fn execute(cli: &Cli) -> CliResult<u8> {
 			lpk::run(c)?;
 			Ok(0)
 		}
+		Command::Import(ImportCommand::Tauri(a)) => import_tauri(cli, a),
 		Command::Studio(a) => {
 			if !a.mcp {
 				return Err(CliError::new("nothing to serve; pass --mcp"));
@@ -464,6 +485,68 @@ pub fn execute(cli: &Cli) -> CliResult<u8> {
 			serve_mcp(&cli.project, a.port)
 		}
 	}
+}
+
+fn import_tauri(cli: &Cli, a: &ImportTauriArgs) -> CliResult<u8> {
+	let dir = project::installer_dir(&cli.project).ok_or_else(|| {
+		CliError::new(format!(
+			"no installer project found at {} (run `liminst init` first)",
+			cli.project.display()
+		))
+	})?;
+	let config = match &a.config {
+		Some(p) => p.clone(),
+		None => {
+			let p = project::load(&cli.project)?;
+			li_engine::tauri::import::config_path(&p).ok_or_else(|| {
+				CliError::new("name the tauri.conf.json to import: `liminst import tauri <PATH>`")
+			})?
+		}
+	};
+	let report = li_engine::tauri::import::import(&dir, &config)
+		.map_err(|e| CliError::new(e.to_string()))?;
+	if a.json {
+		print!("{}", to_json_tabs(&report));
+		return Ok(0);
+	}
+	println!(
+		"{} {}",
+		if report.first_import {
+			"Imported"
+		} else {
+			"Re-imported"
+		},
+		config.display()
+	);
+	println!("  snapshot: {}", report.snapshot_path.display());
+	if !report.filled.is_empty() {
+		println!("  filled [product]: {}", report.filled.join(", "));
+	}
+	if !report.kept.is_empty() {
+		println!(
+			"  kept (override or build-time): {}",
+			report.kept.join(", ")
+		);
+	}
+	println!("  components: {}", report.components.join(", "));
+	if !report.first_import {
+		if report.changes.is_empty() {
+			println!("  nothing changed in the Tauri project");
+		}
+		for c in &report.changes {
+			println!(
+				"  {}: {} -> {}",
+				c.field,
+				c.from.as_deref().unwrap_or("(none)"),
+				c.to.as_deref().unwrap_or("(none)")
+			);
+		}
+	}
+	for w in &report.warnings {
+		eprintln!("warning: {w}");
+	}
+	println!("Next: liminst check");
+	Ok(0)
 }
 
 /// Opens the project and serves it over MCP until the process is interrupted.

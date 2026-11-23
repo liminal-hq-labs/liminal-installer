@@ -31,6 +31,17 @@ pub fn rel(root: &Path, p: &Path) -> String {
 		.replace('\\', "/")
 }
 
+/// The folder that holds `installer.toml`, given the project root or `installer/` itself.
+pub fn installer_dir(root: &Path) -> Option<PathBuf> {
+	if root.join("installer/installer.toml").is_file() {
+		Some(root.join("installer"))
+	} else if root.join("installer.toml").is_file() {
+		Some(root.to_path_buf())
+	} else {
+		None
+	}
+}
+
 /// Loads the project under `root`. `root` may be the folder that holds `installer/`, or
 /// `installer/` itself.
 pub fn load(root: &Path) -> Result<Project, LoadError> {

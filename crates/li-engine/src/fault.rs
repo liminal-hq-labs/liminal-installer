@@ -110,6 +110,10 @@ impl<M: Machine> Machine for FaultMachine<M> {
 	fn launch(&mut self, path: &Path, args: &[String]) -> io::Result<()> {
 		self.inner.launch(path, args)
 	}
+	fn run(&mut self, program: &Path, args: &[String]) -> io::Result<i32> {
+		self.tick(Path::new("/run"))?;
+		self.inner.run(program, args)
+	}
 	fn script_fs(&self) -> Arc<dyn ScriptFs> {
 		self.inner.script_fs()
 	}

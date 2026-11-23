@@ -6,14 +6,14 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use li_model::{Artefact, Feed, Operation, Plan, Receipt, Scope};
+use li_model::{Artefact, Feed, Operation, Plan, Receipt, Scope, Updates};
 use serde_json::{Value, json};
 
 use crate::error::{EngineError, Result};
 use crate::exec::{Session, Step, Totals};
 use crate::machine::{Machine, Resolver};
 use crate::payload::{LipPayload, Payload};
-use crate::plan::{build_plan, op_key, select_components};
+use crate::plan::{build_plan_scoped, op_key, same_plan, select_components};
 use crate::progress::RunOptions;
 use crate::project::Project;
 use crate::scripts::ProjectScripts;
@@ -78,6 +78,43 @@ pub fn system_info(m: &dyn Machine, install_dir: &Path) -> Value {
 	})
 }
 
+/// Brings the receipt up to what the machine has, when the app updated itself (see
+/// [`crate::tauri::updates`]). Does nothing unless the product's updates mode lets the app do so.
+fn refresh_receipt(
+	m: &mut dyn Machine,
+	install_dir: &Path,
+	receipt: Receipt,
+	opts: &mut RunOptions<'_>,
+) -> Result<Receipt> {
+	if !crate::tauri::updates::mode_of(&receipt).app_updates() {
+		return Ok(receipt);
+	}
+	let Some(next) = crate::tauri::updates::refreshed(&*m, &receipt) else {
+		return Ok(receipt);
+	};
+	let res = Resolver::new(install_dir, m.dirs());
+	let written = next.clone();
+	run_steps(
+		m,
+		&res,
+		None,
+		&next.product,
+		&[],
+		move |_, _| Some(written),
+		opts,
+	)?;
+	Ok(next)
+}
+
+/// For a product the app updates itself: notes the version on the machine in the receipt, so a
+/// feed check and a repair work from what is really installed. Returns the new receipt, or `None`
+/// when nothing had changed.
+pub fn reconcile_receipt(m: &mut dyn Machine, install_dir: &Path) -> Result<Option<Receipt>> {
+	let old = read_receipt(m, install_dir)?;
+	let next = refresh_receipt(m, install_dir, old.clone(), &mut RunOptions::default())?;
+	Ok((next != old).then_some(next))
+}
+
 fn plain_target(full: &str) -> &str {
 	full.split(':').next().unwrap_or(full)
 }
@@ -123,7 +160,28 @@ pub fn preview(
 	let version = request_version(project, req);
 	let env = script_env(m, &req.target, &req.install_dir, &version);
 	let scripts = ProjectScripts::load(project, env, m.script_fs())?;
-	build_plan(project, payload, &req.target, &selected, Some(&scripts))
+	let mut plan = build_plan_scoped(
+		project,
+		payload,
+		&req.target,
+		&selected,
+		Some(&scripts),
+		req.scope,
+	)?;
+	// A dry run answers for WebView2 from the machine it is given: a runtime already there means
+	// the step finds it and does nothing.
+	let found = crate::tauri::webview2::detect(m);
+	for op in &mut plan.ops {
+		if let Operation::PrereqWebview2 {
+			min_version,
+			found: slot,
+			..
+		} = op && !crate::tauri::webview2::needs_install(found.as_ref(), min_version.as_deref())
+		{
+			*slot = found.as_ref().map(|d| d.version.clone());
+		}
+	}
+	Ok(plan)
 }
 
 /// The Stage phase: checks every source against the plan's hashes and the free space.
@@ -221,6 +279,7 @@ struct Reconcile<'a> {
 	version: String,
 	feed: Option<String>,
 	channel: Option<String>,
+	updates: Option<Updates>,
 	old: Option<Receipt>,
 }
 
@@ -230,7 +289,14 @@ fn reconcile(m: &mut dyn Machine, r: Reconcile<'_>, opts: &mut RunOptions<'_>) -
 	let res = Resolver::new(r.install_dir, m.dirs());
 	let env = script_env(m, r.target, r.install_dir, &r.version);
 	let scripts = ProjectScripts::load(r.project, env, m.script_fs())?;
-	let plan = build_plan(r.project, r.payload, r.target, &r.selected, Some(&scripts))?;
+	let plan = build_plan_scoped(
+		r.project,
+		r.payload,
+		r.target,
+		&r.selected,
+		Some(&scripts),
+		r.scope,
+	)?;
 	let planned: Vec<Operation> = plan
 		.ops
 		.into_iter()
@@ -249,7 +315,11 @@ fn reconcile(m: &mut dyn Machine, r: Reconcile<'_>, opts: &mut RunOptions<'_>) -
 		}
 	}
 	for op in &planned {
-		let unchanged = old_ops.iter().any(|o| o == op) && crate::exec::is_intact(m, &res, op);
+		// The recorded operation is the one that says what the machine should look like now: a
+		// wrapped installer's uninstall entry is only in it.
+		let unchanged = old_ops
+			.iter()
+			.any(|o| same_plan(o, op) && crate::exec::is_intact(m, &res, o));
 		if !unchanged {
 			steps.push(Step::Apply(op.clone()));
 		}
@@ -267,6 +337,7 @@ fn reconcile(m: &mut dyn Machine, r: Reconcile<'_>, opts: &mut RunOptions<'_>) -
 		channel: r.channel,
 		components: r.selected,
 		operations: Vec::new(),
+		updates: r.updates,
 	};
 	// Directories are recorded when something created them, and other operations (a shortcut in
 	// a new menu directory) may depend on them without the plan naming them. A directory the
@@ -316,6 +387,7 @@ pub fn install(
 ) -> Result<Receipt> {
 	let selected = select_components(project, &req.target, req.components.as_deref())?;
 	let old = read_receipt(m, &req.install_dir).ok();
+	let updates = project.installer.updates.clone();
 	reconcile(
 		m,
 		Reconcile {
@@ -326,8 +398,15 @@ pub fn install(
 			scope: req.scope,
 			selected,
 			version: request_version(project, req),
-			feed: req.feed.clone(),
-			channel: req.channel.clone(),
+			feed: req
+				.feed
+				.clone()
+				.or_else(|| updates.as_ref().and_then(|u| u.feed.clone())),
+			channel: req
+				.channel
+				.clone()
+				.or_else(|| updates.as_ref().and_then(|u| u.channel.clone())),
+			updates,
 			old,
 		},
 		opts,
@@ -358,6 +437,11 @@ pub fn modify(
 			version: old.installed.clone(),
 			feed: old.feed.clone(),
 			channel: old.channel.clone(),
+			updates: project
+				.installer
+				.updates
+				.clone()
+				.or_else(|| old.updates.clone()),
 			old: Some(old),
 		},
 		opts,
@@ -372,6 +456,9 @@ fn version_parts(v: &str) -> Vec<u64> {
 
 /// The release a verified feed offers for an installed product, if it is newer.
 pub fn find_update(receipt: &Receipt, feed: &Feed) -> Option<UpdateInfo> {
+	if !crate::tauri::updates::installer_owns(receipt) {
+		return None;
+	}
 	let product = feed.products.iter().find(|p| p.id == receipt.product)?;
 	let channel = receipt.channel.as_deref().unwrap_or("stable");
 	let version = product.channels.get(channel)?;
@@ -402,6 +489,20 @@ pub fn update(
 	opts: &mut RunOptions<'_>,
 ) -> Result<Receipt> {
 	let old = read_receipt(m, install_dir)?;
+	let owned = project
+		.installer
+		.updates
+		.as_ref()
+		.map(|u| u.mode)
+		.unwrap_or_else(|| crate::tauri::updates::mode_of(&old));
+	if !owned.installer_updates() {
+		return Err(EngineError::UpdatesNotOwned(owned));
+	}
+	// The app may have updated itself since the receipt was written: the version on the machine
+	// is the one to compare the feed with.
+	let mut old = refresh_receipt(m, install_dir, old, opts)?;
+	let prior_updates = old.updates.clone();
+	old.updates = Some(project.installer.updates.clone().unwrap_or_default());
 	let info =
 		find_update(&old, feed).ok_or_else(|| EngineError::UpToDate(old.installed.clone()))?;
 	li_pack::verify_artefact(payload_bytes, &info.artefact)?;
@@ -420,6 +521,7 @@ pub fn update(
 			version: info.version,
 			feed: old.feed.clone(),
 			channel: old.channel.clone(),
+			updates: project.installer.updates.clone().or(prior_updates),
 			old: Some(old),
 		},
 		opts,
@@ -435,6 +537,7 @@ pub fn repair(
 	opts: &mut RunOptions<'_>,
 ) -> Result<RepairReport> {
 	let receipt = read_receipt(m, install_dir)?;
+	let receipt = refresh_receipt(m, install_dir, receipt, opts)?;
 	let res = Resolver::new(install_dir, m.dirs());
 	let mut steps = Vec::new();
 	let mut restored = Vec::new();
@@ -519,6 +622,15 @@ pub fn launch(
 		.find_map(|o| match o {
 			Operation::Shortcut { target, .. } => Some(target.clone()),
 			_ => None,
+		})
+		.or_else(|| {
+			// A wrapped install has no shortcut of ours: Tauri's installer made them.
+			receipt.external().map(|e| {
+				Path::new(&e.install_location)
+					.join(e.main_binary.as_deref().unwrap_or_default())
+					.to_string_lossy()
+					.into_owned()
+			})
 		})
 		.ok_or_else(|| EngineError::Other("the receipt records nothing to launch".into()))?;
 	let path = res.resolve(&target)?;

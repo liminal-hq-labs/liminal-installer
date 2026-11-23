@@ -18,11 +18,19 @@ pub enum SimNode {
 	File { data: Vec<u8>, executable: bool },
 }
 
-#[derive(Debug, Default)]
+/// Answers for a program the simulated machine is asked to run. Returning `None` leaves the answer
+/// to the machine's built-ins (`curl` and the WebView2 installers).
+pub type RunHandler = Arc<dyn Fn(&SimMachine, &Path, &[String]) -> Option<i32> + Send + Sync>;
+
+#[derive(Default)]
 struct SimState {
 	nodes: BTreeMap<PathBuf, SimNode>,
 	registry: BTreeMap<String, String>,
 	launched: Vec<(PathBuf, Vec<String>)>,
+	runs: Vec<(PathBuf, Vec<String>)>,
+	handler: Option<RunHandler>,
+	offline: bool,
+	elevated: bool,
 }
 
 fn not_found(path: &Path) -> io::Error {
@@ -48,6 +56,7 @@ pub struct SimMachine {
 	state: Arc<Mutex<SimState>>,
 	dirs: Dirs,
 	capacity: u64,
+	os: &'static str,
 }
 
 impl Default for SimMachine {
@@ -70,6 +79,7 @@ impl SimMachine {
 			state: Arc::default(),
 			dirs,
 			capacity: 1 << 30,
+			os: "linux",
 		};
 		for d in [
 			&m.dirs.user_data,
@@ -80,6 +90,84 @@ impl SimMachine {
 			m.mkdir_all(d);
 		}
 		m
+	}
+
+	/// Reports another operating system (`windows`, `macos`), so a dry run of that target reads
+	/// the machine as it would be there.
+	pub fn with_os(mut self, os: &'static str) -> Self {
+		self.os = os;
+		self
+	}
+
+	/// A Windows machine that already has the WebView2 runtime, machine-wide, at `version`.
+	pub fn with_webview2(self, version: &str) -> Self {
+		self.set_registry_value(
+			crate::tauri::webview2::HKLM_CLIENT_KEY,
+			crate::tauri::webview2::VERSION_VALUE,
+			version,
+		);
+		self
+	}
+
+	/// A machine with no network: `curl` and the WebView2 bootstrappers fail.
+	pub fn offline(self) -> Self {
+		self.state.lock().expect("sim lock").offline = true;
+		self
+	}
+
+	/// A machine whose programs run elevated: installers write `HKLM` and machine-wide folders.
+	pub fn elevated(self) -> Self {
+		self.state.lock().expect("sim lock").elevated = true;
+		self
+	}
+
+	/// Whether the machine has no network.
+	pub fn is_offline(&self) -> bool {
+		self.state.lock().expect("sim lock").offline
+	}
+
+	/// Removes every file and folder under `dir` except the file named `keep` (an uninstaller
+	/// that runs in place cannot delete itself). The folder stays.
+	pub fn remove_tree_except(&self, dir: &Path, keep: &str) {
+		let mut st = self.state.lock().expect("sim lock");
+		st.nodes.retain(|p, _| {
+			!(p.starts_with(dir) && p != dir && p.file_name().is_none_or(|n| n != keep))
+		});
+	}
+
+	/// Whether programs run elevated.
+	pub fn is_elevated(&self) -> bool {
+		self.state.lock().expect("sim lock").elevated
+	}
+
+	/// Answers for programs the machine is asked to run, ahead of its built-ins.
+	pub fn on_run(
+		&self,
+		f: impl Fn(&SimMachine, &Path, &[String]) -> Option<i32> + Send + Sync + 'static,
+	) {
+		self.state.lock().expect("sim lock").handler = Some(Arc::new(f));
+	}
+
+	/// A registry value as the platform would have it (not an operation the engine wrote).
+	pub fn set_registry_value(&self, key: &str, name: &str, value: &str) {
+		self.state.lock().expect("sim lock").registry.insert(
+			crate::machine::registry_entry_key(key, name),
+			value.to_owned(),
+		);
+	}
+
+	/// Deletes one registry value.
+	pub fn remove_registry_value(&self, key: &str, name: &str) {
+		self.state
+			.lock()
+			.expect("sim lock")
+			.registry
+			.remove(&crate::machine::registry_entry_key(key, name));
+	}
+
+	/// Every program the machine was asked to run, in order, with its arguments.
+	pub fn runs(&self) -> Vec<(PathBuf, Vec<String>)> {
+		self.state.lock().expect("sim lock").runs.clone()
 	}
 
 	pub fn with_capacity(mut self, bytes: u64) -> Self {
@@ -147,7 +235,7 @@ impl Machine for SimMachine {
 	}
 
 	fn os(&self) -> &str {
-		"linux"
+		self.os
 	}
 
 	fn arch(&self) -> &str {
@@ -308,8 +396,73 @@ impl Machine for SimMachine {
 		Ok(())
 	}
 
+	fn run(&mut self, program: &Path, args: &[String]) -> io::Result<i32> {
+		let handler = {
+			let mut st = self.state.lock().expect("sim lock");
+			st.runs.push((program.to_owned(), args.to_vec()));
+			st.handler.clone()
+		};
+		if let Some(code) = handler.and_then(|h| h(self, program, args)) {
+			return Ok(code);
+		}
+		Ok(self.builtin_run(program, args))
+	}
+
 	fn script_fs(&self) -> Arc<dyn ScriptFs> {
 		Arc::new(SimFs(self.state.clone()))
+	}
+}
+
+impl SimMachine {
+	/// What the simulated machine does for `curl` and the WebView2 installers; any other program
+	/// exits 0 and changes nothing.
+	fn builtin_run(&mut self, program: &Path, args: &[String]) -> i32 {
+		use crate::tauri::webview2;
+		let name = program
+			.file_name()
+			.map(|n| n.to_string_lossy().to_ascii_lowercase())
+			.unwrap_or_default();
+		let (offline, elevated) = {
+			let st = self.state.lock().expect("sim lock");
+			(st.offline, st.elevated)
+		};
+		if name == "curl" || name == "curl.exe" {
+			if offline {
+				return 6;
+			}
+			let dest = args
+				.iter()
+				.position(|a| a == "-o")
+				.and_then(|i| args.get(i + 1));
+			if let Some(dest) = dest {
+				self.add_file(Path::new(dest), b"MZ simulated download", true);
+			}
+			return 0;
+		}
+		let is_bootstrapper = name.contains("microsoftedgewebview2setup");
+		let is_offline_installer = name.contains("webview2runtimeinstaller");
+		if is_bootstrapper || is_offline_installer {
+			if is_bootstrapper && offline {
+				return 1;
+			}
+			// An existing machine-wide runtime is updated where it is; otherwise the installer
+			// puts the runtime where its own elevation says.
+			let machine_wide = self
+				.registry_value(webview2::HKLM_CLIENT_KEY, webview2::VERSION_VALUE)
+				.is_some();
+			let key = if elevated || machine_wide {
+				webview2::HKLM_CLIENT_KEY
+			} else {
+				webview2::HKCU_CLIENT_KEY
+			};
+			self.set_registry_value(
+				key,
+				webview2::VERSION_VALUE,
+				webview2::SIM_INSTALLED_VERSION,
+			);
+			return 0;
+		}
+		0
 	}
 }
 

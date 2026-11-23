@@ -15,6 +15,12 @@ pub struct InstallerFile {
 	pub targets: Vec<Target>,
 	#[serde(default)]
 	pub signing: Signing,
+	/// A Tauri project to import from (see `docs/tauri-apps.md`).
+	#[serde(default)]
+	pub tauri: Option<crate::tauri::TauriSection>,
+	/// Who applies updates; absent means the installer does, from the feed in the receipt.
+	#[serde(default)]
+	pub updates: Option<crate::tauri::Updates>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -102,6 +108,9 @@ pub struct Component {
 	pub url_schemes: Vec<String>,
 	#[serde(default)]
 	pub path: Vec<String>,
+	/// `tauri` for a component the import generated; the next import replaces it.
+	#[serde(default)]
+	pub origin: Option<String>,
 }
 
 impl Component {

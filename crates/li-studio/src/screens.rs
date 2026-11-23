@@ -141,6 +141,7 @@ mod tests {
 			file_types: vec![],
 			url_schemes: vec![],
 			path: vec![],
+			origin: None,
 		}
 	}
 

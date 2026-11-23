@@ -40,7 +40,7 @@ impl fmt::Display for Diagnostic {
 	}
 }
 
-fn error(
+pub(crate) fn error(
 	code: &'static str,
 	location: impl Into<String>,
 	message: impl Into<String>,
@@ -53,7 +53,7 @@ fn error(
 	}
 }
 
-fn warning(
+pub(crate) fn warning(
 	code: &'static str,
 	location: impl Into<String>,
 	message: impl Into<String>,
@@ -184,6 +184,8 @@ pub fn check(project: &Project) -> Vec<Diagnostic> {
 		}
 		Err(e) => out.push(error("unreadable-project", "installer/", e.to_string())),
 	}
+
+	crate::tauri::check::check(project, &mut out);
 
 	// Flows.
 	for (id, flow) in &project.flows {

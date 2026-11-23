@@ -373,6 +373,10 @@ fn linux_payloads_are_executable_shell_scripts() {
 		let dir = ex.dir.join("dist/linux-x86_64");
 		for entry in fs::read_dir(dir).expect("linux dist") {
 			let path = entry.expect("entry").path();
+			// Resource folders hold data, not programs.
+			if path.is_dir() {
+				continue;
+			}
 			let text = fs::read_to_string(&path).expect("text");
 			assert!(text.starts_with("#!/bin/sh"), "{}", path.display());
 			let mode = fs::metadata(&path).expect("meta").permissions().mode();

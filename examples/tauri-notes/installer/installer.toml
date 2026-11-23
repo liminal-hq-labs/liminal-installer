@@ -1,0 +1,43 @@
+# Tauri example project: a Tauri 2 app imported from its tauri.conf.json.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[product]
+id        = "ca.liminalhq.plumenotes"
+name      = "Plume Notes"
+publisher = "Liminal HQ"
+version   = "0.4.2"
+licence   = "LICENCE.TXT"
+
+[defaults]
+scope = "user"
+theme = "neutral"
+
+[[target]]
+id       = "linux-x86_64"
+renderer = "canvas"
+outputs  = ["run", "deb"]
+
+[[target]]
+id       = "macos-aarch64"
+renderer = "canvas"
+outputs  = ["app", "pkg"]
+
+[[target]]
+id       = "windows-x86_64"
+renderer = "canvas"
+outputs  = ["setup-exe"]
+
+[signing]
+feed_key = "keys/feed.pub"
+
+[tauri]
+config = "../src-tauri/tauri.conf.json"
+windows = "native"
+
+[updates]
+mode                 = "both"
+feed                 = "https://example.org/plume/feed.json"
+channel              = "stable"
+check_interval_hours = 24

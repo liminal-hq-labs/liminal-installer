@@ -225,6 +225,14 @@ impl Machine for RealMachine {
 			.map(|_| ())
 	}
 
+	fn run(&mut self, program: &Path, args: &[String]) -> io::Result<i32> {
+		let status = std::process::Command::new(program)
+			.args(args)
+			.stdin(std::process::Stdio::null())
+			.status()?;
+		Ok(status.code().unwrap_or(-1))
+	}
+
 	fn script_fs(&self) -> Arc<dyn ScriptFs> {
 		Arc::new(StdFs)
 	}

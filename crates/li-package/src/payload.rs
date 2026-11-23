@@ -34,6 +34,7 @@ pub fn receipt_for(info: &PackageInfo) -> Result<Receipt> {
 		channel: None,
 		components: info.components.clone(),
 		operations,
+		updates: None,
 	})
 }
 

@@ -434,3 +434,93 @@ files    = [{ from = "payload/{target}/demo", to = "{install}/bin/" }]
 	assert!(!o.status.success());
 	assert!(String::from_utf8_lossy(&o.stderr).contains("damaged"));
 }
+
+/// A Tauri product the app updates itself: the installer installs and uninstalls it, and leaves
+/// updates to the app.
+#[test]
+fn a_tauri_product_installs_and_leaves_updates_to_the_app() {
+	fn copy(from: &Path, to: &Path) {
+		std::fs::create_dir_all(to).unwrap();
+		for e in std::fs::read_dir(from).unwrap() {
+			let e = e.unwrap();
+			if e.file_type().unwrap().is_dir() {
+				copy(&e.path(), &to.join(e.file_name()));
+			} else {
+				std::fs::copy(e.path(), to.join(e.file_name())).unwrap();
+			}
+		}
+	}
+	let sb = Sandbox::new();
+	let engine = engine();
+	let project = sb.path("project");
+	copy(
+		&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/tauri-notes"),
+		&project,
+	);
+	let manifest = project.join("installer/installer.toml");
+	let text = std::fs::read_to_string(&manifest).unwrap().replace(
+		"mode                 = \"both\"",
+		"mode                 = \"tauri\"",
+	);
+	std::fs::write(&manifest, text).unwrap();
+	let check = sb.liminst(&["check"]);
+	assert!(
+		check.status.success(),
+		"{}",
+		String::from_utf8_lossy(&check.stdout)
+	);
+
+	ok(&sb.liminst(&[
+		"build",
+		"-t",
+		"linux-x86_64",
+		"--output",
+		"run",
+		"--engine",
+		engine.to_str().unwrap(),
+	]));
+	let run = sb.path("project/build/linux-x86_64/plume-notes-0.4.2-linux-x86_64.run");
+	let run = if run.is_file() {
+		run
+	} else {
+		std::fs::read_dir(sb.path("project/build/linux-x86_64"))
+			.unwrap()
+			.map(|e| e.unwrap().path())
+			.find(|p| p.extension().is_some_and(|e| e == "run"))
+			.expect("a .run was built")
+	};
+	let before = tree(sb.root.path());
+	let prefix = sb.path("prefix");
+	ok(&sb.run(
+		Path::new("sh"),
+		&[
+			run.to_str().unwrap(),
+			"--prefix",
+			prefix.to_str().unwrap(),
+			"--",
+			"--headless",
+		],
+	));
+	assert!(prefix.join("plume-notes").is_file());
+	assert!(prefix.join("plume-sync").is_file());
+	assert!(prefix.join("assets/theme.json").is_file());
+	let receipt: Value =
+		serde_json::from_slice(&std::fs::read(prefix.join(".liminal/receipt.json")).unwrap())
+			.unwrap();
+	assert_eq!(receipt["updates"]["mode"], "tauri");
+	assert_eq!(receipt["updates"]["check_interval_hours"], 24);
+	assert_eq!(receipt["feed"], "https://example.org/plume/feed.json");
+
+	// The installer has nothing to update: the app does that.
+	let runner = prefix.join(".liminal/runner/liminal-engine");
+	let out = ok(&sb.run(&runner, &["--headless", "update"]));
+	assert!(out.contains("updated by the app itself"), "{out}");
+
+	ok(&sb.run(&runner, &["--headless", "uninstall"]));
+	let after = tree(sb.root.path());
+	let leftovers: Vec<_> = after
+		.keys()
+		.filter(|k| !before.contains_key(*k) && !k.starts_with("project/build"))
+		.collect();
+	assert!(leftovers.is_empty(), "{leftovers:?}");
+}
