@@ -34,6 +34,8 @@ export interface State {
 	summary: ProjectSummary | null;
 	history: HistoryView;
 	mcp: McpInfo | null;
+	/** Why the agent server is off although it is switched on. */
+	mcpError: string | null;
 	problems: Problem[];
 	flowId: string;
 	flow: FlowView | null;
@@ -56,13 +58,19 @@ export interface State {
 	error: string | null;
 }
 
+/** "2 errors, 1 warning": the counts the status bar shows, leaving out a zero. */
+export function problemSummary(errors: number, warnings: number): string {
+	const part = (n: number, one: string) => (n === 0 ? [] : [`${n} ${one}${n === 1 ? '' : 's'}`]);
+	return [...part(errors, 'error'), ...part(warnings, 'warning')].join(', ');
+}
+
 export interface Ctx {
 	api: Api;
 	state: State;
 	render(): void;
 	go(route: Route): void;
 	/** Runs an action, shows its error as a toast, and re-renders. */
-	run(action: () => Promise<unknown>): Promise<void>;
+	run(action: () => Promise<unknown>): Promise<boolean>;
 	saveFlow(flow: Flow, label: string): Promise<void>;
 	saveLayout(layout: Layout, label: string): Promise<void>;
 	loadFlow(id: string): Promise<void>;
@@ -82,10 +90,10 @@ export interface Ctx {
 
 /** What the shell drives the app with. */
 export interface App {
-	/** Runs the action a menu item or shortcut names. */
-	dispatch(id: ActionId): void;
-	/** Opens the project in a folder, as the Open recent menu does. Errors show as a toast. */
-	openPath(path: string): Promise<void>;
+	/** Runs the action a menu item or shortcut names. Resolves once it is done, true when it succeeded; an error shows as a toast. */
+	dispatch(id: ActionId): Promise<boolean>;
+	/** Opens the project in a folder, as the Open recent menu does. Resolves true when it opened. */
+	openPath(path: string): Promise<boolean>;
 }
 
 const NAV: { route: Route; label: string; icon: string }[] = [
@@ -113,19 +121,20 @@ const icon = (d: string) => {
 	return s;
 };
 
-export async function startApp(root: HTMLElement, chrome: ChromeStore, options: { header: boolean }): Promise<App> {
+export async function startApp(root: HTMLElement, chrome: ChromeStore, options: { header: boolean; /** The backend to use instead of the desktop shell or the demo. For tests. */ api?: Api }): Promise<App> {
 	let api: Api;
 	try {
-		api = await createApi();
+		api = options.api ?? (await createApi());
 	} catch (e) {
 		mount(root, h('p', { class: 'fatal' }, String(e)));
-		return { dispatch: () => undefined, openPath: async () => undefined };
+		return { dispatch: async () => false, openPath: async () => false };
 	}
 	const state: State = {
 		route: 'project',
 		summary: null,
 		history: { entries: [], can_undo: false, can_redo: false },
 		mcp: null,
+		mcpError: null,
 		problems: [],
 		flowId: 'install',
 		flow: null,
@@ -166,18 +175,21 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 			state.route = route;
 			state.connectFrom = null;
 			void ctx.run(async () => {
-				if (route === 'flow' && !state.flow) await ctx.loadFlow(state.flowId);
-				if (route === 'layouts' && !state.layout) await ctx.loadLayout(state.layoutId);
+				if (route === 'flow' && !state.flow && state.flowId) await ctx.loadFlow(state.flowId);
+				if (route === 'layouts' && !state.layout && state.layoutId) await ctx.loadLayout(state.layoutId);
 				if (route === 'script' && !state.scriptPath && state.summary?.scripts[0]) await ctx.loadScript(state.summary.scripts[0]);
 			});
 		},
 		async run(action) {
+			let ok = true;
 			try {
 				await action();
 			} catch (e) {
+				ok = false;
 				showToast(String(e instanceof Error ? e.message : e), true, 6000);
 			}
 			render();
+			return ok;
 		},
 		async loadFlow(id) {
 			state.flowId = id;
@@ -228,7 +240,11 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		},
 		async openPath(path) {
 			try {
-				state.summary = await api.openProject(path);
+				const previous = state.summary?.root;
+				const opened = await api.openProject(path);
+				// What belongs to the old project (selections, loaded documents, the preview) must not leak into the new one.
+				if (opened.root !== previous) resetProjectState();
+				state.summary = opened;
 			} catch (e) {
 				// A project that has moved or gone should not stay in the menu.
 				await chrome.forgetProject(path).catch(() => undefined);
@@ -246,18 +262,59 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		return ids.includes(wanted) ? wanted : (ids[0] ?? '');
 	}
 
-	/** Reloads whatever the current project and screen show. A dirty script is kept. */
+	/** Forgets everything tied to the project that was open: ids, selections, loaded documents, the preview and the check results. */
+	function resetProjectState(): void {
+		state.flowId = '';
+		state.flow = null;
+		state.selectedStep = null;
+		state.connectFrom = null;
+		state.layoutId = '';
+		state.layout = null;
+		state.layoutPath = [];
+		state.overrideRenderer = null;
+		state.scriptPath = '';
+		state.scriptSource = '';
+		state.scriptDirty = false;
+		state.report = null;
+		state.previewTarget = '';
+		state.previewStep = 0;
+		state.preview = null;
+		state.problems = [];
+		state.showHistory = false;
+	}
+
+	/** Reloads whatever the current project and screen show. A dirty script is kept. A selection the project no longer has falls back to its first. */
 	async function refresh(): Promise<void> {
 		state.summary = await api.projectSummary();
+		const sum = state.summary;
 		state.history = await api.history();
 		state.problems = await api.checkProject();
 		state.mcp = await api.mcpInfo();
-		if (!state.summary.targets.some((t) => t.full_id === state.previewTarget)) state.previewTarget = defaultTarget(state.summary.targets.map((t) => t.full_id));
+		state.mcpError = await api.mcpError().catch(() => null);
+		if (!sum.targets.some((t) => t.full_id === state.previewTarget)) state.previewTarget = defaultTarget(sum.targets.map((t) => t.full_id));
 		state.preview = await api.getPreview();
 		if (state.preview) state.previewTarget = state.preview.target;
-		if (state.summary.flows.some((f) => f.id === state.flowId)) await ctx.loadFlow(state.flowId);
-		if (state.summary.layouts.includes(state.layoutId)) await ctx.loadLayout(state.layoutId).then(() => undefined);
-		if (state.scriptPath && !state.scriptDirty && state.summary.scripts.includes(state.scriptPath)) await ctx.loadScript(state.scriptPath);
+		if (!sum.flows.some((f) => f.id === state.flowId)) {
+			state.flowId = (sum.flows.find((f) => f.id === 'install') ?? sum.flows[0])?.id ?? '';
+			state.flow = null;
+			state.selectedStep = null;
+			state.connectFrom = null;
+		}
+		if (state.flowId) await ctx.loadFlow(state.flowId);
+		if (!sum.layouts.includes(state.layoutId)) {
+			state.layoutId = sum.layouts[0] ?? '';
+			state.layout = null;
+			state.layoutPath = [];
+			state.overrideRenderer = null;
+		}
+		if (state.layoutId) await ctx.loadLayout(state.layoutId);
+		if (state.scriptPath && !sum.scripts.includes(state.scriptPath)) {
+			// The script is gone from this project. The Scripts screen opens the first one when it is next shown.
+			state.scriptPath = '';
+			state.scriptSource = '';
+			state.scriptDirty = false;
+			state.report = null;
+		} else if (state.scriptPath && !state.scriptDirty) await ctx.loadScript(state.scriptPath);
 	}
 
 	await api.onChange((event) => {
@@ -295,8 +352,9 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		if (state.route === 'script') applyEditorSettings(root, next);
 		if (next.mcpEnabled !== was.mcpEnabled || next.mcpPort !== was.mcpPort) {
 			// Only the card changes, so text typed in the script editor stays as it is.
-			void api.mcpInfo().then((info) => {
+			void Promise.all([api.mcpInfo(), api.mcpError().catch(() => null)]).then(([info, why]) => {
 				state.mcp = info;
+				state.mcpError = why;
 				root.querySelector('.agent-card')?.replaceWith(agentCard());
 			}, () => undefined);
 		}
@@ -328,6 +386,7 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 		'file.open': () => ctx.openProject(),
 		'file.reload': async () => {
 			if (!state.summary) return;
+			resetProjectState();
 			state.summary = await api.openProject(state.summary.root);
 			await refresh();
 			showToast('Reloaded from disk', false, 2500);
@@ -351,7 +410,16 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 	for (const [route, id] of Object.entries(SCREEN_ACTIONS) as [Route, ActionId][]) actions[id] = async () => ctx.go(route);
 
 	function agentCard(): HTMLElement {
-		return h('div', { class: 'agent-card' }, h('span', { class: `dot ${state.mcp ? 'on' : ''}` }), state.mcp ? 'Agent endpoint ready' : 'Agent endpoint off', state.mcp ? h('code', {}, state.mcp.url) : null);
+		const failed = !state.mcp && state.mcpError;
+		return h(
+			'div',
+			{ class: `agent-card${failed ? ' failed' : ''}` },
+			h('span', { class: `dot ${state.mcp ? 'on' : ''}` }),
+			state.mcp ? 'Agent endpoint ready' : failed ? 'Agent endpoint did not start' : 'Agent endpoint off',
+			state.mcp ? h('code', {}, state.mcp.url) : null,
+			failed ? h('span', { class: 'err small', role: 'alert' }, state.mcpError) : null,
+			failed ? h('span', { class: 'dim small' }, 'Change the port in Preferences, under Agents.') : null,
+		);
 	}
 
 	function historyPopover(): HTMLElement {
@@ -361,6 +429,16 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 			{ class: 'popover', role: 'dialog', 'aria-label': 'History' },
 			rows.length === 0 ? h('p', { class: 'dim' }, 'No changes yet.') : h('ol', {}, rows.map((r) => h('li', { class: r.undone ? 'undone' : '' }, h('span', {}, r.label), h('span', { class: 'dim' }, ` · ${r.source} · ${r.doc}`)))),
 		);
+	}
+
+	/** Opens the Overview and brings its checks list into view. */
+	function showChecks(): void {
+		state.route = 'project';
+		state.showHistory = false;
+		render();
+		const section = root.querySelector<HTMLElement>('#checks');
+		section?.scrollIntoView?.({ block: 'start' });
+		section?.focus?.({ preventScroll: true });
 	}
 
 	function render(): void {
@@ -377,6 +455,8 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 							? scriptView(ctx)
 							: previewView(ctx);
 		const errors = s.problems.filter((p) => p.severity === 'error').length;
+		const warnings = s.problems.length - errors;
+		const applied = s.history.entries.filter((e) => e.applied).length;
 		mount(
 			root,
 			h(
@@ -415,8 +495,10 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 					h(
 						'span',
 						{ class: 'statusbar-end' },
-						h('span', { class: errors === 0 ? '' : 'err' }, errors === 0 ? 'No problems' : `${errors} problem${errors === 1 ? '' : 's'}`),
-						h('button', { class: 'statusbar-btn', 'aria-expanded': s.showHistory, on: { click: () => { s.showHistory = !s.showHistory; render(); } } }, `History (${s.history.entries.length})`),
+						s.problems.length === 0
+							? h('span', {}, 'No problems')
+							: h('button', { class: `statusbar-btn ${errors > 0 ? 'err' : 'warn'}`, id: 'status-problems', title: 'Show the checks on the Overview', on: { click: () => showChecks() } }, problemSummary(errors, warnings)),
+						h('button', { class: 'statusbar-btn', 'aria-expanded': s.showHistory, on: { click: () => { s.showHistory = !s.showHistory; render(); } } }, `History (${applied})`),
 					),
 				),
 				s.toast ? h('div', { class: `toast ${s.toast.error ? 'error' : ''}`, role: 'status' }, s.toast.text) : null,
@@ -448,7 +530,7 @@ export async function startApp(root: HTMLElement, chrome: ChromeStore, options: 
 	return {
 		dispatch(id) {
 			const action = actions[id];
-			if (action) void ctx.run(action);
+			return action ? ctx.run(action) : Promise.resolve(false);
 		},
 		openPath: (path) => ctx.run(() => ctx.openPath(path)),
 	};

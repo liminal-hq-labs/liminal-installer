@@ -295,3 +295,22 @@ ol.steps li.skipped { opacity: 0.55; }
 [data-motion="reduced"] *, [data-motion="reduced"] *::before, [data-motion="reduced"] *::after {
 	animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important;
 }
+
+/* Keyboard shortcuts, Connect an agent and New project */
+.shortcuts h2, .agent-connect h2 { font-size: 13px; margin: 12px 0 6px; color: var(--lh-text-secondary); }
+.shortcuts dl { margin: 0; }
+.shortcut-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--lh-border-subtle, rgba(255, 255, 255, 0.08)); }
+.shortcut-row dt { margin: 0; }
+.shortcut-row dd { margin: 0; display: flex; gap: 6px; }
+kbd { font-family: var(--lh-font-mono, monospace); font-size: 12px; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--lh-border-subtle, rgba(255, 255, 255, 0.2)); background: var(--lh-bg-hover-strong); }
+.agent-connect, .new-project { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field > span:first-child { font-size: 12px; color: var(--lh-text-secondary); }
+.row { display: flex; gap: 8px; align-items: center; }
+.snippet, .token { font-family: var(--lh-font-mono, monospace); font-size: 12px; padding: 8px; border-radius: 6px; background: var(--lh-bg-hover-strong); overflow: auto; word-break: break-all; margin: 0; white-space: pre; }
+.token { white-space: normal; }
+
+.statusbar-btn.err { color: var(--lh-colour-error); }
+.statusbar-btn.warn { color: var(--lh-colour-warning, #fbbf24); }
+.agent-card.failed { flex-direction: column; align-items: flex-start; gap: 2px; }
+#checks:focus { outline: none; }

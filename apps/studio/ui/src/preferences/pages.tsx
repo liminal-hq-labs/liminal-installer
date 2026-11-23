@@ -177,12 +177,14 @@ export function PreviewPage(p: PageProps) {
 export function AgentsPage(p: PageProps) {
 	const { host, settings } = p;
 	const [agent, setAgent] = useState<AgentInfo | null>(null);
+	const [startError, setStartError] = useState<string | null>(null);
 	const [token, setToken] = useState<string | null>(null);
 	const [notice, setNotice] = useState<{ key: 'token' | 'copy' | 'regen'; text: string } | null>(null);
 	useEffect(() => {
 		let live = true;
 		setToken(null);
 		void host.agent().then((a) => live && setAgent(a), () => live && setAgent(null));
+		void host.agentError().then((e) => live && setStartError(e), () => live && setStartError(null));
 		return () => {
 			live = false;
 		};
@@ -200,7 +202,11 @@ export function AgentsPage(p: PageProps) {
 			<SettingsGroup title="Agent server" description="An agent can read the project, edit flows, layouts and scripts, and run checks and dry runs. Every change it makes goes through the same undo history as yours, so Undo reverses it.">
 				{toggle(p, 'mcpEnabled', 'Enable the MCP server', 'Serve the Studio to agents on this computer only (127.0.0.1). Off by default in a release build.')}
 				{numberRow(p, 'mcpPort', 'Port', '0 picks a free port each time the server starts. A port that is taken is refused.')}
-				<SettingsRow label="Status" description={running ? agent.url : settings.mcpEnabled ? 'The server is not running.' : 'The server is off.'} />
+				<SettingsRow
+					label="Status"
+					description={running ? agent.url : settings.mcpEnabled ? 'The server is not running.' : 'The server is off.'}
+					{...(!running && settings.mcpEnabled && startError ? { error: `It did not start: ${startError}` } : {})}
+				/>
 			</SettingsGroup>
 			<SettingsGroup title="Access token" description="Agents send the token as a bearer token. It is not written to logs or to the settings file, and it changes each time the Studio starts.">
 				<SettingsRow label="Token" description={token ?? 'Hidden until you ask to see it.'} {...error('token')}>

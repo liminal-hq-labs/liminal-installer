@@ -10,7 +10,7 @@ import './styles/preview.css';
 import { startApp, type App } from './app';
 import { mountShell } from './chrome/Chrome';
 import { createChromeStore, type ChromeStore } from './chrome/chromeStore';
-import { createDialogs, inPageDialogBackend, openPreferencesWindow, tauriDialogBackend, type DialogBackend } from './chrome/dialogWindow';
+import { CREATED_PREFIX, createDialogs, inPageDialogBackend, openChildWindow, tauriDialogBackend, type DialogBackend } from './chrome/dialogWindow';
 import { mountInfoWindow } from './chrome/InfoWindow';
 import { actionForEvent, isActionId, recentPath } from './chrome/menuModel';
 import { createWindowControls, inTauri } from './chrome/windowControls';
@@ -81,8 +81,15 @@ async function boot(): Promise<void> {
 				{ id: 'cancel', label: 'Cancel' },
 			],
 		}).result;
-		if (answer === 'save') app?.dispatch('file.save');
-		return answer === 'save' || answer === 'discard';
+		// Going on after a save that failed would lose the edits, so the save settles it.
+		if (answer === 'save') return (await app?.dispatch('file.save')) === true;
+		return answer === 'discard';
+	};
+
+	/** Its own window in the desktop shell, which does not hold up other dialogs; a dialog in the page elsewhere. */
+	const openInfoWindow = async (kind: 'preferences' | 'shortcuts' | 'agent', title: string): Promise<void> => {
+		if (inTauri()) await openChildWindow(kind);
+		else await dialogs.open({ kind, title }).result;
 	};
 
 	/** The chrome owns the actions about itself; the app runs the rest. */
@@ -95,17 +102,20 @@ async function boot(): Promise<void> {
 			else if (id === 'view.menuBar') await store.toggleMenuBar();
 			else if (id === 'file.clearRecent') await store.updateSettings({ recentProjects: [] });
 			else if (id === 'help.about') await dialogs.open({ kind: 'about', title: 'About Liminal Installer Studio', buttons: [{ id: 'close', label: 'Close', primary: true }] }).result;
-			else if (id === 'app.preferences') {
-				// Its own window in the desktop shell, which does not hold up other dialogs; a dialog in the page elsewhere.
-				if (inTauri()) await openPreferencesWindow();
-				else await dialogs.open({ kind: 'preferences', title: 'Preferences' }).result;
+			else if (id === 'app.preferences') await openInfoWindow('preferences', 'Preferences');
+			else if (id === 'help.shortcuts') await openInfoWindow('shortcuts', 'Keyboard Shortcuts');
+			else if (id === 'help.agent') await openInfoWindow('agent', 'Connect an Agent');
+			else if (id === 'file.new') {
+				if (!(await settleUnsaved())) return;
+				const answer = await dialogs.open({ kind: 'new-project', title: 'New Project' }).result;
+				if (answer?.startsWith(CREATED_PREFIX)) await app?.openPath(answer.slice(CREATED_PREFIX.length));
 			}
 			else if (id === 'file.quit') {
 				// In the desktop window the close request asks about unsaved edits; a tab has no such request.
 				if (inTauri() || (await settleUnsaved())) await controls.close();
 			} else if (id === 'file.open' || id === 'file.reload') {
-				if (await settleUnsaved()) app?.dispatch(id);
-			} else app?.dispatch(id);
+				if (await settleUnsaved()) await app?.dispatch(id);
+			} else await app?.dispatch(id);
 		})().catch(() => undefined);
 	};
 

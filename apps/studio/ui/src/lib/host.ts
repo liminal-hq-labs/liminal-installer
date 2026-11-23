@@ -22,12 +22,16 @@ export interface Host {
 	/** Shows the settings file or the log folder in the file manager. */
 	reveal(what: 'settings' | 'logs'): Promise<void>;
 	agent(): Promise<AgentInfo | null>;
+	/** Why the agent server is not running although it is switched on, or null. */
+	agentError(): Promise<string | null>;
 	/** The token, fetched only when a person asks to see or copy it. */
 	agentToken(): Promise<string | null>;
 	regenerateToken(): Promise<string>;
 	/** Asks for a folder or a file. Null when cancelled. */
 	browse(kind: 'folder' | 'file', title: string, start?: string): Promise<string | null>;
 	copy(text: string): Promise<void>;
+	/** Writes a new project's files into `folder` and resolves with the folder. */
+	newProject(folder: string, name: string, id: string, publisher: string): Promise<string>;
 	/** Asks a question in a window of its own, and resolves with the id of the button chosen, or null. */
 	confirm(spec: DialogSpec): Promise<DialogResult>;
 }
@@ -50,7 +54,9 @@ export async function tauriHost(): Promise<Host> {
 		appInfo: () => call('app_info'),
 		reveal: (what) => call('reveal', { what }),
 		agent: () => call('mcp_info'),
+		agentError: () => call('mcp_error'),
 		agentToken: () => call('mcp_token'),
+		newProject: (folder, name, id, publisher) => call('new_project', { folder, name, id, publisher }),
 		regenerateToken: () => call('mcp_regenerate_token'),
 		async browse(kind, title, start) {
 			const { open } = await import('@tauri-apps/plugin-dialog');
@@ -70,6 +76,10 @@ export function browserHost(): Host {
 			throw new Error('A browser has no file manager to show it in.');
 		},
 		agent: async () => null,
+		agentError: async () => null,
+		newProject: async () => {
+			throw new Error('Creating a project needs the desktop app.');
+		},
 		agentToken: async () => null,
 		regenerateToken: async () => {
 			throw new Error('The agent server runs only in the desktop app.');

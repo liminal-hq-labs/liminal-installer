@@ -79,7 +79,7 @@ export function projectView(ctx: Ctx): HTMLElement {
 		),
 		h(
 			'section',
-			{ class: 'card', 'aria-labelledby': 'check-h' },
+			{ class: 'card', id: 'checks', tabindex: -1, 'aria-labelledby': 'check-h' },
 			h('h2', { id: 'check-h' }, 'Checks'),
 			s.problems.length === 0
 				? h('p', { class: 'muted' }, 'Nothing to report.')

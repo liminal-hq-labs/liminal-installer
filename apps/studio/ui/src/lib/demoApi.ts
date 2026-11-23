@@ -257,6 +257,7 @@ export function demoApi(): Api {
 		undo: async () => step(-1),
 		redo: async () => step(1),
 		mcpInfo: async () => null,
+		mcpError: async () => null,
 		onChange: async (handler) => {
 			listeners.add(handler);
 			return () => listeners.delete(handler);
