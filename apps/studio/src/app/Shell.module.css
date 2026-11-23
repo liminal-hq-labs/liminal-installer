@@ -1,0 +1,203 @@
+/*
+ * (c) Copyright 2026 Liminal HQ, Scott Morris
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ */
+
+.shell {
+	position: relative;
+	height: 100%;
+	display: grid;
+	grid-template-columns: var(--lis-sidebar-width) minmax(0, 1fr);
+	grid-template-rows: minmax(0, 1fr) var(--lis-statusbar-height);
+	grid-template-areas: 'side main' 'status status';
+}
+.shell.withHeader {
+	grid-template-rows: var(--lis-topbar-height) minmax(0, 1fr) var(--lis-statusbar-height);
+	grid-template-areas: 'top top' 'side main' 'status status';
+}
+.topbar {
+	grid-area: top;
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	padding: 0 8px 0 16px;
+	background: var(--lis-bg-sidebar);
+	border-bottom: 1px solid var(--lis-border-subtle);
+}
+.brand {
+	font-family: var(--lis-font-heading);
+	font-weight: 700;
+	font-size: 14px;
+	background: linear-gradient(
+		135deg,
+		var(--lis-brand-cyan),
+		var(--lis-brand-blue),
+		var(--lis-brand-purple)
+	);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+.projectName {
+	color: var(--lis-text-secondary);
+}
+.topbarActions {
+	margin-left: auto;
+	display: flex;
+	gap: 4px;
+}
+.sidebar {
+	grid-area: side;
+	background: var(--lis-bg-sidebar);
+	border-right: 1px solid var(--lis-border-subtle);
+	padding: 16px 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	overflow: auto;
+}
+.navLabel {
+	font-size: 11px;
+	color: var(--lis-text-muted);
+	padding: 0 10px 8px;
+}
+.sidebar a {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	height: 32px;
+	padding: 0 10px;
+	border-radius: 6px;
+	text-decoration: none;
+	color: var(--lis-text-secondary);
+}
+.sidebar a:hover {
+	background: var(--lis-bg-hover);
+}
+.sidebar a.active {
+	color: var(--lis-accent);
+	background: var(--lis-accent-soft);
+}
+.agentCard {
+	margin: auto 4px 0;
+	padding: 12px;
+	border: 1px solid var(--lis-border-subtle);
+	border-radius: var(--lis-radius-md);
+	background: var(--lis-bg-card);
+	font-size: 12px;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+.agentCard code {
+	word-break: break-all;
+	color: var(--lis-text-muted);
+}
+.main {
+	grid-area: main;
+	overflow: auto;
+	padding: 28px 32px 32px;
+	min-width: 0;
+}
+.statusbar {
+	grid-area: status;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	padding: 0 12px;
+	background: var(--lis-bg-sidebar);
+	border-top: 1px solid var(--lis-border-subtle);
+	font-size: 11px;
+	color: var(--lis-text-muted);
+}
+.statusbarPath {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	min-width: 0;
+}
+.statusbarEnd {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex: none;
+}
+.statusbarBtn {
+	background: none;
+	border: 0;
+	padding: 0 4px;
+	font: inherit;
+	color: inherit;
+	cursor: pointer;
+	border-radius: 4px;
+}
+.statusbarBtn:hover,
+.statusbarBtn[aria-expanded='true'] {
+	color: var(--lis-text-primary);
+	background: var(--lis-bg-hover-strong);
+}
+.popover {
+	position: absolute;
+	right: 8px;
+	bottom: calc(var(--lis-statusbar-height) + 4px);
+	z-index: 10;
+	width: 360px;
+	max-height: 60%;
+	overflow: auto;
+	background: var(--lis-bg-modal);
+	border: 1px solid var(--lis-border-default);
+	border-radius: var(--lis-radius-md);
+	box-shadow: var(--lis-shadow-panel);
+	padding: 8px 12px;
+}
+.popover ol {
+	margin: 0;
+	padding-left: 20px;
+}
+.popover li.undone {
+	opacity: 0.5;
+	text-decoration: line-through;
+}
+.toast {
+	position: absolute;
+	bottom: calc(var(--lis-statusbar-height) + 12px);
+	right: 16px;
+	padding: 10px 14px;
+	border-radius: var(--lis-radius-md);
+	background: var(--lis-bg-modal);
+	border: 1px solid var(--lis-border-default);
+	box-shadow: var(--lis-shadow-panel);
+	z-index: 11;
+}
+.toast.error {
+	border-color: var(--lis-colour-error);
+	color: var(--lis-colour-error);
+}
+.empty {
+	max-width: 460px;
+	margin: 80px auto;
+	text-align: center;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	align-items: center;
+}
+.shell {
+	zoom: var(--text-scale, 1);
+}
+:global([data-density='compact']) .sidebar a {
+	height: 26px;
+}
+.statusbarBtn.err {
+	color: var(--lis-colour-error);
+}
+.statusbarBtn.warn {
+	color: var(--lis-colour-warning, #fbbf24);
+}
+.agentCard.failed {
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 2px;
+}

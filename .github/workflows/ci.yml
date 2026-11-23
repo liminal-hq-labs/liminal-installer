@@ -75,6 +75,27 @@ jobs:
       - name: Check formatting
         run: bun run format:check
 
+  i18n:
+    name: Messages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Check the message catalogue
+        run: bun run check:i18n
+
   banner:
     name: Hero banner
     runs-on: ubuntu-24.04

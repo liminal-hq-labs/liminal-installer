@@ -2,11 +2,11 @@
 **/node_modules/
 **/dist/
 **/target/
-apps/studio/ui/vendor/
+packages/chrome/
 **/generated/
 # The design-token export and the CSS generated from it.
-apps/studio/ui/src/styles/tokens.json
-apps/studio/ui/src/styles/tokens.css
+apps/studio/src/theme/tokens.json
+apps/studio/src/theme/tokens.css
 bun.lock
 # Only the Studio UI sources are formatted: TypeScript, CSS and JSON.
 *.md
@@ -19,3 +19,4 @@ bun.lock
 retro/
 examples/
 assets/
+apps/studio/src-tauri/

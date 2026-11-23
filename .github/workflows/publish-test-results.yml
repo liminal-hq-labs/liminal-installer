@@ -1,4 +1,4 @@
-# Publishes the Rust test results from a finished CI run as a check run and a pull request comment.
+# Publishes the Rust and Studio test results from a finished run as check runs and a pull request comment.
 #
 # (c) Copyright 2026 Liminal HQ, Scott Morris
 # SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -7,12 +7,12 @@ name: Publish Test Results
 
 # A separate workflow because the `pull_request` token is read-only for forks, and the action needs
 # `checks: write`. A `workflow_run` trigger runs with this file's own permissions, from the default
-# branch, whoever opened the pull request. It reads the `rust-test-results` and `event-file`
-# artefacts that the `Tests` job in `ci.yml` uploads.
+# branch, whoever opened the pull request. It reads the `rust-test-results` artefact (the `Tests` job
+# in `ci.yml`), the `js-test-results` artefact (the `Vitest` job in `studio.yml`) and `event-file`.
 
 on:
   workflow_run:
-    workflows: [CI]
+    workflows: [CI, Studio]
     types:
       - completed
 
@@ -44,6 +44,7 @@ jobs:
             done
 
       - name: Publish Rust test results
+        if: hashFiles('artifacts/rust-test-results/**/*.xml') != ''
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           check_name: Rust tests
@@ -51,3 +52,13 @@ jobs:
           event_file: artifacts/event-file/event.json
           event_name: ${{ github.event.workflow_run.event }}
           files: artifacts/rust-test-results/**/*.xml
+
+      - name: Publish Studio test results
+        if: hashFiles('artifacts/js-test-results/**/*.xml') != ''
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          check_name: Studio tests
+          commit: ${{ github.event.workflow_run.head_sha }}
+          event_file: artifacts/event-file/event.json
+          event_name: ${{ github.event.workflow_run.event }}
+          files: artifacts/js-test-results/**/*.xml

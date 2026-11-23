@@ -1,0 +1,33 @@
+/*
+ * (c) Copyright 2026 Liminal HQ, Scott Morris
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ */
+
+code,
+.mono,
+textarea.code,
+pre {
+	font-family: var(--lis-font-mono);
+}
+.muted {
+	color: var(--lis-text-secondary);
+}
+.dim {
+	color: var(--lis-text-muted);
+}
+.small {
+	font-size: 12px;
+}
+.violet {
+	color: var(--lis-brand-purple);
+}
+.ok {
+	color: var(--lis-colour-success);
+}
+.err {
+	color: var(--lis-colour-error);
+}
+.fatal {
+	padding: 24px;
+	color: var(--lis-colour-error);
+}

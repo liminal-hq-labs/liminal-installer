@@ -235,7 +235,7 @@ fn every_command_the_ui_calls_is_registered_with_the_arguments_it_sends() {
 
 	let mut files = Vec::new();
 	ui_sources(
-		&Path::new(env!("CARGO_MANIFEST_DIR")).join("../ui/src"),
+		&Path::new(env!("CARGO_MANIFEST_DIR")).join("../src"),
 		&mut files,
 	);
 	let calls: Vec<Call> = files

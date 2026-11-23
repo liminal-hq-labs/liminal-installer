@@ -1,0 +1,123 @@
+/*
+ * (c) Copyright 2026 Liminal HQ, Scott Morris
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ */
+
+* {
+	box-sizing: border-box;
+}
+html,
+body,
+#root {
+	margin: 0;
+	height: 100%;
+}
+html[data-shell='browser'] body {
+	background: var(--lis-bg-app);
+}
+body {
+	color: var(--lis-text-primary);
+	font: 13px/1.45 var(--lis-font-body);
+}
+h1,
+h2,
+h3 {
+	font-family: var(--lis-font-heading);
+	color: var(--lis-text-bright);
+	margin: 0;
+	letter-spacing: var(--lis-tracking-heading-app);
+}
+h1 {
+	font-size: 26px;
+	font-weight: 600;
+}
+h2 {
+	font-size: 15px;
+	font-weight: 600;
+	margin-bottom: 12px;
+}
+h3 {
+	font-size: 12px;
+	text-transform: none;
+	color: var(--lis-text-secondary);
+	margin: 16px 0 8px;
+}
+a {
+	color: var(--lis-accent);
+}
+code {
+	font-size: 12px;
+	color: var(--lis-brand-purple);
+}
+:focus-visible {
+	outline: 2px solid var(--lis-focus-ring);
+	outline-offset: 2px;
+}
+table {
+	width: 100%;
+	border-collapse: collapse;
+}
+th {
+	text-align: left;
+	font-weight: 500;
+	color: var(--lis-text-muted);
+	font-size: 11px;
+	padding: 0 12px 8px 0;
+}
+td {
+	padding: 10px 12px 10px 0;
+	border-top: 1px solid var(--lis-border-subtle);
+}
+input[type='text'],
+select,
+textarea {
+	font: inherit;
+	color: var(--lis-text-primary);
+	background: var(--lis-bg-sidebar);
+	border: 1px solid var(--lis-border-default);
+	border-radius: var(--lis-radius-sm);
+	padding: 4px 8px;
+	min-width: 0;
+}
+input[type='text'] {
+	height: 28px;
+	width: 100%;
+}
+select {
+	height: auto;
+	min-height: 32px;
+	line-height: 1.4;
+	box-sizing: border-box;
+	text-overflow: ellipsis;
+}
+select,
+input[type='text'] {
+	overflow: visible;
+}
+[data-density='compact'] td,
+[data-density='compact'] th {
+	padding-top: 3px;
+	padding-bottom: 3px;
+}
+[data-motion='reduced'] *,
+[data-motion='reduced'] *::before,
+[data-motion='reduced'] *::after {
+	animation-duration: 0.001ms !important;
+	animation-iteration-count: 1 !important;
+	transition-duration: 0.001ms !important;
+	scroll-behavior: auto !important;
+}
+kbd {
+	font-family: var(--lis-font-mono, monospace);
+	font-size: 12px;
+	padding: 1px 6px;
+	border-radius: 4px;
+	border: 1px solid var(--lis-border-subtle, rgba(255, 255, 255, 0.2));
+	background: var(--lis-bg-hover-strong);
+}
+@media (prefers-reduced-motion: reduce) {
+	* {
+		transition: none !important;
+		animation: none !important;
+	}
+}

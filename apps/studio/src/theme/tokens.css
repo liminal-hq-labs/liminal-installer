@@ -1,0 +1,391 @@
+/* Liminal HQ design tokens, generated from tokens.json by scripts/tokens-to-css.mjs. */
+/*
+ * (c) Copyright 2026 Liminal HQ, Scott Morris
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ */
+
+:root,
+:root[data-theme="afterglow"] {
+	color-scheme: dark;
+	--lis-orange-100: #ffd096;
+	--lis-orange-200: #ffaa40;
+	--lis-orange-300: #d28c36;
+	--lis-orange-400: #a56f2b;
+	--lis-orange-500: #7d5422;
+	--lis-orange-600: #583b1a;
+	--lis-orange-700: #372612;
+	--lis-orange-800: #1e160d;
+	--lis-orange-900: #0f0c09;
+	--lis-red-100: #f995a6;
+	--lis-red-200: #f43f5e;
+	--lis-red-300: #c9354e;
+	--lis-red-400: #9e2a3f;
+	--lis-red-500: #782131;
+	--lis-red-600: #541824;
+	--lis-red-700: #351118;
+	--lis-red-800: #1d0b10;
+	--lis-red-900: #0f070a;
+	--lis-yellow-100: #fddc87;
+	--lis-yellow-200: #fbbf24;
+	--lis-yellow-300: #cf9e1f;
+	--lis-yellow-400: #a27c1a;
+	--lis-yellow-500: #7b5e15;
+	--lis-yellow-600: #564211;
+	--lis-yellow-700: #362a0d;
+	--lis-yellow-800: #1e180a;
+	--lis-yellow-900: #0f0c08;
+	--lis-green-100: #8ce0ad;
+	--lis-green-200: #2ec66a;
+	--lis-green-300: #27a358;
+	--lis-green-400: #1f8146;
+	--lis-green-500: #196237;
+	--lis-green-600: #134528;
+	--lis-green-700: #0d2c1b;
+	--lis-green-800: #091811;
+	--lis-green-900: #070d0b;
+	--lis-cyan-100: #85e7f6;
+	--lis-cyan-200: #22d3ee;
+	--lis-cyan-300: #1daec4;
+	--lis-cyan-400: #18899b;
+	--lis-cyan-500: #136876;
+	--lis-cyan-600: #0f4953;
+	--lis-cyan-700: #0b2e35;
+	--lis-cyan-800: #081a1e;
+	--lis-cyan-900: #060d10;
+	--lis-blue-100: #a8cefc;
+	--lis-blue-200: #60a5fa;
+	--lis-blue-300: #5088ce;
+	--lis-blue-400: #3f6ba3;
+	--lis-blue-500: #31527c;
+	--lis-blue-600: #233a57;
+	--lis-blue-700: #172538;
+	--lis-blue-800: #0e151f;
+	--lis-blue-900: #090b11;
+	--lis-purple-100: #cfbffc;
+	--lis-purple-200: #a78bfa;
+	--lis-purple-300: #8a73ce;
+	--lis-purple-400: #6d5ba3;
+	--lis-purple-500: #53457c;
+	--lis-purple-600: #3a3157;
+	--lis-purple-700: #252038;
+	--lis-purple-800: #15121f;
+	--lis-purple-900: #0b0a11;
+	--lis-neutral-100: #f4f4f8;
+	--lis-neutral-200: #e0e0e0;
+	--lis-neutral-300: #b4bfce;
+	--lis-neutral-400: #8d97a8;
+	--lis-neutral-500: #5a6273;
+	--lis-neutral-600: #333847;
+	--lis-neutral-700: #1f2230;
+	--lis-neutral-800: #12121a;
+	--lis-neutral-900: #050507;
+	--lis-grey-100: #c4ccd8;
+	--lis-grey-200: #94a3b8;
+	--lis-grey-300: #7a8798;
+	--lis-grey-400: #616a78;
+	--lis-grey-500: #4a515c;
+	--lis-grey-600: #343941;
+	--lis-grey-700: #22252a;
+	--lis-grey-800: #131519;
+	--lis-grey-900: #0b0b0e;
+	--lis-brand-orange: #ffaa40;
+	--lis-brand-pink: #f43f5e;
+	--lis-brand-purple: #a78bfa;
+	--lis-brand-cyan: #22d3ee;
+	--lis-brand-blue: #60a5fa;
+	--lis-brand-green: #2ec66a;
+	--lis-brand-amber: #fbbf24;
+	--lis-brand-orange-pressed: #e89930;
+	--lis-brand-gold: #ffd08e;
+	--lis-bg-app: #050507;
+	--lis-bg-sidebar: #0c0c10;
+	--lis-bg-panel: #111116;
+	--lis-bg-glass: rgba(20, 20, 25, 0.4);
+	--lis-bg-card: rgba(20, 20, 25, 0.55);
+	--lis-bg-card-hover: rgba(30, 30, 38, 0.7);
+	--lis-bg-deep: rgba(255, 255, 255, 0.03);
+	--lis-bg-faint: rgba(255, 255, 255, 0.02);
+	--lis-bg-hover: rgba(255, 255, 255, 0.04);
+	--lis-bg-hover-strong: rgba(255, 255, 255, 0.06);
+	--lis-bg-input: rgba(20, 20, 28, 0.6);
+	--lis-bg-modal: #16161c;
+	--lis-bg-tooltip: #1e1e26;
+	--lis-bg-menu-mobile: rgba(12, 12, 18, 0.9);
+	--lis-bg-code: rgba(10, 10, 14, 0.9);
+	--lis-bg-raised: #14161d;
+	--lis-bg-raised-high: #1b1e28;
+	--lis-bg-raised-max: #262a37;
+	--lis-border-subtle: rgba(255, 255, 255, 0.08);
+	--lis-border-card: rgba(255, 255, 255, 0.10);
+	--lis-border-default: rgba(255, 255, 255, 0.14);
+	--lis-border-strong: rgba(255, 255, 255, 0.22);
+	--lis-border-focus: #ffaa40;
+	--lis-text-bright: #ffffff;
+	--lis-text-primary: #e0e0e0;
+	--lis-text-secondary: #b4bfce;
+	--lis-text-muted: #7c8796;
+	--lis-text-nav: #9ca3af;
+	--lis-text-soft: #e2e8f0;
+	--lis-text-inverse: #0a0a0c;
+	--lis-colour-success: #2ec66a;
+	--lis-colour-warning: #fbbf24;
+	--lis-colour-error: #f43f5e;
+	--lis-colour-info: #60a5fa;
+	--lis-badge-remux: #2ec66a;
+	--lis-badge-light: #60a5fa;
+	--lis-badge-reencode: #fbbf24;
+	--lis-badge-unsupported: #f43f5e;
+	--lis-syntax-text: #e6edf3;
+	--lis-syntax-keyword: #ff8e53;
+	--lis-syntax-string: #9ecbff;
+	--lis-syntax-number: #f778ba;
+	--lis-syntax-comment: #8b949e;
+	--lis-accent: var(--lis-brand-orange);
+	--lis-interactive: var(--lis-brand-purple);
+	--lis-focus-ring: var(--lis-brand-orange);
+	--lis-surface-page: var(--lis-bg-app);
+	--lis-surface-glass: var(--lis-bg-glass);
+	--lis-surface-card: var(--lis-bg-card);
+	--lis-surface-card-hover: var(--lis-bg-card-hover);
+	--lis-surface-chrome: var(--lis-bg-sidebar);
+	--lis-surface-overlay: var(--lis-bg-modal);
+	--lis-text-body: var(--lis-text-primary);
+	--lis-text-heading: var(--lis-text-bright);
+	--lis-text-supporting: var(--lis-text-secondary);
+	--lis-link: var(--lis-brand-orange);
+	--lis-space-1: 0.25rem;
+	--lis-space-2: 0.5rem;
+	--lis-space-3: 0.75rem;
+	--lis-space-4: 1rem;
+	--lis-space-5: 1.25rem;
+	--lis-space-6: 1.5rem;
+	--lis-space-8: 2rem;
+	--lis-space-10: 2.5rem;
+	--lis-space-12: 3rem;
+	--lis-space-14: 3.5rem;
+	--lis-space-section: 6rem;
+	--lis-radius-sm: 4px;
+	--lis-radius-md: 8px;
+	--lis-radius-lg: 12px;
+	--lis-radius-xl: 20px;
+	--lis-radius-2xl: 24px;
+	--lis-radius-card: 16px;
+	--lis-radius-calm: 16px;
+	--lis-radius-pill: 9999px;
+	--lis-shadow-card: 0 2px 12px rgba(0, 0, 0, 0.35);
+	--lis-shadow-panel: 0 4px 24px rgba(0, 0, 0, 0.45);
+	--lis-shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.6);
+	--lis-shadow-lift: 0 10px 30px rgba(0, 0, 0, 0.3);
+	--lis-shadow-hero: 0 20px 60px rgba(0, 0, 0, 0.2);
+	--lis-shadow-glow: 0 0 20px rgba(255, 170, 64, 0.15);
+	--lis-shadow-glow-strong: 0 0 16px rgba(255, 170, 64, 0.3);
+	--lis-shadow-tagline: 0 4px 20px rgba(167, 139, 250, 0.3);
+	--lis-blur-glass: 10px;
+	--lis-blur-hero: 20px;
+	--lis-blur-ambient: 80px;
+	--lis-container-max: 1200px;
+	--lis-content-max: 960px;
+	--lis-sidebar-width: 220px;
+	--lis-topbar-height: 40px;
+	--lis-statusbar-height: 28px;
+	--lis-text-xs: 0.6875rem;
+	--lis-text-sm: 0.75rem;
+	--lis-text-base: 0.8125rem;
+	--lis-text-md: 0.875rem;
+	--lis-text-lg: 1rem;
+	--lis-text-xl: 1.25rem;
+	--lis-text-2xl: 1.5rem;
+	--lis-text-3xl: 1.875rem;
+	--lis-display-section: 2rem;
+	--lis-display-project: 2.5rem;
+	--lis-display-card: 2rem;
+	--lis-prose-size: 1.05rem;
+	--lis-weight-light: 300;
+	--lis-weight-regular: 400;
+	--lis-weight-medium: 500;
+	--lis-weight-semibold: 600;
+	--lis-weight-bold: 700;
+	--lis-prose-line: 1.8;
+	--lis-line-tight: 1.1;
+	--lis-line-body: 1.5;
+	--lis-line-relaxed: 1.7;
+	--lis-tracking-heading: -0.02em;
+	--lis-tracking-heading-app: -0.01em;
+	--lis-tracking-label: 0.08em;
+	--lis-tracking-badge: 0.1em;
+	--lis-tracking-eyebrow: 0.2em;
+	--lis-font-heading: 'Space Grotesk', 'Inter', sans-serif;
+	--lis-font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	--lis-font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+	--lis-font-android: 'Roboto Flex', system-ui, sans-serif;
+	--lis-font-calm: system-ui, -apple-system, sans-serif;
+}
+
+:root[data-theme="afterglow-dark"] {
+	color-scheme: dark;
+	--lis-neutral-100: #f1eee6;
+	--lis-neutral-200: #e4e2ec;
+	--lis-neutral-300: #b8b6c8;
+	--lis-neutral-400: #8f8da6;
+	--lis-neutral-500: #5f5d78;
+	--lis-neutral-600: #3a384f;
+	--lis-neutral-700: #2a2840;
+	--lis-neutral-800: #1a1828;
+	--lis-neutral-900: #0f0e1a;
+	--lis-bg-app: #0f0e1a;
+	--lis-bg-sidebar: #141323;
+	--lis-bg-panel: #1a1828;
+	--lis-bg-card: rgba(26, 24, 40, 0.6);
+	--lis-bg-card-hover: rgba(42, 40, 64, 0.7);
+	--lis-bg-modal: #1a1828;
+	--lis-bg-raised: #1a1828;
+	--lis-bg-raised-high: #2a2840;
+	--lis-bg-raised-max: #3a384f;
+	--lis-border-focus: var(--lis-brand-purple);
+	--lis-text-primary: #e4e2ec;
+	--lis-text-secondary: #b8b6c8;
+	--lis-text-muted: #8f8da6;
+	--lis-accent: var(--lis-brand-purple);
+	--lis-interactive: var(--lis-brand-blue);
+	--lis-focus-ring: var(--lis-brand-purple);
+	--lis-link: var(--lis-brand-purple);
+}
+
+:root[data-theme="afterglow-light"] {
+	color-scheme: light;
+	--lis-orange-200: #b45309;
+	--lis-red-200: #be123c;
+	--lis-yellow-200: #a16207;
+	--lis-green-200: #15803d;
+	--lis-cyan-200: #0e7490;
+	--lis-blue-200: #2563eb;
+	--lis-purple-200: #5e44cc;
+	--lis-neutral-100: #1c1b20;
+	--lis-neutral-200: #2b2a33;
+	--lis-neutral-300: #484554;
+	--lis-neutral-400: #6b6877;
+	--lis-neutral-500: #8f8c98;
+	--lis-neutral-600: #c9c5d0;
+	--lis-neutral-700: #e6e0eb;
+	--lis-neutral-800: #f2eff4;
+	--lis-neutral-900: #fbfaf6;
+	--lis-brand-orange: #b45309;
+	--lis-brand-pink: #be123c;
+	--lis-brand-purple: #5e44cc;
+	--lis-brand-cyan: #0e7490;
+	--lis-brand-blue: #2563eb;
+	--lis-brand-green: #15803d;
+	--lis-brand-amber: #a16207;
+	--lis-bg-app: #fbfaf6;
+	--lis-bg-sidebar: #f2eff4;
+	--lis-bg-panel: #f2eff4;
+	--lis-bg-glass: rgba(255, 255, 255, 0.6);
+	--lis-bg-card: rgba(255, 255, 255, 0.7);
+	--lis-bg-card-hover: #ffffff;
+	--lis-bg-deep: rgba(0, 0, 0, 0.03);
+	--lis-bg-hover: rgba(0, 0, 0, 0.04);
+	--lis-bg-hover-strong: rgba(0, 0, 0, 0.06);
+	--lis-bg-input: #ffffff;
+	--lis-bg-modal: #ffffff;
+	--lis-bg-raised: #f2eff4;
+	--lis-bg-raised-high: #e6e0eb;
+	--lis-bg-raised-max: #c9c5d0;
+	--lis-border-subtle: rgba(28, 27, 32, 0.10);
+	--lis-border-card: rgba(28, 27, 32, 0.12);
+	--lis-border-default: rgba(28, 27, 32, 0.16);
+	--lis-border-strong: rgba(28, 27, 32, 0.26);
+	--lis-border-focus: var(--lis-brand-purple);
+	--lis-text-bright: #1c1b20;
+	--lis-text-primary: #2b2a33;
+	--lis-text-secondary: #484554;
+	--lis-text-muted: #6b6877;
+	--lis-text-inverse: #fbfaf6;
+	--lis-colour-success: #15803d;
+	--lis-colour-warning: #a16207;
+	--lis-colour-error: #be123c;
+	--lis-colour-info: #2563eb;
+	--lis-accent: var(--lis-brand-purple);
+	--lis-interactive: var(--lis-brand-blue);
+	--lis-focus-ring: var(--lis-brand-purple);
+	--lis-link: var(--lis-brand-purple);
+}
+
+/*
+ * The chrome's variables (`--lic-*`) and the editor's syntax colours, in the Studio's tokens. The
+ * generator appends this file to `tokens.css`, after the design-system tokens it refers to.
+ *
+ * (c) Copyright 2026 Liminal HQ, Scott Morris
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ */
+
+/*
+ * The Studio's palette in the shared chrome's variables, every one the chrome reads, so its title bar,
+ * menus, dialogs and settings follow the Afterglow themes with no per-theme chrome rules.
+ */
+:root {
+	--lis-accent-soft: color-mix(in srgb, var(--lis-accent) 10%, transparent);
+	/* Surfaces and text */
+	--lic-bg-chrome: var(--lis-bg-sidebar);
+	--lic-bg-chrome-unfocused: var(--lis-bg-sidebar);
+	--lic-bg-raised: var(--lis-bg-modal);
+	--lic-bg-menu: var(--lis-bg-modal);
+	--lic-menu-backdrop: none;
+	--lic-bg-shell: var(--lis-bg-app);
+	--lic-bg-settings-pane: var(--lis-bg-app);
+	--lic-bg-settings-nav: var(--lis-bg-sidebar);
+	--lic-text-primary: var(--lis-text-primary);
+	--lic-text-secondary: var(--lis-text-secondary);
+	--lic-text-muted: var(--lis-text-muted);
+	--lic-border-subtle: var(--lis-border-default);
+	/* Accent, danger and focus */
+	--lic-accent: var(--lis-accent);
+	--lic-accent-contrast: var(--lis-text-inverse);
+	--lic-danger: var(--lis-colour-error);
+	--lic-danger-fg: var(--lis-text-bright);
+	--lic-focus-ring: var(--lis-focus-ring);
+	--lic-focus-ring-on-accent: var(--lis-text-inverse);
+	/* Title bar controls: the raised surface, so buttons stand out from the pane */
+	--lic-control-bg: var(--lis-bg-hover-strong);
+	--lic-control-bg-hover: color-mix(in srgb, var(--lis-text-bright) 12%, transparent);
+	--lic-window-close-hover-bg: #c42b1c;
+	--lic-window-close-hover-fg: #ffffff;
+	--lic-title-bar-height: var(--lis-topbar-height);
+	--lic-title-bar-opacity: 1;
+	/* Window frame */
+	--lic-window-radius: 10px;
+	--lic-window-shadow: none;
+	--lic-window-shadow-unfocused: none;
+	--lic-window-shadow-margin: 0px;
+	/* Menus and dialogs */
+	--lic-shadow-menu: var(--lis-shadow-panel);
+	--lic-shadow-dialog: var(--lis-shadow-modal);
+	--lic-font-mono: var(--lis-font-mono);
+	--lic-scrim: color-mix(in srgb, var(--lis-bg-app) 60%, transparent);
+	/* Controls and the settings shell */
+	--lic-field-bg: var(--lis-bg-input);
+	--lic-switch-off: color-mix(in srgb, var(--lis-text-primary) 30%, var(--lis-bg-app));
+	--lic-switch-thumb: var(--lis-text-bright);
+	--lic-settings-nav-width: var(--lis-sidebar-width);
+}
+
+/* Syntax colours for the editor, from the design tokens. Light themes take the deeper steps of the palette. */
+:root {
+	--lis-ed-keyword: var(--lis-brand-purple);
+	--lis-ed-function: var(--lis-brand-blue);
+	--lis-ed-string: var(--lis-brand-green);
+	--lis-ed-number: var(--lis-syntax-number);
+	--lis-ed-atom: var(--lis-brand-orange);
+	--lis-ed-comment: var(--lis-text-muted);
+	--lis-ed-definition: var(--lis-brand-cyan);
+	--lis-ed-property: var(--lis-text-secondary);
+	--lis-ed-punct: var(--lis-text-secondary);
+	--lis-ed-error: var(--lis-colour-error);
+}
+:root[data-theme='afterglow-light'] {
+	--lis-ed-keyword: var(--lis-purple-400);
+	--lis-ed-function: var(--lis-blue-400);
+	--lis-ed-string: var(--lis-green-400);
+	--lis-ed-number: #b4236b;
+	--lis-ed-atom: var(--lis-orange-400);
+	--lis-ed-definition: var(--lis-cyan-500);
+}

@@ -1,0 +1,1275 @@
+/* The rich layout preview: DOS text mode, Windows 95 classic, Afterglow and Neutral. */
+/*
+ * (c) Copyright 2026 Liminal HQ, Scott Morris
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ */
+
+/* Each stage is composed at its artboard's pixel size and scaled to fit by `fitStages`. */
+
+.host {
+	margin-top: 12px;
+}
+.pvFit {
+	position: relative;
+	width: 100%;
+	overflow: hidden;
+	border-radius: 6px;
+	background: #000;
+}
+.pv {
+	position: absolute;
+	left: 0;
+	top: 0;
+	transform-origin: 0 0;
+	box-sizing: border-box;
+	overflow: hidden;
+	text-align: left;
+}
+.pv *,
+.pv *::before,
+.pv *::after {
+	box-sizing: border-box;
+}
+.pvStage {
+	position: absolute;
+	inset: 0;
+}
+.pv p,
+.pv pre {
+	margin: 0;
+}
+.pv button {
+	font: inherit;
+	cursor: default;
+}
+.pvCol {
+	display: flex;
+	flex-direction: column;
+}
+.pvRow {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+.pvGrid {
+	display: grid;
+	gap: 8px;
+}
+.pvArt {
+	display: block;
+	flex: none;
+}
+.pvGroup {
+	display: contents;
+}
+.pvCustom,
+.pvUnknown {
+	padding: 8px;
+	border: 1px dashed currentColor;
+	opacity: 0.6;
+}
+.pvChoices > .pvCaption {
+	display: none;
+}
+.pvHot {
+	text-decoration: none;
+}
+
+/* ---------------- DOS text mode ---------------- */
+
+.pvDos {
+	width: 960px;
+	height: 600px;
+	background: #0000aa;
+	color: #aaaaaa;
+	font:
+		24px/24px VT323,
+		'Courier New',
+		monospace;
+}
+.pvDosBar {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 960px;
+	height: 24px;
+	background: #00aaaa;
+	color: #000;
+	display: flex;
+	justify-content: space-between;
+	padding: 0 12px;
+}
+.pvDosFill {
+	position: absolute;
+	left: 0;
+	top: 24px;
+	width: 960px;
+	height: 552px;
+	color: #0000ff;
+	white-space: pre;
+	overflow: hidden;
+	opacity: 0.55;
+}
+.pvDosSide {
+	position: absolute;
+	left: 48px;
+	top: 60px;
+	width: 220px;
+	color: #ffff55;
+	display: flex;
+	flex-direction: column;
+}
+.pvDosSide .pvTitle {
+	font-size: 32px;
+	line-height: 32px;
+}
+.pvDosSide .pvSubtitle {
+	color: #55ffff;
+	margin-top: 6px;
+}
+.pvDosSide .pvImage {
+	margin-top: 24px;
+}
+.pvDosSide .pvSteps {
+	margin-top: 20px;
+	color: #aaaaaa;
+	line-height: 26px;
+}
+.pvDos .pvStepsBar {
+	display: flex;
+}
+.pvDos .pvStepsBar i {
+	font-style: normal;
+	color: #5555ff;
+}
+.pvDos .pvStepsBar i::before {
+	content: '■';
+}
+.pvDos .pvStepsBar i.pvOn {
+	color: #fff;
+}
+.pvDosShadow {
+	position: absolute;
+	left: 312px;
+	top: 84px;
+	width: 576px;
+	height: 408px;
+	background: #000;
+}
+.pvDosDialog {
+	position: absolute;
+	left: 300px;
+	top: 72px;
+	width: 576px;
+	height: 408px;
+	background: #aaa;
+	color: #000;
+	border: 6px double #fff;
+	padding: 18px 24px;
+	overflow: visible;
+}
+.pvDosDtitle {
+	position: absolute;
+	left: 50%;
+	top: -15px;
+	transform: translateX(-50%);
+	background: #aaa;
+	padding: 0 8px;
+	white-space: nowrap;
+}
+.pvDosContent {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	max-height: 330px;
+	overflow: hidden;
+}
+.pvDosFooter {
+	position: absolute;
+	left: 24px;
+	right: 24px;
+	bottom: 18px;
+}
+.pvDosFooter .pvStack {
+	justify-content: center;
+	gap: 24px;
+	width: 100%;
+}
+.pvDos .pvStack {
+	gap: 0;
+}
+.pvDos .pvGFields {
+	gap: 24px;
+	margin-top: 6px;
+}
+.pvDos .pvText {
+	white-space: normal;
+}
+.pvDos .pvHeading {
+	color: #fff;
+}
+.pvDos .pvText.pvCaption,
+.pvDos .pvNote {
+	color: #555;
+}
+.pvDos .pvError {
+	color: #a00;
+}
+.pvDos .pvDocument {
+	background: #000;
+	color: #aaa;
+	padding: 0 8px;
+	max-height: 144px;
+	overflow: hidden;
+	white-space: pre-wrap;
+	font: inherit;
+}
+.pvDos .pvSummary {
+	white-space: pre-wrap;
+	font: inherit;
+}
+.pvDos .pvChoiceList {
+	display: flex;
+	flex-direction: column;
+}
+.pvDos .pvChoice {
+	padding: 0 8px;
+	display: flex;
+	gap: 8px;
+}
+.pvDos .pvChoice.pvSel {
+	background: #0000aa;
+	color: #ffff55;
+}
+.pvDos .pvDesc,
+.pvDos .pvBadges {
+	display: none;
+}
+.pvDos .pvField,
+.pvDos .pvPath {
+	display: inline-flex;
+	gap: 8px;
+	align-items: baseline;
+}
+.pvDos .pvInput {
+	background: #000;
+	color: #55ffff;
+	padding: 0 6px;
+	min-width: 2.2em;
+}
+.pvDos .pvPath .pvInput {
+	min-width: 14em;
+}
+.pvDos .pvButton {
+	background: #00aaaa;
+	color: #000;
+	border: 0;
+	padding: 0 10px;
+	white-space: pre;
+}
+.pvDos .pvButton .pvHot {
+	color: #fff;
+}
+.pvDos .pvButton.pvDefault {
+	background: #0000aa;
+	color: #fff;
+}
+.pvDos .pvButton.pvDefault .pvHot {
+	color: #ffff55;
+}
+.pvDos .pvMeter {
+	display: flex;
+	gap: 12px;
+	align-items: baseline;
+}
+.pvDos .pvMeterLabel {
+	width: 9.5em;
+	flex: none;
+	white-space: nowrap;
+	overflow: hidden;
+}
+.pvDos .pvMeterCaption {
+	display: none;
+}
+.pvDos .pvBarText .pvOn {
+	color: #0000aa;
+}
+.pvDos .pvBarText .pvOff {
+	color: #555;
+}
+.pvDos .pvBarText.pvWarn {
+	color: #a00;
+}
+.pvDos .pvBillboard {
+	background: #0000aa;
+	color: #fff;
+	border: 2px solid #555;
+	padding: 4px 12px;
+	margin: 4px 0;
+}
+.pvDos .pvBbTitle {
+	color: #ffff55;
+}
+.pvDos .pvBbArt {
+	display: none;
+}
+.pvDos .pvBbDots {
+	display: none;
+}
+.pvDosHints {
+	position: absolute;
+	left: 0;
+	top: 576px;
+	width: 960px;
+	height: 24px;
+	background: #aaa;
+	color: #000;
+	overflow: hidden;
+	padding: 0 12px;
+}
+.pvDosHints .pvStack {
+	gap: 28px;
+	white-space: nowrap;
+	height: 24px;
+}
+.pvDosHints .pvKeycap {
+	color: #a00;
+}
+.pvTui .pvDosDialog {
+	border-style: solid;
+	border-width: 2px;
+}
+
+/* ---------------- Windows 95 classic ---------------- */
+
+.pvWin95 {
+	width: 1024px;
+	height: 768px;
+	background: linear-gradient(180deg, #0000aa 0%, #00004a 70%, #000 100%);
+	font:
+		12px Tahoma,
+		Verdana,
+		'Segoe UI',
+		sans-serif;
+	color: #000;
+}
+.pvWin95 {
+	--bevel:
+		inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf;
+	--sunk: inset 1px 1px #808080, inset -1px -1px #fff, inset 2px 2px #404040;
+}
+.pvWMark {
+	position: absolute;
+	left: 40px;
+	top: 28px;
+	font:
+		italic 700 52px/1.1 'Times New Roman',
+		Georgia,
+		serif;
+	color: #fff;
+	text-shadow: 4px 4px 0 #000;
+}
+.pvWSub {
+	position: absolute;
+	left: 44px;
+	top: 94px;
+	font:
+		italic 22px 'Times New Roman',
+		Georgia,
+		serif;
+	color: #ffff55;
+	text-shadow: 3px 3px 0 #000;
+}
+.pvWCredit {
+	position: absolute;
+	right: 40px;
+	top: 40px;
+	color: #aaaaff;
+}
+.pvWDialog {
+	position: absolute;
+	left: 192px;
+	top: 176px;
+	width: 640px;
+	background: #c0c0c0;
+	box-shadow:
+		var(--bevel),
+		6px 6px 0 rgba(0, 0, 0, 0.5);
+	padding: 3px;
+}
+.pvWTitle {
+	height: 22px;
+	background: linear-gradient(90deg, #000080, #1084d0);
+	color: #fff;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 3px 0 6px;
+	font-weight: 700;
+}
+.pvWClose {
+	width: 18px;
+	height: 16px;
+	padding: 0;
+	border: 0;
+	background: #c0c0c0;
+	box-shadow: var(--bevel);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.pvWMain {
+	display: flex;
+	gap: 16px;
+	padding: 16px;
+	min-height: 332px;
+}
+.pvWSide {
+	width: 168px;
+	height: 300px;
+	flex: 0 0 168px;
+	background: #008080;
+	box-shadow:
+		inset 1px 1px #808080,
+		inset -1px -1px #fff;
+	position: relative;
+	overflow: hidden;
+}
+.pvWSide .pvStack,
+.pvWSide .pvImage {
+	position: absolute;
+	inset: 0;
+}
+.pvWSide .pvImage {
+	background: #008080;
+}
+.pvWSide .pvImage::before {
+	content: '';
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 60px;
+	background: var(--ground, #004040);
+}
+.pvWSide .pvArt {
+	position: absolute;
+	left: 50%;
+	top: 70px;
+	transform: translateX(-50%);
+}
+.pvWContent {
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+.pvWContent .pvStack {
+	gap: 12px;
+}
+.pvWin95 .pvText {
+	line-height: 1.5;
+}
+.pvWin95 .pvHeading {
+	font-weight: 700;
+}
+.pvWin95 .pvCaption {
+	color: #404040;
+}
+.pvWin95 .pvError {
+	color: #a00000;
+}
+.pvWin95 .pvDocument {
+	background: #fff;
+	box-shadow: var(--sunk);
+	padding: 6px 8px;
+	height: 130px;
+	overflow: hidden;
+	white-space: pre-wrap;
+	font:
+		11px/1.4 'Lucida Console',
+		'Courier New',
+		monospace;
+}
+.pvWin95 .pvSummary {
+	white-space: pre-wrap;
+	font: inherit;
+	background: #fff;
+	box-shadow: var(--sunk);
+	padding: 6px 8px;
+}
+.pvWin95 .pvSunken {
+	background: #fff;
+	box-shadow: var(--sunk);
+}
+.pvWin95 .pvChoiceList {
+	padding: 4px 6px;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+.pvWin95 .pvChoice {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	padding: 1px 2px;
+}
+.pvWin95 .pvChoiceBody {
+	display: flex;
+	flex-direction: column;
+}
+.pvWin95 .pvDesc,
+.pvWin95 .pvBadges {
+	display: none;
+}
+.pvWin95 .pvBox {
+	width: 13px;
+	height: 13px;
+	background: #fff;
+	box-shadow: var(--sunk);
+	position: relative;
+	flex: none;
+}
+.pvWin95 .pvBox.on::after {
+	content: '';
+	position: absolute;
+	left: 4px;
+	top: 1px;
+	width: 3px;
+	height: 7px;
+	border: solid #000;
+	border-width: 0 2px 2px 0;
+	transform: rotate(40deg);
+}
+.pvWin95 .pvDot {
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	background: #fff;
+	box-shadow: var(--sunk);
+	position: relative;
+	flex: none;
+}
+.pvWin95 .pvDot.on::after {
+	content: '';
+	position: absolute;
+	left: 3px;
+	top: 3px;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: #000;
+}
+.pvWin95 .pvPath {
+	margin-top: 28px;
+	padding: 14px 12px 12px;
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	box-shadow:
+		inset 1px 1px #808080,
+		inset -1px -1px #fff,
+		1px 1px #fff,
+		-1px -1px #808080;
+}
+.pvWin95 .pvPath .pvCaption {
+	position: absolute;
+	top: -8px;
+	left: 8px;
+	padding: 0 4px;
+	background: #c0c0c0;
+	color: #000;
+}
+.pvWin95 .pvPath .pvInput {
+	flex: 1;
+}
+.pvWin95 .pvField {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.pvWin95 .pvGFields {
+	gap: 16px;
+}
+.pvWin95 .pvField .pvInput {
+	background: #fff;
+	box-shadow: var(--sunk);
+	padding: 2px 6px;
+	min-width: 44px;
+}
+.pvWin95 .pvButton {
+	min-width: 80px;
+	height: 23px;
+	border: 0;
+	background: #c0c0c0;
+	box-shadow: var(--bevel);
+	color: #000;
+	padding: 0 8px;
+}
+.pvWin95 .pvButton.pvDefault {
+	box-shadow:
+		var(--bevel),
+		0 0 0 1px #000;
+	outline: 1px dotted #000;
+	outline-offset: -5px;
+}
+.pvWSep {
+	margin: 0 16px;
+	height: 2px;
+	box-shadow:
+		inset 0 1px #808080,
+		inset 0 -1px #fff;
+}
+.pvWFooter {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	padding: 12px 16px 14px;
+}
+.pvWin95 .pvMeter {
+	display: grid;
+	grid-template-columns: 150px 1fr 90px;
+	gap: 8px;
+	align-items: center;
+}
+.pvWin95 .pvBar {
+	display: flex;
+	gap: 2px;
+	padding: 3px;
+	height: 20px;
+	background: #fff;
+	box-shadow: var(--sunk);
+}
+.pvWin95 .pvBlk {
+	width: 100%;
+	max-width: 10px;
+	background: transparent;
+}
+.pvWin95 .pvBlk.pvLit {
+	background: #000080;
+}
+.pvWin95 .pvPct {
+	display: none;
+}
+.pvWin95 .pvBillboard {
+	background: #008080;
+	color: #fff;
+	box-shadow: var(--sunk);
+	padding: 10px 12px;
+	display: flex;
+	gap: 12px;
+	align-items: center;
+	min-height: 92px;
+	position: relative;
+}
+.pvWin95 .pvBbTitle {
+	font-weight: 700;
+}
+.pvWin95 .pvBbDots {
+	position: absolute;
+	right: 8px;
+	bottom: 6px;
+	display: flex;
+	gap: 4px;
+}
+.pvWin95 .pvBbDots i {
+	width: 6px;
+	height: 6px;
+	background: #004040;
+}
+.pvWin95 .pvBbDots i.pvOn {
+	background: #fff;
+}
+.pvStatus {
+	position: absolute;
+	left: 28px;
+	bottom: 44px;
+	display: flex;
+	background: #e8e8e8;
+	box-shadow: var(--bevel);
+	padding: 4px;
+}
+.pvVmeter {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 8px 6px;
+}
+.pvVmeter + .pvVmeter {
+	border-left: 1px solid #808080;
+	box-shadow: inset 1px 0 #fff;
+}
+.pvVgauge {
+	width: 22px;
+	height: 112px;
+	background: #f4f4f4;
+	padding: 4px 3px;
+	display: flex;
+	flex-direction: column-reverse;
+	gap: 2px;
+}
+.pvVgauge i {
+	display: block;
+	height: 5px;
+	flex: 0 0 5px;
+}
+.pvVicons {
+	height: 108px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: space-between;
+	padding-top: 4px;
+}
+.pvWTask {
+	position: absolute;
+	left: 0;
+	bottom: 0;
+	width: 1024px;
+	height: 30px;
+	background: #c0c0c0;
+	box-shadow:
+		inset 0 1px #dfdfdf,
+		inset 0 2px #fff;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 3px 0;
+}
+.pvWTask > span {
+	height: 22px;
+	display: inline-flex;
+	align-items: center;
+	padding: 0 6px;
+}
+.pvWStart {
+	gap: 4px;
+	font-weight: 700;
+	box-shadow: var(--bevel);
+}
+.pvWWin {
+	min-width: 160px;
+	font-weight: 700;
+	background: #dfdfdf;
+	box-shadow:
+		inset 1px 1px #0a0a0a,
+		inset -1px -1px #fff,
+		inset 2px 2px #808080;
+}
+.pvWSpacer {
+	flex: 1 1 auto;
+}
+.pvWClock {
+	padding: 0 10px;
+	box-shadow:
+		inset 1px 1px #808080,
+		inset -1px -1px #fff;
+}
+
+/* ---------------- Afterglow and Neutral ---------------- */
+
+.pvAfterglow,
+.pvNeutral {
+	width: 1024px;
+	height: 720px;
+	font:
+		13px/1.45 Inter,
+		system-ui,
+		'Segoe UI',
+		sans-serif;
+}
+.pvAfterglow {
+	--bg: #050507;
+	--panel: #0c0c10;
+	--bar: #0c0c10;
+	--text: #e0e0e0;
+	--strong: #fff;
+	--muted: #b4bfce;
+	--dim: #7c8796;
+	--line: rgba(255, 255, 255, 0.08);
+	--edge: rgba(255, 255, 255, 0.14);
+	--card: rgba(20, 20, 25, 0.55);
+	--input: rgba(255, 255, 255, 0.06);
+	--accent: #ffaa40;
+	--accent-soft: rgba(255, 170, 64, 0.1);
+	--on-accent: #050507;
+	--ok: #2ec66a;
+	--track: rgba(255, 255, 255, 0.12);
+	--head: 'Space Grotesk', Inter, system-ui, sans-serif;
+	background: var(--bg);
+	color: var(--text);
+}
+.pvNeutral {
+	--bg: #e9e8e4;
+	--panel: #fff;
+	--bar: #f6f5f2;
+	--text: #1c1917;
+	--strong: #1c1917;
+	--muted: #57534e;
+	--dim: #78716c;
+	--line: #e5e2dc;
+	--edge: #d6d3cd;
+	--card: #fff;
+	--input: #f6f5f2;
+	--accent: #2563eb;
+	--accent-soft: #eff6ff;
+	--on-accent: #fff;
+	--ok: #15803d;
+	--track: #e7e5e4;
+	--head: Inter, system-ui, sans-serif;
+	background: var(--bg);
+	color: var(--text);
+}
+.pvMGlow {
+	position: absolute;
+	inset: -80px;
+	filter: blur(40px);
+	background:
+		radial-gradient(circle at 10% 20%, rgba(167, 139, 250, 0.22), transparent 40%),
+		radial-gradient(circle at 90% 60%, rgba(244, 63, 94, 0.16), transparent 40%),
+		radial-gradient(circle at 50% 95%, rgba(34, 211, 238, 0.12), transparent 45%);
+}
+.pvNeutral .pvMGlow {
+	display: none;
+}
+.pvMWindow {
+	position: absolute;
+	left: 112px;
+	top: 80px;
+	width: 800px;
+	height: 560px;
+	display: flex;
+	flex-direction: column;
+	background: var(--panel);
+	border: 1px solid var(--edge);
+	border-radius: 12px;
+	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+	overflow: hidden;
+}
+.pvNeutral .pvMWindow {
+	left: 172px;
+	top: 110px;
+	width: 680px;
+	height: 500px;
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+.pvMTitle {
+	height: 40px;
+	flex: 0 0 40px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 8px 0 14px;
+	border-bottom: 1px solid var(--line);
+	background: var(--bar);
+}
+.pvNeutral .pvMTitle {
+	padding-left: 16px;
+}
+.pvMName {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font: 600 14px var(--head);
+	color: var(--strong);
+}
+.pvNeutral .pvMName {
+	font:
+		500 13px Inter,
+		system-ui,
+		sans-serif;
+	color: #44403c;
+}
+.pvMClose {
+	width: 28px;
+	height: 28px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--muted);
+}
+.pvMMain {
+	flex: 1 1 auto;
+	display: flex;
+	min-height: 0;
+}
+.pvMSide {
+	width: 200px;
+	flex: 0 0 200px;
+	padding: 24px 16px;
+	border-right: 1px solid var(--line);
+}
+.pvMSide .pvStack {
+	gap: 4px;
+}
+.pvMContent {
+	flex: 1 1 auto;
+	min-width: 0;
+	padding: 24px 28px;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	overflow: hidden;
+}
+.pvNeutral .pvMContent {
+	padding: 32px 40px;
+	gap: 20px;
+}
+.pvMContent > .pvStack {
+	gap: 14px;
+}
+.pvMFooter {
+	height: 64px;
+	flex: 0 0 64px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 0 20px;
+	border-top: 1px solid var(--line);
+	background: var(--bar);
+}
+.pvAfterglow .pvMFooter {
+	background: transparent;
+}
+.pvMNote {
+	font-size: 12px;
+	color: var(--dim);
+}
+.pvNeutral .pvMNote {
+	font-size: 13px;
+	color: var(--muted);
+}
+.pvMButtons {
+	display: flex;
+	gap: 8px;
+}
+.pvMCaption {
+	position: absolute;
+	left: 112px;
+	top: 656px;
+	font-size: 12px;
+	color: var(--dim);
+}
+.pvNeutral .pvMCaption {
+	left: 172px;
+	top: 640px;
+	font-size: 13px;
+	color: var(--muted);
+}
+.pvAfterglow .pvStepItem,
+.pvNeutral .pvStepItem {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	height: 32px;
+	padding: 0 10px;
+	color: var(--muted);
+	border-radius: 6px;
+}
+.pvMSide .pvStateDone {
+	color: var(--dim);
+}
+.pvMSide .pvStateDone .pvMark {
+	color: var(--ok);
+}
+.pvMSide .pvStateCurrent {
+	color: var(--accent);
+	background: var(--accent-soft);
+}
+.pvMSide .pvStateTodo .pvMark {
+	color: var(--dim);
+}
+.pvMContent .pvHeading {
+	font: 600 22px var(--head);
+	letter-spacing: -0.01em;
+	color: var(--strong);
+}
+.pvNeutral .pvMContent .pvHeading {
+	font-size: 20px;
+}
+.pvMContent .pvHeading.pvHasIcon {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+}
+.pvNeutral .pvHasIcon .pvArt {
+	width: 48px;
+	height: 48px;
+	padding: 12px;
+	border-radius: 12px;
+	background: #dbeafe;
+}
+.pvMContent .pvGLead > .pvBody {
+	color: var(--muted);
+	margin-top: 4px;
+}
+.pvAfterglow .pvCaption,
+.pvNeutral .pvCaption {
+	color: var(--dim);
+	font-size: 12px;
+}
+.pvAfterglow .pvError,
+.pvNeutral .pvError {
+	color: #f87171;
+}
+.pvAfterglow .pvDocument,
+.pvNeutral .pvDocument {
+	background: var(--input);
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	padding: 10px 12px;
+	max-height: 150px;
+	overflow: hidden;
+	white-space: pre-wrap;
+	font:
+		12px/1.5 'JetBrains Mono',
+		ui-monospace,
+		Menlo,
+		monospace;
+	color: var(--muted);
+}
+.pvAfterglow .pvSummary,
+.pvNeutral .pvSummary {
+	background: var(--input);
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	padding: 10px 12px;
+	font: inherit;
+	white-space: pre-wrap;
+}
+.pvAfterglow .pvChoiceList,
+.pvNeutral .pvChoiceList {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+.pvAfterglow .pvChoice,
+.pvNeutral .pvChoice {
+	display: flex;
+	gap: 12px;
+	align-items: flex-start;
+}
+.pvAfterglow .pvCards .pvChoice,
+.pvNeutral .pvCards .pvChoice {
+	padding: 12px 14px;
+	border-radius: 12px;
+	border: 1px solid var(--line);
+	background: var(--card);
+}
+.pvAfterglow .pvCards .pvChoice.pvSel {
+	border-color: var(--accent);
+	background: var(--accent-soft);
+}
+.pvNeutral .pvCards .pvChoice.pvSel {
+	border-color: var(--accent);
+}
+.pvMContent .pvChoiceLabel {
+	color: var(--strong);
+	font-weight: 500;
+}
+.pvMContent .pvChoiceBody {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+}
+.pvMContent .pvReq {
+	color: var(--dim);
+	font-size: 12px;
+}
+.pvMContent .pvChoiceBody {
+	display: block;
+}
+.pvMContent .pvDesc {
+	display: block;
+	font-size: 12px;
+	color: var(--muted);
+}
+.pvMContent .pvBadges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 8px;
+}
+.pvMContent .pvBadge {
+	padding: 2px 10px;
+	border-radius: 999px;
+	background: rgba(255, 170, 64, 0.15);
+	color: var(--accent);
+	font-size: 12px;
+}
+.pvMContent .pvBox,
+.pvMContent .pvDot {
+	width: 14px;
+	height: 14px;
+	border: 1.5px solid var(--dim);
+	margin-top: 2px;
+	flex: none;
+	position: relative;
+}
+.pvMContent .pvBox {
+	border-radius: 4px;
+}
+.pvMContent .pvDot {
+	border-radius: 50%;
+}
+.pvMContent .pvBox.on,
+.pvMContent .pvDot.on {
+	background: var(--accent);
+	border-color: var(--accent);
+}
+.pvMContent .pvBox.on::after {
+	content: '';
+	position: absolute;
+	left: 3.5px;
+	top: 0.5px;
+	width: 4px;
+	height: 8px;
+	border: solid var(--on-accent);
+	border-width: 0 2px 2px 0;
+	transform: rotate(40deg);
+}
+.pvAfterglow .pvField,
+.pvNeutral .pvField,
+.pvAfterglow .pvPath,
+.pvNeutral .pvPath {
+	display: grid;
+	grid-template-columns: 150px 1fr auto;
+	gap: 8px;
+	align-items: center;
+}
+.pvAfterglow .pvInput,
+.pvNeutral .pvInput {
+	padding: 6px 10px;
+	border-radius: 8px;
+	background: var(--input);
+	border: 1px solid var(--edge);
+	color: var(--strong);
+}
+.pvAfterglow .pvButton,
+.pvNeutral .pvButton {
+	height: 36px;
+	padding: 0 16px;
+	border-radius: 8px;
+	border: 1px solid var(--edge);
+	background: transparent;
+	color: var(--text);
+	font-weight: 500;
+}
+.pvNeutral .pvButton {
+	background: #fff;
+}
+.pvAfterglow .pvButton.pvDefault,
+.pvNeutral .pvButton.pvDefault {
+	background: var(--accent);
+	color: var(--on-accent);
+	border: 0;
+	font-weight: 600;
+	padding: 0 18px;
+}
+.pvAfterglow .pvButton.pvDefault {
+	box-shadow: 0 0 20px rgba(255, 170, 64, 0.15);
+}
+.pvAfterglow .pvMeter,
+.pvNeutral .pvMeter {
+	display: grid;
+	grid-template-columns: 170px 1fr 150px;
+	gap: 12px;
+	align-items: center;
+	font-size: 12px;
+	color: var(--muted);
+}
+.pvAfterglow .pvBar,
+.pvNeutral .pvBar {
+	display: block;
+	height: 8px;
+	border-radius: 999px;
+	background: var(--track);
+	overflow: hidden;
+}
+.pvAfterglow .pvBarFill,
+.pvNeutral .pvBarFill {
+	display: block;
+	height: 100%;
+	background: var(--accent);
+	border-radius: 999px;
+}
+.pvAfterglow .pvBarFill.pvWarn,
+.pvNeutral .pvBarFill.pvWarn {
+	background: #f87171;
+}
+.pvMContent .pvMeterCaption {
+	color: var(--dim);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.pvMContent .pvGTasks {
+	gap: 8px;
+}
+.pvMContent .pvTask {
+	display: flex;
+	gap: 10px;
+	color: var(--muted);
+}
+.pvMContent .pvTask.pvStateDone .pvMark {
+	color: var(--ok);
+}
+.pvMContent .pvTask.pvStateCurrent {
+	color: var(--strong);
+	font-weight: 500;
+}
+.pvMContent .pvTask.pvStateCurrent .pvMark {
+	color: var(--accent);
+}
+.pvAfterglow .pvBillboard,
+.pvNeutral .pvBillboard {
+	display: flex;
+	gap: 14px;
+	align-items: center;
+	padding: 12px 14px;
+	border-radius: 12px;
+	border: 1px solid var(--line);
+	background: var(--card);
+	position: relative;
+}
+.pvMContent .pvBbTitle {
+	color: var(--strong);
+	font-weight: 600;
+}
+.pvMContent .pvBbText {
+	color: var(--muted);
+	font-size: 12px;
+}
+.pvMContent .pvBbDots {
+	position: absolute;
+	right: 12px;
+	bottom: 8px;
+	display: flex;
+	gap: 4px;
+}
+.pvMContent .pvBbDots i {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--track);
+}
+.pvMContent .pvBbDots i.pvOn {
+	background: var(--accent);
+}
+.pvMContent .pvGMeters {
+	gap: 6px;
+}
+
+.pvBox,
+.pvDot {
+	display: inline-block;
+}
+.pvGlyph {
+	display: inline-flex;
+	flex: none;
+}

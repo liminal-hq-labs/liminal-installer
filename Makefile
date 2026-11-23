@@ -3,7 +3,7 @@
 # (c) Copyright 2026 Liminal HQ, Scott Morris
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 
-.PHONY: validate fmt clippy test headers js bindings markdown e2e-linux
+.PHONY: validate fmt clippy test headers js i18n bindings markdown e2e-linux
 
 validate: fmt clippy test headers js bindings
 
@@ -22,8 +22,12 @@ headers:
 # The Studio UI checks need Bun; without it they are skipped with a note.
 js:
 	@if command -v bun >/dev/null 2>&1; then \
-		bun install --frozen-lockfile && bun run format:check && bun run typecheck && bun run test:js; \
+		bun install --frozen-lockfile && bun run format:check && bun run typecheck && bun run check:i18n && bun run test:js; \
 	else echo "bun not found: skipping the JavaScript checks"; fi
+
+# The message catalogue and the components agree (also part of `js`).
+i18n:
+	bun run check:i18n
 
 # Regenerates the ts-rs bindings and fails if they differ from the committed ones.
 bindings:
