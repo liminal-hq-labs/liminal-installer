@@ -523,17 +523,32 @@ impl StudioBackend for EngineBackend {
 				"`{target}` is not a terminal target, so it has no terminal screen"
 			)));
 		}
-		let layout_id = eng
-			.flows
-			.get("install")
-			.and_then(|f| f.step(page))
-			.and_then(|s| s.layout.as_deref())
-			.unwrap_or(page);
+		// A flow step is drawn inside its theme's stage, as the rich preview draws it. A layout
+		// id is drawn the same way as a `page` step, except a stage, which is drawn alone.
+		let step = eng.flows.get("install").and_then(|f| f.step(page));
+		let layout_id = step.and_then(|s| s.layout.as_deref()).unwrap_or(page);
+		let (step_id, step_kind) = match step {
+			Some(s) => (s.id.as_str(), format!("{:?}", s.kind).to_lowercase()),
+			None => (layout_id, "page".to_owned()),
+		};
 		let layout = match layout_id.split_once('/') {
-			Some((theme, id)) => eng.themes.get(theme).and_then(|t| t.layouts.get(id)),
-			None => eng.layout_for(t, layout_id),
-		}
-		.ok_or_else(|| BackendError(format!("no layout for `{page}`")))?;
+			Some((theme, id)) => {
+				let page = eng
+					.themes
+					.get(theme)
+					.and_then(|t| t.layouts.get(id))
+					.ok_or_else(|| BackendError(format!("no layout for `{page}`")))?;
+				match eng.stage_for(t) {
+					Some(stage) if id != li_model::theme::STAGE_LAYOUT => {
+						Layout::composed(stage, page, step_id, &step_kind)
+					}
+					_ => page.clone(),
+				}
+			}
+			None => eng
+				.screen_for(t, layout_id, step_id, &step_kind)
+				.ok_or_else(|| BackendError(format!("no layout for `{page}`")))?,
+		};
 		let components: Vec<&li_model::Component> = eng
 			.components
 			.components

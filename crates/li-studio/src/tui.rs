@@ -363,6 +363,33 @@ mod tests {
 	}
 
 	#[test]
+	fn a_step_is_drawn_inside_its_themes_stage() {
+		// The page is only a dialog; the backdrop and its title come from `fizz-dos/stage`.
+		let s = studio("lt-fizz");
+		let text = s
+			.tui_session_open(TARGET, "components", Map::new(), None)
+			.unwrap()
+			.frame
+			.grid
+			.to_text();
+		let title = text.lines().next().unwrap();
+		assert!(
+			title.contains("Lieutenant Fizz") && title.contains("Setup"),
+			"{text}"
+		);
+		assert!(text.contains("Components"), "{text}");
+		// The same page opened as a layout id is composed the same way, and a stage alone is drawn.
+		let by_layout = s
+			.tui_session_open(TARGET, "fizz-dos/components", Map::new(), None)
+			.unwrap();
+		assert_eq!(by_layout.frame.grid.to_text(), text);
+		assert!(
+			s.tui_session_open(TARGET, "fizz-dos/stage", Map::new(), None)
+				.is_ok()
+		);
+	}
+
+	#[test]
 	fn keys_move_focus_and_space_toggles_a_checklist() {
 		let s = studio("lt-fizz");
 		let o = s
