@@ -12,7 +12,7 @@ fail() { echo "check-pe: $*" >&2; exit 1; }
 if command -v file > /dev/null; then
 	what="$(file -b "$exe")"
 	case "$what" in
-	"PE32 executable for MS Windows 4.00 (GUI), Intel i386"*) ;;
+	"PE32 executable for MS Windows 4.00 (GUI), Intel i386"* | "PE32 executable (GUI) Intel 80386, for MS Windows"*) ;;
 	*) fail "file says: $what" ;;
 	esac
 fi
