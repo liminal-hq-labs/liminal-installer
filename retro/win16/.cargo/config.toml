@@ -12,4 +12,5 @@ build-std-features = ["compiler-builtins-mem"]
 json-target-spec = true
 
 [target.win16]
-rustflags = ["-C", "link-arg=-Tlink.ld", "-C", "link-arg=--no-dynamic-linker"]
+# No jump tables: a `match` that LLVM turns into an indirect jump through a table faulted on Windows 3.11 in the Quill probes.
+rustflags = ["-C", "link-arg=-Tlink.ld", "-C", "link-arg=--no-dynamic-linker", "-C", "jump-tables=no"]

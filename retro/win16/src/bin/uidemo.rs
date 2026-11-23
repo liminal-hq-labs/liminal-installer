@@ -24,8 +24,9 @@ mod ui;
 
 use alloc::string::String;
 use alloc::vec::Vec;
+use li_retro::gui::{GuiEvent, GuiPage};
+use li_retro::install::Progress;
 use li_retro::model::Kind;
-use li_retro::platform::NativeEvent;
 use li_retro::ui::{Page, Values};
 use w16::*;
 
@@ -87,43 +88,63 @@ fn view(p: &mut plat::Win16Platform) -> i32 {
 		let step = &flow.steps[steps[at]];
 		let screen = usize::from(step.screen.unwrap_or(0));
 		let now = p.millis();
-		let page = Page::new(&project, screen, &mut v, now);
-		p.page_shown(&step.id, &project.screens[screen].id);
+		// Seeds the fields' and lists' defaults, as the flow VM does before it shows a page.
+		let _ = Page::new(&project, screen, &mut v, now);
+		p.step(&step.id);
+		let title = v.interpolate(&project.screens[screen].title);
+		let mut gp = GuiPage {
+			screen: &project.screens[screen],
+			strings: &project.strings,
+			values: &mut v,
+			step: &step.id,
+			kind: step.kind,
+			product: &project.name,
+			title,
+			number: at + 1,
+			total: steps.len(),
+			fresh: true,
+		};
+		let Some(gui) = p.gui() else {
+			return 2;
+		};
 		if step.kind == Kind::Commit {
-			let start = p.millis();
+			let start = now;
 			loop {
-				let t = p.millis().wrapping_sub(start);
-				let pct = (t / 25).min(100);
-				v.file_pct = pct;
-				v.total_pct = pct;
-				v.free_pct = 100 - pct / 4;
-				if !p.native_progress(&page, &project, &v) {
-					p.native_leave();
+				let pct = (p_millis().wrapping_sub(start) / 25).min(100);
+				gp.values.file_pct = pct;
+				gp.values.total_pct = pct;
+				gp.values.free_pct = 100 - pct / 4;
+				let pr = Progress::default();
+				let go = gui.working(&mut gp, &pr);
+				gp.fresh = false;
+				if !go {
 					return 3;
 				}
 				if pct >= 100 {
 					break;
 				}
 			}
-			p.native_leave();
 			at += 1;
 			continue;
 		}
 		let ev = loop {
-			match p.native_page(&page, &project, &mut v) {
-				NativeEvent::Changed => continue,
-				e => break e,
+			let ev = gui.page(&mut gp);
+			gp.fresh = false;
+			if ev != GuiEvent::Changed {
+				break ev;
 			}
 		};
-		p.native_leave();
 		match ev {
-			NativeEvent::Action(a) if a == "back" => at = at.saturating_sub(1),
-			NativeEvent::Action(a) if a == "cancel" => return 3,
-			NativeEvent::Action(_) => at += 1,
-			_ => return 3,
+			GuiEvent::Action(a) if a == "back" => at = at.saturating_sub(1),
+			GuiEvent::Action(a) if a == "cancel" => return 3,
+			_ => at += 1,
 		}
 	}
 	0
+}
+
+fn p_millis() -> u32 {
+	unsafe { GetTickCount() }
 }
 
 fn command_line() -> String {

@@ -3,7 +3,7 @@
 # (c) Copyright 2026 Liminal HQ, Scott Morris
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 
-.PHONY: validate fmt clippy test headers js i18n bindings markdown e2e-linux dos win32
+.PHONY: validate fmt clippy test headers js i18n bindings markdown e2e-linux dos win32 win16
 
 validate: fmt clippy test headers js bindings
 
@@ -55,3 +55,12 @@ win32:
 	cargo nextest run -p li-retro -p li-retro-build --locked
 	cargo nextest run -p li-cli -E 'binary(win32)' --locked
 	bash win32/tools/wine-e2e.sh
+
+# The Windows 3.1 runtime: the host tests of its crates (the flow against DOS's, the compiler, the pack), then retro/win16's checks (format,
+# lints, the packer's tests, the build, the NE check and the size report), then, when Wine is installed, an install and uninstall of Lt. Fizz
+# and Planboard under it. Not part of `validate`: it needs the nightly build-std setup and Wine. Windows 3.11 under DOSBox-X is a separate,
+# manual run (retro/win16/tools/e2e-w31.sh) because it needs a Windows 3.11 tree the repository cannot carry.
+win16:
+	cargo test --locked -p li-retro -p li-retro-build
+	bash retro/win16/check.sh
+	bash retro/win16/tools/e2e-wine.sh

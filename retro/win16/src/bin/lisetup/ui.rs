@@ -14,9 +14,10 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::ptr::addr_of_mut;
-use li_retro::model::{Item, Project, Source, Widget};
-use li_retro::platform::NativeEvent;
-use li_retro::ui::{Page, Value, Values};
+use li_retro::gui::{Gui, GuiEvent, GuiPage};
+use li_retro::install::Progress;
+use li_retro::model::{Item, Rect, Source, Widget};
+use li_retro::ui::{Value, Values};
 use w16::*;
 
 export_proc!(WizProc, wiz_proc);
@@ -83,6 +84,8 @@ struct Ctl {
 
 pub struct Ui {
 	hwnd: u32,
+	/// The widgets of the page on show, with the commit page's default meters added.
+	ws: Vec<Widget>,
 	ctls: Vec<Ctl>,
 	started: u32,
 	/// The gauge's inner width in pixels.
@@ -230,6 +233,7 @@ impl Ui {
 	pub const fn new() -> Ui {
 		Ui {
 			hwnd: 0,
+			ws: Vec::new(),
 			ctls: Vec::new(),
 			started: 0,
 			gauge_w: 0,
@@ -294,12 +298,13 @@ impl Ui {
 			self.hwnd = 0;
 		}
 		self.ctls.clear();
+		self.ws.clear();
 		let _ = take_event();
 		let _ = take_close();
 	}
 
 	/// Builds the window for `page`.
-	pub fn build(&mut self, page: &Page, project: &Project, v: &Values, now: u32) -> bool {
+	fn build(&mut self, page: &GuiPage<'_>, now: u32) -> bool {
 		if !self.register() {
 			return false;
 		}
@@ -312,20 +317,27 @@ impl Ui {
 		let margin = by.max(8);
 		let width = (58 * bx).min(sw.saturating_sub(40)).max(280);
 		let inner = width - 2 * margin;
-		let ws = page.widgets();
-		let strings = &project.strings;
-
-		let mut caption = String::new();
-		for w in ws {
-			if let Widget::Text {
-				attr: 4, template, ..
-			} = w
-			{
-				caption = v.interpolate(template);
-			}
+		let v: &Values = &*page.values;
+		let mut wsv: Vec<Widget> = page.screen.widgets.clone();
+		// A commit page with no meters of its own gets the file and overall bars.
+		for (label, source) in page.extra_meters() {
+			wsv.push(Widget::Meter {
+				rect: Rect {
+					x: 0,
+					y: 0,
+					w: 0,
+					h: 0,
+				},
+				attr: 0,
+				label: String::from(*label),
+				source: *source,
+				low_below: 0,
+			});
 		}
+		let ws = &wsv;
+		let mut caption = page.title.clone();
 		if caption.is_empty() {
-			caption = project.name.clone();
+			caption = page.product.into();
 		}
 		let cap = ansi(&caption);
 		// Measure the stack first so the window is the right height.
@@ -333,7 +345,6 @@ impl Ui {
 		let mut heights = 0u32;
 		for w in ws {
 			heights += match w {
-				Widget::Text { attr: 4, .. } => 0,
 				Widget::Text { template, .. } => {
 					lines_for(v.interpolate(template).chars().count(), inner, bx) * line + by / 2
 				}
@@ -389,7 +400,7 @@ impl Ui {
 		let mut default_id = 0;
 		for (wi, w) in ws.iter().enumerate() {
 			match w {
-				Widget::Text { attr: 4, .. } | Widget::Button { .. } => {}
+				Widget::Button { .. } => {}
 				Widget::Text { template, attr, .. } => {
 					let t = v.interpolate(template);
 					let n = lines_for(t.chars().count(), inner, bx);
@@ -632,7 +643,7 @@ impl Ui {
 					(x, client_h - margin - btn_h, bw, btn_h),
 					id,
 				);
-				let on = page.button_enabled(w, strings, v);
+				let on = page.enabled(w);
 				if !on {
 					unsafe { EnableWindow(hw, 0) };
 				}
@@ -669,12 +680,14 @@ impl Ui {
 		}
 		let _ = take_event();
 		let _ = take_close();
+		self.ws = wsv;
 		true
 	}
 
 	/// Brings the texts, the meters and the buttons up to date with the values.
-	pub fn sync(&mut self, page: &Page, project: &Project, v: &Values, now: u32) {
-		let ws = page.widgets();
+	fn sync(&mut self, page: &GuiPage<'_>, now: u32) {
+		let v: &Values = &*page.values;
+		let ws = core::mem::take(&mut self.ws);
 		for c in &mut self.ctls {
 			match (&ws[c.widget], c.kind) {
 				(Widget::Text { template, .. }, Kind::Text) => {
@@ -739,7 +752,7 @@ impl Ui {
 					}
 				}
 				(w @ Widget::Button { .. }, Kind::Button) => {
-					let on = page.button_enabled(w, &project.strings, v);
+					let on = page.enabled(w);
 					if on != c.enabled {
 						unsafe { EnableWindow(c.hwnd, u32::from(on)) };
 						c.enabled = on;
@@ -748,9 +761,9 @@ impl Ui {
 				_ => {}
 			}
 		}
+		self.ws = ws;
 	}
 }
-
 fn push_dec(s: &mut String, mut n: u32) {
 	let mut tmp = [0u8; 10];
 	let mut i = 0;
@@ -802,44 +815,47 @@ fn list_on(v: &Values, check: bool, bind: &str, default: &str, it: &Item) -> boo
 }
 
 impl Ui {
-	/// Shows `page` (building the window the first time) and returns when the person does
-	/// something the flow must know about.
-	pub fn run_page(
-		&mut self,
-		page: &Page,
-		project: &Project,
-		v: &mut Values,
-		now: u32,
-	) -> NativeEvent {
-		if !self.open() && !self.build(page, project, v, now) {
-			return NativeEvent::Cancel;
+	/// Shows the page and returns when the person does something the flow must know about.
+	fn run_page(&mut self, page: &mut GuiPage<'_>) -> GuiEvent {
+		let now = unsafe { GetTickCount() };
+		if page.fresh {
+			self.close();
+			if !self.build(page, now) {
+				return GuiEvent::Action(String::from("cancel"));
+			}
 		}
-		self.sync(page, project, v, now);
+		self.sync(page, now);
 		loop {
 			if take_close() {
-				return NativeEvent::Cancel;
+				return GuiEvent::Action(String::from("cancel"));
 			}
 			if let Some((id, notify)) = take_event() {
-				if let Some(ev) = self.handle(page, project, v, id, notify) {
+				if let Some(ev) = self.handle(page, id, notify) {
 					return ev;
 				}
 				continue;
 			}
 			if !pump_one(self.hwnd) {
-				return NativeEvent::Cancel;
+				return GuiEvent::Action(String::from("cancel"));
 			}
 		}
 	}
 
-	fn handle(
+	fn handle(&mut self, page: &mut GuiPage<'_>, id: u32, notify: u32) -> Option<GuiEvent> {
+		let ws = core::mem::take(&mut self.ws);
+		let ev = self.handle_in(&ws, page, id, notify);
+		self.ws = ws;
+		ev
+	}
+
+	fn handle_in(
 		&mut self,
-		page: &Page,
-		project: &Project,
-		v: &mut Values,
+		ws: &[Widget],
+		page: &mut GuiPage<'_>,
 		id: u32,
 		notify: u32,
-	) -> Option<NativeEvent> {
-		let ws = page.widgets();
+	) -> Option<GuiEvent> {
+		let v: &mut Values = &mut *page.values;
 		if id == IDCANCEL {
 			// Esc: back where there is a Back button, else cancel.
 			for c in &self.ctls {
@@ -848,15 +864,15 @@ impl Ui {
 					&& action == "back"
 					&& c.enabled
 				{
-					return Some(NativeEvent::Action("back".into()));
+					return Some(GuiEvent::Action(String::from("back")));
 				}
 			}
-			return Some(NativeEvent::Cancel);
+			return Some(GuiEvent::Action(String::from("cancel")));
 		}
 		let c = self.ctls.iter().find(|c| c.id == id)?;
 		match (c.kind, &ws[c.widget]) {
 			(Kind::Button, Widget::Button { action, .. }) if c.enabled => {
-				Some(NativeEvent::Action(action.clone()))
+				Some(GuiEvent::Action(action.clone()))
 			}
 			(Kind::Check, Widget::List { bind, items, .. }) => {
 				let it = &items[c.item];
@@ -871,7 +887,7 @@ impl Ui {
 					list.push(it.id.clone());
 				}
 				v.state.insert(bind.clone(), Value::List(list));
-				Some(NativeEvent::Changed)
+				Some(GuiEvent::Changed)
 			}
 			(Kind::Radio, Widget::List { bind, items, .. }) => {
 				let it = &items[c.item];
@@ -879,7 +895,7 @@ impl Ui {
 					return None;
 				}
 				v.set_str(bind, &it.id);
-				Some(NativeEvent::Changed)
+				Some(GuiEvent::Changed)
 			}
 			(Kind::Edit, Widget::Field { bind, .. }) if notify == EN_CHANGE => {
 				let mut buf = [0u8; 80];
@@ -889,45 +905,53 @@ impl Ui {
 					return None;
 				}
 				v.set_str(bind, &s);
-				Some(NativeEvent::Changed)
+				Some(GuiEvent::Changed)
 			}
-			_ => {
-				let _ = project;
-				None
-			}
+			_ => None,
 		}
 	}
 
-	/// The commit page: updates the meters from `v`, lets Windows run and says whether to go on.
-	pub fn progress(&mut self, page: &Page, project: &Project, v: &Values, now: u32) -> bool {
-		if !self.open() && !self.build(page, project, v, now) {
-			return true;
+	/// The commit page: updates the meters from the values, lets Windows run and says whether to go on.
+	fn run_working(&mut self, page: &mut GuiPage<'_>) -> bool {
+		let now = unsafe { GetTickCount() };
+		if page.fresh {
+			self.close();
+			if !self.build(page, now) {
+				return true;
+			}
 		}
-		self.sync(page, project, v, now);
+		self.sync(page, now);
 		pump(self.hwnd);
 		let mut go = !take_close();
 		while let Some((id, _)) = take_event() {
-			let ws = page.widgets();
 			let cancel = id == IDCANCEL
 				|| self.ctls.iter().any(|c| {
 					c.id == id
-						&& matches!(&ws[c.widget], Widget::Button { action, .. } if action == "cancel")
+						&& matches!(&self.ws[c.widget], Widget::Button { action, .. } if action == "cancel")
 				});
 			go &= !cancel;
 		}
 		go
 	}
+}
 
-	pub fn message(&self, lines: &[&str]) {
-		let mut t = String::new();
-		for (i, l) in lines.iter().enumerate() {
-			if i > 0 {
-				t.push('\n');
-			}
-			t.push_str(l);
-		}
+impl Gui for Ui {
+	fn page(&mut self, page: &mut GuiPage<'_>) -> GuiEvent {
+		self.run_page(page)
+	}
+
+	fn working(&mut self, page: &mut GuiPage<'_>, _progress: &Progress) -> bool {
+		self.run_working(page)
+	}
+
+	fn message(&mut self, text: &str) {
 		unsafe {
-			MessageBox(self.hwnd, near(&ansi(&t)), cs!("Setup"), MB_ICONEXCLAMATION);
+			MessageBox(
+				self.hwnd,
+				near(&ansi(text)),
+				cs!("Setup"),
+				MB_ICONEXCLAMATION,
+			);
 		}
 	}
 }

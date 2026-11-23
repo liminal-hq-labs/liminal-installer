@@ -10,9 +10,9 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::arch::asm;
 use core::ptr::addr_of_mut;
-use li_retro::model::Project;
-use li_retro::platform::NativeEvent;
-use li_retro::ui::{Cells, Page, Values};
+use li_retro::gui::Gui;
+use li_retro::platform::{Shell, ShortcutKind};
+use li_retro::ui::Cells;
 use li_retro::{Error, Key, Platform};
 use w16::*;
 
@@ -181,33 +181,33 @@ impl Platform for Win16Platform {
 		}
 	}
 
-	fn os(&self) -> &'static str {
-		"win16"
+	fn step(&mut self, id: &str) {
+		self.note(&alloc::format!("page {id}"));
 	}
-	fn native(&self) -> bool {
-		true
+
+	fn gui(&mut self) -> Option<&mut dyn Gui> {
+		Some(&mut self.ui)
 	}
-	fn native_page(&mut self, page: &Page, project: &Project, v: &mut Values) -> NativeEvent {
-		let now = unsafe { GetTickCount() };
-		self.ui.run_page(page, project, v, now)
+
+	fn shell(&mut self) -> Option<&mut dyn Shell> {
+		Some(self)
 	}
-	fn native_progress(&mut self, page: &Page, project: &Project, v: &Values) -> bool {
-		let now = unsafe { GetTickCount() };
-		self.ui.progress(page, project, v, now)
+}
+
+/// Windows 3.1's shell is Program Manager: 8.3 names, shortcuts as items in a group, no uninstall list.
+/// Making the items is a DDE conversation with `PROGMAN` that is not written yet, so `add_group_item`
+/// keeps its default (`false`) and the install writes the batch launcher as DOS does.
+impl Shell for Win16Platform {
+	fn long_names(&self) -> bool {
+		false
 	}
-	fn native_message(&mut self, lines: &[&str]) {
-		self.ui.message(lines);
+
+	fn shortcut_kind(&self) -> ShortcutKind {
+		ShortcutKind::GroupItem
 	}
-	fn native_leave(&mut self) {
-		self.ui.close();
-	}
-	fn page_shown(&mut self, step: &str, screen: &str) {
-		self.log.push_str("page ");
-		self.log.push_str(step);
-		self.log.push(' ');
-		self.log.push_str(screen);
-		self.log.push_str("\r\n");
-		self.save_log();
+
+	fn registers_uninstall(&self) -> bool {
+		false
 	}
 }
 
