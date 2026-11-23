@@ -334,6 +334,96 @@ fn page_title(root: &Node) -> Option<String> {
 	dialog(root).or_else(|| str_of(root, "title").map(str::to_owned))
 }
 
+/// The text roles a Windows 3.1 screen carries in a `Text` widget's `attr` (it has no VGA colours).
+pub mod role {
+	pub const BODY: u8 = 0;
+	pub const HEADING: u8 = 1;
+	pub const CAPTION: u8 = 2;
+	pub const SUMMARY: u8 = 3;
+}
+
+fn role_of(n: &Node) -> u8 {
+	match str_of(n, "role") {
+		Some("heading" | "title") => role::HEADING,
+		Some("caption") => role::CAPTION,
+		Some("summary") => role::SUMMARY,
+		_ => role::BODY,
+	}
+}
+
+/// Collects the widgets of a layout in reading order, for a front end that draws its own
+/// controls and has no use for the text cells. The side column, the hint bar and pictures belong
+/// to the DOS artboard and are left out; every text node is kept, with its role, so a page keeps
+/// its explanations (the recorder behind the cells only keeps text that has live values).
+fn collect(
+	cx: &Context,
+	layout: &str,
+	step_kind: &str,
+	n: &Node,
+	strings: &mut Strings,
+	out: &mut Vec<Widget>,
+) -> Result<(), CompileError> {
+	match str_of(n, "region") {
+		Some("side" | "hints") => return Ok(()),
+		// The stage's status meters are for the page that copies.
+		Some("status") if step_kind != "commit" => return Ok(()),
+		_ => {}
+	}
+	match n.kind.as_str() {
+		"window" | "stack" | "grid" | "dialog" | "backdrop" | "slot" | "custom" => {
+			for c in &n.children {
+				collect(cx, layout, step_kind, c, strings, out)?;
+			}
+		}
+		"image" => {}
+		_ => {
+			let rec = Rec {
+				x: 0,
+				y: 0,
+				w: 0,
+				h: 0,
+				limit_right: 0,
+				attr: 0,
+				control: None,
+				node: Node {
+					kind: n.kind.clone(),
+					bind: n.bind.clone(),
+					props: n.props.clone(),
+					children: Vec::new(),
+					overrides: Default::default(),
+				},
+			};
+			let mut w = widget(cx, layout, &rec, strings)?;
+			if let Widget::Text { attr, template, .. } = &mut w {
+				if template.is_empty() {
+					return Ok(());
+				}
+				*attr = role_of(n);
+			}
+			out.push(w);
+		}
+	}
+	Ok(())
+}
+
+/// Compiles the layout `id` for Windows 3.1: widgets in reading order and no text cells.
+fn compile_win16(
+	cx: &Context,
+	key: &ScreenKey,
+	id: &str,
+	strings: &mut Strings,
+) -> Result<model::Screen, CompileError> {
+	let layout = tui_layout(cx, &key.layout, &key.step, &key.kind)?;
+	let mut widgets = Vec::new();
+	collect(cx, id, &key.kind, &layout.root, strings, &mut widgets)?;
+	Ok(model::Screen {
+		id: id.to_owned(),
+		title: page_title(&layout.root).unwrap_or_default(),
+		runs: model::Screen::pack(&vec![(b' ', 0x07); COLS * ROWS]),
+		widgets,
+	})
+}
+
 /// Flattens the layout `id` for the target.
 pub fn compile(
 	cx: &Context,
@@ -342,6 +432,9 @@ pub fn compile(
 	strings: &mut Strings,
 	warnings: &mut Vec<String>,
 ) -> Result<model::Screen, CompileError> {
+	if cx.target.renderer == "win16" {
+		return compile_win16(cx, key, id, strings);
+	}
 	let flat_layout = tui_layout(cx, &key.layout, &key.step, &key.kind)?;
 	let screen = TuiScreen::new(&flat_layout, Look::Retro);
 	let product = &cx.project.installer.product;

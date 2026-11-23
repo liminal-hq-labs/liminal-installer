@@ -31,6 +31,7 @@ use alloc::string::String;
 
 pub mod app;
 pub mod cp437;
+mod decode;
 pub mod expr;
 pub mod gui;
 pub mod install;

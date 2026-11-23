@@ -4,6 +4,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 #![no_std]
+#![allow(clippy::manual_c_str_literals, clippy::needless_range_loop)]
 #![no_main]
 use core::ptr::addr_of_mut;
 use w16::*;

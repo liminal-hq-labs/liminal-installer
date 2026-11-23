@@ -85,7 +85,7 @@ pub fn build(
 	warnings: &mut Vec<String>,
 ) -> Result<Built, CompileError> {
 	let rel_of = |to: &str| match flavour {
-		Flavour::Dos => dos_rel(to),
+		Flavour::Dos | Flavour::Win16 => dos_rel(to),
 		Flavour::Win32 => win_rel(to),
 	};
 	let source = DirPayload::new(&project.dir).map_err(|e| CompileError::Message(e.to_string()))?;
@@ -184,7 +184,7 @@ pub fn build(
 	// Windows name, which the pack keeps as the long name.
 	for (i, (f, _)) in files.iter_mut().enumerate() {
 		f.stored = match flavour {
-			Flavour::Dos => f.dest.replace('\\', "/"),
+			Flavour::Dos | Flavour::Win16 => f.dest.replace('\\', "/"),
 			Flavour::Win32 => format!("F{:07X}", i + 1),
 		};
 	}

@@ -1231,6 +1231,7 @@ dependencies = [
  "li-model",
  "li-render-tui",
  "li-retro",
+ "postcard",
  "ratatui",
  "serde_json",
  "tempfile",

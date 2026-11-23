@@ -16,6 +16,7 @@
 #   __w16sel_code_<n>             a 16-bit word in `.text` that must hold the code segment's selector (selector fixup to segment 1)
 #   __w16sel_data_<n>             a 16-bit word in `.text` that must hold the data segment's selector (selector fixup to segment 2)
 #   _start                        the entry point (CS:IP in the header)
+#   __bss_start                   optional: where the zero-initialised data starts; the file leaves out the data from there, and the program clears it
 #
 # Resources come from a JSON file (see build.sh and res/*.json): dialogs, strings and raw data, each with an integer ID. Raw data (RT_RCDATA)
 # starts with its exact length as a little-endian 32-bit number.
@@ -211,6 +212,14 @@ def pack(elf_data, module="SETUP", description="", stack=0x2000, heap=0x1000, re
 		dat += bytes(16 - len(dat))
 	if len(dat) + stack + heap > 0x10000:
 		raise PackError(f"data {len(dat)} + stack {stack} + heap {heap} is over one 64 KB segment")
+	# The segment's minimum allocation is the whole data image. When the program marks where its `.bss` starts (`__bss_start`, which
+	# link.ld defines) the file carries the data only up to there and the program zeroes the rest itself when it starts: the loader
+	# does not promise to (Windows 3.11 hands out memory another task used). That keeps a program's static heap out of the file.
+	data_full = len(dat)
+	if "__bss_start" in syms:
+		dat = dat[: syms["__bss_start"][0]]
+	if len(dat) < 16:
+		dat += bytes(16 - len(dat))
 	if "_start" not in syms:
 		raise PackError("no _start")
 
@@ -292,7 +301,7 @@ def pack(elf_data, module="SETUP", description="", stack=0x2000, heap=0x1000, re
 	res_blob, res_data = resource_table(resources, res_data_base) if resources else (b"", b"")
 
 	seg_code = struct.pack("<HHHH", code_off >> FILE_SHIFT, len(code), SEG_PRELOAD | SEG_RELOCS | SEG_RING3, len(code))
-	seg_data = struct.pack("<HHHH", data_off >> FILE_SHIFT, len(dat), SEG_DATA | SEG_PRELOAD | SEG_RING3, len(dat))
+	seg_data = struct.pack("<HHHH", data_off >> FILE_SHIFT, len(dat), SEG_DATA | SEG_PRELOAD | SEG_RING3, data_full)
 
 	hdr = bytearray(0x40)
 	hdr[0:2] = b"NE"
@@ -335,7 +344,8 @@ def pack(elf_data, module="SETUP", description="", stack=0x2000, heap=0x1000, re
 		out += res_data
 	info = {
 		"code": len(code),
-		"data": len(dat),
+		"data": data_full,
+		"data_file": len(dat),
 		"stack": stack,
 		"heap": heap,
 		"imports": len(imports),
@@ -373,7 +383,7 @@ def main():
 		sys.exit("ne_pack: " + str(e))
 	with open(args[1], "wb") as f:
 		f.write(out)
-	print(f"ne_pack: {args[1]}: {info['file']} bytes (code {info['code']}, data {info['data']} + stack {info['stack']} + heap {info['heap']}, {info['imports']} imports, {info['resources']} resources)")
+	print(f"ne_pack: {args[1]}: {info['file']} bytes (code {info['code']}, data {info['data']} ({info['data_file']} in the file) + stack {info['stack']} + heap {info['heap']}, {info['imports']} imports, {info['resources']} resources)")
 
 
 if __name__ == "__main__":

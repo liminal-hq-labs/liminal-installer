@@ -1,4 +1,4 @@
-# The Win16 spike: Rust `no_std` for a 16-bit code segment, packed into an NE executable by tools/ne_pack.py.
+# The Win16 runtime and its spike programs: Rust `no_std` for a 16-bit code segment, packed into an NE executable by tools/ne_pack.py.
 #
 # (c) Copyright 2026 Liminal HQ, Scott Morris
 # SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -13,6 +13,13 @@ edition = "2024"
 license = "Apache-2.0 OR MIT"
 publish = false
 
+[dependencies]
+li-retro = { path = "../../crates/li-retro", default-features = false }
+
+[features]
+# The panic box names the source file and line. It costs several kilobytes of code, which a whole program does not have.
+panic-location = []
+
 [lib]
 name = "w16"
 path = "src/lib.rs"
@@ -24,6 +31,18 @@ path = "src/bin/hello.rs"
 [[bin]]
 name = "setup"
 path = "src/bin/setup.rs"
+
+[[bin]]
+name = "lisetup"
+path = "src/bin/lisetup/main.rs"
+
+[[bin]]
+name = "engine"
+path = "src/bin/engine.rs"
+
+[[bin]]
+name = "uidemo"
+path = "src/bin/uidemo.rs"
 
 [[bin]]
 name = "msgbox"

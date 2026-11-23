@@ -101,7 +101,19 @@ class PackTests(unittest.TestCase):
 		self.assertEqual(dat["flags"], 0x0C41)  # data, preload, ring 3
 		self.assertEqual(code["file_off"] % 16, 0)
 		self.assertEqual(out[code["file_off"] : code["file_off"] + len(text)][:6], text[:6])
-		self.assertEqual(out[dat["file_off"] : dat["file_off"] + len(data)], data)
+		self.assertEqual(out[dat["file_off"] : dat["file_off"] + dat["length"]], data)
+
+	def test_zero_tail_stays_out_of_the_file(self):
+		# A static heap is zeros: the segment's minimum allocation covers it, the file does not carry it (the program clears it).
+		text = bytes(64)
+		data = bytes(16) + b"hello\0" + bytes(30000)
+		syms = {"_start": 0, "__bss_start": 22}
+		out, info = ne_pack.pack(make_elf(text, data, syms), module="T")
+		dat = ne_dump.parse(out)["segments"][1]
+		self.assertEqual(dat["length"], 22)
+		self.assertEqual(dat["minalloc"], len(data))
+		self.assertEqual(info["data"], len(data))
+		self.assertLess(len(out), 2000)
 
 	def test_import_fixups(self):
 		_t, _d, out, i = self.pack()

@@ -113,7 +113,11 @@ pub fn run<P: Platform>(p: &mut P, args: &str) -> i32 {
 		}
 	};
 	if mode == Mode::Version {
-		let host = if p.native_shell() { "Windows" } else { "DOS" };
+		let host = match p.shell() {
+			Some(s) if s.long_names() => "Windows",
+			Some(_) => "Windows 3.1",
+			None => "DOS",
+		};
 		p.report(&format!(
 			"Liminal Installer for {host} {}\n",
 			env!("CARGO_PKG_VERSION")
@@ -124,7 +128,7 @@ pub fn run<P: Platform>(p: &mut P, args: &str) -> i32 {
 		return 0;
 	}
 	let kept = if matches!(mode, Mode::Uninstall(_)) {
-		p.uninstall_project()
+		p.shell().and_then(|s| s.uninstall_project())
 	} else {
 		None
 	};
@@ -202,7 +206,10 @@ impl<P: Platform> Session<'_, P> {
 			Mode::Uninstall(Some(d)) => d.clone(),
 			_ => pr.default_dir.clone(),
 		};
-		let dir = match (dir.strip_prefix("%PROGRAMFILES%"), self.p.program_files()) {
+		let dir = match (
+			dir.strip_prefix("%PROGRAMFILES%"),
+			self.p.shell().and_then(|s| s.program_files()),
+		) {
 			(Some(rest), Some(pf)) => format!("{}{rest}", pf.trim_end_matches('\\')),
 			(Some(rest), None) => format!("C:\\Program Files{rest}"),
 			(None, _) => dir,
@@ -223,9 +230,9 @@ impl<P: Platform> Session<'_, P> {
 			.unwrap_or_default()
 	}
 
-	fn dir(&self) -> String {
+	fn dir(&mut self) -> String {
 		install::normalize_dir_for(
-			&*self.p,
+			&mut *self.p,
 			self.v
 				.str("install.path")
 				.unwrap_or(&self.project.default_dir),

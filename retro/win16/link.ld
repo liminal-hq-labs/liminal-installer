@@ -15,8 +15,10 @@ SECTIONS {
       KEEP(*(.data.00_reserved))
       *(.rodata .rodata.*)
       *(.data .data.*)
+      KEEP(*(.bss_start))
       *(.bss .bss.*)
       *(COMMON)
+      KEEP(*(.bss_end))
     }
   }
   /DISCARD/ : { *(.eh_frame*) *(.comment) *(.note*) *(.gcc_except_table*) }

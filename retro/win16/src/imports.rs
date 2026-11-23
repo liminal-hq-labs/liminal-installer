@@ -736,6 +736,34 @@ global_asm!(
 	".byte 0x66, 0xc3",
 );
 
+// KERNEL.131 GetDOSEnvironment
+global_asm!(
+	".code16",
+	".section .text.imp_GetDOSEnvironment,\"ax\"",
+	".globl GetDOSEnvironment",
+	"GetDOSEnvironment:",
+	"push ebp",
+	"mov bp, sp",
+	"push ebx",
+	"push esi",
+	"push edi",
+	".byte 0x9a",
+	".globl __w16imp_KERNEL_131_GetDOSEnvironment",
+	"__w16imp_KERNEL_131_GetDOSEnvironment:",
+	".word 0, 0",
+	"movzx esp, sp",
+	"push ds",
+	"pop es",
+	"movzx eax, ax",
+	"shl edx, 16",
+	"or eax, edx",
+	"pop edi",
+	"pop esi",
+	"pop ebx",
+	"pop ebp",
+	".byte 0x66, 0xc3",
+);
+
 // KERNEL.132 GetWinFlags
 global_asm!(
 	".code16",
@@ -849,6 +877,34 @@ global_asm!(
 	".byte 0x66, 0xc3",
 );
 
+// USER.13 GetTickCount
+global_asm!(
+	".code16",
+	".section .text.imp_GetTickCount,\"ax\"",
+	".globl GetTickCount",
+	"GetTickCount:",
+	"push ebp",
+	"mov bp, sp",
+	"push ebx",
+	"push esi",
+	"push edi",
+	".byte 0x9a",
+	".globl __w16imp_USER_13_GetTickCount",
+	"__w16imp_USER_13_GetTickCount:",
+	".word 0, 0",
+	"movzx esp, sp",
+	"push ds",
+	"pop es",
+	"movzx eax, ax",
+	"shl edx, 16",
+	"or eax, edx",
+	"pop edi",
+	"pop esi",
+	"pop ebx",
+	"pop ebp",
+	".byte 0x66, 0xc3",
+);
+
 // USER.22 SetFocus
 global_asm!(
 	".code16",
@@ -864,6 +920,32 @@ global_asm!(
 	".byte 0x9a",
 	".globl __w16imp_USER_22_SetFocus",
 	"__w16imp_USER_22_SetFocus:",
+	".word 0, 0",
+	"movzx esp, sp",
+	"push ds",
+	"pop es",
+	"movzx eax, ax",
+	"pop edi",
+	"pop esi",
+	"pop ebx",
+	"pop ebp",
+	".byte 0x66, 0xc3",
+);
+
+// USER.23 GetFocus
+global_asm!(
+	".code16",
+	".section .text.imp_GetFocus,\"ax\"",
+	".globl GetFocus",
+	"GetFocus:",
+	"push ebp",
+	"mov bp, sp",
+	"push ebx",
+	"push esi",
+	"push edi",
+	".byte 0x9a",
+	".globl __w16imp_USER_23_GetFocus",
+	"__w16imp_USER_23_GetFocus:",
 	".word 0, 0",
 	"movzx esp, sp",
 	"push ds",
@@ -932,6 +1014,36 @@ global_asm!(
 	".byte 0x66, 0xc3",
 );
 
+// USER.36 GetWindowText
+global_asm!(
+	".code16",
+	".section .text.imp_GetWindowText,\"ax\"",
+	".globl GetWindowText",
+	"GetWindowText:",
+	"push ebp",
+	"mov bp, sp",
+	"push ebx",
+	"push esi",
+	"push edi",
+	"push word ptr [bp+8]",
+	"push ds",
+	"push word ptr [bp+12]",
+	"push word ptr [bp+16]",
+	".byte 0x9a",
+	".globl __w16imp_USER_36_GetWindowText",
+	"__w16imp_USER_36_GetWindowText:",
+	".word 0, 0",
+	"movzx esp, sp",
+	"push ds",
+	"pop es",
+	"movzx eax, ax",
+	"pop edi",
+	"pop esi",
+	"pop ebx",
+	"pop ebp",
+	".byte 0x66, 0xc3",
+);
+
 // USER.37 SetWindowText
 global_asm!(
 	".code16",
@@ -953,6 +1065,33 @@ global_asm!(
 	"movzx esp, sp",
 	"push ds",
 	"pop es",
+	"pop edi",
+	"pop esi",
+	"pop ebx",
+	"pop ebp",
+	".byte 0x66, 0xc3",
+);
+
+// USER.38 GetWindowTextLength
+global_asm!(
+	".code16",
+	".section .text.imp_GetWindowTextLength,\"ax\"",
+	".globl GetWindowTextLength",
+	"GetWindowTextLength:",
+	"push ebp",
+	"mov bp, sp",
+	"push ebx",
+	"push esi",
+	"push edi",
+	"push word ptr [bp+8]",
+	".byte 0x9a",
+	".globl __w16imp_USER_38_GetWindowTextLength",
+	"__w16imp_USER_38_GetWindowTextLength:",
+	".word 0, 0",
+	"movzx esp, sp",
+	"push ds",
+	"pop es",
+	"movzx eax, ax",
 	"pop edi",
 	"pop esi",
 	"pop ebx",
@@ -1101,6 +1240,38 @@ global_asm!(
 	".byte 0x9a",
 	".globl __w16imp_USER_53_DestroyWindow",
 	"__w16imp_USER_53_DestroyWindow:",
+	".word 0, 0",
+	"movzx esp, sp",
+	"push ds",
+	"pop es",
+	"movzx eax, ax",
+	"pop edi",
+	"pop esi",
+	"pop ebx",
+	"pop ebp",
+	".byte 0x66, 0xc3",
+);
+
+// USER.56 MoveWindow
+global_asm!(
+	".code16",
+	".section .text.imp_MoveWindow,\"ax\"",
+	".globl MoveWindow",
+	"MoveWindow:",
+	"push ebp",
+	"mov bp, sp",
+	"push ebx",
+	"push esi",
+	"push edi",
+	"push word ptr [bp+8]",
+	"push word ptr [bp+12]",
+	"push word ptr [bp+16]",
+	"push word ptr [bp+20]",
+	"push word ptr [bp+24]",
+	"push word ptr [bp+28]",
+	".byte 0x9a",
+	".globl __w16imp_USER_56_MoveWindow",
+	"__w16imp_USER_56_MoveWindow:",
 	".word 0, 0",
 	"movzx esp, sp",
 	"push ds",
@@ -1766,6 +1937,32 @@ global_asm!(
 	".byte 0x66, 0xc3",
 );
 
+// USER.104 MessageBeep
+global_asm!(
+	".code16",
+	".section .text.imp_MessageBeep,\"ax\"",
+	".globl MessageBeep",
+	"MessageBeep:",
+	"push ebp",
+	"mov bp, sp",
+	"push ebx",
+	"push esi",
+	"push edi",
+	"push word ptr [bp+8]",
+	".byte 0x9a",
+	".globl __w16imp_USER_104_MessageBeep",
+	"__w16imp_USER_104_MessageBeep:",
+	".word 0, 0",
+	"movzx esp, sp",
+	"push ds",
+	"pop es",
+	"pop edi",
+	"pop esi",
+	"pop ebx",
+	"pop ebp",
+	".byte 0x66, 0xc3",
+);
+
 // USER.179 GetSystemMetrics
 global_asm!(
 	".code16",
@@ -1786,6 +1983,67 @@ global_asm!(
 	"push ds",
 	"pop es",
 	"movzx eax, ax",
+	"pop edi",
+	"pop esi",
+	"pop ebx",
+	"pop ebp",
+	".byte 0x66, 0xc3",
+);
+
+// USER.243 GetDialogBaseUnits
+global_asm!(
+	".code16",
+	".section .text.imp_GetDialogBaseUnits,\"ax\"",
+	".globl GetDialogBaseUnits",
+	"GetDialogBaseUnits:",
+	"push ebp",
+	"mov bp, sp",
+	"push ebx",
+	"push esi",
+	"push edi",
+	".byte 0x9a",
+	".globl __w16imp_USER_243_GetDialogBaseUnits",
+	"__w16imp_USER_243_GetDialogBaseUnits:",
+	".word 0, 0",
+	"movzx esp, sp",
+	"push ds",
+	"pop es",
+	"movzx eax, ax",
+	"shl edx, 16",
+	"or eax, edx",
+	"pop edi",
+	"pop esi",
+	"pop ebx",
+	"pop ebp",
+	".byte 0x66, 0xc3",
+);
+
+// USER.308 DefDlgProc
+global_asm!(
+	".code16",
+	".section .text.imp_DefDlgProc,\"ax\"",
+	".globl DefDlgProc",
+	"DefDlgProc:",
+	"push ebp",
+	"mov bp, sp",
+	"push ebx",
+	"push esi",
+	"push edi",
+	"push word ptr [bp+8]",
+	"push word ptr [bp+12]",
+	"push word ptr [bp+16]",
+	"push word ptr [bp+22]",
+	"push word ptr [bp+20]",
+	".byte 0x9a",
+	".globl __w16imp_USER_308_DefDlgProc",
+	"__w16imp_USER_308_DefDlgProc:",
+	".word 0, 0",
+	"movzx esp, sp",
+	"push ds",
+	"pop es",
+	"movzx eax, ax",
+	"shl edx, 16",
+	"or eax, edx",
 	"pop edi",
 	"pop esi",
 	"pop ebx",
@@ -1906,19 +2164,25 @@ unsafe extern "C" {
 	pub fn GetPrivateProfileString(a0: u32, a1: u32, a2: u32, a3: u32, a4: u32, a5: u32) -> u32;
 	pub fn WritePrivateProfileString(a0: u32, a1: u32, a2: u32, a3: u32) -> u32;
 	pub fn SetErrorMode(a0: u32) -> u32;
+	pub fn GetDOSEnvironment() -> u32;
 	pub fn GetWinFlags() -> u32;
 	pub fn MessageBox(a0: u32, a1: u32, a2: u32, a3: u32) -> u32;
 	pub fn InitApp(a0: u32) -> u32;
 	pub fn PostQuitMessage(a0: u32) -> u32;
+	pub fn GetTickCount() -> u32;
 	pub fn SetFocus(a0: u32) -> u32;
+	pub fn GetFocus() -> u32;
 	pub fn GetClientRect(a0: u32, a1: u32) -> u32;
 	pub fn EnableWindow(a0: u32, a1: u32) -> u32;
+	pub fn GetWindowText(a0: u32, a1: u32, a2: u32) -> u32;
 	pub fn SetWindowText(a0: u32, a1: u32) -> u32;
+	pub fn GetWindowTextLength(a0: u32) -> u32;
 	pub fn BeginPaint(a0: u32, a1: u32) -> u32;
 	pub fn EndPaint(a0: u32, a1: u32) -> u32;
 	pub fn CreateWindow(a0: u32, a1: u32, a2: u32, a3: u32, a4: u32, a5: u32, a6: u32, a7: u32, a8: u32, a9: u32, a10: u32) -> u32;
 	pub fn ShowWindow(a0: u32, a1: u32) -> u32;
 	pub fn DestroyWindow(a0: u32) -> u32;
+	pub fn MoveWindow(a0: u32, a1: u32, a2: u32, a3: u32, a4: u32, a5: u32) -> u32;
 	pub fn RegisterClass(a0: u32) -> u32;
 	pub fn GetDC(a0: u32) -> u32;
 	pub fn ReleaseDC(a0: u32, a1: u32) -> u32;
@@ -1941,7 +2205,10 @@ unsafe extern "C" {
 	pub fn LoadCursor(a0: u32, a1: u32) -> u32;
 	pub fn LoadIcon(a0: u32, a1: u32) -> u32;
 	pub fn LoadString(a0: u32, a1: u32, a2: u32, a3: u32) -> u32;
+	pub fn MessageBeep(a0: u32) -> u32;
 	pub fn GetSystemMetrics(a0: u32) -> u32;
+	pub fn GetDialogBaseUnits() -> u32;
+	pub fn DefDlgProc(a0: u32, a1: u32, a2: u32, a3: u32) -> u32;
 	pub fn SetBkMode(a0: u32, a1: u32) -> u32;
 	pub fn TextOut(a0: u32, a1: u32, a2: u32, a3: u32, a4: u32) -> u32;
 	pub fn GetStockObject(a0: u32) -> u32;

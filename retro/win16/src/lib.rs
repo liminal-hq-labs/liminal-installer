@@ -40,6 +40,22 @@ pub static mut HINST: u32 = 0;
 #[unsafe(link_section = ".data.00_reserved")]
 static RESERVED: [u8; 16] = [0; 16];
 
+// Two empty sections that `link.ld` places before and after `.bss`; their labels mark the zero-initialised data.
+global_asm!(
+	".section .bss_start,\"aw\",@progbits",
+	".globl __bss_start",
+	"__bss_start:",
+	".section .bss_end,\"aw\",@progbits",
+	".globl __bss_end",
+	"__bss_end:",
+);
+
+unsafe extern "C" {
+	/// The ends of the zero-initialised data, labelled just above.
+	static __bss_start: u8;
+	static __bss_end: u8;
+}
+
 unsafe extern "C" {
 	/// Provided by the program: the equivalent of `WinMain`. Returns the exit code.
 	fn w16_main(hinst: u32, hprev: u32, show: u32) -> u32;
@@ -60,9 +76,27 @@ global_asm!(
 	"jz 2f",
 	"xor bp, bp",
 	"movzx esp, sp",
+	"mov cx, es",
+	"shl ecx, 16",
+	"mov cx, bx",
+	"push ecx",
 	"push ds",
 	"pop es",
 	"cld",
+	// Zero the `.bss`: the loader does not (the packer leaves it out of the file).
+	"push edi",
+	"mov edi, offset {bss_start}",
+	"mov ecx, offset {bss_end}",
+	"sub ecx, edi",
+	"xor eax, eax",
+	"rep stosb",
+	// Clear the stack below this frame too, so nothing the task reads before it writes is whatever the last task left there.
+	"mov edi, offset {bss_end}",
+	"movzx ecx, sp",
+	"sub ecx, edi",
+	"sub ecx, 64",
+	"rep stosb",
+	"pop edi",
 	"movzx edx, dx",
 	"movzx eax, si",
 	"movzx ecx, di",
@@ -75,11 +109,17 @@ global_asm!(
 	"mov ah, 0x4c",
 	"int 0x21",
 	entry = sym w16_entry,
+	bss_start = sym __bss_start,
+	bss_end = sym __bss_end,
 );
 
-unsafe extern "C" fn w16_entry(hinst: u32, hprev: u32, show: u32) -> u32 {
+/// The command line as a far pointer (`selector:offset`) to a NUL-terminated string, set before `w16_main` runs.
+pub static mut CMDLINE: u32 = 0;
+
+unsafe extern "C" fn w16_entry(hinst: u32, hprev: u32, show: u32, cmd: u32) -> u32 {
 	unsafe {
 		HINST = hinst;
+		CMDLINE = cmd;
 		WaitEvent(0);
 		InitApp(hinst);
 		w16_main(hinst, hprev, show)
@@ -140,12 +180,51 @@ macro_rules! export_proc {
 	};
 }
 
+#[cfg(not(feature = "panic-location"))]
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
+	// No location in the message: file names and `core::fmt` cost several kilobytes of a code segment that has few to spare. The
+	// programs write what they were doing to their log (`/LOG=`) as they go, which says where a panic happened. Build with the
+	// `panic-location` feature (which does not fit a whole program) to have the source line in the box.
 	unsafe {
 		MessageBox(
 			0,
 			c"Rust panic".as_ptr() as u32,
+			c"Win16".as_ptr() as u32,
+			MB_ICONSTOP,
+		);
+		asm!("mov ax, 0x4c03", "int 0x21", options(noreturn));
+	}
+}
+
+#[cfg(feature = "panic-location")]
+#[panic_handler]
+fn panic(info: &core::panic::PanicInfo) -> ! {
+	static mut BUF: [u8; 120] = [0; 120];
+	let buf = unsafe { &mut *addr_of_mut!(BUF) };
+	let head = b"Rust panic ";
+	buf[..head.len()].copy_from_slice(head);
+	let mut n = head.len();
+	if let Some(l) = info.location() {
+		let f = l.file().as_bytes();
+		let from = f.len().saturating_sub(40);
+		for &b in &f[from..] {
+			buf[n] = b;
+			n += 1;
+		}
+		buf[n] = b':';
+		n += 1;
+		for sh in [12u32, 8, 4, 0] {
+			let d = ((l.line() >> sh) & 15) as u8;
+			buf[n] = if d < 10 { b'0' + d } else { b'a' + d - 10 };
+			n += 1;
+		}
+	}
+	buf[n] = 0;
+	unsafe {
+		MessageBox(
+			0,
+			buf.as_ptr() as u32,
 			c"Win16".as_ptr() as u32,
 			MB_ICONSTOP,
 		);

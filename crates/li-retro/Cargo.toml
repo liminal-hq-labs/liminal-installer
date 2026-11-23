@@ -15,11 +15,11 @@ rust-version.workspace = true
 [features]
 default = ["std"]
 # The host build: the `HostPlatform` simulator and tests. The DOS build turns it off.
-std = ["serde/std", "postcard/use-std"]
+std = ["dep:serde", "dep:postcard", "serde/std", "postcard/use-std"]
 
 [dependencies]
-serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
-postcard = { version = "1", default-features = false, features = ["alloc"] }
+serde = { version = "1", default-features = false, features = ["derive", "alloc"], optional = true }
+postcard = { version = "1", default-features = false, features = ["alloc"], optional = true }
 li-lpk = { workspace = true }
 
 [dev-dependencies]

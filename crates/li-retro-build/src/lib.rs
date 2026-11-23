@@ -39,6 +39,9 @@ pub enum Flavour {
 	Dos,
 	/// `SETUP.EXE` for Windows 95 and later: native controls, long names, `win32-classic`.
 	Win32,
+	/// `SETUP.EXE` for Windows 3.1: native controls, 8.3 names, `win16`. The runtime is Rust for a
+	/// 16-bit code segment, so its pack uses a smaller window (see `WIN16_CHUNK_LOG2`).
+	Win16,
 }
 
 impl Flavour {
@@ -47,6 +50,7 @@ impl Flavour {
 		match self {
 			Flavour::Dos => "DOS",
 			Flavour::Win32 => "Windows",
+			Flavour::Win16 => "Windows 3.1",
 		}
 	}
 
@@ -55,6 +59,7 @@ impl Flavour {
 		match self {
 			Flavour::Dos => "tui-retro",
 			Flavour::Win32 => "win32-classic",
+			Flavour::Win16 => "win16",
 		}
 	}
 
@@ -62,9 +67,22 @@ impl Flavour {
 		match self {
 			Flavour::Dos => targets::DOS,
 			Flavour::Win32 => targets::WIN32,
+			Flavour::Win16 => targets::WIN16,
+		}
+	}
+
+	/// The pack's chunk size as a power of two: the decoder's window. A Windows 3.1 program has one
+	/// 64 KB data segment for its heap, stack and this window, so its chunks are 8 KiB.
+	pub fn chunk_log2(self) -> u8 {
+		match self {
+			Flavour::Win16 => WIN16_CHUNK_LOG2,
+			_ => Options::default().chunk_log2,
 		}
 	}
 }
+
+/// The chunk size of a Windows 3.1 pack as a power of two (8 KiB).
+pub const WIN16_CHUNK_LOG2: u8 = 13;
 
 /// What stops a compile.
 #[derive(Debug, thiserror::Error)]
@@ -119,6 +137,7 @@ impl Compiled {
 		}
 		let opts = Options {
 			volume_sizes: volume_sizes.to_vec(),
+			chunk_log2: self.flavour.chunk_log2(),
 			..Options::default()
 		};
 		let packed = pack(&specs, &opts).map_err(|e| CompileError::Message(e.to_string()))?;
@@ -154,7 +173,17 @@ pub fn compile_win32(
 	compile_for(project, target_id, version, Flavour::Win32)
 }
 
-/// Compiles for either runtime.
+/// Compiles `project` for the target `target_id`, whose renderer must be `win16`: DOS's 8.3 names
+/// and receipt with the pages as widgets for Windows controls, packed for a 64 KB data segment.
+pub fn compile_win16(
+	project: &Project,
+	target_id: &str,
+	version: &str,
+) -> Result<Compiled, CompileError> {
+	compile_for(project, target_id, version, Flavour::Win16)
+}
+
+/// Compiles for any of the runtimes.
 pub fn compile_for(
 	project: &Project,
 	target_id: &str,
@@ -238,7 +267,7 @@ pub fn compile_for(
 		};
 		rscreens.push(screens::compile(&ctx, key, &id, &mut cx, &mut warnings)?);
 	}
-	let uses_sound = flavour == Flavour::Dos
+	let uses_sound = flavour != Flavour::Win32
 		&& flows
 			.iter()
 			.any(|f| f.steps.iter().any(|s| s.builtin == Builtin::DetectSound));
@@ -278,7 +307,7 @@ pub fn compile_for(
 		version: version.to_owned(),
 		target: target.full_id(),
 		default_dir: match flavour {
-			Flavour::Dos => format!("C:\\{slug}"),
+			Flavour::Dos | Flavour::Win16 => format!("C:\\{slug}"),
 			Flavour::Win32 => format!(
 				"%PROGRAMFILES%\\{}",
 				project
