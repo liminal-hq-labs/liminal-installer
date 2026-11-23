@@ -1,0 +1,137 @@
+{
+	"$schema": "https://liminal-hq.github.io/installer/schema/layout.json",
+	"version": 1,
+	"id": "welcome",
+	"root": {
+		"kind": "window",
+		"props": {
+			"title": "Neutral Sample Setup",
+			"label": "Welcome",
+			"style": "neutral"
+		},
+		"children": [
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "column",
+					"gap": 12
+				},
+				"children": [
+					{
+						"kind": "text",
+						"props": {
+							"text": "Welcome to the Neutral Sample setup",
+							"role": "heading"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "This is the default look: plain, readable and the same everywhere. A project that picks no theme gets this one.",
+							"role": "body"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Version {product.version} · {target.id}",
+							"role": "caption"
+						}
+					}
+				]
+			},
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "row",
+					"gap": 8,
+					"align": "end"
+				},
+				"children": [
+					{
+						"kind": "button",
+						"props": {
+							"label": "Next",
+							"action": "next",
+							"default": true
+						}
+					},
+					{
+						"kind": "button",
+						"props": {
+							"label": "Cancel",
+							"action": "cancel"
+						}
+					}
+				]
+			}
+		],
+		"overrides": {
+			"tui": {
+				"kind": "window",
+				"props": {
+					"title": "Neutral Sample — Welcome",
+					"label": "Welcome",
+					"border": "rounded"
+				},
+				"children": [
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "column",
+							"gap": 1
+						},
+						"children": [
+							{
+								"kind": "text",
+								"props": {
+									"text": "Welcome to the Neutral Sample setup",
+									"role": "heading"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"text": "This is the default look: plain, readable and the same everywhere. A project that picks no theme gets this one.",
+									"role": "body"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"text": "Version {product.version} · {target.id}",
+									"role": "caption"
+								}
+							}
+						]
+					},
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "row",
+							"gap": 8,
+							"align": "end"
+						},
+						"children": [
+							{
+								"kind": "button",
+								"props": {
+									"label": "Next",
+									"action": "next",
+									"default": true
+								}
+							},
+							{
+								"kind": "button",
+								"props": {
+									"label": "Cancel",
+									"action": "cancel"
+								}
+							}
+						]
+					}
+				]
+			}
+		}
+	}
+}

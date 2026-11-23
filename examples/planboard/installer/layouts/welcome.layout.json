@@ -1,0 +1,137 @@
+{
+	"$schema": "https://liminal-hq.github.io/installer/schema/layout.json",
+	"version": 1,
+	"id": "welcome",
+	"root": {
+		"kind": "window",
+		"props": {
+			"title": "Planboard Setup",
+			"label": "Welcome",
+			"style": "afterglow"
+		},
+		"children": [
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "column",
+					"gap": 12
+				},
+				"children": [
+					{
+						"kind": "text",
+						"props": {
+							"text": "Welcome to the Planboard setup",
+							"role": "heading"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Planboard is a whiteboard of stickies, frames and pages. This setup installs the app, the command-line tool and the documentation.",
+							"role": "body"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Version {product.version} · {target.id}",
+							"role": "caption"
+						}
+					}
+				]
+			},
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "row",
+					"gap": 8,
+					"align": "end"
+				},
+				"children": [
+					{
+						"kind": "button",
+						"props": {
+							"label": "Next",
+							"action": "next",
+							"default": true
+						}
+					},
+					{
+						"kind": "button",
+						"props": {
+							"label": "Cancel",
+							"action": "cancel"
+						}
+					}
+				]
+			}
+		],
+		"overrides": {
+			"tui": {
+				"kind": "window",
+				"props": {
+					"title": "Planboard — Welcome",
+					"label": "Welcome",
+					"border": "rounded"
+				},
+				"children": [
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "column",
+							"gap": 1
+						},
+						"children": [
+							{
+								"kind": "text",
+								"props": {
+									"text": "Welcome to the Planboard setup",
+									"role": "heading"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"text": "Planboard is a whiteboard of stickies, frames and pages. This setup installs the app, the command-line tool and the documentation.",
+									"role": "body"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"text": "Version {product.version} · {target.id}",
+									"role": "caption"
+								}
+							}
+						]
+					},
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "row",
+							"gap": 8,
+							"align": "end"
+						},
+						"children": [
+							{
+								"kind": "button",
+								"props": {
+									"label": "Next",
+									"action": "next",
+									"default": true
+								}
+							},
+							{
+								"kind": "button",
+								"props": {
+									"label": "Cancel",
+									"action": "cancel"
+								}
+							}
+						]
+					}
+				]
+			}
+		}
+	}
+}

@@ -1,0 +1,22 @@
+# Lieutenant Fizz example project: what gets installed.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[[component]]
+id       = "game"
+name     = "Game program"
+required = true
+files    = [{ from = "dist/{target}/FIZZ*", to = "{install}/" }]
+shortcut = [{ name = "Lieutenant Fizz", target = "{install}/FIZZ.EXE", in = "start_menu" }]
+
+[[component]]
+id      = "sound"
+name    = "Sound drivers"
+targets = ["dos-x86", "win16-x86"]
+files   = [{ from = "dist/sound/*.DRV", to = "{install}/SOUND/" }]
+
+[[component]]
+id    = "levels"
+name  = "Episode one levels"
+files = [{ from = "dist/levels/*", to = "{install}/LEVELS/" }]

@@ -1,0 +1,4 @@
+Lieutenant Fizz — Episode One example licence
+
+This file is a stand-in. It lets the examples exercise the licence page.
+It grants no rights to any real product.

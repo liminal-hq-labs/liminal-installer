@@ -1,0 +1,19 @@
+# Integration tests that load every example project with li-model.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[package]
+name = "li-examples-test"
+description = "Loads the example installer projects with li-model and checks their consistency"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+li-model.workspace = true
+serde_json.workspace = true
+toml.workspace = true

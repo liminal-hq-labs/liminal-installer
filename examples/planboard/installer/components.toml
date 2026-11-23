@@ -1,0 +1,24 @@
+# Planboard example project: what gets installed.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[[component]]
+id       = "app"
+name     = "Planboard"
+required = true
+files    = [{ from = "dist/{target}/planboard*", to = "{install}/" }]
+shortcut = [{ name = "Planboard", target = "{install}/planboard", in = "start_menu" }]
+file_types = [{ extension = ".planboard", name = "Planboard board", open_with = "{install}/planboard" }]
+url_schemes = ["planboard"]
+
+[[component]]
+id    = "cli"
+name  = "Command-line tool"
+files = [{ from = "dist/{target}/pbcli*", to = "{install}/bin/" }]
+path  = ["{install}/bin"]
+
+[[component]]
+id    = "docs"
+name  = "Documentation"
+files = [{ from = "dist/docs/*.md", to = "{install}/docs/" }]

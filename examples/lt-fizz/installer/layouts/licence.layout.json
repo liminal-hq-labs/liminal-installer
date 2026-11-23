@@ -1,0 +1,286 @@
+{
+	"$schema": "https://liminal-hq.github.io/installer/schema/layout.json",
+	"version": 1,
+	"id": "licence",
+	"root": {
+		"kind": "backdrop",
+		"props": {
+			"style": "classic",
+			"title": "Lieutenant Fizz — Episode One",
+			"label": "Lieutenant Fizz — Episode One setup"
+		},
+		"children": [
+			{
+				"kind": "dialog",
+				"props": {
+					"title": "Licence agreement — Lt. Fizz",
+					"label": "Licence agreement",
+					"style": "win32-classic"
+				},
+				"children": [
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "column",
+							"gap": 12
+						},
+						"children": [
+							{
+								"kind": "text",
+								"props": {
+									"text": "Licence agreement",
+									"role": "heading"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"role": "document",
+									"source": "LICENCE.TXT",
+									"scroll": true,
+									"label": "Licence text"
+								}
+							},
+							{
+								"kind": "radio",
+								"bind": "licence.accepted",
+								"props": {
+									"label": "Licence acceptance",
+									"options": [
+										{
+											"id": "yes",
+											"label": "I accept the agreement"
+										},
+										{
+											"id": "no",
+											"label": "I do not accept the agreement"
+										}
+									]
+								}
+							}
+						]
+					},
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "row",
+							"gap": 8,
+							"align": "end"
+						},
+						"children": [
+							{
+								"kind": "button",
+								"props": {
+									"label": "Back",
+									"action": "back"
+								}
+							},
+							{
+								"kind": "button",
+								"props": {
+									"label": "Next",
+									"action": "next",
+									"default": true,
+									"enabled_when": "state.licence.accepted == 'yes'"
+								}
+							},
+							{
+								"kind": "button",
+								"props": {
+									"label": "Cancel",
+									"action": "cancel"
+								}
+							}
+						]
+					}
+				]
+			}
+		],
+		"overrides": {
+			"tui-retro": {
+				"kind": "backdrop",
+				"props": {
+					"style": "text-mode",
+					"charset": "cp437",
+					"fill": "░",
+					"title": "Lieutenant Fizz — Episode One",
+					"label": "Lieutenant Fizz — Episode One setup",
+					"palette": "blue-on-grey"
+				},
+				"children": [
+					{
+						"kind": "dialog",
+						"props": {
+							"title": "Licence agreement",
+							"label": "Licence agreement",
+							"border": "double",
+							"shadow": true
+						},
+						"children": [
+							{
+								"kind": "stack",
+								"props": {
+									"direction": "column",
+									"gap": 1
+								},
+								"children": [
+									{
+										"kind": "text",
+										"props": {
+											"text": "Licence agreement",
+											"role": "heading"
+										}
+									},
+									{
+										"kind": "text",
+										"props": {
+											"role": "document",
+											"source": "LICENCE.TXT",
+											"scroll": true,
+											"label": "Licence text"
+										}
+									},
+									{
+										"kind": "radio",
+										"bind": "licence.accepted",
+										"props": {
+											"label": "Licence acceptance",
+											"options": [
+												{
+													"id": "yes",
+													"label": "I accept the agreement"
+												},
+												{
+													"id": "no",
+													"label": "I do not accept the agreement"
+												}
+											]
+										}
+									}
+								]
+							},
+							{
+								"kind": "stack",
+								"props": {
+									"direction": "row",
+									"gap": 8,
+									"align": "end"
+								},
+								"children": [
+									{
+										"kind": "button",
+										"props": {
+											"label": "Back",
+											"action": "back"
+										}
+									},
+									{
+										"kind": "button",
+										"props": {
+											"label": "Next",
+											"action": "next",
+											"default": true,
+											"enabled_when": "state.licence.accepted == 'yes'"
+										}
+									},
+									{
+										"kind": "button",
+										"props": {
+											"label": "Cancel",
+											"action": "cancel"
+										}
+									}
+								]
+							}
+						]
+					}
+				]
+			},
+			"tui": {
+				"kind": "window",
+				"props": {
+					"title": "Lieutenant Fizz — Episode One — Licence agreement",
+					"label": "Licence agreement",
+					"border": "rounded"
+				},
+				"children": [
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "column",
+							"gap": 1
+						},
+						"children": [
+							{
+								"kind": "text",
+								"props": {
+									"text": "Licence agreement",
+									"role": "heading"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"role": "document",
+									"source": "LICENCE.TXT",
+									"scroll": true,
+									"label": "Licence text"
+								}
+							},
+							{
+								"kind": "radio",
+								"bind": "licence.accepted",
+								"props": {
+									"label": "Licence acceptance",
+									"options": [
+										{
+											"id": "yes",
+											"label": "I accept the agreement"
+										},
+										{
+											"id": "no",
+											"label": "I do not accept the agreement"
+										}
+									]
+								}
+							}
+						]
+					},
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "row",
+							"gap": 8,
+							"align": "end"
+						},
+						"children": [
+							{
+								"kind": "button",
+								"props": {
+									"label": "Back",
+									"action": "back"
+								}
+							},
+							{
+								"kind": "button",
+								"props": {
+									"label": "Next",
+									"action": "next",
+									"default": true,
+									"enabled_when": "state.licence.accepted == 'yes'"
+								}
+							},
+							{
+								"kind": "button",
+								"props": {
+									"label": "Cancel",
+									"action": "cancel"
+								}
+							}
+						]
+					}
+				]
+			}
+		}
+	}
+}

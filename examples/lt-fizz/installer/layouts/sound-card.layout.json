@@ -1,0 +1,328 @@
+{
+	"$schema": "https://liminal-hq.github.io/installer/schema/layout.json",
+	"version": 1,
+	"id": "sound-card",
+	"root": {
+		"kind": "backdrop",
+		"props": {
+			"style": "classic",
+			"title": "Lieutenant Fizz — Episode One",
+			"label": "Lieutenant Fizz — Episode One setup"
+		},
+		"children": [
+			{
+				"kind": "dialog",
+				"props": {
+					"title": "Sound card — Lt. Fizz",
+					"label": "Sound card",
+					"style": "win32-classic"
+				},
+				"children": [
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "column",
+							"gap": 12
+						},
+						"children": [
+							{
+								"kind": "text",
+								"props": {
+									"text": "Choose your sound card",
+									"role": "heading"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"text": "Setup found: {sound.detected}",
+									"role": "body"
+								}
+							},
+							{
+								"kind": "radio",
+								"bind": "sound.card",
+								"props": {
+									"label": "Sound card",
+									"options": "sound.cards"
+								}
+							},
+							{
+								"kind": "field",
+								"bind": "sound.port",
+								"props": {
+									"label": "Port",
+									"default": "220",
+									"when": "sound.card != 'none'"
+								}
+							},
+							{
+								"kind": "field",
+								"bind": "sound.irq",
+								"props": {
+									"label": "IRQ",
+									"default": "7",
+									"when": "sound.card != 'none'"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"role": "error",
+									"text": "{validate.problems}",
+									"label": "Problems"
+								}
+							}
+						]
+					},
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "row",
+							"gap": 8,
+							"align": "end"
+						},
+						"children": [
+							{
+								"kind": "button",
+								"props": {
+									"label": "Back",
+									"action": "back"
+								}
+							},
+							{
+								"kind": "button",
+								"props": {
+									"label": "Next",
+									"action": "next",
+									"default": true
+								}
+							},
+							{
+								"kind": "button",
+								"props": {
+									"label": "Cancel",
+									"action": "cancel"
+								}
+							}
+						]
+					}
+				]
+			}
+		],
+		"overrides": {
+			"tui-retro": {
+				"kind": "backdrop",
+				"props": {
+					"style": "text-mode",
+					"charset": "cp437",
+					"fill": "░",
+					"title": "Lieutenant Fizz — Episode One",
+					"label": "Lieutenant Fizz — Episode One setup",
+					"palette": "blue-on-grey"
+				},
+				"children": [
+					{
+						"kind": "dialog",
+						"props": {
+							"title": "Sound card",
+							"label": "Sound card",
+							"border": "double",
+							"shadow": true
+						},
+						"children": [
+							{
+								"kind": "stack",
+								"props": {
+									"direction": "column",
+									"gap": 1
+								},
+								"children": [
+									{
+										"kind": "text",
+										"props": {
+											"text": "Choose your sound card",
+											"role": "heading"
+										}
+									},
+									{
+										"kind": "text",
+										"props": {
+											"text": "Setup found: {sound.detected}",
+											"role": "body"
+										}
+									},
+									{
+										"kind": "radio",
+										"bind": "sound.card",
+										"props": {
+											"label": "Sound card",
+											"options": "sound.cards"
+										}
+									},
+									{
+										"kind": "field",
+										"bind": "sound.port",
+										"props": {
+											"label": "Port",
+											"default": "220",
+											"when": "sound.card != 'none'"
+										}
+									},
+									{
+										"kind": "field",
+										"bind": "sound.irq",
+										"props": {
+											"label": "IRQ",
+											"default": "7",
+											"when": "sound.card != 'none'"
+										}
+									},
+									{
+										"kind": "text",
+										"props": {
+											"role": "error",
+											"text": "{validate.problems}",
+											"label": "Problems"
+										}
+									}
+								]
+							},
+							{
+								"kind": "stack",
+								"props": {
+									"direction": "row",
+									"gap": 8,
+									"align": "end"
+								},
+								"children": [
+									{
+										"kind": "button",
+										"props": {
+											"label": "Back",
+											"action": "back"
+										}
+									},
+									{
+										"kind": "button",
+										"props": {
+											"label": "Next",
+											"action": "next",
+											"default": true
+										}
+									},
+									{
+										"kind": "button",
+										"props": {
+											"label": "Cancel",
+											"action": "cancel"
+										}
+									}
+								]
+							}
+						]
+					}
+				]
+			},
+			"tui": {
+				"kind": "window",
+				"props": {
+					"title": "Lieutenant Fizz — Episode One — Sound card",
+					"label": "Sound card",
+					"border": "rounded"
+				},
+				"children": [
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "column",
+							"gap": 1
+						},
+						"children": [
+							{
+								"kind": "text",
+								"props": {
+									"text": "Choose your sound card",
+									"role": "heading"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"text": "Setup found: {sound.detected}",
+									"role": "body"
+								}
+							},
+							{
+								"kind": "radio",
+								"bind": "sound.card",
+								"props": {
+									"label": "Sound card",
+									"options": "sound.cards"
+								}
+							},
+							{
+								"kind": "field",
+								"bind": "sound.port",
+								"props": {
+									"label": "Port",
+									"default": "220",
+									"when": "sound.card != 'none'"
+								}
+							},
+							{
+								"kind": "field",
+								"bind": "sound.irq",
+								"props": {
+									"label": "IRQ",
+									"default": "7",
+									"when": "sound.card != 'none'"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"role": "error",
+									"text": "{validate.problems}",
+									"label": "Problems"
+								}
+							}
+						]
+					},
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "row",
+							"gap": 8,
+							"align": "end"
+						},
+						"children": [
+							{
+								"kind": "button",
+								"props": {
+									"label": "Back",
+									"action": "back"
+								}
+							},
+							{
+								"kind": "button",
+								"props": {
+									"label": "Next",
+									"action": "next",
+									"default": true
+								}
+							},
+							{
+								"kind": "button",
+								"props": {
+									"label": "Cancel",
+									"action": "cancel"
+								}
+							}
+						]
+					}
+				]
+			}
+		}
+	}
+}

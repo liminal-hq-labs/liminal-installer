@@ -1,0 +1,42 @@
+# Planboard example project: product, targets and signing.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[product]
+id        = "hq.liminal.planboard"
+name      = "Planboard"
+publisher = "Liminal HQ"
+version   = { from = "git-tag" }
+licence   = "LICENCE.TXT"
+
+[defaults]
+scope = "user"
+theme = "afterglow"
+
+[[target]]
+id       = "linux-x86_64"
+renderer = "canvas"
+theme    = "afterglow"
+outputs  = ["run", "deb", "rpm"]
+
+[[target]]
+id       = "linux-x86_64"
+renderer = "tui"
+theme    = "afterglow"
+outputs  = ["run"]
+
+[[target]]
+id       = "windows-x86_64"
+renderer = "canvas"
+theme    = "afterglow"
+outputs  = ["setup-exe", "msix"]
+
+[[target]]
+id       = "macos-aarch64"
+renderer = "web"
+theme    = "afterglow"
+outputs  = ["app", "pkg"]
+
+[signing]
+feed_key = "keys/feed.pub"

@@ -1,0 +1,58 @@
+/* Liminal HQ design tokens, generated from tokens.json by scripts/tokens-to-css.mjs. */
+/*
+ * (c) Copyright 2026 Liminal HQ, Scott Morris
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ */
+
+:root,
+:root[data-theme="dark"] {
+	--lh-color-bg: #050507;
+	--lh-color-surface: #0c0c10;
+	--lh-color-raised: #16161c;
+	--lh-color-card: rgba(20, 20, 25, 0.55);
+	--lh-color-text: #e0e0e0;
+	--lh-color-text-strong: #ffffff;
+	--lh-color-muted: #b4bfce;
+	--lh-color-dim: #7c8796;
+	--lh-color-border: rgba(255, 255, 255, 0.08);
+	--lh-color-border-strong: rgba(255, 255, 255, 0.14);
+	--lh-color-accent: #ffaa40;
+	--lh-color-accent-ink: #050507;
+	--lh-color-accent-soft: rgba(255, 170, 64, 0.1);
+	--lh-color-violet: #a78bfa;
+	--lh-color-cyan: #22d3ee;
+	--lh-color-blue: #60a5fa;
+	--lh-color-green: #2ec66a;
+	--lh-color-amber: #fbbf24;
+	--lh-color-red: #f87171;
+	--lh-font-body: Inter, system-ui, sans-serif;
+	--lh-font-display: 'Space Grotesk', Inter, system-ui, sans-serif;
+	--lh-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+	--lh-radius-sm: 6px;
+	--lh-radius-md: 8px;
+	--lh-radius-lg: 12px;
+	--lh-radius-pill: 999px;
+	--lh-space-1: 4px;
+	--lh-space-2: 8px;
+	--lh-space-3: 12px;
+	--lh-space-4: 16px;
+	--lh-space-5: 24px;
+	--lh-shadow-menu: 0 8px 24px rgba(0, 0, 0, 0.45);
+	--lh-shadow-glow: 0 0 20px rgba(255, 170, 64, 0.15);
+}
+
+:root[data-theme="light"] {
+	--lh-color-bg: #fbfaf6;
+	--lh-color-surface: #f3f1ea;
+	--lh-color-raised: #ffffff;
+	--lh-color-card: rgba(255, 255, 255, 0.8);
+	--lh-color-text: #1c1917;
+	--lh-color-text-strong: #0c0a09;
+	--lh-color-muted: #57534e;
+	--lh-color-dim: #a8a29e;
+	--lh-color-border: rgba(0, 0, 0, 0.08);
+	--lh-color-border-strong: rgba(0, 0, 0, 0.16);
+	--lh-color-accent: #b45309;
+	--lh-color-accent-ink: #ffffff;
+	--lh-color-accent-soft: rgba(180, 83, 9, 0.1);
+}

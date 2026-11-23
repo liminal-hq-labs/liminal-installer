@@ -1,0 +1,31 @@
+# The Tauri shell for the Studio. A workspace of its own: it needs system WebKit libraries.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[package]
+name = "liminal-installer-studio"
+description = "Liminal Installer Studio: edit flows, layouts and scripts, and preview installers"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0 OR MIT"
+repository = "https://github.com/liminal-hq-labs/liminal-installer"
+rust-version = "1.90"
+publish = false
+
+[lib]
+name = "liminal_installer_studio_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+li-model = { path = "../../../crates/li-model" }
+li-studio = { path = "../../../crates/li-studio" }
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[workspace]
