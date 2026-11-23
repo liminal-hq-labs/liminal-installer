@@ -8,16 +8,16 @@ use std::collections::BTreeSet;
 use li_model::{Node, StepType, Target};
 
 use crate::diag::{Diagnostic, Report};
-use crate::project::Project;
+use crate::project::{Project, ThemeData};
 
-/// One set of checks over a loaded project. Implementations add their own findings (for
-/// example the engine's script checks) and are run together by [`check_project`].
+/// One set of checks over a loaded project. Implementations add their own findings and are run
+/// together by [`check_project`].
 pub trait ProjectChecker {
 	/// Checks the whole project, or only `targets` when the slice is not empty.
 	fn check(&self, project: &Project, targets: &[&Target]) -> Vec<Diagnostic>;
 }
 
-/// The checks that need only `li-model`: parsing, flow rules, themes, layouts, components.
+/// The CLI's own checks: flow rules, themes, layouts, accessible names and components.
 pub struct DefaultChecker;
 
 pub const KNOWN_RENDERERS: &[&str] = &[
@@ -62,7 +62,7 @@ pub fn check_project(
 		.iter()
 		.filter(|t| only.is_empty() || only.contains(&t.id))
 		.collect();
-	let mut diags = project.problems.clone();
+	let mut diags = Vec::new();
 	for c in checkers {
 		diags.extend(c.check(project, &targets));
 	}
@@ -71,6 +71,45 @@ pub fn check_project(
 
 fn file_of(_project: &Project, name: &str) -> String {
 	format!("installer/{name}")
+}
+
+/// Finding codes the CLI's own checks already report, in their own wording and severity.
+const COVERED_BY_DEFAULT: &[&str] = &[
+	"duplicate-target",
+	"duplicate-component",
+	"unknown-target",
+	"unknown-theme",
+	"missing-source",
+	"missing-script",
+	"bad-flow",
+	"unknown-layout",
+];
+
+/// The engine's checks: condition syntax, components named in conditions and script hooks.
+/// Findings [`DefaultChecker`] already makes are left to it.
+pub struct EngineChecker;
+
+impl ProjectChecker for EngineChecker {
+	fn check(&self, project: &Project, _targets: &[&Target]) -> Vec<Diagnostic> {
+		li_engine::check(project)
+			.into_iter()
+			.filter(|d| !COVERED_BY_DEFAULT.contains(&d.code))
+			.map(|d| {
+				let message = format!("{} ({})", d.message, d.location);
+				let diag = match d.severity {
+					li_engine::Severity::Error => Diagnostic::error(d.code, message),
+					li_engine::Severity::Warning => Diagnostic::warning(d.code, message),
+				};
+				match d.location.strip_prefix("flow ") {
+					Some(rest) => {
+						let id = rest.split(',').next().unwrap_or(rest);
+						diag.in_file(format!("installer/flows/{id}.flow.json"))
+					}
+					None => diag,
+				}
+			})
+			.collect()
+	}
 }
 
 impl ProjectChecker for DefaultChecker {
@@ -118,7 +157,7 @@ fn check_installer(project: &Project, d: &mut Vec<Diagnostic>) {
 				.in_file(&f),
 			);
 		}
-		match project.theme_name_for(t) {
+		match project.theme_id_for(t) {
 			Some(name) if !project.themes.contains_key(name) => d.push(
 				Diagnostic::error(
 					"missing-theme",
@@ -212,6 +251,20 @@ fn check_components(project: &Project, targets: &[&Target], d: &mut Vec<Diagnost
 	}
 }
 
+fn has_theme(project: &Project, t: &Target) -> bool {
+	project
+		.theme_id_for(t)
+		.is_some_and(|id| project.themes.contains_key(id))
+}
+
+fn theme_dir_name(theme: &ThemeData) -> String {
+	theme
+		.dir
+		.file_name()
+		.map(|n| n.to_string_lossy().into_owned())
+		.unwrap_or_default()
+}
+
 fn check_flows(project: &Project, targets: &[&Target], d: &mut Vec<Diagnostic>) {
 	if !project.flows.contains_key("install") {
 		d.push(
@@ -220,7 +273,11 @@ fn check_flows(project: &Project, targets: &[&Target], d: &mut Vec<Diagnostic>) 
 		);
 	}
 	for (name, flow) in &project.flows {
-		let f = format!("installer/flows/{name}.flow.json");
+		let f = project
+			.flow_files
+			.get(name)
+			.map(|p| crate::project::rel(&project.root, p))
+			.unwrap_or_else(|| format!("installer/flows/{name}.flow.json"));
 		for e in flow.validate() {
 			d.push(Diagnostic::error("invalid-flow", e.to_string()).in_file(&f));
 		}
@@ -251,15 +308,14 @@ fn check_flows(project: &Project, targets: &[&Target], d: &mut Vec<Diagnostic>) 
 				),
 				(Some(layout), _) => {
 					for t in targets {
-						if project.theme_for(t).is_some() && project.layout_for(t, layout).is_none()
-						{
+						if has_theme(project, t) && project.layout_for(t, layout).is_none() {
 							d.push(
 								Diagnostic::error(
 									"missing-layout",
 									format!(
 										"step `{}` uses layout `{layout}`, which theme `{}` does not have (target `{}`)",
 										step.id,
-										project.theme_name_for(t).unwrap_or_default(),
+										project.theme_id_for(t).unwrap_or_default(),
 										t.id
 									),
 								)
@@ -275,9 +331,10 @@ fn check_flows(project: &Project, targets: &[&Target], d: &mut Vec<Diagnostic>) 
 }
 
 fn check_themes(project: &Project, targets: &[&Target], d: &mut Vec<Diagnostic>) {
-	for (name, theme) in &project.themes {
+	for theme in project.themes.values() {
+		let name = theme_dir_name(theme);
 		let f = format!("installer/themes/{name}/theme.toml");
-		if theme.file.theme.id != *name {
+		if theme.file.theme.id != name {
 			d.push(
 				Diagnostic::warning(
 					"theme-id-mismatch",
@@ -316,23 +373,13 @@ fn check_themes(project: &Project, targets: &[&Target], d: &mut Vec<Diagnostic>)
 		}
 		for (id, layout) in &theme.layouts {
 			let lf = format!("installer/themes/{name}/layouts/{id}.layout.json");
-			if layout.id != *id {
-				d.push(
-					Diagnostic::warning(
-						"layout-id-mismatch",
-						format!(
-							"layout id `{}` differs from its file name `{id}`",
-							layout.id
-						),
-					)
-					.in_file(&lf),
-				);
-			}
 			check_node(&layout.root, &lf, d);
 		}
 	}
 	for t in targets {
-		if let Some(theme) = project.theme_for(t)
+		if let Some(theme) = project
+			.theme_id_for(t)
+			.and_then(|id| project.themes.get(id))
 			&& !theme.file.theme.renderers.contains(&t.renderer)
 			&& theme.file.theme.fallback.is_none()
 		{
@@ -341,7 +388,7 @@ fn check_themes(project: &Project, targets: &[&Target], d: &mut Vec<Diagnostic>)
 					"renderer-not-supported",
 					format!(
 						"theme `{}` does not list renderer `{}` (target `{}`) and has no fallback",
-						theme.dir_name, t.renderer, t.id
+						theme.file.theme.id, t.renderer, t.id
 					),
 				)
 				.in_file("installer/installer.toml"),

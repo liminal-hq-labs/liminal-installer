@@ -13,6 +13,7 @@
 //! _project/installer/themes/…            layouts, theme files and their assets
 //! _project/installer/scripts/…           Lua hooks
 //! _project/feed.pub                      the pinned feed key, as hex
+//! _project/version                       the product version this build is
 //! ```
 //!
 //! An update's `.lip` brings its own project, so a new version can change its flows and
@@ -30,16 +31,19 @@ use crate::project::Project;
 pub const PROJECT_DIR: &str = "_project";
 /// Where the pinned feed key sits in a bundled `.lip`.
 pub const PINNED_KEY: &str = "_project/feed.pub";
+/// Where the product version sits in a bundled `.lip`.
+pub const VERSION_FILE: &str = "_project/version";
 
 const PROJECT_FILES: &[&str] = &["installer.toml", "components.toml"];
 const PROJECT_TREES: &[&str] = &["flows/", "themes/", "scripts/"];
 
-/// Adds the project's own files (manifest, components, flows, themes and scripts) and the
-/// pinned feed key, if any, to a `.lip` built by `pack_payload`. The product payload under
-/// `dist/` and the like is not duplicated.
+/// Adds the project's own files (manifest, components, flows, themes and scripts), the build's
+/// version and the pinned feed key, if any, to a `.lip` built by `pack_payload`. The product
+/// payload under `dist/` and the like is not duplicated.
 pub fn bundle_project(
 	project: &Project,
 	lip_bytes: &[u8],
+	version: &str,
 	feed_key: Option<&VerifyingKey>,
 ) -> Result<Vec<u8>> {
 	let lip = Lip::parse(lip_bytes)?;
@@ -61,6 +65,7 @@ pub fn bundle_project(
 			)?;
 		}
 	}
+	builder.add(VERSION_FILE, format!("{version}\n").into_bytes(), false)?;
 	if let Some(key) = feed_key {
 		builder.add(
 			PINNED_KEY,
@@ -102,4 +107,11 @@ pub fn pinned_key(lip: &Lip) -> Result<Option<VerifyingKey>> {
 		Some(bytes) => Ok(Some(parse_public_key(&String::from_utf8_lossy(bytes))?)),
 		None => Ok(None),
 	}
+}
+
+/// The product version a `.lip` was built for, if it carries one.
+pub fn bundled_version(lip: &Lip) -> Option<String> {
+	lip.read(VERSION_FILE)
+		.map(|b| String::from_utf8_lossy(b).trim().to_owned())
+		.filter(|v| !v.is_empty())
 }

@@ -21,6 +21,8 @@ path = "src/main.rs"
 
 [dependencies]
 li-model.workspace = true
+li-engine.workspace = true
+li-pack.workspace = true
 li-render-tui.workspace = true
 li-package.workspace = true
 clap.workspace = true

@@ -235,9 +235,9 @@ fn preview_draws_each_step_and_prints_the_plan() {
 		.stdout(predicate::str::contains("== Step 1 of 4: welcome"))
 		.stdout(predicate::str::contains("Demo App Setup"))
 		.stdout(predicate::str::contains("[ Next ]").or(predicate::str::contains("[>Next<]")))
-		.stdout(predicate::str::contains("== Plan (4 operations) =="))
+		.stdout(predicate::str::contains("== Plan (5 operations) =="))
 		.stdout(predicate::str::contains(
-			"copy           payload/linux-x86_64/demo -> {install}/bin/",
+			"copy           payload/linux-x86_64/demo -> {install}/bin/demo",
 		))
 		.stdout(predicate::str::contains("receipt.write"));
 }
@@ -429,8 +429,87 @@ fn feed_add_records_and_replaces_an_artefact() {
 }
 
 #[test]
-fn feed_add_rejects_signing_for_now() {
+fn keygen_writes_a_pair_and_refuses_to_overwrite_it() {
 	let dir = project();
+	liminst(dir.path())
+		.args(["keygen", "--out", "keys/feed"])
+		.assert()
+		.success()
+		.stdout(predicate::str::contains("keys/feed.pub"));
+	let secret = dir.path().join("keys/feed.key");
+	let public = dir.path().join("keys/feed.pub");
+	assert!(li_pack::read_signing_key(&secret).is_ok());
+	assert_eq!(
+		li_pack::read_signing_key(&secret).unwrap().verifying_key(),
+		li_pack::read_public_key(&public).unwrap()
+	);
+	liminst(dir.path())
+		.args(["keygen", "--out", "keys/feed"])
+		.assert()
+		.code(2)
+		.stderr(predicate::str::contains("already exists"));
+}
+
+#[test]
+fn feed_add_signs_and_a_tampered_feed_fails_verification() {
+	let dir = project();
+	liminst(dir.path())
+		.args(["keygen", "--out", "feed"])
+		.assert()
+		.success();
+	std::fs::write(dir.path().join("demo.run"), b"payload").unwrap();
+	liminst(dir.path())
+		.args([
+			"feed",
+			"add",
+			"-t",
+			"linux-x86_64",
+			"--file",
+			"demo.run",
+			"--url",
+			"demo.run",
+			"--version",
+			"1.0.0",
+			"--sign-key",
+			"feed.key",
+		])
+		.assert()
+		.success()
+		.stdout(predicate::str::contains("Signed:"));
+	let json = std::fs::read(dir.path().join("feed.json")).unwrap();
+	let sig = std::fs::read_to_string(dir.path().join("feed.json.sig")).unwrap();
+	let key = li_pack::read_public_key(&dir.path().join("feed.pub")).unwrap();
+	let feed = li_pack::verify_feed(&json, &sig, &key, None).unwrap();
+	assert_eq!(feed.products[0].channels["stable"], "1.0.0");
+	let mut bad = json.clone();
+	bad[10] ^= 1;
+	assert!(li_pack::verify_feed(&bad, &sig, &key, None).is_err());
+
+	// An unsigned update drops the signature that no longer matches.
+	liminst(dir.path())
+		.args([
+			"feed",
+			"add",
+			"-t",
+			"linux-x86_64",
+			"--file",
+			"demo.run",
+			"--url",
+			"demo.run",
+			"--version",
+			"1.1.0",
+		])
+		.assert()
+		.success()
+		.stdout(predicate::str::contains("unsigned"))
+		.stdout(predicate::str::contains("Removed the old signature"));
+	assert!(!dir.path().join("feed.json.sig").exists());
+}
+
+#[test]
+fn feed_add_refuses_an_unreadable_sign_key() {
+	let dir = project();
+	std::fs::write(dir.path().join("x"), b"x").unwrap();
 	liminst(dir.path())
 		.args([
 			"feed",
@@ -444,11 +523,10 @@ fn feed_add_rejects_signing_for_now() {
 			"--version",
 			"1",
 			"--sign-key",
-			"k",
+			"nokey",
 		])
 		.assert()
-		.code(2)
-		.stderr(predicate::str::contains("not available yet"));
+		.code(2);
 }
 
 #[test]
@@ -468,6 +546,42 @@ fn theme_pack_is_reproducible() {
 		.assert()
 		.code(2)
 		.stderr(predicate::str::contains("no theme named `missing`"));
+}
+
+#[test]
+fn theme_pack_signs_the_archive() {
+	let dir = project();
+	liminst(dir.path())
+		.args(["keygen", "--out", "t"])
+		.assert()
+		.success();
+	liminst(dir.path())
+		.args(["theme", "pack", "--out", "n.litheme", "--sign-key", "t.key"])
+		.assert()
+		.success()
+		.stdout(predicate::str::contains("Signed:"));
+	let bytes = std::fs::read(dir.path().join("n.litheme")).unwrap();
+	let sig = std::fs::read_to_string(dir.path().join("n.litheme.sig")).unwrap();
+	let key = li_pack::read_public_key(&dir.path().join("t.pub")).unwrap();
+	li_pack::verify(&key, &bytes, &sig).unwrap();
+	assert!(li_pack::verify(&key, b"other", &sig).is_err());
+}
+
+#[test]
+fn check_reports_a_bad_condition_from_the_engine() {
+	let dir = project();
+	let path = dir.path().join("installer/flows/install.flow.json");
+	let mut flow: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+	flow["steps"][1]["when"] = "len(components) > 1".into();
+	std::fs::write(&path, serde_json::to_string(&flow).unwrap()).unwrap();
+	let out = liminst(dir.path())
+		.args(["check", "--json"])
+		.assert()
+		.code(1)
+		.get_output()
+		.stdout
+		.clone();
+	assert!(codes(&json_of(&out)).contains(&"bad-condition".to_owned()));
 }
 
 #[test]

@@ -9,7 +9,7 @@ use std::path::Path;
 use li_model::{Artefact, Feed, FeedProduct, Release};
 
 use crate::project::Project;
-use crate::util::{now_rfc3339, sha256_hex, to_json_tabs, write_file};
+use crate::util::{now_rfc3339, sha256_hex, to_json_tabs, write_file, write_file_bytes};
 use crate::{CliError, CliResult};
 
 pub struct AddRequest<'a> {
@@ -20,12 +20,31 @@ pub struct AddRequest<'a> {
 	pub url: &'a str,
 	pub version: &'a str,
 	pub channel: &'a str,
+	/// The Ed25519 secret key file to sign the feed with; `feed.json.sig` is written beside it.
+	pub sign_key: Option<&'a Path>,
+}
+
+/// The detached signature's path: the feed's own file name plus `.sig`.
+pub fn sig_path(feed: &Path) -> std::path::PathBuf {
+	let mut name = feed.as_os_str().to_owned();
+	name.push(".sig");
+	name.into()
+}
+
+/// What `add` did with the signature.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Signature {
+	/// The feed was signed; the signature is in this file.
+	Signed(std::path::PathBuf),
+	/// No key was given, so the feed is unsigned.
+	Unsigned { removed_stale: bool },
 }
 
 /// Adds (or replaces) one artefact in the feed at `req.feed`, creating the feed if needed,
-/// points the channel at the version, and stamps the feed. The feed is not signed: signing
-/// is not available yet, so no `.sig` file is written.
-pub fn add(project: &Project, req: &AddRequest) -> CliResult<Feed> {
+/// points the channel at the version, and stamps the feed. With `sign_key` the exact bytes
+/// written are signed and the signature goes to `<feed>.sig`; without it any older signature
+/// is removed, because it no longer matches.
+pub fn add(project: &Project, req: &AddRequest) -> CliResult<(Feed, Signature)> {
 	let bytes = std::fs::read(req.file)
 		.map_err(|e| CliError::new(format!("cannot read {}: {e}", req.file.display())))?;
 	let mut feed: Feed = if req.feed.is_file() {
@@ -87,6 +106,22 @@ pub fn add(project: &Project, req: &AddRequest) -> CliResult<Feed> {
 		sha256: sha256_hex(&bytes),
 	});
 	feed.timestamp = Some(now_rfc3339());
-	write_file(req.feed, &to_json_tabs(&feed))?;
-	Ok(feed)
+	let sig = sig_path(req.feed);
+	let signature = match req.sign_key {
+		Some(key_path) => {
+			let key = li_pack::read_signing_key(key_path)
+				.map_err(|e| CliError::new(format!("{}: {e}", key_path.display())))?;
+			let (json, hex) =
+				li_pack::sign_feed(&feed, &key).map_err(|e| CliError::new(e.to_string()))?;
+			write_file_bytes(req.feed, &json)?;
+			write_file(&sig, &format!("{hex}\n"))?;
+			Signature::Signed(sig)
+		}
+		None => {
+			write_file(req.feed, &to_json_tabs(&feed))?;
+			let removed_stale = sig.is_file() && std::fs::remove_file(&sig).is_ok();
+			Signature::Unsigned { removed_stale }
+		}
+	};
+	Ok((feed, signature))
 }

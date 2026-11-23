@@ -16,6 +16,8 @@ pub struct Packed {
 	pub path: PathBuf,
 	pub files: usize,
 	pub sha256: String,
+	/// Where the detached signature went, when a key was given.
+	pub signature: Option<PathBuf>,
 }
 
 fn collect(dir: &Path, base: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
@@ -34,10 +36,21 @@ fn collect(dir: &Path, base: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<(
 
 /// Packs `installer/themes/<name>/` into `out` (default `<id>.litheme` beside the project).
 /// The theme must have loaded cleanly. The archive is a gzip tar with sorted entries, zero
-/// times and root ownership, so the same theme always gives the same bytes. Signing is not
-/// available yet, so the archive is unsigned.
-pub fn pack(project: &Project, name: &str, out: Option<&Path>) -> CliResult<Packed> {
-	let theme = project.themes.get(name).ok_or_else(|| {
+/// times and root ownership, so the same theme always gives the same bytes. With `sign_key` the
+/// archive's bytes are signed with Ed25519 and the hex signature goes to `<archive>.sig`.
+pub fn pack(
+	project: &Project,
+	name: &str,
+	out: Option<&Path>,
+	sign_key: Option<&Path>,
+) -> CliResult<Packed> {
+	let found = project.themes.values().find(|t| {
+		t.file.theme.id == name
+			|| t.dir
+				.file_name()
+				.is_some_and(|n| n.to_string_lossy() == name)
+	});
+	let theme = found.ok_or_else(|| {
 		let known: Vec<&str> = project.themes.keys().map(String::as_str).collect();
 		CliError::new(format!(
 			"no theme named `{name}` (the project has: {})",
@@ -48,18 +61,7 @@ pub fn pack(project: &Project, name: &str, out: Option<&Path>) -> CliResult<Pack
 			}
 		))
 	})?;
-	if let Some(p) = project.problems.iter().find(|p| {
-		p.file
-			.as_deref()
-			.is_some_and(|f| f.starts_with(&format!("installer/themes/{name}/")))
-	}) {
-		return Err(CliError::new(format!(
-			"theme `{name}` has a problem: {} ({})",
-			p.message,
-			p.file.as_deref().unwrap_or_default()
-		)));
-	}
-	let tdir = project.dir.join("themes").join(name);
+	let tdir = theme.dir.clone();
 	let mut rels = Vec::new();
 	collect(&tdir, &tdir, &mut rels)
 		.map_err(|e| CliError::new(format!("cannot read {}: {e}", tdir.display())))?;
@@ -89,9 +91,22 @@ pub fn pack(project: &Project, name: &str, out: Option<&Path>) -> CliResult<Pack
 			.join(format!("{}.litheme", theme.file.theme.id))
 	});
 	crate::util::write_file_bytes(&path, &bytes)?;
+	let signature = match sign_key {
+		Some(key_path) => {
+			let key = li_pack::read_signing_key(key_path)
+				.map_err(|e| CliError::new(format!("{}: {e}", key_path.display())))?;
+			let mut sig = path.as_os_str().to_owned();
+			sig.push(".sig");
+			let sig = PathBuf::from(sig);
+			crate::util::write_file(&sig, &format!("{}\n", li_pack::sign(&key, &bytes)))?;
+			Some(sig)
+		}
+		None => None,
+	};
 	Ok(Packed {
 		path,
 		files: rels.len(),
 		sha256: sha256_hex(&bytes),
+		signature,
 	})
 }
