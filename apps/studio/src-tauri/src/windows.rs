@@ -1,0 +1,146 @@
+// The Studio's child windows: About, Preferences and confirmation questions.
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+
+/// What a kind of window looks like. Every one loads the Studio page with `?window=<kind>`.
+#[derive(Debug, PartialEq)]
+pub struct Spec {
+	/// The window's label; a kind that may only be open once has a fixed one.
+	pub label: String,
+	pub title: &'static str,
+	pub size: (f64, f64),
+	/// Blocks the window it belongs to until it closes.
+	pub modal: bool,
+}
+
+/// The spec for a kind, or None for one the Studio does not know. `id` tells apart windows of a kind that can repeat.
+pub fn spec(kind: &str, id: Option<&str>) -> Option<Spec> {
+	match kind {
+		"about" => Some(Spec {
+			label: "about".into(),
+			title: "About Liminal Installer Studio",
+			size: (440.0, 300.0),
+			modal: true,
+		}),
+		"preferences" => Some(Spec {
+			label: "preferences".into(),
+			title: "Preferences",
+			size: (760.0, 520.0),
+			modal: false,
+		}),
+		"confirm" => {
+			let id = id.filter(|s| {
+				!s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
+			})?;
+			Some(Spec {
+				label: format!("confirm-{id}"),
+				title: "Liminal Installer Studio",
+				size: (460.0, 220.0),
+				modal: true,
+			})
+		}
+		_ => None,
+	}
+}
+
+/// The top-left that centres a child of `child` size over a parent at `origin` with `parent` size.
+pub fn centred_on(origin: (f64, f64), parent: (f64, f64), child: (f64, f64)) -> (f64, f64) {
+	(
+		origin.0 + (parent.0 - child.0) / 2.0,
+		origin.1 + (parent.1 - child.1) / 2.0,
+	)
+}
+
+/// Opens a child window of the one that asked, or focuses it when a window with that label is open.
+/// `query` is appended to the page's query string, already encoded.
+#[tauri::command]
+pub fn open_window(
+	app: AppHandle,
+	parent: tauri::WebviewWindow,
+	kind: String,
+	id: Option<String>,
+	query: Option<String>,
+) -> Result<(), String> {
+	let spec = spec(&kind, id.as_deref()).ok_or_else(|| format!("unknown window `{kind}`"))?;
+	if let Some(existing) = app.get_webview_window(&spec.label) {
+		return existing.set_focus().map_err(|e| e.to_string());
+	}
+	let url = match query.as_deref() {
+		Some(q) if !q.is_empty() => format!("index.html?window={kind}&{q}"),
+		_ => format!("index.html?window={kind}"),
+	};
+	let scale = parent.scale_factor().map_err(|e| e.to_string())?;
+	let origin = parent
+		.inner_position()
+		.map_err(|e| e.to_string())?
+		.to_logical::<f64>(scale);
+	let size = parent
+		.inner_size()
+		.map_err(|e| e.to_string())?
+		.to_logical::<f64>(scale);
+	let (x, y) = centred_on((origin.x, origin.y), (size.width, size.height), spec.size);
+
+	let window = WebviewWindowBuilder::new(&app, &spec.label, WebviewUrl::App(url.into()))
+		.title(spec.title)
+		.inner_size(spec.size.0, spec.size.1)
+		.position(x, y)
+		.resizable(!spec.modal)
+		.minimizable(false)
+		.maximizable(false)
+		.decorations(false)
+		.transparent(true)
+		.shadow(true)
+		.parent(&parent)
+		.map_err(|e| e.to_string())?
+		.build()
+		.map_err(|e| e.to_string())?;
+
+	if spec.modal {
+		// A platform that cannot disable a window ignores this, and the child still stays on top of its parent.
+		let _ = parent.set_enabled(false);
+		let parent = parent.clone();
+		window.on_window_event(move |event| {
+			if matches!(event, WindowEvent::Destroyed) {
+				let _ = parent.set_enabled(true);
+				let _ = parent.set_focus();
+			}
+		});
+	}
+	Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn known_kinds_have_specs() {
+		assert_eq!(spec("about", None).unwrap().label, "about");
+		assert!(spec("preferences", None).is_some_and(|s| !s.modal));
+		assert!(spec("about", None).is_some_and(|s| s.modal));
+	}
+
+	#[test]
+	fn a_confirmation_needs_a_clean_id_and_is_labelled_by_it() {
+		assert_eq!(spec("confirm", Some("7")).unwrap().label, "confirm-7");
+		assert!(spec("confirm", None).is_none());
+		assert!(spec("confirm", Some("")).is_none());
+		assert!(spec("confirm", Some("a/b")).is_none());
+	}
+
+	#[test]
+	fn unknown_kinds_are_refused() {
+		assert!(spec("shell", None).is_none());
+	}
+
+	#[test]
+	fn centres_over_the_parent() {
+		assert_eq!(
+			centred_on((100.0, 50.0), (1000.0, 600.0), (400.0, 200.0)),
+			(400.0, 250.0)
+		);
+	}
+}

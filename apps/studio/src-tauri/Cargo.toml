@@ -28,4 +28,10 @@ tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
+# The debug-only bridge that lets the Tauri MCP server drive the running app. `lib.rs` registers it only when
+# `debug_assertions` is on, so release builds never activate it. It is left out on Windows, where its `webview2-com`
+# can differ from Tauri's.
+[target.'cfg(not(windows))'.dependencies]
+tauri-plugin-mcp-bridge = "0.13"
+
 [workspace]
