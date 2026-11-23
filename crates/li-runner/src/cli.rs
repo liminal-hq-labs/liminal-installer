@@ -472,6 +472,11 @@ fn update(cli: &Cli, a: &UpdateArgs) -> RunnerResult<()> {
 	let mut ui = make_ui(cli, &target)?;
 	let mut state = State::new();
 	state.insert("components".into(), json!(inst.receipt.components));
+	// What the `builtin:check-feed` step finds, for the flow's branch and the offer page.
+	state.insert(
+		"update".into(),
+		json!({ "available": true, "version": info.version, "current": inst.receipt.installed }),
+	);
 	let mut updated: Option<Receipt> = None;
 	let mut work = |_: &State, opts: &mut RunOptions<'_>| -> Result<(), EngineError> {
 		updated = Some(li_engine::update(
