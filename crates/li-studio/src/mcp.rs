@@ -338,6 +338,14 @@ impl McpServer {
 	}
 }
 
+/// Blocks the calling thread until the process is interrupted (Ctrl+C, or SIGINT).
+pub fn wait_for_interrupt() -> std::io::Result<()> {
+	tokio::runtime::Builder::new_current_thread()
+		.enable_all()
+		.build()?
+		.block_on(tokio::signal::ctrl_c())
+}
+
 impl Drop for McpServer {
 	fn drop(&mut self) {
 		if let Some(tx) = self.shutdown.take() {

@@ -585,11 +585,64 @@ fn check_reports_a_bad_condition_from_the_engine() {
 }
 
 #[test]
-fn studio_is_not_available_yet() {
+fn studio_needs_mcp() {
+	let dir = tempfile::tempdir().unwrap();
+	liminst(dir.path())
+		.args(["studio"])
+		.assert()
+		.code(2)
+		.stderr(predicate::str::contains("pass --mcp"));
+}
+
+#[test]
+fn studio_mcp_without_a_project_fails_plainly() {
 	let dir = tempfile::tempdir().unwrap();
 	liminst(dir.path())
 		.args(["studio", "--mcp"])
 		.assert()
 		.code(2)
-		.stderr(predicate::str::contains("not available yet"));
+		.stderr(predicate::str::contains("cannot open the project"));
+}
+
+#[test]
+fn studio_mcp_prints_the_address_and_token_then_serves() {
+	use std::io::{BufRead, BufReader, Read, Write};
+	use std::net::TcpStream;
+	use std::process::{Command, Stdio};
+
+	let dir = tempfile::tempdir().unwrap();
+	liminst(dir.path()).arg("init").assert().success();
+	let mut child = Command::new(assert_cmd::cargo::cargo_bin("liminst"))
+		.args(["-C"])
+		.arg(dir.path())
+		.args(["studio", "--mcp"])
+		.stdout(Stdio::piped())
+		.stderr(Stdio::null())
+		.spawn()
+		.unwrap();
+	let mut lines = BufReader::new(child.stdout.take().unwrap()).lines();
+	let url_line = lines.next().unwrap().unwrap();
+	let token_line = lines.next().unwrap().unwrap();
+	let url = url_line.strip_prefix("Studio MCP server: ").unwrap();
+	let token = token_line.strip_prefix("Token: ").unwrap();
+	assert_eq!(token.len(), 48);
+	let addr = url
+		.strip_prefix("http://")
+		.unwrap()
+		.strip_suffix("/mcp")
+		.unwrap();
+	let body = r#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#;
+	let mut sock = TcpStream::connect(addr).unwrap();
+	write!(
+		sock,
+		"POST /mcp HTTP/1.1\r\nHost: {addr}\r\nAuthorization: Bearer {token}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+		body.len()
+	)
+	.unwrap();
+	let mut reply = String::new();
+	sock.read_to_string(&mut reply).unwrap();
+	child.kill().unwrap();
+	child.wait().unwrap();
+	assert!(reply.starts_with("HTTP/1.1 200"), "{reply}");
+	assert!(reply.contains("get_flow"), "{reply}");
 }

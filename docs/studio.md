@@ -19,7 +19,9 @@ The chrome copy is refreshed from Waypoint by the steps in `apps/studio/ui/vendo
 
 `src/lib/appearance.ts` turns the Appearance settings into `data-theme`, `data-density`, `data-motion` and `--text-scale` on every window. Follow system reads the colour scheme and reduced-motion setting from `tauri-plugin-system-appearance`, as Planboard does, and from the browser's media queries outside the shell and where the plugin has no answer. `tauri-plugin-window-manager` is not used: the Studio has no window of its own to place beyond what `open_window` does.
 
-`src-tauri/src/agent.rs` starts, stops and moves the MCP server from `mcpEnabled` and `mcpPort`. `write_settings` refuses a taken port with the reason and leaves the running server alone. `tools.rs` runs `<tool> --version` for the runner and Docker paths and opens the file manager.
+`src-tauri/src/agent.rs` starts, stops and moves the MCP server from `mcpEnabled` and `mcpPort`. `write_settings` refuses a taken port with the reason and leaves the running server alone. `liminst studio --mcp` (in `crates/li-cli`) runs the same `McpServer` with no window, over an `EngineBackend` studio opened on `-C`. It prints `Studio MCP server: <url>` and `Token: <token>` on the first two lines of standard output and waits for Ctrl+C; the history is in memory and writes go to disk. A failed start of the desktop shell's server is kept by `agent.rs` as the reason shown on the agent card and in Preferences under Agents.
+
+`tools.rs` runs `<tool> --version` for the runner and Docker paths and opens the file manager.
 
 ### Where files live
 

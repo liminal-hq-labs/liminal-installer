@@ -35,6 +35,7 @@ tempfile = "3"
 # Workspace crates.
 li-render-tui = { path = "crates/li-render-tui" }
 li-package = { path = "crates/li-package" }
+li-studio = { path = "crates/li-studio" }
 
 # Third-party crates shared by more than one member.
 ratatui = "0.30"
