@@ -1,0 +1,19 @@
+# SETUP.EXE: the Liminal Installer runtime for DOS.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[package]
+name = "setup"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "The Liminal Installer DOS runtime"
+license = "Apache-2.0 OR MIT"
+
+[[bin]]
+name = "setup"
+path = "src/main.rs"
+
+[dependencies]
+rt = { path = "../rt" }

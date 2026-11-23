@@ -23,3 +23,8 @@ __pycache__/
 # Playwright MCP output
 /.playwright-mcp/
 /test-results/
+
+# DOS runtime build output and downloaded tools
+/dos/target/
+/dos/dist/
+/dos/vendor/
