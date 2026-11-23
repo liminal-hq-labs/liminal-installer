@@ -26,6 +26,7 @@ pub mod build;
 pub mod check;
 pub mod cli;
 pub mod diag;
+pub mod dos;
 pub mod feed;
 pub mod keygen;
 pub mod plan;

@@ -35,6 +35,8 @@
 # command runs, for example `DOS_ENV=$'BLASTER=A220 I5 D1 T3\nLI_DUMP=D:\\DUMP.TXT'`. D: is a scratch directory removed on exit; when
 # DOS_KEEP names a directory, D:'s files are copied there first (a screen dump the program wrote with LI_DUMP, for instance).
 #
+# DOS_MOUNT_OPTS is added to the `mount c` line, for example `-freesize 64` to make C: report 64 MB free whatever the host disk holds.
+#
 # DOSBox needs no display: SDL_VIDEODRIVER=dummy gives it a video driver that draws nowhere, and SDL_AUDIODRIVER=dummy the same
 # for audio. The environment's DISPLAY and WAYLAND_DISPLAY are removed so a developer's desktop is never used by accident.
 #
@@ -105,7 +107,7 @@ sbtype = none
 pcspeaker = off
 
 [autoexec]
-mount c "$DIR"
+mount c "$DIR" ${DOS_MOUNT_OPTS:-}
 mount d "$WORK"
 c:
 call d:\\run.bat

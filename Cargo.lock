@@ -1024,6 +1024,7 @@ dependencies = [
  "li-pack",
  "li-package",
  "li-render-tui",
+ "li-retro-build",
  "li-studio",
  "predicates",
  "serde",
