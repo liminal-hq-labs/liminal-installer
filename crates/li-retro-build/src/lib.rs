@@ -27,7 +27,7 @@ use li_model::{Flow, StepType};
 use li_retro::model::{self, Builtin, Kind, Op};
 
 pub use payload::dos_rel;
-pub use screens::{Context, tui_layout};
+pub use screens::{Context, ScreenKey, tui_layout};
 
 /// What stops a compile.
 #[derive(Debug, thiserror::Error)]
@@ -104,7 +104,7 @@ pub fn compile(
 		payload::build(project, target, &components, &mut warnings)?;
 
 	// Flows and the screens their steps show.
-	let mut screen_ids: Vec<String> = Vec::new();
+	let mut screen_keys: Vec<screens::ScreenKey> = Vec::new();
 	let mut flows = Vec::new();
 	for id in FLOWS {
 		let Some(flow) = project.flows.get(*id) else {
@@ -115,7 +115,7 @@ pub fn compile(
 			target,
 			flow,
 			&mut cx,
-			&mut screen_ids,
+			&mut screen_keys,
 			&mut warnings,
 		)?);
 	}
@@ -138,8 +138,14 @@ pub fn compile(
 		version,
 	};
 	let mut rscreens = Vec::new();
-	for id in &screen_ids {
-		rscreens.push(screens::compile(&ctx, id, &mut cx, &mut warnings)?);
+	for (i, key) in screen_keys.iter().enumerate() {
+		// A layout drawn for more than one step keeps its own id on the first and `layout@step` after.
+		let id = if screen_keys[..i].iter().any(|k| k.layout == key.layout) {
+			format!("{}@{}", key.layout, key.step)
+		} else {
+			key.layout.clone()
+		};
+		rscreens.push(screens::compile(&ctx, key, &id, &mut cx, &mut warnings)?);
 	}
 	let uses_sound = flows
 		.iter()
@@ -222,7 +228,7 @@ fn compile_flow(
 	target: &li_model::Target,
 	flow: &Flow,
 	cx: &mut expr::Strings,
-	screen_ids: &mut Vec<String>,
+	screen_ids: &mut Vec<screens::ScreenKey>,
 	warnings: &mut Vec<String>,
 ) -> Result<model::Flow, CompileError> {
 	let index = |id: &str| flow.steps.iter().position(|s| s.id == id).map(|i| i as u16);
@@ -263,10 +269,15 @@ fn compile_flow(
 						target.id
 					));
 				}
-				let i = match screen_ids.iter().position(|x| x == l) {
+				let key = screens::ScreenKey {
+					layout: l.clone(),
+					step: s.id.clone(),
+					kind: format!("{:?}", s.kind).to_lowercase(),
+				};
+				let i = match screen_ids.iter().position(|x| *x == key) {
 					Some(i) => i,
 					None => {
-						screen_ids.push(l.clone());
+						screen_ids.push(key);
 						screen_ids.len() - 1
 					}
 				};

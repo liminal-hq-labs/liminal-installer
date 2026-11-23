@@ -258,15 +258,21 @@ pub fn flatten_artboard(
 		let n = credit.chars().count() as u16;
 		g.put(width.saturating_sub(n + 1), 0, credit, TITLE_BAR);
 	}
-	for c in &root.children {
+	// The side column and the hint bar sit beside the dialog in a backdrop, or inside the page's dialog
+	// when a theme's stage draws only the backdrop; the inner flattening leaves them out either way.
+	let mut has_hints = false;
+	for c in root.children.iter().chain(&dialog.children) {
 		let c = c.for_renderer("tui-retro");
 		match region(c) {
 			Some("side") => side(&mut g, c, known),
-			Some("hints") => hints(&mut g, c, known),
+			Some("hints") => {
+				hints(&mut g, c, known);
+				has_hints = true;
+			}
 			_ => {}
 		}
 	}
-	if !root.children.iter().any(|c| region(c) == Some("hints")) {
+	if !has_hints {
 		g.row(height - 1, " ", HINT_BAR);
 	}
 	// The dialog, drawn on its own to the right of the side column and centred in the rows between

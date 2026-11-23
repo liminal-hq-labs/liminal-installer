@@ -13,6 +13,14 @@ use serde_json::{Value, json};
 use crate::expr::Strings;
 use crate::{CompileError, err};
 
+/// One screen: a layout drawn for a step, since a stage shows different nodes on different steps.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScreenKey {
+	pub layout: String,
+	pub step: String,
+	pub kind: String,
+}
+
 /// What a screen is compiled for.
 pub struct Context<'a> {
 	pub project: &'a Project,
@@ -288,13 +296,20 @@ fn samples() -> MapBindings {
 
 /// The layout as the compiler draws it: the `tui-retro` overrides applied and the `components`
 /// lists filled in. li-render-tui can draw this directly, which is how the tests compare.
-pub fn tui_layout(cx: &Context, id: &str) -> Result<Layout, CompileError> {
-	let layout = cx.project.layout_for(cx.target, id).ok_or_else(|| {
-		CompileError::Message(format!(
-			"layout `{id}` was not found for target `{}`",
-			cx.target.id
-		))
-	})?;
+///
+/// The page is composed with its theme's stage first, as the runner and the Studio do
+/// (`Project::screen_for`), so `step` and `kind` (`page`, `commit`, `finish` and so on) choose which
+/// stage nodes show.
+pub fn tui_layout(cx: &Context, id: &str, step: &str, kind: &str) -> Result<Layout, CompileError> {
+	let layout = cx
+		.project
+		.screen_for(cx.target, id, step, kind)
+		.ok_or_else(|| {
+			CompileError::Message(format!(
+				"layout `{id}` was not found for target `{}`",
+				cx.target.id
+			))
+		})?;
 	let mut root = resolve(&layout.root);
 	expand_lists(&mut root, cx.components);
 	Ok(Layout {
@@ -308,11 +323,12 @@ pub fn tui_layout(cx: &Context, id: &str) -> Result<Layout, CompileError> {
 /// Flattens the layout `id` for the target.
 pub fn compile(
 	cx: &Context,
+	key: &ScreenKey,
 	id: &str,
 	strings: &mut Strings,
 	warnings: &mut Vec<String>,
 ) -> Result<model::Screen, CompileError> {
-	let flat_layout = tui_layout(cx, id)?;
+	let flat_layout = tui_layout(cx, &key.layout, &key.step, &key.kind)?;
 	let screen = TuiScreen::new(&flat_layout, Look::Retro);
 	let product = &cx.project.installer.product;
 	let statics = MapBindings::new()
