@@ -39,6 +39,12 @@ theme    = "afterglow"
 outputs  = ["floppy-1440", "zip"]
 
 [[target]]
+id       = "win16-x86"
+renderer = "win16"
+theme    = "afterglow"
+outputs  = ["floppy-1440"]
+
+[[target]]
 id       = "macos-aarch64"
 renderer = "web"
 theme    = "afterglow"

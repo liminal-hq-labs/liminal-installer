@@ -7,18 +7,36 @@
 id       = "app"
 name     = "Planboard"
 required = true
+targets  = ["linux-x86_64", "windows-x86_64", "windows-x86", "macos-aarch64"]
 files    = [{ from = "dist/{target}/planboard*", to = "{install}/" }]
 shortcut = [{ name = "Planboard", target = "{install}/planboard", in = "start_menu" }]
 file_types = [{ extension = ".planboard", name = "Planboard board", open_with = "{install}/planboard" }]
 url_schemes = ["planboard"]
 
 [[component]]
-id    = "cli"
-name  = "Command-line tool"
+id      = "cli"
+name    = "Command-line tool"
+targets = ["linux-x86_64", "windows-x86_64", "windows-x86", "macos-aarch64"]
 files = [{ from = "dist/{target}/pbcli*", to = "{install}/bin/" }]
 path  = ["{install}/bin"]
 
 [[component]]
-id    = "docs"
-name  = "Documentation"
+id      = "docs"
+name    = "Documentation"
+targets = ["linux-x86_64", "windows-x86_64", "windows-x86", "macos-aarch64"]
 files = [{ from = "dist/docs/*.md", to = "{install}/docs/" }]
+
+# The Windows 3.1 build has its own components: 8.3 names, one folder, no file types or URL schemes.
+[[component]]
+id       = "app16"
+name     = "Planboard"
+required = true
+targets  = ["win16-x86"]
+files    = [{ from = "dist/{target}/PLANBRD.EXE", to = "{install}/" }]
+shortcut = [{ name = "Planboard", target = "{install}/PLANBRD.EXE", in = "start_menu" }]
+
+[[component]]
+id      = "docs16"
+name    = "Documentation"
+targets = ["win16-x86"]
+files   = [{ from = "dist/{target}/*.TXT", to = "{install}/DOCS/" }]

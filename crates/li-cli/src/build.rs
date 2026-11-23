@@ -44,6 +44,8 @@ pub struct BuildRequest<'a> {
 	pub build_web_runner: bool,
 	/// The `SETUP.EXE` to carry in a `win32-classic` target's outputs (see `crate::dos`).
 	pub win32_runtime: Option<PathBuf>,
+	/// The `SETUP.EXE` to carry in a `win16` target's outputs (see `crate::dos`).
+	pub win16_runtime: Option<PathBuf>,
 }
 
 /// One file (or tree) a build wrote, or an output it could not write.
@@ -119,6 +121,15 @@ impl Builder for NativeBuilder {
 			};
 			std::fs::create_dir_all(&req.out_dir).map_err(|e| PackageError::io(&req.out_dir, e))?;
 			return crate::dos::build_for(req, &outputs, &req.out_dir, crate::dos::Flavour::Win32);
+		}
+		if req.target.renderer == "win16" {
+			let outputs = if !req.outputs.is_empty() {
+				req.outputs.clone()
+			} else {
+				req.target.outputs.clone()
+			};
+			std::fs::create_dir_all(&req.out_dir).map_err(|e| PackageError::io(&req.out_dir, e))?;
+			return crate::dos::build_for(req, &outputs, &req.out_dir, crate::dos::Flavour::Win16);
 		}
 		if req.target.renderer == "tui-retro" {
 			let outputs = if !req.outputs.is_empty() {

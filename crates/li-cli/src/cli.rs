@@ -185,6 +185,9 @@ pub struct BuildArgs {
 	/// The `SETUP.EXE` Win32 runtime to carry in a `win32-classic` target's outputs; without it one is found or built from `win32/`
 	#[arg(long, value_name = "PATH")]
 	pub win32_runtime: Option<PathBuf>,
+	/// The `SETUP.EXE` Windows 3.1 runtime to carry in a `win16` target's outputs; without it none is carried (see docs/retro-win16.md)
+	#[arg(long, value_name = "PATH")]
+	pub win16_runtime: Option<PathBuf>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -402,6 +405,7 @@ pub fn execute(cli: &Cli) -> CliResult<u8> {
 				web_runner: a.web_runner.clone(),
 				build_web_runner: a.build_web_runner,
 				win32_runtime: a.win32_runtime.clone(),
+				win16_runtime: a.win16_runtime.clone(),
 			};
 			let built = NativeBuilder
 				.build(&req)
