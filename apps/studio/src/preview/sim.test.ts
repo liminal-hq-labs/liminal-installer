@@ -94,6 +94,7 @@ describe('the full-screen window', () => {
 			target: 'win16-x86:win16',
 			step: 3,
 			view: 'rich',
+			scheme: 'system',
 		});
 		expect(parsePreviewQuery('?window=preview')).toBeNull();
 		expect(parsePreviewQuery('?target=x&step=-2')?.step).toBe(0);
@@ -106,8 +107,13 @@ describe('the full-screen window', () => {
 			target: 'dos-x86:tui-retro',
 			step: 2,
 			view: 'terminal',
+			scheme: 'system',
 		});
 		expect(parsePreviewQuery('?target=x&view=sideways')?.view).toBe('rich');
+		const dark = previewWindowQuery('a:web', 0, 'rich', 'dark');
+		expect(dark).toBe('target=a%3Aweb&step=0&scheme=dark');
+		expect(parsePreviewQuery(dark)?.scheme).toBe('dark');
+		expect(parsePreviewQuery('?target=x&scheme=neon')?.scheme).toBe('system');
 	});
 
 	it('draws a terminal at the largest whole zoom that fits, and scales down only below one', () => {

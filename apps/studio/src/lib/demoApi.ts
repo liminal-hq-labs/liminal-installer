@@ -169,6 +169,7 @@ export function demoApi(): Api {
 		themes: [
 			{ id: 'fizz-dos', name: 'Fizz DOS', renderers: ['tui-retro'] },
 			{ id: 'fizz-win95', name: 'Fizz Windows 95', renderers: ['win16', 'win32-classic', 'tui'] },
+			{ id: 'fizz-modern', name: 'Fizz Windows 11', renderers: ['web', 'canvas'] },
 		],
 		flows: [...flows.values()].map((f) => ({
 			id: f.id,

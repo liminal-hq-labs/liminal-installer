@@ -38,10 +38,11 @@ describe('View > Full-screen preview', () => {
 			previewTarget: 'dos-x86:tui-retro',
 			previewStep: 3,
 			previewView: 'terminal',
+			previewScheme: 'dark',
 			preview: { target: 'dos-x86:tui-retro' } as unknown as Preview,
 		});
 		await s.app().dispatch('view.fullScreenPreview');
-		expect(open).toHaveBeenCalledWith('dos-x86:tui-retro', 3, 'terminal');
+		expect(open).toHaveBeenCalledWith('dos-x86:tui-retro', 3, 'terminal', 'dark');
 	});
 
 	it('opens in the rich view by default, and fills the page without a window', async () => {
@@ -52,7 +53,7 @@ describe('View > Full-screen preview', () => {
 			preview: { target: 'a:tui' } as unknown as Preview,
 		});
 		await s.app().dispatch('view.fullScreenPreview');
-		expect(open).toHaveBeenCalledWith('a:tui', 0, 'rich');
+		expect(open).toHaveBeenCalledWith('a:tui', 0, 'rich', 'system');
 		const page = studio();
 		page.preview.setState({
 			previewTarget: 'a:tui',

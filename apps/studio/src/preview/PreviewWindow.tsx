@@ -18,7 +18,7 @@ import { createApi, errorMessage, type Api } from '../lib/api';
 import type { Preview, ProjectSummary } from '../lib/types';
 import { FullScreenBody } from './FullScreenBody';
 import { fitWindow, parsePreviewQuery } from './fullScreen';
-import { lookFor } from './model';
+import { lookFor, type Scheme } from './model';
 import { stepFrom } from './sim';
 import type { TerminalView } from './TerminalPreview';
 import { useRun } from './useRun';
@@ -49,6 +49,7 @@ function PreviewWindow({ search, controls }: { search: string; controls: WindowC
 	const [pv, setPv] = useState<Preview | null>(null);
 	const [index, setIndex] = useState(start?.step ?? 0);
 	const [view, setView] = useState<TerminalView>(start?.view ?? 'rich');
+	const [scheme, setScheme] = useState<Scheme>(start?.scheme ?? 'system');
 	const [fullscreen, setFullscreen] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const run = useRun(pv, summary?.components ?? [], index, setIndex);
@@ -147,6 +148,8 @@ function PreviewWindow({ search, controls }: { search: string; controls: WindowC
 						}}
 						view={view}
 						onView={setView}
+						scheme={scheme}
+						onScheme={setScheme}
 						api={api}
 						fullscreen={fullscreen}
 						onToggleFullscreen={() => void toggleFullscreen()}

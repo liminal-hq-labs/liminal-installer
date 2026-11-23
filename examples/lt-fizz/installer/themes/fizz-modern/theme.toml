@@ -1,0 +1,10 @@
+# The Fizz Windows 11 theme: a Fluent look with a Mica window, light and dark.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[theme]
+id        = "fizz-modern"
+name      = "Fizz Windows 11"
+renderers = ["web", "canvas"]
+fallback  = "plain"

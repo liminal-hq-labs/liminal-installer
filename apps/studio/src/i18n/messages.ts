@@ -346,6 +346,11 @@ export const enMessages = {
 	'preview.speed': 'Speed',
 	'preview.resetChoices': 'Reset choices',
 	'preview.fullScreen': 'Full screen',
+	// translator: Label of the control that picks light or dark colours for a preview. System follows the desktop.
+	'preview.scheme': 'Colours',
+	'preview.schemeSystem': 'System',
+	'preview.schemeLight': 'Light',
+	'preview.schemeDark': 'Dark',
 	'preview.spaceRequired': 'Space required {size} · free after {after}',
 	'preview.notEnoughSpace': 'Not enough space on the drive for this choice.',
 	'preview.selectedComponents': 'Components · {count}',

@@ -5,8 +5,19 @@
 
 import type { LayoutNode } from '../lib/types';
 
-/** The four looks the Studio draws. The renderer and theme pick one. */
-export type Look = 'dos' | 'win95' | 'afterglow' | 'neutral';
+/** The five looks the Studio draws. The renderer and theme pick one. */
+export type Look = 'dos' | 'win95' | 'afterglow' | 'neutral' | 'win11';
+
+/** The modern looks share one set of design tokens (`.pvModern`) and one window structure. */
+export const isModern = (look: Look): boolean =>
+	look === 'afterglow' || look === 'neutral' || look === 'win11';
+
+/** The colour scheme of a look that has a light and a dark variant: the system's, or one of them. */
+export type Scheme = 'system' | 'light' | 'dark';
+export const SCHEMES: readonly Scheme[] = ['system', 'light', 'dark'];
+
+/** Whether a look has a light and a dark variant, which the preview toggle switches. */
+export const hasSchemes = (look: Look): boolean => look === 'win11';
 
 /** Stage sizes, in CSS pixels, that each look is composed at. A host scales the stage to fit. */
 export const STAGE: Record<Look, { w: number; h: number }> = {
@@ -14,17 +25,19 @@ export const STAGE: Record<Look, { w: number; h: number }> = {
 	win95: { w: 1024, h: 768 },
 	afterglow: { w: 1024, h: 720 },
 	neutral: { w: 1024, h: 720 },
+	win11: { w: 1100, h: 720 },
 };
 
 /**
  * Picks the look for a target. Text-mode and Windows renderers have one look each. The canvas and
- * web renderers draw Neutral for the Neutral theme (or a layout that says `style: "neutral"`) and
- * Afterglow otherwise.
+ * web renderers draw Neutral for the Neutral theme (or a layout that says `style: "neutral"`),
+ * Windows 11 for the `fizz-modern` theme (or `style: "win11"`) and Afterglow otherwise.
  */
 export function lookFor(renderer: string, theme?: string | null, rootStyle?: string): Look {
 	if (renderer === 'tui-retro' || renderer === 'tui') return 'dos';
 	if (renderer === 'win32-classic' || renderer === 'win16') return 'win95';
-	return theme === 'neutral' || rootStyle === 'neutral' ? 'neutral' : 'afterglow';
+	if (theme === 'neutral' || rootStyle === 'neutral') return 'neutral';
+	return theme === 'fizz-modern' || rootStyle === 'win11' ? 'win11' : 'afterglow';
 }
 
 /** Stand-in values for the `{placeholders}` a running engine would fill. */
@@ -86,6 +99,8 @@ export interface RenderOptions {
 	components?: { id: string; name: string; required?: boolean }[];
 	interact?: Interact;
 	live?: Live;
+	/** Light, dark or the system's colours, for a look that has both (Windows 11). Default `system`. */
+	scheme?: Scheme;
 	/** `contain` fills the parent and fits the whole stage in it; the default fits its width. */
 	fit?: 'width' | 'contain';
 	/** Where a node came from, as its `data-node-path` key, so a click can select it. */

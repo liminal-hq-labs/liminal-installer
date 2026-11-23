@@ -110,6 +110,8 @@ function Harness({
 				onToggleFullscreen={() => undefined}
 				view={view}
 				onView={setView}
+				scheme="system"
+				onScheme={() => undefined}
 				api={api}
 			/>
 		</>

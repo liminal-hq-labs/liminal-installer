@@ -1,0 +1,314 @@
+{
+	"$schema": "https://liminal-hq.github.io/installer/schema/layout.json",
+	"version": 1,
+	"id": "components",
+	"root": {
+		"kind": "window",
+		"props": {
+			"title": "Lieutenant Fizz Setup",
+			"label": "Components",
+			"style": "win11",
+			"icon": {
+				"width": 8,
+				"height": 8,
+				"scale": 2,
+				"rects": [
+					[
+						2,
+						0,
+						4,
+						2,
+						"#ff5555"
+					],
+					[
+						1,
+						1,
+						6,
+						1,
+						"#ff5555"
+					],
+					[
+						2,
+						2,
+						4,
+						3,
+						"#ffaa55"
+					],
+					[
+						1,
+						5,
+						6,
+						3,
+						"#5555ff"
+					],
+					[
+						3,
+						3,
+						1,
+						1,
+						"#2a1a10"
+					],
+					[
+						5,
+						3,
+						1,
+						1,
+						"#2a1a10"
+					]
+				]
+			}
+		},
+		"children": [
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "column",
+					"gap": 0,
+					"label": "Setup steps",
+					"region": "side"
+				},
+				"children": [
+					{
+						"kind": "image",
+						"props": {
+							"label": "Lieutenant Fizz",
+							"alt": "Lieutenant Fizz",
+							"art": {
+								"width": 10,
+								"height": 20,
+								"scale": 3,
+								"rects": [
+									[
+										2,
+										0,
+										6,
+										3,
+										"#ff5555"
+									],
+									[
+										1,
+										2,
+										8,
+										1,
+										"#ff5555"
+									],
+									[
+										3,
+										3,
+										4,
+										3,
+										"#ffaa55"
+									],
+									[
+										2,
+										6,
+										6,
+										6,
+										"#5555ff"
+									],
+									[
+										8,
+										7,
+										2,
+										2,
+										"#aaaaaa"
+									],
+									[
+										3,
+										12,
+										2,
+										5,
+										"#555555"
+									],
+									[
+										6,
+										12,
+										2,
+										5,
+										"#555555"
+									],
+									[
+										2,
+										17,
+										3,
+										2,
+										"#ff5555"
+									],
+									[
+										6,
+										17,
+										3,
+										2,
+										"#ff5555"
+									],
+									[
+										2,
+										19,
+										3,
+										1,
+										"#ffffff"
+									],
+									[
+										6,
+										19,
+										3,
+										1,
+										"#ffffff"
+									]
+								]
+							},
+							"panel": "#1d2b6b",
+							"ground": "#0f7a7a"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Welcome",
+							"role": "step-item",
+							"state": "done"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Licence",
+							"role": "step-item",
+							"state": "done"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Folder",
+							"role": "step-item",
+							"state": "done"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Components",
+							"role": "step-item",
+							"state": "current"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Ready",
+							"role": "step-item",
+							"state": "todo"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Install",
+							"role": "step-item",
+							"state": "todo"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Done",
+							"role": "step-item",
+							"state": "todo"
+						}
+					}
+				]
+			},
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "column",
+					"gap": 1
+				},
+				"children": [
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "column",
+							"gap": 0,
+							"group": "lead"
+						},
+						"children": [
+							{
+								"kind": "text",
+								"props": {
+									"text": "Choose what to install",
+									"role": "heading"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"text": "The game is required. Everything else is optional, and you can add or remove it later.",
+									"role": "body"
+								}
+							}
+						]
+					},
+					{
+						"kind": "checklist",
+						"bind": "components.selected",
+						"props": {
+							"label": "Components",
+							"items": "components",
+							"cards": true,
+							"control": "toggle"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Space required: {install.size} · Available: {system.free_space}",
+							"role": "caption"
+						}
+					}
+				]
+			},
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "row",
+					"gap": 2,
+					"align": "end",
+					"region": "footer"
+				},
+				"children": [
+					{
+						"kind": "text",
+						"props": {
+							"text": "Installs for you only",
+							"role": "note"
+						}
+					},
+					{
+						"kind": "button",
+						"props": {
+							"label": "Back",
+							"action": "back"
+						}
+					},
+					{
+						"kind": "button",
+						"props": {
+							"label": "Next",
+							"action": "next",
+							"default": true
+						}
+					},
+					{
+						"kind": "button",
+						"props": {
+							"label": "Cancel",
+							"action": "cancel"
+						}
+					}
+				]
+			}
+		]
+	}
+}

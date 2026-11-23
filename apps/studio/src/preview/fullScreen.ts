@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { STAGE, type Look } from './model';
+import type { Scheme } from './model';
 import type { TerminalView } from './TerminalPreview';
 
 /** The `?window=` kind, and the label the shell gives the window. */
@@ -14,21 +15,24 @@ export const WINDOW_CHROME_HEIGHT = 92;
 /** The narrowest the window opens: the stepper bar needs this much. */
 export const WINDOW_MIN_WIDTH = 720;
 
-/** What the window opens with: the target and the step on show, and how a terminal target is drawn. */
+/** What the window opens with: the target and the step on show, how a terminal target is drawn and the colour scheme. */
 export interface PreviewQuery {
 	target: string;
 	step: number;
 	view: TerminalView;
+	scheme: Scheme;
 }
 
-/** The query string the window opens with. The default view is left out. */
+/** The query string the window opens with. A default view and scheme are left out. */
 export function previewWindowQuery(
 	target: string,
 	step: number,
 	view: TerminalView = 'rich',
+	scheme: Scheme = 'system',
 ): string {
 	const params = new URLSearchParams({ target, step: String(step) });
 	if (view !== 'rich') params.set('view', view);
+	if (scheme !== 'system') params.set('scheme', scheme);
 	return params.toString();
 }
 
@@ -37,10 +41,12 @@ export function parsePreviewQuery(search: string): PreviewQuery | null {
 	const target = params.get('target');
 	if (!target) return null;
 	const step = Number(params.get('step') ?? 0);
+	const scheme = params.get('scheme');
 	return {
 		target,
 		step: Number.isInteger(step) && step >= 0 ? step : 0,
 		view: params.get('view') === 'terminal' ? 'terminal' : 'rich',
+		scheme: scheme === 'light' || scheme === 'dark' ? scheme : 'system',
 	};
 }
 

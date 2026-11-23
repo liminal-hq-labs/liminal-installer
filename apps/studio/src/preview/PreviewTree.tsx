@@ -1,4 +1,4 @@
-// Draws a layout tree as themed React elements: DOS text mode, Windows 95 classic, Afterglow and Neutral.
+// Draws a layout tree as themed React elements: DOS text mode, Windows 95 classic, Afterglow, Neutral and Windows 11.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -14,6 +14,7 @@ import {
 	fill,
 	fraction,
 	isLow,
+	isModern,
 	lookFor,
 	lookup,
 	meterSource,
@@ -254,12 +255,17 @@ function Node({ cx, node }: { cx: Ctx; node: LayoutNode }): ReactNode {
 			const style = panel
 				? ({
 						background: colour(p.panel),
+						'--tile': colour(p.panel),
 						...(typeof p.ground === 'string' ? { '--ground': colour(p.ground) } : {}),
 					} as CSSProperties)
 				: undefined;
 			return (
 				<div
-					className={pv('pv-image', panel && 'pv-panel')}
+					className={pv(
+						'pv-image',
+						panel && 'pv-panel',
+						str(node, 'variant') === 'hero' && 'pv-hero',
+					)}
 					data-kind="image"
 					style={style}
 					{...at(cx, node)}
@@ -284,7 +290,11 @@ function Node({ cx, node }: { cx: Ctx; node: LayoutNode }): ReactNode {
 			const plain = str(node, 'label');
 			return (
 				<button
-					className={pv('pv-button', p.default === true && 'pv-default')}
+					className={pv(
+						'pv-button',
+						p.default === true && 'pv-default',
+						str(node, 'variant') === 'link' && 'pv-link',
+					)}
 					data-kind="button"
 					data-action={str(node, 'action')}
 					type="button"
@@ -549,7 +559,12 @@ function Meter({ cx, node, label }: { cx: Ctx; node: LayoutNode; label: string }
 			aria-valuemax={100}
 			aria-valuenow={pct}
 		>
-			<span className={pv('pv-meter-label')}>{label}</span>
+			<span className={pv('pv-meter-label')}>
+				{label}
+				{cx.look === 'win11' && isLow(node, pct) ? (
+					<span className={pv('pv-low')}>{str(node, 'warn_label') || t('preview.low')}</span>
+				) : null}
+			</span>
 			<Bar cx={cx} node={node} pct={pct} />
 			{typeof p.caption === 'string' ? (
 				<span className={pv('pv-meter-caption')}>{text(cx, p.caption)}</span>
@@ -572,9 +587,10 @@ function Choices({ cx, node, label }: { cx: Ctx; node: LayoutNode; label: string
 		return (typeof v === 'string' ? v : dflt) === o.id;
 	};
 	const cards = props(node).cards === true;
+	const toggle = check && cx.look === 'win11' && str(node, 'control') === 'toggle';
 	return (
 		<div
-			className={pv('pv-choices', cards && 'pv-cards')}
+			className={pv('pv-choices', cards && 'pv-cards', toggle && 'pv-toggles')}
 			data-kind={node.kind}
 			{...at(cx, node)}
 			role={check ? 'group' : 'radiogroup'}
@@ -599,7 +615,7 @@ function Choices({ cx, node, label }: { cx: Ctx; node: LayoutNode; label: string
 							)
 						) : (
 							<span
-								className={`${pv(check ? 'pv-box' : 'pv-dot')} ${sel ? styles.on : ''}`.trim()}
+								className={`${pv(toggle ? 'pv-switch' : check ? 'pv-box' : 'pv-dot')} ${sel ? styles.on : ''}`.trim()}
 								aria-hidden="true"
 							/>
 						);
@@ -614,7 +630,7 @@ function Choices({ cx, node, label }: { cx: Ctx; node: LayoutNode; label: string
 					return (
 						<div
 							key={o.id}
-							className={pv('pv-choice', sel && 'pv-sel')}
+							className={pv('pv-choice', sel && 'pv-sel', o.required && 'pv-locked')}
 							role={check ? 'checkbox' : 'radio'}
 							aria-checked={sel}
 							tabIndex={running(cx) ? 0 : undefined}
@@ -982,6 +998,84 @@ function ModernFrame({ cx, pt }: { cx: Ctx; pt: Parts }): ReactNode {
 	);
 }
 
+/** Windows 11: a Mica window with caption buttons, a step rail, a status band and a command footer. */
+function Win11Frame({ cx, pt }: { cx: Ctx; pt: Parts }): ReactNode {
+	const bd = pt.backdrop ? props(pt.backdrop) : {};
+	const fp = props(pt.frame);
+	const footerKids = pt.footer.flatMap((f) => f.children ?? []);
+	const notes = footerKids.filter((k) => k.kind === 'text');
+	const buttons = footerKids.filter((k) => k.kind !== 'text');
+	const glyph = {
+		width: 10,
+		height: 10,
+		viewBox: '0 0 10 10',
+		fill: 'none',
+		stroke: 'currentColor',
+	};
+	return (
+		<div className={pv('pv-stage')} {...at(cx, pt.backdrop)}>
+			<div className={pv('pv-k-wall')} aria-hidden="true" />
+			<div
+				className={pv('pv-m-window', 'pv-k-window')}
+				{...at(cx, pt.frame)}
+				role="dialog"
+				aria-label={text(cx, String(fp.label ?? fp.title ?? ''))}
+			>
+				<div className={pv('pv-m-title', 'pv-k-title')}>
+					<span className={pv('pv-m-name')}>
+						{fp.icon ? <ArtSvg art={fp.icon} /> : null}
+						<span>{text(cx, String(fp.title ?? ''))}</span>
+					</span>
+					<span className={pv('pv-k-caption')} aria-hidden="true">
+						<i>
+							<svg {...glyph}>
+								<path d="M0 5h10" />
+							</svg>
+						</i>
+						<i>
+							<svg {...glyph}>
+								<rect x="0.5" y="0.5" width="9" height="9" rx="1.5" />
+							</svg>
+						</i>
+						<i>
+							<svg {...glyph}>
+								<path d="M0 0l10 10M10 0L0 10" />
+							</svg>
+						</i>
+					</span>
+				</div>
+				<div className={pv('pv-m-main', 'pv-k-main')}>
+					{pt.side.length ? (
+						<div className={pv('pv-m-side', 'pv-k-rail')}>
+							<List cx={cx} nodes={pt.side} />
+						</div>
+					) : null}
+					<div className={pv('pv-m-content', 'pv-k-layer')}>
+						<List cx={cx} nodes={pt.body} />
+					</div>
+				</div>
+				{pt.status.length ? (
+					<div className={pv('pv-k-status')} role="group" aria-label={t('preview.setupStatus')}>
+						<List cx={cx} nodes={pt.status} />
+					</div>
+				) : null}
+				<div className={pv('pv-m-footer', 'pv-k-footer')}>
+					<span className={pv('pv-m-note')}>
+						<List cx={cx} nodes={notes} />
+					</span>
+					<span className={pv('pv-m-buttons')}>
+						<List cx={cx} nodes={buttons} />
+					</span>
+				</div>
+			</div>
+			<div className={pv('pv-k-mark')}>
+				{text(cx, [bd.title, bd.subtitle].filter((x) => typeof x === 'string' && x).join(' · '))}
+			</div>
+			<div className={pv('pv-k-credit')}>{text(cx, String(bd.credit ?? ''))}</div>
+		</div>
+	);
+}
+
 // ---------------------------------------------------------------------------------------------
 // The stage and its scaling
 
@@ -1018,11 +1112,13 @@ export function PreviewTree({ root, options: o }: { root: LayoutNode; options: R
 				className={pv(
 					'pv',
 					`pv-${look}`,
+					isModern(look) && 'pv-modern',
 					o.renderer === 'tui' && 'pv-tui',
 					editing && 'pv-editing',
 				)}
 				data-renderer={o.renderer}
 				data-look={look}
+				data-scheme={o.scheme ?? 'system'}
 				data-mode={o.interact?.mode}
 				onClick={
 					editing
@@ -1041,6 +1137,8 @@ export function PreviewTree({ root, options: o }: { root: LayoutNode; options: R
 					<DosFrame cx={cx} pt={pt} />
 				) : look === 'win95' ? (
 					<WinFrame cx={cx} pt={pt} />
+				) : look === 'win11' ? (
+					<Win11Frame cx={cx} pt={pt} />
 				) : (
 					<ModernFrame cx={cx} pt={pt} />
 				)}

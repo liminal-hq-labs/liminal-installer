@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { previewWindowQuery } from '../preview/fullScreen';
+import type { Scheme } from '../preview/model';
 import type { TerminalView } from '../preview/TerminalPreview';
 
 export interface DialogButton {
@@ -183,16 +184,20 @@ export async function openChildWindow(kind: 'preferences' | 'shortcuts' | 'agent
 }
 
 /**
- * Opens the full-screen preview window for a target, a step and how a terminal target is drawn, or
- * brings it forward when it is open.
+ * Opens the full-screen preview window for a target, a step, how a terminal target is drawn and the
+ * colour scheme, or brings it forward when it is open.
  */
 export async function openPreviewWindow(
 	target: string,
 	step: number,
 	view: TerminalView = 'rich',
+	scheme: Scheme = 'system',
 ): Promise<void> {
 	const { invoke } = await import('@tauri-apps/api/core');
-	await invoke('open_window', { kind: 'preview', query: previewWindowQuery(target, step, view) });
+	await invoke('open_window', {
+		kind: 'preview',
+		query: previewWindowQuery(target, step, view, scheme),
+	});
 }
 
 export const openPreferencesWindow = () => openChildWindow('preferences');

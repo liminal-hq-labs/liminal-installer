@@ -11,7 +11,8 @@ import { cx } from '../ui/cx';
 import ui from '../ui/ui.module.css';
 import { SPEEDS, RunStage } from './RunStage';
 import type { Run } from './useRun';
-import { hasMovingParts } from './model';
+import { hasMovingParts, hasSchemes, lookFor, type Scheme } from './model';
+import { SchemeSwitch } from './SchemeSwitch';
 import { stepFor, TerminalPreview, TerminalViewSwitch, type TerminalView } from './TerminalPreview';
 import styles from './FullScreenBody.module.css';
 
@@ -36,6 +37,9 @@ export interface FullScreenBodyProps {
 	onView: (view: TerminalView) => void;
 	/** Runs the terminal sessions; without it the real terminal is not offered. */
 	api?: TuiApi | null;
+	/** Light, dark or the system's colours, for a look that has both, and the way to change it. */
+	scheme: Scheme;
+	onScheme: (scheme: Scheme) => void;
 }
 
 export function FullScreenBody(props: FullScreenBodyProps) {
@@ -46,6 +50,10 @@ export function FullScreenBody(props: FullScreenBodyProps) {
 	const renderer = pv?.renderer ?? info?.renderer ?? 'canvas';
 	const moving = step?.layout_tree ? hasMovingParts(step.layout_tree) : false;
 	const p = run.playback;
+	const style = step?.layout_tree?.props?.style;
+	const schemes = hasSchemes(
+		lookFor(renderer, pv?.theme ?? info?.theme, typeof style === 'string' ? style : undefined),
+	);
 	const terminal = renderer.startsWith('tui') && Boolean(props.api);
 	const real = terminal && props.view === 'terminal' && pv && step?.layout && !step.skipped;
 	return (
@@ -90,6 +98,7 @@ export function FullScreenBody(props: FullScreenBodyProps) {
 					))}
 				</select>
 				{terminal ? <TerminalViewSwitch value={props.view} onChange={props.onView} /> : null}
+				{schemes ? <SchemeSwitch value={props.scheme} onChange={props.onScheme} /> : null}
 				<span className={styles.spacer} />
 				<button
 					type="button"
@@ -148,6 +157,7 @@ export function FullScreenBody(props: FullScreenBodyProps) {
 						components={components}
 						renderer={renderer}
 						theme={pv.theme ?? info?.theme}
+						scheme={props.scheme}
 						fit="contain"
 					/>
 				) : (
