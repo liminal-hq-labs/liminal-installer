@@ -8,6 +8,7 @@ Lieutenant Fizz is the retro example: a DOS text-mode target (`fizz-dos`) beside
 - `installer/flows/` holds one flow per lifecycle: install, update, modify, uninstall and launch.
 - `installer/layouts/` holds the page layouts the flows name. Each node may carry per-renderer overrides.
 - `installer/themes/` holds one folder per theme, each with a `theme.toml` and its assets.
+- `installer/themes/fizz-dos/layouts/` and `installer/themes/fizz-win95/layouts/` hold each theme's own install-flow layouts, drawn after the DOS text-mode and Windows 95 designs. `installer/layouts/` holds the plain fallback and the update and uninstall pages.
 - `installer/dist/` holds tiny payload stand-ins. The `.EXE` and Mach-O files are text, and the Linux executables are shell scripts.
 
 ## Checking it
