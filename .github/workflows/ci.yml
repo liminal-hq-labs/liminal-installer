@@ -132,6 +132,27 @@ jobs:
       - name: Run clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
+  bindings:
+    name: Bindings drift
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container:
+      image: ghcr.io/liminal-hq/ci-rust@sha256:f12097be8cc22eb5145a46bc9f75b38a67fedd5833add4392e11ce85023e64df
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Cache Rust build output
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: liminal-installer
+
+      # Deletes the generated TypeScript, regenerates it with ts-rs and fails on any difference.
+      - name: Check the generated bindings
+        run: bash scripts/check-bindings-drift.sh
+
   test:
     name: Tests
     runs-on: ubuntu-24.04
