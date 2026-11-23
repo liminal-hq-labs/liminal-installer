@@ -263,6 +263,7 @@ impl StudioBackend for MockBackend {
 		_project: &Project,
 		path: &str,
 		source: &str,
+		target: Option<&str>,
 	) -> Result<ScriptReport, BackendError> {
 		let hooks: Vec<HookInfo> = HOOKS
 			.iter()
@@ -318,6 +319,8 @@ impl StudioBackend for MockBackend {
 			capabilities,
 			diagnostics,
 			output,
+			target: target.map(str::to_owned),
+			tests: Vec::new(),
 		})
 	}
 }
@@ -383,7 +386,7 @@ mod tests {
 		let p = fizz();
 		let src = p.scripts["scripts/sound-setup.lua"].clone();
 		let r = MockBackend
-			.test_script(&p, "scripts/sound-setup.lua", &src)
+			.test_script(&p, "scripts/sound-setup.lua", &src, None)
 			.unwrap();
 		assert!(r.ok, "{:?}", r.diagnostics);
 		let present: Vec<_> = r
@@ -398,6 +401,7 @@ mod tests {
 				&p,
 				"scripts/y.lua",
 				"local s = require(\"li.retro.sound\")\nfunction detect(page) end",
+				None,
 			)
 			.unwrap();
 		assert!(
@@ -406,7 +410,7 @@ mod tests {
 				.contains(&"li.retro.sound".to_string())
 		);
 		let bad = MockBackend
-			.test_script(&p, "scripts/x.lua", "-- nothing")
+			.test_script(&p, "scripts/x.lua", "-- nothing", None)
 			.unwrap();
 		assert!(!bad.ok);
 	}

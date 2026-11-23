@@ -16,7 +16,7 @@ use li_script::{Limits, Page, Script, ScriptContext, ScriptError};
 use serde_json::{Value, json};
 
 use crate::backend::{
-	BackendError, HookInfo, Preview, PreviewProduct, PreviewStep, Problem, Screenshot,
+	BackendError, HookInfo, HookRun, Preview, PreviewProduct, PreviewStep, Problem, Screenshot,
 	ScriptReport, Severity, StudioBackend,
 };
 use crate::checks::check_project;
@@ -233,10 +233,10 @@ fn slug_of(eng: &li_engine::Project) -> String {
 }
 
 fn script_env(target: &Target, install: &Path, version: &str) -> BTreeMap<String, String> {
-	let sim = SimMachine::new();
+	let (os, arch) = target.id.split_once('-').unwrap_or((&target.id, ""));
 	BTreeMap::from([
-		("os".to_owned(), sim.os().to_owned()),
-		("arch".to_owned(), sim.arch().to_owned()),
+		("os".to_owned(), os.to_owned()),
+		("arch".to_owned(), arch.to_owned()),
 		("target".to_owned(), target.id.clone()),
 		("install".to_owned(), install.to_string_lossy().into_owned()),
 		("version".to_owned(), version.to_owned()),
@@ -506,20 +506,17 @@ impl StudioBackend for EngineBackend {
 		project: &Project,
 		path: &str,
 		source: &str,
+		target: Option<&str>,
 	) -> Result<ScriptReport, BackendError> {
 		let scope = format!("script:{path}");
 		let mut diagnostics = Vec::new();
-		let sim = SimMachine::new();
-		let env = BTreeMap::from([
-			("os".to_owned(), sim.os().to_owned()),
-			("arch".to_owned(), sim.arch().to_owned()),
-			("install".to_owned(), "/opt/app".to_owned()),
-			("version".to_owned(), "0.0.0".to_owned()),
-		]);
-		let _ = project;
+		let sample = match target {
+			Some(full_id) => sample_for(project, full_id)?,
+			None => ScriptSample::fixed(),
+		};
 		let ctx = ScriptContext {
-			env,
-			fs: sim.script_fs(),
+			env: sample.env.clone(),
+			fs: SimMachine::new().script_fs(),
 			net: None,
 		};
 		let no_hooks = |diagnostics: Vec<Problem>| ScriptReport {
@@ -535,6 +532,8 @@ impl StudioBackend for EngineBackend {
 			capabilities: Vec::new(),
 			diagnostics,
 			output: Vec::new(),
+			target: target.map(str::to_owned),
+			tests: Vec::new(),
 		};
 		let script = match Script::load(path, source, ctx, Limits::default()) {
 			Ok(s) => s,
@@ -554,24 +553,47 @@ impl StudioBackend for EngineBackend {
 			diagnostics.push(Problem::error(&scope, "the script defines no hook"));
 		}
 		let mut output = Vec::new();
+		let mut tests: Vec<HookRun> = Vec::new();
 		let mut page = Page {
 			id: "test".into(),
-			fields: json!({"install.path": "/opt/app", "components": ["main"]})
-				.as_object()
-				.cloned()
-				.unwrap_or_default(),
+			fields: json!({
+				"install.path": sample.install,
+				"components": sample.components,
+			})
+			.as_object()
+			.cloned()
+			.unwrap_or_default(),
 		};
-		let note = |script: &Script, output: &mut Vec<String>| {
-			for item in script.take_ui() {
-				output.push(format!(
-					"  ui {}: {}",
-					match item.kind {
-						li_script::UiKind::Note => "note",
-						li_script::UiKind::Dialog => "dialog",
-					},
-					item.text
-				));
-			}
+		let notes = |script: &Script| -> Vec<String> {
+			script
+				.take_ui()
+				.into_iter()
+				.map(|item| {
+					format!(
+						"ui {}: {}",
+						match item.kind {
+							li_script::UiKind::Note => "note",
+							li_script::UiKind::Dialog => "dialog",
+						},
+						item.text
+					)
+				})
+				.collect()
+		};
+		// Records one hook's result in the test list and in the flat output.
+		let mut record = |tests: &mut Vec<HookRun>,
+		                  hook: &str,
+		                  ok: bool,
+		                  summary: String,
+		                  lines: Vec<String>| {
+			output.push(format!("{hook}: {summary}"));
+			output.extend(lines.iter().map(|l| format!("  {l}")));
+			tests.push(HookRun {
+				hook: hook.to_owned(),
+				ok,
+				summary,
+				lines,
+			});
 		};
 
 		if script.has_hook("detect") {
@@ -584,8 +606,8 @@ impl StudioBackend for EngineBackend {
 						.filter(|(k, v)| before.get(*k) != Some(*v))
 						.map(|(k, _)| k)
 						.collect();
-					output.push(format!(
-						"detect: ok, set {}",
+					let summary = format!(
+						"ok, set {}",
 						if changed.is_empty() {
 							"nothing".to_owned()
 						} else {
@@ -595,27 +617,48 @@ impl StudioBackend for EngineBackend {
 								.collect::<Vec<_>>()
 								.join(", ")
 						}
-					));
+					);
+					record(&mut tests, "detect", true, summary, notes(&script));
 				}
-				Err(e) => diagnostics.push(script_problem(&scope, Some("detect"), &e)),
+				Err(e) => {
+					let p = script_problem(&scope, Some("detect"), &e);
+					record(
+						&mut tests,
+						"detect",
+						false,
+						p.message.clone(),
+						notes(&script),
+					);
+					diagnostics.push(p);
+				}
 			}
-			note(&script, &mut output);
 		}
 		if script.has_hook("validate") {
 			match script.validate(&page) {
-				Ok(found) if found.is_empty() => output.push("validate: ok, no problems".into()),
 				Ok(found) => {
-					output.push(format!(
-						"validate: {} problem(s) on the sample page",
-						found.len()
-					));
-					output.extend(found.iter().map(|f| format!("  {f}")));
+					let summary = if found.is_empty() {
+						"ok, no problems".to_owned()
+					} else {
+						format!("{} problem(s) on the sample page", found.len())
+					};
+					let mut lines = found.clone();
+					lines.extend(notes(&script));
+					record(&mut tests, "validate", true, summary, lines);
 				}
-				Err(e) => diagnostics.push(script_problem(&scope, Some("validate"), &e)),
+				Err(e) => {
+					let p = script_problem(&scope, Some("validate"), &e);
+					record(
+						&mut tests,
+						"validate",
+						false,
+						p.message.clone(),
+						notes(&script),
+					);
+					diagnostics.push(p);
+				}
 			}
-			note(&script, &mut output);
 		}
-		let sample = Plan {
+		let plan = Plan {
 			ops: vec![
 				Operation::Mkdir {
 					path: "{install}".into(),
@@ -635,14 +678,27 @@ impl StudioBackend for EngineBackend {
 			if !script.has_hook(name) {
 				continue;
 			}
-			match run(&script, &sample) {
+			match run(&script, &plan) {
 				Ok(ops) => {
-					output.push(format!("{name}: ok, adds {} operation(s)", ops.len()));
-					output.extend(ops.iter().map(|op| format!("  plan.add {}", op_line(op))));
+					let mut lines: Vec<String> = ops
+						.iter()
+						.map(|op| format!("plan.add {}", op_line(op)))
+						.collect();
+					lines.extend(notes(&script));
+					record(
+						&mut tests,
+						name,
+						true,
+						format!("ok, adds {} operation(s)", ops.len()),
+						lines,
+					);
 				}
-				Err(e) => diagnostics.push(script_problem(&scope, Some(name), &e)),
+				Err(e) => {
+					let p = script_problem(&scope, Some(name), &e);
+					record(&mut tests, name, false, p.message.clone(), notes(&script));
+					diagnostics.push(p);
+				}
 			}
-			note(&script, &mut output);
 		}
 
 		let capabilities = modules(&script);
@@ -659,8 +715,55 @@ impl StudioBackend for EngineBackend {
 			capabilities,
 			diagnostics,
 			output,
+			target: target.map(str::to_owned),
+			tests,
 		})
 	}
+}
+
+/// What a script test runs against: the machine's environment and the sample page.
+struct ScriptSample {
+	env: BTreeMap<String, String>,
+	install: String,
+	components: Vec<String>,
+}
+
+impl ScriptSample {
+	/// The sample a test uses when no target is named.
+	fn fixed() -> ScriptSample {
+		let sim = SimMachine::new();
+		ScriptSample {
+			env: BTreeMap::from([
+				("os".to_owned(), sim.os().to_owned()),
+				("arch".to_owned(), sim.arch().to_owned()),
+				("install".to_owned(), "/opt/app".to_owned()),
+				("version".to_owned(), "0.0.0".to_owned()),
+			]),
+			install: "/opt/app".into(),
+			components: vec!["main".into()],
+		}
+	}
+}
+
+/// The sample for one target, as a dry run of it would set up: the target's own `os` and `arch`,
+/// the install folder, the version, and the components the target gets.
+fn sample_for(project: &Project, full_id: &str) -> Result<ScriptSample, BackendError> {
+	let eng = engine_project(project)?;
+	let t = eng
+		.installer
+		.targets
+		.iter()
+		.find(|t| t.full_id() == full_id)
+		.ok_or_else(|| BackendError(format!("unknown target `{full_id}`")))?
+		.clone();
+	let install = PathBuf::from(format!("/opt/{}", slug_of(&eng)));
+	let version = eng.literal_version().unwrap_or("0.0.0").to_owned();
+	let components = li_engine::select_components(&eng, &t.id, None).unwrap_or_default();
+	Ok(ScriptSample {
+		env: script_env(&t, &install, &version),
+		install: install.to_string_lossy().into_owned(),
+		components,
+	})
 }
 
 /// The `li.*` modules the script's granted capabilities open.
@@ -924,7 +1027,7 @@ mod tests {
 		let p = open("lt-fizz");
 		let src = p.scripts["scripts/sound-setup.lua"].clone();
 		let r = EngineBackend
-			.test_script(&p, "scripts/sound-setup.lua", &src)
+			.test_script(&p, "scripts/sound-setup.lua", &src, None)
 			.unwrap();
 		assert!(r.ok, "{:?}", r.diagnostics);
 		assert_eq!(
@@ -941,7 +1044,9 @@ mod tests {
 	fn a_denied_capability_is_reported() {
 		let p = open("lt-fizz");
 		let src = "-- capabilities: ui\nfunction detect(page)\n\tpage.fields.x = li.env.get('HOME')\nend\n";
-		let r = EngineBackend.test_script(&p, "scripts/x.lua", src).unwrap();
+		let r = EngineBackend
+			.test_script(&p, "scripts/x.lua", src, None)
+			.unwrap();
 		assert!(!r.ok);
 		assert!(
 			r.diagnostics
@@ -956,7 +1061,9 @@ mod tests {
 	fn plan_writes_and_load_errors_are_reported() {
 		let p = open("lt-fizz");
 		let src = "-- capabilities: plan, fs.write\nfunction on_commit(plan)\n\tplan:add({op = 'mkdir', path = '{install}/saves'})\nend\n";
-		let r = EngineBackend.test_script(&p, "scripts/x.lua", src).unwrap();
+		let r = EngineBackend
+			.test_script(&p, "scripts/x.lua", src, None)
+			.unwrap();
 		assert!(r.ok, "{:?}", r.diagnostics);
 		assert!(
 			r.output
@@ -966,17 +1073,93 @@ mod tests {
 		let denied = "-- capabilities: plan\nfunction on_commit(plan)\n\tplan:add({op = 'mkdir', path = '{install}/saves'})\nend\n";
 		assert!(
 			!EngineBackend
-				.test_script(&p, "scripts/x.lua", denied)
+				.test_script(&p, "scripts/x.lua", denied, None)
 				.unwrap()
 				.ok
 		);
 		let unknown = EngineBackend
-			.test_script(&p, "scripts/x.lua", "-- capabilities: teleport\n")
+			.test_script(&p, "scripts/x.lua", "-- capabilities: teleport\n", None)
 			.unwrap();
 		assert!(!unknown.ok);
 		let none = EngineBackend
-			.test_script(&p, "scripts/x.lua", "-- nothing")
+			.test_script(&p, "scripts/x.lua", "-- nothing", None)
 			.unwrap();
 		assert!(!none.ok);
+	}
+
+	#[test]
+	fn a_target_changes_what_the_script_sees() {
+		let p = open("lt-fizz");
+		let src = "-- capabilities: env\nfunction detect(page)\n\tpage.fields.seen = li.env.os() .. '/' .. li.env.arch() .. '/' .. li.env.get('target')\n\tpage.fields.count = #page.fields.components\nend\n";
+		let dos = EngineBackend
+			.test_script(&p, "scripts/x.lua", src, Some("dos-x86:tui-retro"))
+			.unwrap();
+		let win = EngineBackend
+			.test_script(
+				&p,
+				"scripts/x.lua",
+				src,
+				Some("windows-x86_64:win32-classic"),
+			)
+			.unwrap();
+		assert!(
+			dos.ok && win.ok,
+			"{:?} {:?}",
+			dos.diagnostics,
+			win.diagnostics
+		);
+		assert_eq!(dos.target.as_deref(), Some("dos-x86:tui-retro"));
+		assert_eq!(dos.tests.len(), 1);
+		assert_eq!(dos.tests[0].hook, "detect");
+		assert!(dos.tests[0].ok);
+		assert!(dos.tests[0].summary.contains("seen"), "{:?}", dos.tests[0]);
+		assert!(dos.tests[0].summary.contains("count"), "{:?}", dos.tests[0]);
+	}
+
+	#[test]
+	fn the_sample_is_the_targets_own() {
+		let p = open("lt-fizz");
+		let probe = "-- capabilities: env\nfunction validate(page)\n\treturn { li.env.os() .. ' ' .. li.env.arch() .. ' ' .. #page.fields.components .. ' ' .. page.fields['install.path'] }\nend\n";
+		let line = |target: &str| {
+			let r = EngineBackend
+				.test_script(&p, "scripts/x.lua", probe, Some(target))
+				.unwrap();
+			r.tests[0].lines[0].clone()
+		};
+		let dos = line("dos-x86:tui-retro");
+		let linux = line("linux-x86_64:tui");
+		assert!(dos.starts_with("dos x86 "), "{dos}");
+		assert!(linux.starts_with("linux x86_64 "), "{linux}");
+		assert!(dos.ends_with("/opt/lt-fizz"), "{dos}");
+		assert_ne!(dos, linux);
+	}
+
+	#[test]
+	fn an_unknown_target_is_refused() {
+		let p = open("lt-fizz");
+		let err = EngineBackend
+			.test_script(
+				&p,
+				"scripts/x.lua",
+				"function detect(page) end",
+				Some("nope:tui"),
+			)
+			.unwrap_err();
+		assert!(err.0.contains("unknown target"), "{err:?}");
+	}
+
+	#[test]
+	fn each_hook_reports_its_own_result() {
+		let p = open("lt-fizz");
+		let src = "-- capabilities: ui\nfunction detect(page)\n\tli.ui.note('hello')\nend\nfunction on_commit(plan)\n\tlocal x = li.env.get('a')\nend\n";
+		let r = EngineBackend
+			.test_script(&p, "scripts/x.lua", src, None)
+			.unwrap();
+		assert!(!r.ok);
+		let by: Vec<(&str, bool)> = r.tests.iter().map(|t| (t.hook.as_str(), t.ok)).collect();
+		assert_eq!(by, [("detect", true), ("on_commit", false)]);
+		assert!(r.tests[0].lines.iter().any(|l| l == "ui note: hello"));
+		assert!(r.tests[1].summary.contains("capability `env` is denied"));
+		assert_eq!(r.target, None);
 	}
 }

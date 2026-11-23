@@ -422,6 +422,7 @@ impl Studio {
 		&self,
 		path: &str,
 		source: Option<&str>,
+		target: Option<&str>,
 	) -> Result<ScriptReport, StudioError> {
 		let inner = self.inner.lock().expect("studio");
 		let project = inner.project.as_ref().ok_or(StudioError::NoProject)?;
@@ -433,7 +434,13 @@ impl Studio {
 				.cloned()
 				.ok_or_else(|| StudioError::NotFound(format!("script `{path}`")))?,
 		};
-		Ok(self.backend.test_script(project, path, &text)?)
+		Ok(self.backend.test_script(project, path, &text, target)?)
+	}
+
+	/// Checks Lua source without running it: syntax errors, and warnings about capabilities,
+	/// removed globals and what the retro subset lacks. Needs no project.
+	pub fn check_script_syntax(&self, source: &str) -> Vec<crate::ScriptDiagnostic> {
+		li_script::check::check(source)
 	}
 
 	pub fn run_preview(&self, target: &str) -> Result<Preview, StudioError> {

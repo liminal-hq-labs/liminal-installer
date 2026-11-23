@@ -17,7 +17,8 @@ use agent::{Agent, AgentInfo};
 use li_model::{Flow, Layout};
 use li_studio::studio::{FlowView, HistoryView, ProjectSummary, TargetInfo};
 use li_studio::{
-	EngineBackend, Preview, Problem, ScriptReport, Source, Studio, StudioError, scaffold,
+	EngineBackend, Preview, Problem, ScriptDiagnostic, ScriptReport, Source, Studio, StudioError,
+	scaffold,
 };
 use serde::Serialize;
 use tauri::{Emitter, Manager, State};
@@ -87,8 +88,20 @@ fn write_script(state: State<AppState>, path: String, source: String, label: Str
 }
 
 #[tauri::command]
-fn test_script(state: State<AppState>, path: String, source: Option<String>) -> Res<ScriptReport> {
-	state.studio.test_script(&path, source.as_deref())
+fn test_script(
+	state: State<AppState>,
+	path: String,
+	source: Option<String>,
+	target: Option<String>,
+) -> Res<ScriptReport> {
+	state
+		.studio
+		.test_script(&path, source.as_deref(), target.as_deref())
+}
+
+#[tauri::command]
+fn check_script_syntax(state: State<AppState>, source: String) -> Vec<ScriptDiagnostic> {
+	state.studio.check_script_syntax(&source)
 }
 
 #[tauri::command]
@@ -258,6 +271,7 @@ pub fn run() {
 			read_script,
 			write_script,
 			test_script,
+			check_script_syntax,
 			run_preview,
 			get_preview,
 			check_project,

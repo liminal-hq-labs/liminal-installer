@@ -27,6 +27,7 @@ pub use backend::{
 pub use engine::EngineBackend;
 pub use error::StudioError;
 pub use history::{Entry, EntrySummary, History, Source};
+pub use li_script::check::Diagnostic as ScriptDiagnostic;
 pub use mock::MockBackend;
 pub use project::{Doc, DocKey, Project};
 pub use studio::{ChangeEvent, Studio};

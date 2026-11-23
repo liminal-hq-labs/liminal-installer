@@ -129,6 +129,23 @@ pub struct ScriptReport {
 	pub capabilities: Vec<String>,
 	pub diagnostics: Vec<Problem>,
 	pub output: Vec<String>,
+	/// The `os-arch:renderer` target the test ran against, if one was named.
+	#[serde(default)]
+	pub target: Option<String>,
+	/// One result per hook the script defines, in the order they ran.
+	#[serde(default)]
+	pub tests: Vec<HookRun>,
+}
+
+/// The outcome of calling one hook against the sample.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HookRun {
+	pub hook: String,
+	pub ok: bool,
+	/// One line: what the hook did, or the error that stopped it.
+	pub summary: String,
+	/// What it listed: the fields it set, the problems it returned, the operations it added, the notes it showed.
+	pub lines: Vec<String>,
 }
 
 #[derive(Debug, Clone, Error, Serialize, Deserialize)]
@@ -147,11 +164,13 @@ pub trait StudioBackend: Send + Sync {
 	fn run_preview(&self, project: &Project, target: &str) -> Result<Preview, BackendError>;
 
 	/// Loads `source` as the script at `path` and runs its tests. `source` may differ from the
-	/// file on disk, so unsaved edits can be tested.
+	/// file on disk, so unsaved edits can be tested. `target` (`os-arch:renderer`) picks the
+	/// machine, components and install folder the sample is built from; `None` uses a fixed sample.
 	fn test_script(
 		&self,
 		project: &Project,
 		path: &str,
 		source: &str,
+		target: Option<&str>,
 	) -> Result<ScriptReport, BackendError>;
 }
