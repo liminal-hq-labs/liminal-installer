@@ -1,6 +1,6 @@
 # Studio desktop shell
 
-How the Studio window is put together, and how to drive it while developing. `SPEC.md` has the behaviour and `decisions.md` the reasons (D15 to D27).
+How the Studio window is put together, and how to drive it while developing. `SPEC.md` has the behaviour and `decisions.md` the reasons (D15 to D28).
 
 ## What draws what
 
@@ -37,6 +37,12 @@ The shell uses Tauri's `app_config_dir()` for the settings and the window sizes,
 | Windows | `%APPDATA%\hq.liminal.installer-studio` | `%LOCALAPPDATA%\hq.liminal.installer-studio\logs` |
 
 The Studio writes no log file yet, so the log folder is created when it is first shown. `tauri-plugin-window-state` remembers the size of the `main` and `preferences` windows only; About and confirmations have a fixed size.
+
+## The script editor
+
+`src/editor/` holds the Scripts screen's editor, written without React. `scriptEditor.ts` creates one CodeMirror view and keeps it alive: `views/script.ts` moves its element into each redraw and restores focus. `luaLanguage.ts` (colouring from the legacy Lua mode, folding by block) and `theme.ts` use `--lh-*` design tokens and the `--ed-*` syntax tokens in `app.css`, so the theme changes live. `luaDocs.ts` writes the script API once; `completion.ts`, `hover.ts` and `docElement.ts` read it. `diagnostics.ts` asks `checkScriptSyntax` after a pause and maps lines and columns to spans. `format.ts` is the formatter, over the scanner in `luaLex.ts`. `phrases.ts` is the one catalogue of the editor's strings, with `setLanguage` to replace them.
+
+The text is `state.scriptDraft`; `lib/scriptActions.ts` owns saving, discarding, selecting and test runs, and `app.ts` only wires them. `startApp` takes an optional `api` and `settleUnsaved`, which the tests use with a fake backend (`src/app.script.test.ts`). The browser demo's `checkScriptSyntax` is a stand-in that balances blocks; the desktop shell compiles with Lua.
 
 ## Driving the Studio in dev
 
