@@ -9,7 +9,7 @@ Everything in this specification is in progress. Nothing is released, and any pa
 - **Engine** (plan, stage, commit, record): in progress. Install, update, modify, repair, uninstall and launch work end to end on Linux through the runner (§14).
 - **CLI** (`check`, `preview`, `build`, `keygen`, `feed`, `theme`, `studio`): in progress. `check`, `preview` and the Linux `build` (themed `.run` and `.lip`) work, and feeds and themes are signed.
 - **Renderers**: `tui` is in progress; `tui-retro`, `win16`, `win32-classic`, `canvas` and `web` are in progress as scaffolds or designs.
-- **Studio** and its MCP server: in progress. GraphQL is deferred (D25).
+- **Studio** and its MCP server: in progress. GraphQL is deferred (D26).
 - **Example installers** for Planboard and Lt. Fizz: in progress.
 - **Feeds, the web stub and the Hub**: in progress.
 - **Delta updates, a theme gallery and macOS notarization in the CI step**: in progress as designs only.
@@ -279,7 +279,7 @@ Example 2. A CI job.
 
 ## 13 · Studio API for agents
 
-The Studio serves MCP on `127.0.0.1`, protected by a token, as the Planboard server does. There is no GraphQL API (D25). The Studio prints the address at start and never the token; Preferences shows it on request, copies it and replaces it, and a client holding the old one is refused from then on. The server runs only while `mcpEnabled` is on. Every change goes through the same undo history as a person's. When the server cannot start, such as when its port is taken, the Studio says why in the agent card and in Preferences under Agents.
+The Studio serves MCP on `127.0.0.1`, protected by a token, as the Planboard server does. There is no GraphQL API (D26). The Studio prints the address at start and never the token; Preferences shows it on request, copies it and replaces it, and a client holding the old one is refused from then on. The server runs only while `mcpEnabled` is on. Every change goes through the same undo history as a person's. When the server cannot start, such as when its port is taken, the Studio says why in the agent card and in Preferences under Agents.
 
 `liminst studio --mcp` serves the project given by `-C` the same way with no window, until Ctrl+C. It listens on `127.0.0.1`, on `--port` or a free port. Its first two lines of standard output are `Studio MCP server: <url>` and `Token: <token>`; this is the one place a token is printed, it is new on every run, and it is never logged. The undo history lives in memory for the run, and every change is written to the project's files at once.
 
