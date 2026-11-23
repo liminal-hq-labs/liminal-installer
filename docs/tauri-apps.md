@@ -116,6 +116,8 @@ A Tauri screen shows the imported state per platform (identity, scope, languages
 
 ## What needs a spike
 
+**Update:** the Windows items below were run; the results are in [`tauri-windows-spike.md`](tauri-windows-spike.md). MSI remains open.
+
 - **Silent flags.** The exact NSIS command-line switches for a silent, passive or per-machine install of a Tauri-built setup. Tauri's updater uses them, so they exist; they are not listed in the guides. **Unconfirmed.**
 - **Registry layout.** Which keys Tauri's installers write for file associations, URL schemes and the Add or Remove Programs entry. **Unconfirmed.** A Windows VM run, with the registry diffed before and after, answers this and gives the `external` receipt entry its shape.
 - **Per-user and per-machine WebView2.** Whether the bootstrapper needs elevation when the app installs per-user. **Unconfirmed.**
