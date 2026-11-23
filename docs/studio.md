@@ -1,6 +1,6 @@
 # Studio desktop shell
 
-How the Studio window is put together, and how to drive it while developing. `SPEC.md` has the behaviour and `decisions.md` the reasons (D15 to D23).
+How the Studio window is put together, and how to drive it while developing. `SPEC.md` has the behaviour and `decisions.md` the reasons (D15 to D27).
 
 ## What draws what
 
@@ -9,6 +9,9 @@ How the Studio window is put together, and how to drive it while developing. `SP
 - `menuModel.ts` declares every command once, with its label, shortcut and enabled state, and builds both the flat app menu and the menu bar from it. The same table answers key presses.
 - `chromeStore.ts` holds what the chrome shows (menu state, title, settings) outside React. The settings come from `settings.json` through `read_settings` and `write_settings` (a merge), and every window follows the `studio://settings-changed` event. `src/lib/settings.ts` and `src-tauri/src/settings.rs` hold the same schema and the same limits, and a test fails if they differ.
 - `dialogWindow.ts` opens a dialog, waits for its answer and closes it. Preferences is a window of its own (opened with `open_window` and not waited for); About and confirmations are dialogs. In the desktop shell each is a child window: `open_window` in `src-tauri/src/windows.rs` loads the same page with `?window=about`, `?window=preferences` or `?window=confirm`, centred on the main window and modal for About and confirmations. `InfoWindow.tsx` draws it under a title bar with only Close and sends the answer back by event. A browser tab, which has no windows to open, draws the same content in an in-page dialog.
+- Keyboard shortcuts, Connect an agent and New project are child windows of their own (`shortcuts`, `agent`, `new-project` in `windows.rs` and both capability files). Their bodies are in `DialogPages.tsx`. Keyboard shortcuts is built from `shortcutTable()` in `menuModel.ts`. Connect an agent reads `mcp_info`, `mcp_error` and `mcp_token`. New project calls `new_project`, which runs the `li_studio::scaffold` code `liminst init` also uses, then answers `created:<folder>` so the main window opens it.
+- `App.dispatch` and `App.openPath` resolve once the action is done, with true on success. `main.ts` awaits a save before it goes on to quit, open or reload, and stops when the save fails.
+- `src/app.test.ts` runs `startApp` against a fake `Api` under happy-dom. `src-tauri/src/api_contract.rs` parses the UI sources and checks that every `invoke` and `call` names a registered command and sends exactly its argument names.
 - In a browser tab the page draws its own header and no chrome. In development, add `?chrome` to the URL to draw the chrome there for a look.
 
 The chrome copy is refreshed from Waypoint by the steps in `apps/studio/ui/vendor/studio-chrome/PROVENANCE.md`. The design tokens are regenerated with `bun run tokens` from `src/styles/tokens.json`, the design system export.

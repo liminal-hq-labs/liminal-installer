@@ -18,6 +18,7 @@ import type { ChromeStore } from './chromeStore';
 import { APP_NAME, DialogButtons, DialogMessage, Mark } from './DialogBodies';
 import { MNEMONICS, buildMenus, isActionId, recentPath } from './menuModel';
 import type { Host } from '../lib/host';
+import { PageDialog } from './DialogPages';
 import { PreferencesScreen } from '../preferences/PreferencesScreen';
 
 interface ShellProps {
@@ -39,9 +40,15 @@ function InPageDialogView({ store, host }: { store: ChromeStore; host: Host }) {
 			onClose={() => done(null)}
 			title={spec.title}
 			size={spec.kind === 'preferences' ? 'large' : 'small'}
-			{...(spec.kind === 'preferences' ? {} : { footer: <DialogButtons spec={spec} onAnswer={done} /> })}
+			{...(spec.kind === 'preferences' || spec.kind === 'new-project' ? {} : { footer: <DialogButtons spec={spec} onAnswer={done} /> })}
 		>
-			{spec.kind === 'preferences' ? <div className="prefs-inline"><PreferencesScreen port={store.port} host={host} /></div> : <DialogMessage spec={spec} />}
+			{spec.kind === 'preferences' ? (
+				<div className="prefs-inline"><PreferencesScreen port={store.port} host={host} /></div>
+			) : spec.kind === 'shortcuts' || spec.kind === 'agent' || spec.kind === 'new-project' ? (
+				<PageDialog kind={spec.kind} host={host} settings={store.get().settings} onAnswer={done} />
+			) : (
+				<DialogMessage spec={spec} />
+			)}
 		</Dialog>
 	);
 }
