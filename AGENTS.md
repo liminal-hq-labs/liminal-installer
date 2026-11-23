@@ -73,10 +73,10 @@ Liminal Installer is a [Liminal HQ Labs](https://github.com/liminal-hq-labs) exp
 - **Dependabot** is off. Add `.github/dependabot.yml` only when the project opts in (see `docs/new-project.md`).
 
 - **Toolchain:** `rust-toolchain.toml` pins Rust 1.98.0 with `rustfmt` and `clippy`. Use `cargo nextest` for tests.
-- **Single local gate:** `make validate` runs `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo nextest run --workspace --locked`, the header check and, when `bun` is installed, the Studio UI's format check, typecheck and tests (`make js`), then the bindings drift check (`make bindings`). `make markdown` and `make e2e-linux` run the other checks.
+- **Single local gate:** `make validate` runs `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo nextest run --workspace --locked`, the header check and, when `bun` is installed, the Studio UI's format check, typecheck, i18n check and tests (`make js`), then the bindings drift check (`make bindings`). `make markdown` and `make e2e-linux` run the other checks.
 - **End to end:** `bash scripts/e2e-linux.sh` builds a themed `.run` and a signed feed, then installs, updates, repairs and uninstalls it in a clean Debian container (needs `docker`). `scripts/e2e-linux-container.sh` is its in-container half.
 - **Docker-based tools:** markdownlint, shellcheck and actionlint run from pinned images (see Testing), so nothing but `docker` is installed locally for them.
-- **Studio UI:** `apps/studio`, `packages/chrome` and `packages/protocol` are Bun workspace members (root `package.json`, `packageManager` pinned, `bun install`, `bun run typecheck`, `bun run test:js`); use Bun, not pnpm or npm; the Tauri shell in `apps/studio/src-tauri` has its own `Cargo.lock` and is built with `cargo check` there.
+- **Studio UI:** `apps/studio` (React 19, Vite, zustand, TanStack Router, CSS Modules), `packages/chrome` and `packages/protocol` are Bun workspace members (root `package.json`, `packageManager` pinned, `bun install`, `bun run typecheck`, `bun run test:js`); use Bun, not pnpm or npm. Tauri's `beforeDevCommand` and `beforeBuildCommand` are `bun run dev` and `bun run build`, never a bare `bun build`; the Tauri shell in `apps/studio/src-tauri` has its own `Cargo.lock` and is built with `cargo check` there.
 
 ## Licence headers
 
@@ -98,15 +98,18 @@ Use `#` comments for shell, YAML, TOML and Dockerfiles, and an XML comment for S
 - **Themes cannot add operations.** A theme draws pages and plays media. Only components and scripts put operations in a plan.
 - **Scripts get only declared capabilities.** A Lua script runs in a sandbox and holds only what its `-- capabilities:` header names. Writing files goes through the plan.
 - **Wire types are generated.** A Rust type the Studio UI or an MCP client receives derives `ts_rs::TS`, and its TypeScript is generated into `packages/protocol`, never written by hand. Failed commands and tools carry `{ kind, message }` (`StudioError`).
-- **Vendored chrome is refreshed by its recipe.** `packages/chrome` changes only by the steps in its `PROVENANCE.md`, never by hand.
+- **Vendored chrome is refreshed by its recipe.** `packages/chrome` changes only by the steps in its `PROVENANCE.md`, never by hand. The Studio imports it by deep path.
+- **Every visible string is in the catalogue.** UI text comes from `apps/studio/src/i18n/messages.ts` through `t('area.key')` (en-CA, sentence case), never a literal in JSX. `bun run check:i18n` enforces it; look at a layout with `?locale=en-XA` and `?locale=ar-XB` in a development build.
+- **Styles are CSS Modules** next to the component, over the `--lis-*` tokens in `src/theme/tokens.css`. The tokens come from `bun run tokens`; do not edit the generated file.
 - **SPEC first.** A change to behaviour, interfaces, settings or defaults updates `SPEC.md` in the same change.
 
 ## Testing
 
 - `make validate` — the single local gate (format, clippy, `cargo nextest`, headers, UI checks)
 - `bash scripts/check-headers.sh` — SPDX headers
-- `bun run format:check` — Prettier over the Studio UI sources (`bun run format` fixes them; tabs, single quotes, 100 columns, `.prettierignore` leaves out the vendored chrome and generated files)
+- `bun run format:check` — Prettier over the Studio sources (`bun run format` fixes them; tabs, single quotes, 100 columns, `.prettierignore` leaves out the vendored chrome and generated files)
 - `bun run typecheck && bun run test:js` — the Studio UI
+- `bun run check:i18n` — no literal strings in JSX, the pseudo-locales match English, every message is used
 - `bash scripts/check-bindings-drift.sh` (or `make bindings`) — regenerates the ts-rs bindings in `packages/protocol/src/generated/` and fails on a difference; fix with `bash scripts/generate-protocol-bindings.sh` and commit the result
 - `cargo nextest run --workspace --locked --profile ci` — what CI runs (`.config/nextest.toml`: one retry, no fail-fast, JUnit at `target/nextest/ci/junit.xml`)
 - `cd apps/studio/src-tauri && cargo check && cargo clippy -- -D warnings` — the Tauri shell

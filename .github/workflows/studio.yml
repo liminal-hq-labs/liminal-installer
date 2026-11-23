@@ -95,7 +95,23 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Run the tests
-        run: bun run test:js
+        run: bun run test:js:ci
+
+      # `publish-test-results.yml` reads these after the run, with the permissions a fork's pull request lacks.
+      - name: Upload the JUnit report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: js-test-results
+          path: test-results/studio-junit.xml
+          if-no-files-found: error
+
+      - name: Upload the event file
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: event-file
+          path: ${{ github.event_path }}
 
   cargo-check:
     name: Cargo check
