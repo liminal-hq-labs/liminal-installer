@@ -93,6 +93,16 @@ impl Control {
 			.or_else(|| self.items.first().map(|i| i.id.clone()))
 	}
 
+	/// This control with its name and item labels filled from `b`.
+	pub(crate) fn interpolated(&self, b: &dyn Bindings) -> Control {
+		let mut c = self.clone();
+		c.name = crate::interp::interpolate(&c.name, b);
+		for i in &mut c.items {
+			i.label = crate::interp::interpolate(&i.label, b);
+		}
+		c
+	}
+
 	pub fn text(&self, b: &dyn Bindings) -> String {
 		get_str(b, &self.bind_key()).unwrap_or_default()
 	}
@@ -100,6 +110,33 @@ impl Control {
 
 pub(crate) fn resolve(node: &Node) -> &Node {
 	node.for_renderer(RENDERER_ID)
+}
+
+/// Regions a text-mode screen has no room for: side art, key-hint footers and the like.
+const PICTORIAL_REGIONS: &[&str] = &["side", "hints"];
+
+/// A copy of `node` without the pictorial regions, with renderer overrides applied all the way
+/// down.
+pub(crate) fn text_tree(node: &Node) -> Node {
+	let node = resolve(node);
+	Node {
+		kind: node.kind.clone(),
+		bind: node.bind.clone(),
+		props: node.props.clone(),
+		children: node
+			.children
+			.iter()
+			.map(resolve)
+			.filter(|c| {
+				!c.props
+					.get("region")
+					.and_then(Value::as_str)
+					.is_some_and(|r| PICTORIAL_REGIONS.contains(&r))
+			})
+			.map(text_tree)
+			.collect(),
+		overrides: Default::default(),
+	}
 }
 
 pub(crate) fn prop_str<'a>(node: &'a Node, key: &str) -> Option<&'a str> {
@@ -121,7 +158,12 @@ pub(crate) fn prop_bool(node: &Node, key: &str) -> bool {
 }
 
 pub(crate) fn items_of(node: &Node) -> Vec<Item> {
-	let Some(arr) = node.props.get("items").and_then(Value::as_array) else {
+	let Some(arr) = node
+		.props
+		.get("items")
+		.or_else(|| node.props.get("options"))
+		.and_then(Value::as_array)
+	else {
 		return Vec::new();
 	};
 	arr.iter()
@@ -211,7 +253,7 @@ pub struct Screen {
 
 impl Screen {
 	pub fn new(layout: &Layout, look: Look) -> Screen {
-		let root = resolve(&layout.root).clone();
+		let root = text_tree(&layout.root);
 		let mut controls = Vec::new();
 		collect(&root, &mut controls);
 		let cursors = vec![0; controls.len()];
@@ -294,7 +336,12 @@ impl Screen {
 			}
 			ControlKind::Field | ControlKind::Path => format!(", value \"{}\"", c.text(b)),
 		};
-		format!("{}, {}{}", c.name, c.kind.word(), detail)
+		format!(
+			"{}, {}{}",
+			crate::interp::interpolate(&c.name, b),
+			c.kind.word(),
+			detail
+		)
 	}
 
 	fn move_focus(&mut self, delta: isize) {

@@ -35,7 +35,12 @@ pub fn dump_with_controls(screen: &Screen, b: &dyn Bindings, width: u16, height:
 	if !controls.is_empty() {
 		out.push_str("Controls, in tab order:\n");
 		for (i, c) in controls.iter().enumerate() {
-			out.push_str(&format!("  {}. {} ({:?})\n", i + 1, c.name, c.kind));
+			out.push_str(&format!(
+				"  {}. {} ({:?})\n",
+				i + 1,
+				crate::interp::interpolate(&c.name, b),
+				c.kind
+			));
 		}
 	}
 	out

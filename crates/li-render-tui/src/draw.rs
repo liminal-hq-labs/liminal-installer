@@ -134,6 +134,11 @@ fn is_custom(node: &Node) -> bool {
 	node.kind == "custom"
 }
 
+/// Stacks run `horizontal` or `row`; anything else is a column.
+fn is_horizontal(node: &Node) -> bool {
+	matches!(prop_str(node, "direction"), Some("horizontal" | "row"))
+}
+
 fn text_of(node: &Node) -> String {
 	prop_str(node, "text").unwrap_or_default().to_owned()
 }
@@ -150,6 +155,28 @@ fn billboard_line(node: &Node, cx: &Ctx) -> String {
 		})
 		.unwrap_or_default();
 	if items.is_empty() {
+		let captions: Vec<String> = node
+			.props
+			.get("captions")
+			.and_then(|v| v.as_array())
+			.map(|a| {
+				a.iter()
+					.map(|c| {
+						let part = |k: &str| c.get(k).and_then(|v| v.as_str()).unwrap_or_default();
+						format!("{} — {}", part("title"), part("text"))
+					})
+					.collect()
+			})
+			.unwrap_or_default();
+		if !captions.is_empty() {
+			let idx = node
+				.bind
+				.as_deref()
+				.and_then(|k| cx.b.get(k))
+				.and_then(|v| v.as_u64())
+				.unwrap_or(0) as usize;
+			return captions[idx % captions.len()].clone();
+		}
 		return text_of(node);
 	}
 	let idx = node
@@ -288,7 +315,7 @@ fn measure(node: &Node, max_w: u16, cx: &Ctx) -> Size {
 		}
 		"stack" => stack_size(
 			&node.children,
-			prop_str(node, "direction") == Some("horizontal"),
+			is_horizontal(node),
 			prop_gap(node, 0),
 			max_w,
 			cx,
@@ -510,7 +537,7 @@ fn draw(node: &Node, r: Rect, surface: Style, cx: &Ctx, pt: &mut Painter) {
 			}
 		}
 		"stack" => {
-			let horizontal = prop_str(node, "direction") == Some("horizontal");
+			let horizontal = is_horizontal(node);
 			let gap = prop_gap(node, 0);
 			if horizontal {
 				let mut x = 0u16;
@@ -679,7 +706,9 @@ fn draw_meter(node: &Node, r: Rect, surface: Style, cx: &Ctx, pt: &mut Painter) 
 	let kind = if node.kind == "progress" {
 		"total"
 	} else {
-		prop_str(node, "meter").unwrap_or("total")
+		prop_str(node, "meter")
+			.or_else(|| prop_str(node, "source"))
+			.unwrap_or("total")
 	};
 	let value = node.bind.as_deref().map_or(0.0, |k| get_fraction(cx.b, k));
 	let caption = node
@@ -751,13 +780,14 @@ impl Screen {
 		if area.is_empty() {
 			return;
 		}
+		let controls: Vec<Control> = self.controls.iter().map(|c| c.interpolated(b)).collect();
 		let cx = Ctx {
 			g: self.look.glyphs(),
 			p: self.look.palette(),
 			b,
 			focus: self.focused(),
 			cursors: &self.cursors,
-			controls: &self.controls,
+			controls: &controls,
 			counter: Cell::new(0),
 		};
 		let mut pt = Painter { buf, clip: area };
@@ -770,7 +800,7 @@ impl Screen {
 		} else {
 			(area, None)
 		};
-		let root = &self.root;
+		let root = &crate::interp::interpolate_node(&self.root, b);
 		match root.kind.as_str() {
 			"window" | "backdrop" => draw(root, content, cx.p.base, &cx, &mut pt),
 			_ => {

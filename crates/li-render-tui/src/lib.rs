@@ -33,18 +33,24 @@
 //! | `radio` | `label`, `items` (`{id, label}`), `default`; the bound value is the chosen id |
 //! | `field`, `path` | `label`, `width`, `placeholder`; the bound value is the text |
 //!
+//! Text properties may hold `{name}` placeholders, which a screen fills from its bindings when it draws. A name with no bound value stays as written.
+//!
+//! A node's `region` property (`side`, `hints`) marks pictorial content a text screen leaves out, and `meter` may be written `source`, `options` may stand for `items`, and a stack's `direction` may be `row` or `column`.
+//!
 //! Every control's accessible name is its `name`, `label` or `text` property, in that order.
 
 mod bindings;
 mod draw;
 mod dump;
 mod glyphs;
+mod interp;
 mod run;
 mod screen;
 
 pub use bindings::{Bindings, MapBindings};
 pub use dump::{dump, dump_with_controls};
 pub use glyphs::Look;
+pub use interp::{interpolate, interpolate_node};
 pub use run::{PageResult, Tick, TickResult, run_page};
 pub use screen::{ControlKind, ControlSummary, Outcome, Screen};
 
