@@ -110,11 +110,12 @@ Use `#` comments for shell, YAML, TOML and Dockerfiles, and an XML comment for S
 - `make validate` — the single local gate (format, clippy, `cargo nextest`, headers, UI checks)
 - `bash scripts/check-headers.sh` — SPDX headers
 - `bun run format:check` — Prettier over the Studio sources (`bun run format` fixes them; tabs, single quotes, 100 columns, `.prettierignore` leaves out the vendored chrome and generated files)
-- `bun run typecheck && bun run test:js` — the Studio UI
+- `bun run typecheck && bun run test:js` — the Studio UI, the shared renderer and the web runner's page
 - `bun run check:i18n` — no literal strings in JSX, the pseudo-locales match English, every message is used
 - `bash scripts/check-bindings-drift.sh` (or `make bindings`) — regenerates the ts-rs bindings in `packages/protocol/src/generated/` and fails on a difference; fix with `bash scripts/generate-protocol-bindings.sh` and commit the result
 - `cargo nextest run --workspace --locked --profile ci` — what CI runs (`.config/nextest.toml`: one retry, no fail-fast, JUnit at `target/nextest/ci/junit.xml`)
 - `cd apps/studio/src-tauri && cargo check && cargo clippy -- -D warnings` — the Tauri shell
+- `cd apps/runner/src-tauri && cargo check && cargo clippy -- -D warnings` — the web runner's Tauri shell
 - `bash scripts/e2e-linux.sh` (or `make e2e-linux`) — install, update, repair and uninstall in a Debian container
 - `make dos` — the DOS runtime: `dos/tools/fetch-tools.sh`, `dos/check.sh` (format, clippy, build, `SETUP.EXE` under headless DOSBox) and `dos/tools/e2e.sh` (Lt. Fizz installed and removed under DOSBox with typed keys, screens compared with the host goldens). `DOS_VENDOR` and `CARGO_TARGET_DIR` keep the tools and the build output out of the checkout. The DOS crates build with `RUSTC_BOOTSTRAP=1` and `-Zbuild-std` (see `dos/.cargo/config.toml`)
 - `bash scripts/check-banner.sh` — hero banner rules and text fit (needs `xmllint`, `rsvg-convert`, `python3` and Chromium; `--shots DIR` writes frames to look at)
@@ -137,9 +138,11 @@ README.md SPEC.md AGENTS.md CLAUDE.md LICENSE-APACHE LICENSE-MIT Makefile
 .editorconfig .markdownlint.jsonc .gitignore rustfmt.toml rust-toolchain.toml
 crates/        li-model, li-engine, li-script, li-render-tui, li-pack, li-package, li-cli (`liminst`),
                li-runner (`liminal-engine`), li-studio (the Studio's editing core), li-examples-test,
-               li-retro (the `no_std` DOS runtime core), li-retro-build (its compiler) and li-lpk (the `.LPK` pack format: a `no_std` reader and a host packer)
+               li-retro (the `no_std` DOS runtime core), li-retro-build (its compiler), li-lpk (the `.LPK` pack format: a `no_std` reader and a host packer) and
+               li-render-web (the web renderer's session and headless runner)
 apps/studio/   the Studio: index.html, vite.config.ts, src/ (React) and src-tauri/ (the desktop shell)
-packages/      chrome/ (`@liminal-hq/studio-chrome`, vendored, see its PROVENANCE.md) and protocol/ (`@liminal-hq/installer-protocol`: ts-rs bindings, generated, committed)
+apps/runner/   the web runner (`liminal-runner`): the same layout, a window over the real flow; see docs/web-runner.md
+packages/      renderer/ (`@liminal-hq/installer-renderer`, the shared React renderer), chrome/ (`@liminal-hq/studio-chrome`, vendored, see its PROVENANCE.md) and protocol/ (`@liminal-hq/installer-protocol`: ts-rs bindings, generated, committed)
 examples/      lt-fizz, planboard, neutral and tauri-notes projects
 dos/           the DOS runtime: Desk's Rust-on-DOS foundation (PROVENANCE.md), `rt`, `setup` (`SETUP.EXE`); its own Cargo workspace
 retro/         the Open Watcom spike and its build container (Windows 3.1, which stays C)

@@ -39,6 +39,7 @@ The `liminst` binary is in `target/release/`.
 - [SPEC.md](SPEC.md) — behaviour and interfaces
 - [docs/walkthrough.md](docs/walkthrough.md) — build, install, update and open the Studio
 - [docs/tauri-apps.md](docs/tauri-apps.md) — installing Tauri apps without a second installer
+- [docs/web-runner.md](docs/web-runner.md) — the web runner: a Tauri window over the real flow
 - [docs/architecture.md](docs/architecture.md) — how the pieces fit together
 - [docs/decisions.md](docs/decisions.md) — decisions and why
 - [AGENTS.md](AGENTS.md) — contributor and agent rules

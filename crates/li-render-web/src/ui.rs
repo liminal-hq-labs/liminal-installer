@@ -558,3 +558,104 @@ impl Shared {
 		}
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	fn node(v: Value) -> Node {
+		serde_json::from_value(v).unwrap()
+	}
+
+	fn base() -> Base {
+		Base {
+			info: RunInfo {
+				mode: crate::wire::RunMode::Install,
+				product: RunProduct {
+					id: "x".into(),
+					name: "X".into(),
+					publisher: "P".into(),
+					version: "1".into(),
+				},
+				target: "linux-x86_64:web".into(),
+				renderer: "web".into(),
+				theme: None,
+				look: "afterglow".into(),
+				window: WindowSize {
+					width: 1,
+					height: 1,
+				},
+				install_dir: "/tmp/x".into(),
+				components: vec![],
+				stage: None,
+			},
+			components: vec![],
+			root: PathBuf::new(),
+			renderer: "web".into(),
+			target: json!({ "id": "linux-x86_64" }),
+			system: json!({}),
+			sizes: BTreeMap::new(),
+		}
+	}
+
+	fn page() -> Node {
+		node(json!({ "kind": "window", "children": [
+			{ "kind": "radio", "bind": "licence.accepted" },
+			{ "kind": "stack", "children": [
+				{ "kind": "button", "props": { "action": "back" } },
+				{ "kind": "button", "props": { "action": "next",
+					"enabled_when": "state.licence.accepted == 'yes'" } },
+			] },
+		] }))
+	}
+
+	#[test]
+	fn dotted_keys_are_nested_for_conditions() {
+		let mut state = Map::new();
+		state.insert("licence.accepted".into(), json!("yes"));
+		let nested = nest(&state);
+		assert_eq!(nested["licence"]["accepted"], "yes");
+		assert_eq!(nested["licence.accepted"], "yes");
+	}
+
+	#[test]
+	fn enabled_when_switches_a_button_off_until_it_holds() {
+		let b = base();
+		let tree = page();
+		let mut state = Map::new();
+		assert_eq!(b.disabled(&tree, &state), vec!["1.1".to_owned()]);
+		state.insert("licence.accepted".into(), json!("yes"));
+		assert!(b.disabled(&tree, &state).is_empty());
+	}
+
+	#[test]
+	fn next_is_disabled_only_when_every_forward_button_is_off() {
+		let tree = page();
+		assert!(next_is_disabled(&tree, &["1.1".to_owned()]));
+		assert!(!next_is_disabled(&tree, &[]));
+		// A page with no forward button at all is not stuck.
+		assert!(!next_is_disabled(&node(json!({ "kind": "window" })), &[]));
+	}
+
+	#[test]
+	fn answers_map_to_the_engines_keys() {
+		let mut state = State::new();
+		let mut answer = Map::new();
+		answer.insert("install.path".into(), json!("/opt/x"));
+		answer.insert("components.selected".into(), json!(["a"]));
+		absorb(&answer, &mut state);
+		assert_eq!(state["install_dir"], "/opt/x");
+		assert_eq!(state["components"], json!(["a"]));
+		assert_eq!(action_for("back"), Action::Back);
+		assert_eq!(action_for("finish"), Action::Next);
+		assert_eq!(action_for("cancel"), Action::Cancel);
+	}
+
+	#[test]
+	fn sizes_are_human() {
+		assert_eq!(human(0), "0 KB");
+		assert_eq!(human(3 * 1024 * 1024), "3.0 MB");
+		assert_eq!(human(50 * 1024 * 1024), "50 MB");
+		assert_eq!(human(3 * 1024 * 1024 * 1024), "3.0 GB");
+	}
+}
