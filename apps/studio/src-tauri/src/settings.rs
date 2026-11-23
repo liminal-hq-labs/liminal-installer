@@ -281,6 +281,38 @@ pub fn file(app: &AppHandle) -> Result<PathBuf, String> {
 		.join("settings.json"))
 }
 
+/// The bundle identifier before the Studio moved to `ca.liminalhq.installerstudio`. The settings directory is named
+/// after the identifier, so a person's settings stayed behind in the old directory.
+pub const LEGACY_IDENTIFIER: &str = "hq.liminal.installer-studio";
+
+/// Copies the settings and window sizes from the old identifier's directory into `new_dir`, once. Nothing is
+/// copied when `new_dir` already has a settings file or the old directory has none. Returns whether it copied.
+pub fn migrate_legacy(old_dir: &Path, new_dir: &Path) -> bool {
+	if new_dir.join("settings.json").exists() || !old_dir.join("settings.json").is_file() {
+		return false;
+	}
+	if fs::create_dir_all(new_dir).is_err() {
+		return false;
+	}
+	let mut copied = false;
+	for name in ["settings.json", ".window-state.json"] {
+		let from = old_dir.join(name);
+		if from.is_file() {
+			copied |= fs::copy(&from, new_dir.join(name)).is_ok();
+		}
+	}
+	copied
+}
+
+/// Runs [`migrate_legacy`] for the app's own config directory and its sibling under the old identifier.
+pub fn migrate_legacy_for(app: &AppHandle) {
+	if let Ok(new_dir) = app.path().app_config_dir()
+		&& let Some(parent) = new_dir.parent()
+	{
+		migrate_legacy(&parent.join(LEGACY_IDENTIFIER), &new_dir);
+	}
+}
+
 /// What a write needs from the machine, beyond the values themselves: a folder that exists and tools that run.
 /// Only a field the patch names is looked at, so an unrelated change is never refused for an old path.
 pub fn check_machine(next: &Settings, patch: &Value) -> Result<(), String> {
@@ -358,6 +390,33 @@ mod tests {
 
 	fn temp(name: &str) -> PathBuf {
 		std::env::temp_dir().join(format!("li-studio-settings-{}-{name}", std::process::id()))
+	}
+
+	#[test]
+	fn legacy_settings_are_copied_once() {
+		let old = temp("legacy-old");
+		let new = temp("legacy-new");
+		let _ = fs::remove_dir_all(&old);
+		let _ = fs::remove_dir_all(&new);
+		fs::create_dir_all(&old).unwrap();
+		fs::write(old.join("settings.json"), "{\"menuBar\":true}").unwrap();
+		fs::write(old.join(".window-state.json"), "{}").unwrap();
+		assert!(migrate_legacy(&old, &new));
+		assert_eq!(
+			fs::read_to_string(new.join("settings.json")).unwrap(),
+			"{\"menuBar\":true}"
+		);
+		assert!(new.join(".window-state.json").is_file());
+		// A later change is never overwritten, and an old directory without settings copies nothing.
+		fs::write(new.join("settings.json"), "{\"menuBar\":false}").unwrap();
+		assert!(!migrate_legacy(&old, &new));
+		assert_eq!(
+			fs::read_to_string(new.join("settings.json")).unwrap(),
+			"{\"menuBar\":false}"
+		);
+		assert!(!migrate_legacy(&temp("legacy-missing"), &temp("legacy-other")));
+		let _ = fs::remove_dir_all(&old);
+		let _ = fs::remove_dir_all(&new);
 	}
 
 	#[test]

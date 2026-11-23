@@ -232,6 +232,7 @@ pub fn run() {
 		.manage(agent)
 		.setup(move |app| {
 			let handle = app.handle().clone();
+			settings::migrate_legacy_for(&handle);
 			// The agent server follows the saved settings; its address is logged, its token never is.
 			let saved = settings::file(&handle)
 				.map(|path| settings::load(&path))

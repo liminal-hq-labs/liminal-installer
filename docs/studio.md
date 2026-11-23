@@ -28,13 +28,15 @@ The chrome copy is refreshed from Waypoint by the steps in `apps/studio/ui/vendo
 
 ### Where files live
 
-The shell uses Tauri's `app_config_dir()` for the settings and the window sizes, and `app_log_dir()` for logs, under the bundle identifier `hq.liminal.installer-studio`:
+The shell uses Tauri's `app_config_dir()` for the settings and the window sizes, and `app_log_dir()` for logs, under the bundle identifier `ca.liminalhq.installerstudio`:
 
 | Platform | Config (`settings.json`, `.window-state.json`) | Logs |
 |---|---|---|
-| Linux | `$XDG_CONFIG_HOME/hq.liminal.installer-studio` (`~/.config/…`) | `$XDG_DATA_HOME/hq.liminal.installer-studio/logs` (`~/.local/share/…`) |
-| macOS | `~/Library/Application Support/hq.liminal.installer-studio` | `~/Library/Logs/hq.liminal.installer-studio` |
-| Windows | `%APPDATA%\hq.liminal.installer-studio` | `%LOCALAPPDATA%\hq.liminal.installer-studio\logs` |
+| Linux | `$XDG_CONFIG_HOME/ca.liminalhq.installerstudio` (`~/.config/…`) | `$XDG_DATA_HOME/ca.liminalhq.installerstudio/logs` (`~/.local/share/…`) |
+| macOS | `~/Library/Application Support/ca.liminalhq.installerstudio` | `~/Library/Logs/ca.liminalhq.installerstudio` |
+| Windows | `%APPDATA%\ca.liminalhq.installerstudio` | `%LOCALAPPDATA%\ca.liminalhq.installerstudio\logs` |
+
+The identifier was `hq.liminal.installer-studio` before the Studio joined the Liminal HQ house pattern (`ca.liminalhq.<app>`, no separators), and the directories above are named after it. On the first run under the new identifier, `settings::migrate_legacy_for` copies `settings.json` and `.window-state.json` from the old config directory when the new one has no `settings.json`; the old directory is left alone, and logs are not carried over.
 
 The Studio writes no log file yet, so the log folder is created when it is first shown. `tauri-plugin-window-state` remembers the size of the `main` and `preferences` windows only; About and confirmations have a fixed size.
 
@@ -45,6 +47,8 @@ The Studio writes no log file yet, so the log folder is created when it is first
 The text is `state.scriptDraft`; `lib/scriptActions.ts` owns saving, discarding, selecting and test runs, and `app.ts` only wires them. `startApp` takes an optional `api` and `settleUnsaved`, which the tests use with a fake backend (`src/app.script.test.ts`). The browser demo's `checkScriptSyntax` is a stand-in that balances blocks; the desktop shell compiles with Lua.
 
 ## Driving the Studio in dev
+
+The dev server is Vite on port 1420 with `strictPort`, and `devUrl` in `tauri.conf.json` names the same port; `ui/scripts/dev-server.test.ts` fails if they differ. Vite does not watch `src-tauri`.
 
 Start the shell with the dev config, which turns on the global Tauri object and registers the debug-only MCP bridge:
 
