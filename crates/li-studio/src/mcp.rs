@@ -44,8 +44,8 @@ pub fn tool_list() -> Value {
 		{"name": "check_script_syntax", "description": "Check Lua source without running it: syntax errors with line and column, and warnings for capabilities used but not declared and for features the retro Lua subset lacks.", "inputSchema": schema(json!({"source": {"type": "string"}}), &["source"])},
 		{"name": "run_preview", "description": "Dry-run a target (os-arch:renderer): the plan, problems and an image of each step.", "inputSchema": schema(json!({"target": {"type": "string"}}), &["target"])},
 		{"name": "get_preview", "description": "The last preview, or null if the project changed since it ran.", "inputSchema": schema(json!({}), &[])},
-		{"name": "tui_render", "description": "Open a live terminal session on a `tui` target (os-arch:renderer) and return the real terminal screen as text and ANSI. `page` is an install-flow step or a layout id; `state` is the page state; `keys` are pressed first (names such as Tab, Enter, Escape, ArrowDown, Space, or single characters). Returns the session id for `tui_key`; pass `close` to free it at once.", "inputSchema": schema(json!({"target": {"type": "string"}, "page": {"type": "string"}, "state": {"type": "object"}, "keys": {"type": "array", "items": {"type": "string"}}, "cols": {"type": "integer"}, "rows": {"type": "integer"}, "close": {"type": "boolean"}}), &["target", "page"])},
-		{"name": "tui_key", "description": "Press keys in a terminal session and return the real screen as text and ANSI, with what the last key did: nothing, a changed value, a chosen button (`activate`) or Esc (`cancel`). Pass `close` to free the session afterwards.", "inputSchema": schema(json!({"session": {"type": "string"}, "key": {"type": "string"}, "keys": {"type": "array", "items": {"type": "string"}}, "close": {"type": "boolean"}}), &["session"])},
+		{"name": "tui_render", "description": "Open a live terminal session on a `tui` target (os-arch:renderer) and return the real terminal screen as text and ANSI. `page` is an install-flow step or a layout id; `state` is the page state; `keys` are pressed first (names such as Tab, Enter, Escape, ArrowDown, Space, or single characters). Returns the session id for `tui_key`; pass `close` to free it at once.", "inputSchema": schema(json!({"target": {"type": "string"}, "page": {"type": "string"}, "state": {"type": "object"}, "keys": {"type": "array", "items": {"type": "string"}}, "cols": {"type": "integer"}, "rows": {"type": "integer"}, "close": {"type": "boolean"}, "grid": {"type": "boolean", "description": "Also return the cell grid, for clients that draw their own terminal."}}), &["target", "page"])},
+		{"name": "tui_key", "description": "Press keys in a terminal session and return the real screen as text and ANSI, with what the last key did: nothing, a changed value, a chosen button (`activate`) or Esc (`cancel`). Pass `close` to free the session afterwards.", "inputSchema": schema(json!({"session": {"type": "string"}, "key": {"type": "string"}, "keys": {"type": "array", "items": {"type": "string"}}, "close": {"type": "boolean"}, "grid": {"type": "boolean"}}), &["session"])},
 		{"name": "check_project", "description": "The same checks as `liminst check`.", "inputSchema": schema(json!({}), &[])}
 	])
 }
@@ -97,11 +97,12 @@ fn size_arg(args: &Value, key: &str) -> Result<Option<u16>, StudioError> {
 	}
 }
 
-/// A frame as an agent reads it: the text and ANSI of the screen, not the cell grid.
+/// A frame as an agent reads it: the text and ANSI of the screen, and the cell grid when asked.
 fn frame_json(
 	session: &str,
 	frame: &TuiFrame,
 	outcome: Option<&TuiOutcome>,
+	with_grid: bool,
 ) -> Result<Value, StudioError> {
 	let mut v = json!({
 		"session": session,
@@ -113,17 +114,30 @@ fn frame_json(
 	if let Some(o) = outcome {
 		v["outcome"] = to_value(o)?;
 	}
+	if with_grid {
+		v["grid"] = to_value(&frame.grid)?;
+	}
 	Ok(v)
 }
 
-fn press(studio: &Studio, session: &str, keys: &[TuiKey]) -> Result<Value, StudioError> {
+fn press(
+	studio: &Studio,
+	session: &str,
+	keys: &[TuiKey],
+	with_grid: bool,
+) -> Result<Value, StudioError> {
 	let mut last = None;
 	for k in keys {
 		last = Some(studio.tui_session_key(session, k)?);
 	}
 	match last {
-		Some(r) => frame_json(session, &r.frame, Some(&r.outcome)),
-		None => frame_json(session, &studio.tui_session_frame(session)?, None),
+		Some(r) => frame_json(session, &r.frame, Some(&r.outcome), with_grid),
+		None => frame_json(
+			session,
+			&studio.tui_session_frame(session)?,
+			None,
+			with_grid,
+		),
 	}
 }
 
@@ -145,10 +159,11 @@ fn tui_render(studio: &Studio, args: &Value) -> Result<Value, StudioError> {
 	)?;
 	let session = opened.session;
 	let keys = key_list(args)?;
+	let with_grid = args.get("grid").and_then(Value::as_bool) == Some(true);
 	let out = if keys.is_empty() {
-		frame_json(&session, &opened.frame, None)
+		frame_json(&session, &opened.frame, None, with_grid)
 	} else {
-		press(studio, &session, &keys)
+		press(studio, &session, &keys, with_grid)
 	};
 	if args.get("close").and_then(Value::as_bool) == Some(true) || out.is_err() {
 		studio.tui_session_close(&session);
@@ -158,7 +173,12 @@ fn tui_render(studio: &Studio, args: &Value) -> Result<Value, StudioError> {
 
 fn tui_key(studio: &Studio, args: &Value) -> Result<Value, StudioError> {
 	let session = str_arg(args, "session")?;
-	let out = press(studio, session, &key_list(args)?);
+	let out = press(
+		studio,
+		session,
+		&key_list(args)?,
+		args.get("grid").and_then(Value::as_bool) == Some(true),
+	);
 	if args.get("close").and_then(Value::as_bool) == Some(true) {
 		studio.tui_session_close(session);
 	}
@@ -594,6 +614,7 @@ mod tests {
 		assert!(r["text"].as_str().unwrap().contains("Game program"));
 		assert!(r["ansi"].as_str().unwrap().contains("\u{1b}["));
 		assert_eq!(r["focus"], "Next, button");
+		assert!(r.get("grid").is_none());
 		let id = r["session"].as_str().unwrap();
 		let (err, k) = call(&s, "tui_key", json!({"session": id, "keys": ["Tab"]}));
 		assert!(!err);
@@ -601,8 +622,9 @@ mod tests {
 		let (_, k) = call(
 			&s,
 			"tui_key",
-			json!({"session": id, "key": "Escape", "close": true}),
+			json!({"session": id, "key": "Escape", "close": true, "grid": true}),
 		);
+		assert_eq!(k["grid"]["width"], 80);
 		assert_eq!(k["outcome"]["kind"], "cancel");
 		let (err, e) = call(&s, "tui_key", json!({"session": id, "key": "Tab"}));
 		assert!(err);
