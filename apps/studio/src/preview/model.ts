@@ -56,6 +56,24 @@ const SAMPLE_LISTS: Record<string, Option[]> = {
 	],
 };
 
+/** What the preview lets a person do. In `edit` a click selects a node; in `run` the controls work. */
+export interface Interact {
+	mode: 'edit' | 'run';
+	/** The selected node's `data-node-path` key, outlined in the preview. */
+	selected?: string | null;
+	onSelect?: (key: string) => void;
+	onChange?: (key: string, value: unknown) => void;
+	onAction?: (action: string) => void;
+}
+
+/** Readings that override the page's meters and billboard while a preview plays. */
+export interface Live {
+	file?: number;
+	total?: number;
+	freeSpace?: number;
+	slide?: number;
+}
+
 /** What a preview knows about the run it draws. */
 export interface RenderOptions {
 	renderer: string;
@@ -66,6 +84,12 @@ export interface RenderOptions {
 	state?: Record<string, unknown>;
 	/** The project's components, for `items = "components"` when the tree was not expanded. */
 	components?: { id: string; name: string; required?: boolean }[];
+	interact?: Interact;
+	live?: Live;
+	/** `contain` fills the parent and fits the whole stage in it; the default fits its width. */
+	fit?: 'width' | 'contain';
+	/** Where a node came from, as its `data-node-path` key, so a click can select it. */
+	pathOf?: (node: LayoutNode) => string | undefined;
 }
 
 /** Replaces `{name}` with its sample value, leaving unknown names visible. */
@@ -88,6 +112,9 @@ export interface Ctx {
 	vars: Record<string, string>;
 	state: Record<string, unknown>;
 	components: NonNullable<RenderOptions['components']>;
+	interact?: Interact;
+	live?: Live;
+	pathOf?: (node: LayoutNode) => string | undefined;
 }
 
 export type Props = Record<string, unknown>;
@@ -146,7 +173,17 @@ function toOption(o: unknown, i: number): Option {
 
 const METER_SAMPLE: Record<string, number> = { file: 0.7, total: 0.55, free_space: 0.94 };
 
+const LIVE_KEY = { file: 'file', total: 'total', free_space: 'freeSpace' } as const;
+
+/** The meter's source: `file`, `total` or `free_space`. */
+export const meterSource = (node: LayoutNode): keyof typeof LIVE_KEY => {
+	const s = str(node, 'source') || str(node, 'meter') || 'total';
+	return s in LIVE_KEY ? (s as keyof typeof LIVE_KEY) : 'total';
+};
+
 export function fraction(cx: Ctx, node: LayoutNode): number {
+	const live = cx.live?.[LIVE_KEY[meterSource(node)]];
+	if (typeof live === 'number') return Math.max(0, Math.min(1, live));
 	const v = lookup(cx, node.bind);
 	if (typeof v === 'number') return Math.max(0, Math.min(1, v > 1 ? v / 100 : v));
 	return METER_SAMPLE[str(node, 'source') || str(node, 'meter') || 'total'] ?? 0.5;
@@ -154,3 +191,10 @@ export function fraction(cx: Ctx, node: LayoutNode): number {
 
 export const isLow = (node: LayoutNode, pct: number): boolean =>
 	str(node, 'source') === 'free_space' && pct / 100 < num(node, 'low_below', 0.05);
+
+/** Whether a tree has a meter or a billboard, which a Play button can animate. */
+export function hasMovingParts(node: LayoutNode): boolean {
+	return (
+		node.kind === 'meter' || node.kind === 'billboard' || (node.children ?? []).some(hasMovingParts)
+	);
+}

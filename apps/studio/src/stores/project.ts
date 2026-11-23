@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { createStore, type StoreApi } from 'zustand/vanilla';
+import type { Scope } from '../lib/stage';
 import type { FlowView, HistoryView, Layout, McpInfo, Problem, ProjectSummary } from '../lib/types';
 
 export interface ProjectState {
@@ -19,6 +20,10 @@ export interface ProjectState {
 	connectFrom: string | null;
 	layoutId: string;
 	layout: Layout | null;
+	/** The stage layout of the open layout's theme, when it has one. */
+	stageLayout: Layout | null;
+	/** Whether the selected node is in the page's layout or in the theme's stage. */
+	layoutScope: Scope;
 	layoutPath: number[];
 	overrideRenderer: string | null;
 	/** The renderer the Layouts screen previews with. */
@@ -40,6 +45,8 @@ export const initialProjectState: ProjectState = {
 	connectFrom: null,
 	layoutId: 'welcome',
 	layout: null,
+	stageLayout: null,
+	layoutScope: 'page',
 	layoutPath: [],
 	overrideRenderer: null,
 	layoutRenderer: 'canvas',

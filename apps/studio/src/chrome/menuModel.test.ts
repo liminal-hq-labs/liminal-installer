@@ -13,6 +13,7 @@ import {
 	buildFlatMenu,
 	buildMenus,
 	initialMenuState,
+	isEnabled,
 	matchesShortcut,
 	recentId,
 	recentPath,
@@ -209,5 +210,18 @@ describe('shortcuts', () => {
 			expect(shortPath('C:\\Projects\\alpha')).toBe('Projects/alpha');
 			expect(shortPath('/')).toBe('/');
 		});
+	});
+});
+
+describe('the full-screen preview command', () => {
+	it('is in the View menu with F11, and only enabled on the Dry-run screen of an open project', () => {
+		const view = MENUS.find((m) => m.id === 'view')!;
+		expect(view.groups.flatMap((g) => g.items)).toContain('view.fullScreenPreview');
+		expect(ACTIONS['view.fullScreenPreview'].keys).toEqual(['F11']);
+		const on = { ...initialMenuState, hasProject: true, screen: 'preview' as const };
+		expect(isEnabled('view.fullScreenPreview', on)).toBe(true);
+		expect(isEnabled('view.fullScreenPreview', { ...on, screen: 'layouts' })).toBe(false);
+		expect(isEnabled('view.fullScreenPreview', { ...on, hasProject: false })).toBe(false);
+		expect(actionForEvent(key('F11'), on, false)).toBe('view.fullScreenPreview');
 	});
 });

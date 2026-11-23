@@ -1273,3 +1273,36 @@
 	display: inline-flex;
 	flex: none;
 }
+
+/* Editing: every node under the pointer is outlined, and the selected node more strongly. */
+.pvEditing [data-node-path] {
+	cursor: pointer;
+}
+.pvEditing [data-node-path][data-hover] {
+	outline: 2px dashed #ff9f1c;
+	outline-offset: -2px;
+}
+.pvEditing [data-node-path][data-selected] {
+	outline: 3px solid #2d8cff;
+	outline-offset: -3px;
+}
+.pvEditing [data-node-path][data-selected][data-hover] {
+	outline-style: solid;
+}
+/* Running: the controls answer. */
+.pv[data-mode='run'] .pvChoice,
+.pv[data-mode='run'] .pvButton {
+	cursor: pointer;
+}
+.pvControl {
+	font: inherit;
+	color: inherit;
+	min-width: 0;
+}
+.pvContain {
+	height: 100%;
+	border-radius: 0;
+}
+.pvWin95 .pvChoiceList.pvSunken {
+	min-height: 96px;
+}

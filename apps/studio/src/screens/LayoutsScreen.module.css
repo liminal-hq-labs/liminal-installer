@@ -50,3 +50,44 @@
 .host {
 	margin-top: 12px;
 }
+
+.tree li.shared {
+	border-inline-start: 3px solid var(--lis-warn, #c58b00);
+	background: color-mix(in srgb, var(--lis-warn, #c58b00) 8%, transparent);
+}
+.tree li.shared.selected {
+	background: var(--lis-accent-soft);
+}
+.scopeChip {
+	margin-inline-start: auto;
+	font-size: 0.7rem;
+}
+.palette {
+	margin-top: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+.scopePick {
+	display: flex;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+.notice {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	align-items: flex-start;
+	padding: 8px 10px;
+	margin-bottom: 10px;
+	border-radius: var(--lis-radius-sm);
+	border: 1px solid var(--lis-warn, #c58b00);
+	background: color-mix(in srgb, var(--lis-warn, #c58b00) 10%, transparent);
+	font-size: 0.85rem;
+}
+.meterFields {
+	border: 1px solid var(--lis-border, #8884);
+	border-radius: var(--lis-radius-sm);
+	margin: 10px 0;
+	padding: 6px 10px 10px;
+}
