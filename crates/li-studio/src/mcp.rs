@@ -14,11 +14,12 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use li_model::{Flow, Layout, Node};
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 use crate::error::{ErrorKind, StudioError};
 use crate::history::Source;
 use crate::studio::Studio;
+use crate::tui::{TuiFrame, TuiKey, TuiOutcome};
 
 const PROTOCOL_VERSION: &str = "2025-03-26";
 
@@ -43,6 +44,8 @@ pub fn tool_list() -> Value {
 		{"name": "check_script_syntax", "description": "Check Lua source without running it: syntax errors with line and column, and warnings for capabilities used but not declared and for features the retro Lua subset lacks.", "inputSchema": schema(json!({"source": {"type": "string"}}), &["source"])},
 		{"name": "run_preview", "description": "Dry-run a target (os-arch:renderer): the plan, problems and an image of each step.", "inputSchema": schema(json!({"target": {"type": "string"}}), &["target"])},
 		{"name": "get_preview", "description": "The last preview, or null if the project changed since it ran.", "inputSchema": schema(json!({}), &[])},
+		{"name": "tui_render", "description": "Open a live terminal session on a `tui` target (os-arch:renderer) and return the real terminal screen as text and ANSI. `page` is an install-flow step or a layout id; `state` is the page state; `keys` are pressed first (names such as Tab, Enter, Escape, ArrowDown, Space, or single characters). Returns the session id for `tui_key`; pass `close` to free it at once.", "inputSchema": schema(json!({"target": {"type": "string"}, "page": {"type": "string"}, "state": {"type": "object"}, "keys": {"type": "array", "items": {"type": "string"}}, "cols": {"type": "integer"}, "rows": {"type": "integer"}, "close": {"type": "boolean"}}), &["target", "page"])},
+		{"name": "tui_key", "description": "Press keys in a terminal session and return the real screen as text and ANSI, with what the last key did: nothing, a changed value, a chosen button (`activate`) or Esc (`cancel`). Pass `close` to free the session afterwards.", "inputSchema": schema(json!({"session": {"type": "string"}, "key": {"type": "string"}, "keys": {"type": "array", "items": {"type": "string"}}, "close": {"type": "boolean"}}), &["session"])},
 		{"name": "check_project", "description": "The same checks as `liminst check`.", "inputSchema": schema(json!({}), &[])}
 	])
 }
@@ -67,6 +70,99 @@ fn to_value<T: serde::Serialize>(v: &T) -> Result<Value, StudioError> {
 
 fn parse<T: for<'de> Deserialize<'de>>(v: &Value, what: &str) -> Result<T, StudioError> {
 	serde_json::from_value(v.clone()).map_err(|e| StudioError::invalid(what, e))
+}
+
+fn key_list(args: &Value) -> Result<Vec<TuiKey>, StudioError> {
+	let mut out = Vec::new();
+	for v in args.get("key").into_iter().chain(
+		args.get("keys")
+			.and_then(Value::as_array)
+			.into_iter()
+			.flatten(),
+	) {
+		let name = v
+			.as_str()
+			.ok_or_else(|| StudioError::invalid("keys", "each key is a string"))?;
+		out.push(TuiKey::named(name));
+	}
+	Ok(out)
+}
+
+fn size_arg(args: &Value, key: &str) -> Result<Option<u16>, StudioError> {
+	match args.get(key).and_then(Value::as_u64) {
+		Some(n) => u16::try_from(n)
+			.map(Some)
+			.map_err(|_| StudioError::invalid("size", format!("`{key}` is too large"))),
+		None => Ok(None),
+	}
+}
+
+/// A frame as an agent reads it: the text and ANSI of the screen, not the cell grid.
+fn frame_json(
+	session: &str,
+	frame: &TuiFrame,
+	outcome: Option<&TuiOutcome>,
+) -> Result<Value, StudioError> {
+	let mut v = json!({
+		"session": session,
+		"text": frame.grid.to_text(),
+		"ansi": frame.grid.to_ansi(),
+		"focus": frame.focus,
+		"state": frame.state,
+	});
+	if let Some(o) = outcome {
+		v["outcome"] = to_value(o)?;
+	}
+	Ok(v)
+}
+
+fn press(studio: &Studio, session: &str, keys: &[TuiKey]) -> Result<Value, StudioError> {
+	let mut last = None;
+	for k in keys {
+		last = Some(studio.tui_session_key(session, k)?);
+	}
+	match last {
+		Some(r) => frame_json(session, &r.frame, Some(&r.outcome)),
+		None => frame_json(session, &studio.tui_session_frame(session)?, None),
+	}
+}
+
+fn tui_render(studio: &Studio, args: &Value) -> Result<Value, StudioError> {
+	let state = match args.get("state") {
+		Some(Value::Object(o)) => o.clone(),
+		None | Some(Value::Null) => Map::new(),
+		Some(_) => return Err(StudioError::invalid("state", "must be an object")),
+	};
+	let size = match (size_arg(args, "cols")?, size_arg(args, "rows")?) {
+		(None, None) => None,
+		(c, r) => Some((c.unwrap_or(80), r.unwrap_or(24))),
+	};
+	let opened = studio.tui_session_open(
+		str_arg(args, "target")?,
+		str_arg(args, "page")?,
+		state,
+		size,
+	)?;
+	let session = opened.session;
+	let keys = key_list(args)?;
+	let out = if keys.is_empty() {
+		frame_json(&session, &opened.frame, None)
+	} else {
+		press(studio, &session, &keys)
+	};
+	if args.get("close").and_then(Value::as_bool) == Some(true) || out.is_err() {
+		studio.tui_session_close(&session);
+	}
+	out
+}
+
+fn tui_key(studio: &Studio, args: &Value) -> Result<Value, StudioError> {
+	let session = str_arg(args, "session")?;
+	let out = press(studio, session, &key_list(args)?);
+	if args.get("close").and_then(Value::as_bool) == Some(true) {
+		studio.tui_session_close(session);
+	}
+	out
 }
 
 /// Runs one tool against the studio. Changes are recorded with source [`Source::Mcp`].
@@ -154,6 +250,8 @@ pub fn call_tool(studio: &Studio, name: &str, args: &Value) -> Result<Value, Stu
 		"run_preview" => to_value(&studio.run_preview(str_arg(args, "target")?)?),
 		"get_preview" => to_value(&studio.get_preview()?),
 		"check_project" => to_value(&studio.check_project()?),
+		"tui_render" => tui_render(studio, args),
+		"tui_key" => tui_key(studio, args),
 		other => Err(StudioError::NotFound(format!("tool `{other}`"))),
 	}
 }
@@ -475,9 +573,48 @@ mod tests {
 				"check_script_syntax",
 				"run_preview",
 				"get_preview",
+				"tui_render",
+				"tui_key",
 				"check_project"
 			]
 		);
+	}
+
+	#[test]
+	fn an_agent_sees_the_real_terminal_screen_and_presses_keys() {
+		let s = Studio::new(Box::new(crate::EngineBackend));
+		s.open(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/lt-fizz"))
+			.unwrap();
+		let (err, r) = call(
+			&s,
+			"tui_render",
+			json!({"target": "dos-x86:tui-retro", "page": "components"}),
+		);
+		assert!(!err, "{r}");
+		assert!(r["text"].as_str().unwrap().contains("Game program"));
+		assert!(r["ansi"].as_str().unwrap().contains("\u{1b}["));
+		assert_eq!(r["focus"], "Next, button");
+		let id = r["session"].as_str().unwrap();
+		let (err, k) = call(&s, "tui_key", json!({"session": id, "keys": ["Tab"]}));
+		assert!(!err);
+		assert_ne!(k["focus"], "Next, button");
+		let (_, k) = call(
+			&s,
+			"tui_key",
+			json!({"session": id, "key": "Escape", "close": true}),
+		);
+		assert_eq!(k["outcome"]["kind"], "cancel");
+		let (err, e) = call(&s, "tui_key", json!({"session": id, "key": "Tab"}));
+		assert!(err);
+		assert!(e.as_str().unwrap().contains("not found"), "{e}");
+		let (err, e) = call(
+			&s,
+			"tui_render",
+			json!({"target": "dos-x86:tui-retro", "page": "welcome", "keys": ["Hyper"]}),
+		);
+		assert!(err);
+		assert!(e.as_str().unwrap().contains("not a key"), "{e}");
+		assert_eq!(s.tui_session_count(), 0);
 	}
 
 	#[test]

@@ -19,6 +19,7 @@ pub mod resolve;
 pub mod scaffold;
 pub mod screens;
 pub mod studio;
+pub mod tui;
 
 pub use backend::{
 	BackendError, HookInfo, Preview, PreviewStep, Problem, Screenshot, ScriptReport, Severity,
@@ -31,3 +32,4 @@ pub use li_script::check::Diagnostic as ScriptDiagnostic;
 pub use mock::MockBackend;
 pub use project::{Doc, DocKey, Project};
 pub use studio::{ChangeEvent, Studio};
+pub use tui::{TuiFrame, TuiKey, TuiKeyResult, TuiOpened, TuiOutcome};

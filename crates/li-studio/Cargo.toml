@@ -16,7 +16,8 @@ rust-version.workspace = true
 li-model = { workspace = true, features = ["ts"] }
 li-engine.workspace = true
 li-script = { workspace = true, features = ["ts"] }
-li-render-tui.workspace = true
+li-render-tui = { workspace = true, features = ["ts"] }
+ratatui.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 toml.workspace = true

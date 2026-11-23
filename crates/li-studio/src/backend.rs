@@ -5,7 +5,8 @@
 
 use std::collections::BTreeMap;
 
-use li_model::{Node, Plan};
+use li_model::{Layout, Node, Plan};
+use li_render_tui::Look;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -170,6 +171,14 @@ pub struct HookRun {
 	pub lines: Vec<String>,
 }
 
+/// A layout resolved for the terminal renderer: what a live terminal session draws.
+#[derive(Debug, Clone)]
+pub struct TuiPage {
+	/// The layout with the `tui` renderer's overrides applied and references expanded.
+	pub layout: Layout,
+	pub look: Look,
+}
+
 #[derive(Debug, Clone, Error, Serialize, Deserialize)]
 #[error("{0}")]
 pub struct BackendError(pub String);
@@ -195,4 +204,19 @@ pub trait StudioBackend: Send + Sync {
 		source: &str,
 		target: Option<&str>,
 	) -> Result<ScriptReport, BackendError>;
+
+	/// Resolves a page for a live terminal session. `page` is a step of the install flow, or a
+	/// layout id (`welcome`, or `theme/welcome` for a theme's own). Only `tui` targets have one.
+	/// `state` is the page state the screen starts from.
+	fn tui_page(
+		&self,
+		_project: &Project,
+		_target: &str,
+		_page: &str,
+		_state: &serde_json::Map<String, serde_json::Value>,
+	) -> Result<TuiPage, BackendError> {
+		Err(BackendError(
+			"this backend has no terminal renderer".to_owned(),
+		))
+	}
 }

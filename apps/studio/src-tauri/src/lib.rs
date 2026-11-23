@@ -19,7 +19,7 @@ use li_studio::mcp::McpInfo;
 use li_studio::studio::{FlowView, HistoryView, ProjectSummary, TargetInfo};
 use li_studio::{
 	EngineBackend, ErrorKind, Preview, Problem, ScriptDiagnostic, ScriptReport, Source, Studio,
-	StudioError, scaffold,
+	StudioError, TuiFrame, TuiKey, TuiKeyResult, TuiOpened, scaffold,
 };
 use serde::Serialize;
 use tauri::{Emitter, Manager, State};
@@ -118,6 +118,41 @@ fn run_preview(state: State<AppState>, target: String) -> Res<Preview> {
 #[tauri::command]
 fn get_preview(state: State<AppState>) -> Res<Option<Preview>> {
 	state.studio.get_preview()
+}
+
+#[tauri::command]
+fn tui_session_open(
+	state: State<AppState>,
+	target: String,
+	step_id: String,
+	page_state: Option<serde_json::Map<String, serde_json::Value>>,
+	cols: Option<u16>,
+	rows: Option<u16>,
+) -> Res<TuiOpened> {
+	let size = cols.zip(rows);
+	state
+		.studio
+		.tui_session_open(&target, &step_id, page_state.unwrap_or_default(), size)
+}
+
+#[tauri::command]
+fn tui_session_key(state: State<AppState>, session: String, key: TuiKey) -> Res<TuiKeyResult> {
+	state.studio.tui_session_key(&session, &key)
+}
+
+#[tauri::command]
+fn tui_session_resize(
+	state: State<AppState>,
+	session: String,
+	cols: u16,
+	rows: u16,
+) -> Res<TuiFrame> {
+	state.studio.tui_session_resize(&session, cols, rows)
+}
+
+#[tauri::command]
+fn tui_session_close(state: State<AppState>, session: String) {
+	state.studio.tui_session_close(&session);
 }
 
 #[tauri::command]
@@ -293,6 +328,10 @@ pub fn run() {
 			check_script_syntax,
 			run_preview,
 			get_preview,
+			tui_session_open,
+			tui_session_key,
+			tui_session_resize,
+			tui_session_close,
 			check_project,
 			history,
 			undo,

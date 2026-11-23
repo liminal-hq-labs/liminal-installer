@@ -17,7 +17,7 @@ use serde_json::{Value, json};
 
 use crate::backend::{
 	BackendError, HookInfo, HookRun, Preview, PreviewProduct, PreviewStep, Problem, Screenshot,
-	ScriptReport, Severity, StudioBackend,
+	ScriptReport, Severity, StudioBackend, TuiPage,
 };
 use crate::checks::check_project;
 use crate::mock::HOOKS;
@@ -501,6 +501,63 @@ impl StudioBackend for EngineBackend {
 			plan,
 			problems,
 			steps,
+		})
+	}
+
+	fn tui_page(
+		&self,
+		project: &Project,
+		target: &str,
+		page: &str,
+		state: &serde_json::Map<String, Value>,
+	) -> Result<TuiPage, BackendError> {
+		let eng = engine_project(project)?;
+		let t = eng
+			.installer
+			.targets
+			.iter()
+			.find(|t| t.full_id() == target)
+			.ok_or_else(|| BackendError(format!("unknown target `{target}`")))?;
+		if !t.renderer.starts_with("tui") {
+			return Err(BackendError(format!(
+				"`{target}` is not a terminal target, so it has no terminal screen"
+			)));
+		}
+		let layout_id = eng
+			.flows
+			.get("install")
+			.and_then(|f| f.step(page))
+			.and_then(|s| s.layout.as_deref())
+			.unwrap_or(page);
+		let layout = match layout_id.split_once('/') {
+			Some((theme, id)) => eng.themes.get(theme).and_then(|t| t.layouts.get(id)),
+			None => eng.layout_for(t, layout_id),
+		}
+		.ok_or_else(|| BackendError(format!("no layout for `{page}`")))?;
+		let components: Vec<&li_model::Component> = eng
+			.components
+			.components
+			.iter()
+			.filter(|c| c.applies_to(&t.id))
+			.collect();
+		let cx = TreeCtx {
+			renderer: li_render_tui::RENDERER_ID,
+			components: &components,
+			state,
+			root: &project.root,
+		};
+		Ok(TuiPage {
+			layout: Layout {
+				schema: None,
+				version: layout.version,
+				id: layout.id.clone(),
+				root: prepare_tree(&layout.root, &cx),
+			},
+			look: if t.renderer == "tui-retro" {
+				Look::Retro
+			} else {
+				Look::Plain
+			},
 		})
 	}
 
