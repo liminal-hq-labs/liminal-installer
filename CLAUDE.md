@@ -25,7 +25,7 @@ bash scripts/check-headers.sh
 make validate                    # fmt, clippy, cargo nextest, headers
 bash scripts/check-banner.sh     # add --shots /tmp/shots for review frames
 bash scripts/e2e-linux.sh        # install, update, repair, uninstall in Debian (docker)
-(cd apps/studio/ui && pnpm typecheck && pnpm test)
+bun run typecheck && bun run test:js
 (cd apps/studio/src-tauri && cargo check && cargo clippy -- -D warnings)
 docker run --rm -v "$PWD:/workdir" davidanson/markdownlint-cli2:v0.17.2 "**/*.md"
 ```
