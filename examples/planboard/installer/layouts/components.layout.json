@@ -5,38 +5,175 @@
 	"root": {
 		"kind": "window",
 		"props": {
-			"title": "Planboard Setup",
-			"label": "Choose components",
-			"style": "afterglow"
+			"title": "{product.name} Setup",
+			"label": "Components",
+			"style": "afterglow",
+			"icon": {
+				"viewBox": [
+					20,
+					20
+				],
+				"shapes": [
+					{
+						"rect": [
+							1.5,
+							3,
+							17,
+							14
+						],
+						"rx": 3,
+						"stroke": "#e0e0e0",
+						"width": 1.5
+					},
+					{
+						"path": "M1.5 7h17",
+						"stroke": "#e0e0e0",
+						"width": 1.5
+					},
+					{
+						"rect": [
+							5,
+							9.5,
+							5,
+							5
+						],
+						"rx": 1,
+						"fill": "#ffaa40"
+					},
+					{
+						"path": "M11.5 10h4M11.5 13h3",
+						"stroke": "#a78bfa",
+						"width": 1.5,
+						"cap": "round"
+					}
+				]
+			},
+			"caption": "Theme: Afterglow · the same flow runs on Windows, Linux, macOS and FreeBSD"
 		},
 		"children": [
 			{
 				"kind": "stack",
 				"props": {
 					"direction": "column",
-					"gap": 12
+					"gap": 0,
+					"label": "Setup steps",
+					"region": "side"
 				},
 				"children": [
 					{
 						"kind": "text",
 						"props": {
-							"text": "Choose what to install",
-							"role": "heading"
+							"text": "Welcome",
+							"role": "step-item",
+							"state": "done"
 						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Licence",
+							"role": "step-item",
+							"state": "done"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Location",
+							"role": "step-item",
+							"state": "done"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Components",
+							"role": "step-item",
+							"state": "current"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Install",
+							"role": "step-item",
+							"state": "todo"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Done",
+							"role": "step-item",
+							"state": "todo"
+						}
+					}
+				]
+			},
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "column",
+					"gap": 1
+				},
+				"children": [
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "column",
+							"gap": 0,
+							"group": "lead"
+						},
+						"children": [
+							{
+								"kind": "text",
+								"props": {
+									"text": "Choose what to install",
+									"role": "heading"
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"text": "Planboard works on its own. The rest is optional, and you can add or remove it later.",
+									"role": "body"
+								}
+							}
+						]
 					},
 					{
 						"kind": "checklist",
 						"bind": "components.selected",
 						"props": {
 							"label": "Components",
-							"items": "components"
-						}
-					},
-					{
-						"kind": "text",
-						"props": {
-							"text": "Space required: {install.size}",
-							"role": "caption"
+							"items": [
+								{
+									"id": "app",
+									"label": "Planboard",
+									"description": "The board app, with file icons, opening .planboard files.",
+									"required": true,
+									"checked": true
+								},
+								{
+									"id": "cli",
+									"label": "Command-line tool",
+									"description": "Work with boards from a terminal, and from scripts and agents.",
+									"checked": true,
+									"badges": [
+										{
+											"text": "Adds to PATH",
+											"tone": "accent"
+										}
+									]
+								},
+								{
+									"id": "docs",
+									"label": "Documentation",
+									"description": "Guides and the file format, as Markdown.",
+									"checked": false
+								}
+							],
+							"cards": true
 						}
 					}
 				]
@@ -45,10 +182,18 @@
 				"kind": "stack",
 				"props": {
 					"direction": "row",
-					"gap": 8,
-					"align": "end"
+					"gap": 2,
+					"align": "end",
+					"region": "footer"
 				},
 				"children": [
+					{
+						"kind": "text",
+						"props": {
+							"text": "Installs for you only · no administrator needed · {install.size}",
+							"role": "note"
+						}
+					},
 					{
 						"kind": "button",
 						"props": {
@@ -73,81 +218,6 @@
 					}
 				]
 			}
-		],
-		"overrides": {
-			"tui": {
-				"kind": "window",
-				"props": {
-					"title": "Planboard — Choose components",
-					"label": "Choose components",
-					"border": "rounded"
-				},
-				"children": [
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "column",
-							"gap": 1
-						},
-						"children": [
-							{
-								"kind": "text",
-								"props": {
-									"text": "Choose what to install",
-									"role": "heading"
-								}
-							},
-							{
-								"kind": "checklist",
-								"bind": "components.selected",
-								"props": {
-									"label": "Components",
-									"items": "components"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Space required: {install.size}",
-									"role": "caption"
-								}
-							}
-						]
-					},
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "row",
-							"gap": 8,
-							"align": "end"
-						},
-						"children": [
-							{
-								"kind": "button",
-								"props": {
-									"label": "Back",
-									"action": "back"
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "Next",
-									"action": "next",
-									"default": true
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "Cancel",
-									"action": "cancel"
-								}
-							}
-						]
-					}
-				]
-			}
-		}
+		]
 	}
 }

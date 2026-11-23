@@ -3,221 +3,67 @@
 	"version": 1,
 	"id": "done",
 	"root": {
-		"kind": "backdrop",
+		"kind": "window",
 		"props": {
-			"style": "classic",
 			"title": "Lieutenant Fizz — Episode One",
-			"label": "Lieutenant Fizz — Episode One setup"
+			"label": "Setup Complete"
 		},
 		"children": [
 			{
-				"kind": "dialog",
+				"kind": "stack",
 				"props": {
-					"title": "Setup complete — Lt. Fizz",
-					"label": "Setup complete",
-					"style": "win32-classic"
+					"direction": "column",
+					"gap": 1
 				},
 				"children": [
 					{
-						"kind": "stack",
+						"kind": "text",
 						"props": {
-							"direction": "column",
-							"gap": 12
-						},
-						"children": [
-							{
-								"kind": "text",
-								"props": {
-									"text": "Setup is complete",
-									"role": "heading"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Lieutenant Fizz — Episode One is installed. Thank you for installing it.",
-									"role": "body"
-								}
-							},
-							{
-								"kind": "checklist",
-								"bind": "finish.launch",
-								"props": {
-									"label": "After setup",
-									"options": [
-										{
-											"id": "launch",
-											"label": "Start Lieutenant Fizz — Episode One"
-										}
-									]
-								}
-							}
-						]
+							"text": "Setup Complete",
+							"role": "heading"
+						}
 					},
 					{
-						"kind": "stack",
+						"kind": "text",
 						"props": {
-							"direction": "row",
-							"gap": 8,
-							"align": "end"
-						},
-						"children": [
-							{
-								"kind": "button",
-								"props": {
-									"label": "Finish",
-									"action": "finish",
-									"default": true
-								}
-							}
-						]
-					}
-				]
-			}
-		],
-		"overrides": {
-			"tui-retro": {
-				"kind": "backdrop",
-				"props": {
-					"style": "text-mode",
-					"charset": "cp437",
-					"fill": "░",
-					"title": "Lieutenant Fizz — Episode One",
-					"label": "Lieutenant Fizz — Episode One setup",
-					"palette": "blue-on-grey"
-				},
-				"children": [
+							"text": "Setup has finished installing {product.name} on your computer.",
+							"role": "body"
+						}
+					},
 					{
-						"kind": "dialog",
+						"kind": "checklist",
+						"bind": "finish.launch",
 						"props": {
-							"title": "Setup complete",
-							"label": "Setup complete",
-							"border": "double",
-							"shadow": true
-						},
-						"children": [
-							{
-								"kind": "stack",
-								"props": {
-									"direction": "column",
-									"gap": 1
-								},
-								"children": [
-									{
-										"kind": "text",
-										"props": {
-											"text": "Setup is complete",
-											"role": "heading"
-										}
-									},
-									{
-										"kind": "text",
-										"props": {
-											"text": "Lieutenant Fizz — Episode One is installed. Thank you for installing it.",
-											"role": "body"
-										}
-									},
-									{
-										"kind": "checklist",
-										"bind": "finish.launch",
-										"props": {
-											"label": "After setup",
-											"options": [
-												{
-													"id": "launch",
-													"label": "Start Lieutenant Fizz — Episode One"
-												}
-											]
-										}
-									}
-								]
-							},
-							{
-								"kind": "stack",
-								"props": {
-									"direction": "row",
-									"gap": 8,
-									"align": "end"
-								},
-								"children": [
-									{
-										"kind": "button",
-										"props": {
-											"label": "Finish",
-											"action": "finish",
-											"default": true
-										}
-									}
-								]
-							}
-						]
+							"label": "After setup",
+							"items": [
+								{
+									"id": "launch",
+									"label": "Launch Lieutenant Fizz"
+								}
+							]
+						}
 					}
 				]
 			},
-			"tui": {
-				"kind": "window",
+			{
+				"kind": "stack",
 				"props": {
-					"title": "Lieutenant Fizz — Episode One — Setup complete",
-					"label": "Setup complete",
-					"border": "rounded"
+					"direction": "row",
+					"gap": 2,
+					"align": "end"
 				},
 				"children": [
 					{
-						"kind": "stack",
+						"kind": "button",
 						"props": {
-							"direction": "column",
-							"gap": 1
-						},
-						"children": [
-							{
-								"kind": "text",
-								"props": {
-									"text": "Setup is complete",
-									"role": "heading"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Lieutenant Fizz — Episode One is installed. Thank you for installing it.",
-									"role": "body"
-								}
-							},
-							{
-								"kind": "checklist",
-								"bind": "finish.launch",
-								"props": {
-									"label": "After setup",
-									"options": [
-										{
-											"id": "launch",
-											"label": "Start Lieutenant Fizz — Episode One"
-										}
-									]
-								}
-							}
-						]
-					},
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "row",
-							"gap": 8,
-							"align": "end"
-						},
-						"children": [
-							{
-								"kind": "button",
-								"props": {
-									"label": "Finish",
-									"action": "finish",
-									"default": true
-								}
-							}
-						]
+							"label": "Finish",
+							"action": "finish",
+							"default": true,
+							"hotkey": "F"
+						}
 					}
 				]
 			}
-		}
+		]
 	}
 }

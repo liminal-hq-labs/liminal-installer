@@ -1,0 +1,10 @@
+# The InstallShield-style classic theme: a generic, product-agnostic Windows 95 setup look.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[theme]
+id        = "installshield-classic"
+name      = "InstallShield classic"
+renderers = ["win16", "win32-classic"]
+fallback  = "plain"

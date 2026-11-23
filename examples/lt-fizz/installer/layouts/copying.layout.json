@@ -3,299 +3,158 @@
 	"version": 1,
 	"id": "copying",
 	"root": {
-		"kind": "backdrop",
+		"kind": "window",
 		"props": {
-			"style": "classic",
 			"title": "Lieutenant Fizz — Episode One",
-			"label": "Lieutenant Fizz — Episode One setup"
+			"label": "Setup Status"
 		},
 		"children": [
 			{
-				"kind": "dialog",
+				"kind": "stack",
 				"props": {
-					"title": "Installing — Lt. Fizz",
-					"label": "Installing",
-					"style": "win32-classic"
+					"direction": "column",
+					"gap": 1
 				},
 				"children": [
 					{
-						"kind": "stack",
+						"kind": "text",
 						"props": {
-							"direction": "column",
-							"gap": 12
-						},
-						"children": [
-							{
-								"kind": "text",
-								"props": {
-									"text": "Installing {product.name}",
-									"role": "heading"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Copying {progress.file}",
-									"role": "body"
-								}
-							},
-							{
-								"kind": "billboard",
-								"props": {
-									"label": "Product highlights",
-									"slides": [
-										"billboard-1",
-										"billboard-2"
-									],
-									"interval_seconds": 6
-								}
-							},
-							{
-								"kind": "meter",
-								"bind": "engine.meter.file",
-								"props": {
-									"label": "Current file",
-									"source": "file",
-									"caption": "{progress.file}"
-								}
-							},
-							{
-								"kind": "meter",
-								"bind": "engine.meter.total",
-								"props": {
-									"label": "Overall progress",
-									"source": "total",
-									"caption": "{progress.percent}%"
-								}
-							},
-							{
-								"kind": "meter",
-								"bind": "engine.meter.free_space",
-								"props": {
-									"label": "Free space after install",
-									"source": "free_space",
-									"warn_label": "Low",
-									"warn_below_percent": 5,
-									"caption": "{system.free_space_after}"
-								}
-							}
-						]
+							"text": "Setup Status",
+							"role": "heading"
+						}
 					},
 					{
-						"kind": "stack",
+						"kind": "text",
 						"props": {
-							"direction": "row",
-							"gap": 8,
-							"align": "end"
-						},
-						"children": [
-							{
-								"kind": "button",
-								"props": {
-									"label": "Cancel",
-									"action": "cancel"
-								}
-							}
-						]
-					}
-				]
-			}
-		],
-		"overrides": {
-			"tui-retro": {
-				"kind": "backdrop",
-				"props": {
-					"style": "text-mode",
-					"charset": "cp437",
-					"fill": "░",
-					"title": "Lieutenant Fizz — Episode One",
-					"label": "Lieutenant Fizz — Episode One setup",
-					"palette": "blue-on-grey"
-				},
-				"children": [
+							"text": "{product.name} Setup is performing the requested operations. Copying {progress.file}",
+							"role": "body"
+						}
+					},
 					{
-						"kind": "dialog",
+						"kind": "billboard",
 						"props": {
-							"title": "Installing",
-							"label": "Installing",
-							"border": "double",
-							"shadow": true
-						},
-						"children": [
-							{
-								"kind": "stack",
-								"props": {
-									"direction": "column",
-									"gap": 1
-								},
-								"children": [
-									{
-										"kind": "text",
-										"props": {
-											"text": "Installing {product.name}",
-											"role": "heading"
-										}
-									},
-									{
-										"kind": "text",
-										"props": {
-											"text": "Copying {progress.file}",
-											"role": "body"
-										}
-									},
-									{
-										"kind": "billboard",
-										"props": {
-											"label": "Product highlights",
-											"slides": [
-												"billboard-1",
-												"billboard-2"
+							"label": "Product highlights",
+							"slides": [
+								"billboard-1",
+								"billboard-2"
+							],
+							"captions": [
+								{
+									"title": "Meet Ben",
+									"text": "Ten years old, bike helmet on, red sneakers laced. His Fizz Stunner fires soda pop: it stuns, it never hurts.",
+									"art": {
+										"width": 12,
+										"height": 12,
+										"scale": 8,
+										"rects": [
+											[
+												3,
+												0,
+												6,
+												2,
+												"#ff5555"
 											],
-											"interval_seconds": 6
-										}
-									},
-									{
-										"kind": "meter",
-										"bind": "engine.meter.file",
-										"props": {
-											"label": "Current file",
-											"source": "file",
-											"caption": "{progress.file}"
-										}
-									},
-									{
-										"kind": "meter",
-										"bind": "engine.meter.total",
-										"props": {
-											"label": "Overall progress",
-											"source": "total",
-											"caption": "{progress.percent}%"
-										}
-									},
-									{
-										"kind": "meter",
-										"bind": "engine.meter.free_space",
-										"props": {
-											"label": "Free space after install",
-											"source": "free_space",
-											"warn_label": "Low",
-											"warn_below_percent": 5,
-											"caption": "{system.free_space_after}"
-										}
+											[
+												2,
+												1,
+												8,
+												1,
+												"#ff5555"
+											],
+											[
+												4,
+												2,
+												4,
+												3,
+												"#ffaa55"
+											],
+											[
+												3,
+												5,
+												6,
+												4,
+												"#5555ff"
+											],
+											[
+												9,
+												6,
+												2,
+												2,
+												"#aaaaaa"
+											],
+											[
+												3,
+												9,
+												2,
+												3,
+												"#555555"
+											],
+											[
+												7,
+												9,
+												2,
+												3,
+												"#555555"
+											]
+										]
 									}
-								]
-							},
-							{
-								"kind": "stack",
-								"props": {
-									"direction": "row",
-									"gap": 8,
-									"align": "end"
 								},
-								"children": [
-									{
-										"kind": "button",
-										"props": {
-											"label": "Cancel",
-											"action": "cancel"
-										}
-									}
-								]
-							}
-						]
+								{
+									"title": "Save the colony",
+									"text": "Thirty new levels across five sectors, with a sound card that finally does justice to the music."
+								}
+							],
+							"interval_seconds": 6
+						}
+					},
+					{
+						"kind": "meter",
+						"bind": "engine.meter.file",
+						"props": {
+							"label": "Current file",
+							"source": "file",
+							"caption": "{progress.file}"
+						}
+					},
+					{
+						"kind": "meter",
+						"bind": "engine.meter.total",
+						"props": {
+							"label": "Overall progress",
+							"source": "total",
+							"caption": "{progress.percent}%"
+						}
+					},
+					{
+						"kind": "meter",
+						"bind": "engine.meter.free_space",
+						"props": {
+							"label": "Free space after install",
+							"source": "free_space",
+							"warn_label": "Low",
+							"low_below": 0.05,
+							"caption": "{system.free_space_after}"
+						}
 					}
 				]
 			},
-			"tui": {
-				"kind": "window",
+			{
+				"kind": "stack",
 				"props": {
-					"title": "Lieutenant Fizz — Episode One — Installing",
-					"label": "Installing",
-					"border": "rounded"
+					"direction": "row",
+					"gap": 2,
+					"align": "end"
 				},
 				"children": [
 					{
-						"kind": "stack",
+						"kind": "button",
 						"props": {
-							"direction": "column",
-							"gap": 1
-						},
-						"children": [
-							{
-								"kind": "text",
-								"props": {
-									"text": "Installing {product.name}",
-									"role": "heading"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Copying {progress.file}",
-									"role": "body"
-								}
-							},
-							{
-								"kind": "billboard",
-								"props": {
-									"label": "Product highlights",
-									"slides": [
-										"billboard-1",
-										"billboard-2"
-									],
-									"interval_seconds": 6
-								}
-							},
-							{
-								"kind": "meter",
-								"bind": "engine.meter.file",
-								"props": {
-									"label": "Current file",
-									"source": "file",
-									"caption": "{progress.file}"
-								}
-							},
-							{
-								"kind": "meter",
-								"bind": "engine.meter.total",
-								"props": {
-									"label": "Overall progress",
-									"source": "total",
-									"caption": "{progress.percent}%"
-								}
-							},
-							{
-								"kind": "meter",
-								"bind": "engine.meter.free_space",
-								"props": {
-									"label": "Free space after install",
-									"source": "free_space",
-									"warn_label": "Low",
-									"warn_below_percent": 5,
-									"caption": "{system.free_space_after}"
-								}
-							}
-						]
-					},
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "row",
-							"gap": 8,
-							"align": "end"
-						},
-						"children": [
-							{
-								"kind": "button",
-								"props": {
-									"label": "Cancel",
-									"action": "cancel"
-								}
-							}
-						]
+							"label": "Cancel",
+							"action": "cancel"
+						}
 					}
 				]
 			}
-		}
+		]
 	}
 }

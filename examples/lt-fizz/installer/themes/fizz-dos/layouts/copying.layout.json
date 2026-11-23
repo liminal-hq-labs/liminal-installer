@@ -1,0 +1,287 @@
+{
+	"$schema": "https://liminal-hq.github.io/installer/schema/layout.json",
+	"version": 1,
+	"id": "copying",
+	"root": {
+		"kind": "backdrop",
+		"props": {
+			"style": "text-mode",
+			"charset": "cp437",
+			"fill": "░",
+			"title": "{product.name}  Setup",
+			"credit": "Liminal Installer",
+			"label": "Lieutenant Fizz — Episode One setup"
+		},
+		"children": [
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "column",
+					"gap": 1,
+					"region": "side"
+				},
+				"children": [
+					{
+						"kind": "text",
+						"props": {
+							"text": "Lt. Fizz",
+							"role": "title"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Episode One",
+							"role": "subtitle"
+						}
+					},
+					{
+						"kind": "image",
+						"props": {
+							"label": "Lt. Fizz",
+							"alt": "Lt. Fizz",
+							"art": {
+								"width": 6,
+								"height": 10,
+								"scale": 12,
+								"rects": [
+									[
+										1,
+										0,
+										4,
+										1,
+										"#aaaaaa"
+									],
+									[
+										0,
+										1,
+										6,
+										8,
+										"#aa0000"
+									],
+									[
+										0,
+										4,
+										6,
+										2,
+										"#ffffff"
+									],
+									[
+										2,
+										4,
+										2,
+										2,
+										"#0000aa"
+									],
+									[
+										1,
+										9,
+										4,
+										1,
+										"#aaaaaa"
+									],
+									[
+										4,
+										2,
+										1,
+										1,
+										"#ff5555"
+									]
+								]
+							}
+						}
+					},
+					{
+						"kind": "progress",
+						"props": {
+							"label": "Setup steps",
+							"role": "steps",
+							"value": 7,
+							"max": 8,
+							"text": "Step 7 of 8"
+						}
+					}
+				]
+			},
+			{
+				"kind": "dialog",
+				"props": {
+					"title": "Installing",
+					"label": "Installing",
+					"border": "double",
+					"shadow": true,
+					"width": 56
+				},
+				"children": [
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "column",
+							"gap": 1
+						},
+						"children": [
+							{
+								"kind": "text",
+								"props": {
+									"text": "Copying {progress.file}",
+									"role": "body"
+								}
+							},
+							{
+								"kind": "billboard",
+								"props": {
+									"label": "Product highlights",
+									"slides": [
+										"billboard-1",
+										"billboard-2"
+									],
+									"captions": [
+										{
+											"title": "Meet Ben",
+											"text": "Ten years old, bike helmet on, red sneakers laced. His Fizz Stunner fires soda pop: it stuns, it never hurts.",
+											"art": {
+												"width": 12,
+												"height": 12,
+												"scale": 8,
+												"rects": [
+													[
+														3,
+														0,
+														6,
+														2,
+														"#ff5555"
+													],
+													[
+														2,
+														1,
+														8,
+														1,
+														"#ff5555"
+													],
+													[
+														4,
+														2,
+														4,
+														3,
+														"#ffaa55"
+													],
+													[
+														3,
+														5,
+														6,
+														4,
+														"#5555ff"
+													],
+													[
+														9,
+														6,
+														2,
+														2,
+														"#aaaaaa"
+													],
+													[
+														3,
+														9,
+														2,
+														3,
+														"#555555"
+													],
+													[
+														7,
+														9,
+														2,
+														3,
+														"#555555"
+													]
+												]
+											}
+										},
+										{
+											"title": "Save the colony",
+											"text": "Thirty new levels across five sectors, with a sound card that finally does justice to the music."
+										}
+									],
+									"interval_seconds": 6
+								}
+							},
+							{
+								"kind": "stack",
+								"props": {
+									"direction": "column",
+									"gap": 0,
+									"group": "meters"
+								},
+								"children": [
+									{
+										"kind": "meter",
+										"bind": "engine.meter.file",
+										"props": {
+											"label": "Current file",
+											"source": "file",
+											"caption": "{progress.file}"
+										}
+									},
+									{
+										"kind": "meter",
+										"bind": "engine.meter.total",
+										"props": {
+											"label": "Overall progress",
+											"source": "total",
+											"caption": "{progress.percent}%"
+										}
+									},
+									{
+										"kind": "meter",
+										"bind": "engine.meter.free_space",
+										"props": {
+											"label": "Free space after install",
+											"source": "free_space",
+											"warn_label": "Low",
+											"low_below": 0.05,
+											"caption": "{system.free_space_after}"
+										}
+									}
+								]
+							}
+						]
+					},
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "row",
+							"gap": 2,
+							"align": "centre",
+							"region": "footer"
+						},
+						"children": [
+							{
+								"kind": "button",
+								"props": {
+									"label": "Cancel",
+									"action": "cancel"
+								}
+							}
+						]
+					}
+				]
+			},
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "row",
+					"gap": 3,
+					"region": "hints"
+				},
+				"children": [
+					{
+						"kind": "text",
+						"props": {
+							"text": "Cancel setup",
+							"key": "Esc"
+						}
+					}
+				]
+			}
+		]
+	}
+}

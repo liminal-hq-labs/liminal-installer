@@ -1,0 +1,186 @@
+{
+	"$schema": "https://liminal-hq.github.io/installer/schema/layout.json",
+	"version": 1,
+	"id": "done",
+	"root": {
+		"kind": "backdrop",
+		"props": {
+			"style": "text-mode",
+			"charset": "cp437",
+			"fill": "░",
+			"title": "{product.name}  Setup",
+			"credit": "Liminal Installer",
+			"label": "Lieutenant Fizz — Episode One setup"
+		},
+		"children": [
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "column",
+					"gap": 1,
+					"region": "side"
+				},
+				"children": [
+					{
+						"kind": "text",
+						"props": {
+							"text": "Lt. Fizz",
+							"role": "title"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Episode One",
+							"role": "subtitle"
+						}
+					},
+					{
+						"kind": "image",
+						"props": {
+							"label": "Lt. Fizz",
+							"alt": "Lt. Fizz",
+							"art": {
+								"width": 6,
+								"height": 10,
+								"scale": 12,
+								"rects": [
+									[
+										1,
+										0,
+										4,
+										1,
+										"#aaaaaa"
+									],
+									[
+										0,
+										1,
+										6,
+										8,
+										"#aa0000"
+									],
+									[
+										0,
+										4,
+										6,
+										2,
+										"#ffffff"
+									],
+									[
+										2,
+										4,
+										2,
+										2,
+										"#0000aa"
+									],
+									[
+										1,
+										9,
+										4,
+										1,
+										"#aaaaaa"
+									],
+									[
+										4,
+										2,
+										1,
+										1,
+										"#ff5555"
+									]
+								]
+							}
+						}
+					},
+					{
+						"kind": "progress",
+						"props": {
+							"label": "Setup steps",
+							"role": "steps",
+							"value": 8,
+							"max": 8,
+							"text": "Step 8 of 8"
+						}
+					}
+				]
+			},
+			{
+				"kind": "dialog",
+				"props": {
+					"title": "Setup complete",
+					"label": "Setup complete",
+					"border": "double",
+					"shadow": true,
+					"width": 56
+				},
+				"children": [
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "column",
+							"gap": 1
+						},
+						"children": [
+							{
+								"kind": "text",
+								"props": {
+									"text": "Lt. Fizz is installed. Thank you for installing it.",
+									"role": "body"
+								}
+							},
+							{
+								"kind": "checklist",
+								"bind": "finish.launch",
+								"props": {
+									"label": "After setup",
+									"items": [
+										{
+											"id": "launch",
+											"label": "Launch Lieutenant Fizz"
+										}
+									]
+								}
+							}
+						]
+					},
+					{
+						"kind": "stack",
+						"props": {
+							"direction": "row",
+							"gap": 2,
+							"align": "centre",
+							"region": "footer"
+						},
+						"children": [
+							{
+								"kind": "button",
+								"props": {
+									"label": "Finish",
+									"action": "finish",
+									"default": true,
+									"hotkey": "F"
+								}
+							}
+						]
+					}
+				]
+			},
+			{
+				"kind": "stack",
+				"props": {
+					"direction": "row",
+					"gap": 3,
+					"region": "hints"
+				},
+				"children": [
+					{
+						"kind": "text",
+						"props": {
+							"text": "Finish",
+							"key": "Enter"
+						}
+					}
+				]
+			}
+		]
+	}
+}

@@ -3,299 +3,93 @@
 	"version": 1,
 	"id": "folder",
 	"root": {
-		"kind": "backdrop",
+		"kind": "window",
 		"props": {
-			"style": "classic",
 			"title": "Lieutenant Fizz — Episode One",
-			"label": "Lieutenant Fizz — Episode One setup"
+			"label": "Choose Destination Location"
 		},
 		"children": [
 			{
-				"kind": "dialog",
+				"kind": "stack",
 				"props": {
-					"title": "Choose a folder — Lt. Fizz",
-					"label": "Choose a folder",
-					"style": "win32-classic"
+					"direction": "column",
+					"gap": 1
 				},
 				"children": [
 					{
-						"kind": "stack",
+						"kind": "text",
 						"props": {
-							"direction": "column",
-							"gap": 12
-						},
-						"children": [
-							{
-								"kind": "text",
-								"props": {
-									"text": "Choose the destination folder",
-									"role": "heading"
-								}
-							},
-							{
-								"kind": "path",
-								"bind": "install.path",
-								"props": {
-									"label": "Destination folder",
-									"mode": "directory"
-								}
-							},
-							{
-								"kind": "radio",
-								"bind": "install.scope",
-								"props": {
-									"label": "Install for",
-									"options": [
-										{
-											"id": "user",
-											"label": "Only me"
-										},
-										{
-											"id": "machine",
-											"label": "Everyone on this computer"
-										}
-									]
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Space required: {install.size} · Free: {system.free_space}",
-									"role": "caption"
-								}
-							}
-						]
+							"text": "Choose Destination Location",
+							"role": "heading"
+						}
 					},
 					{
-						"kind": "stack",
+						"kind": "text",
 						"props": {
-							"direction": "row",
-							"gap": 8,
-							"align": "end"
-						},
-						"children": [
-							{
-								"kind": "button",
-								"props": {
-									"label": "Back",
-									"action": "back"
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "Next",
-									"action": "next",
-									"default": true
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "Cancel",
-									"action": "cancel"
-								}
-							}
-						]
-					}
-				]
-			}
-		],
-		"overrides": {
-			"tui-retro": {
-				"kind": "backdrop",
-				"props": {
-					"style": "text-mode",
-					"charset": "cp437",
-					"fill": "░",
-					"title": "Lieutenant Fizz — Episode One",
-					"label": "Lieutenant Fizz — Episode One setup",
-					"palette": "blue-on-grey"
-				},
-				"children": [
+							"text": "Setup will install Lieutenant Fizz in the following folder.",
+							"role": "body"
+						}
+					},
 					{
-						"kind": "dialog",
+						"kind": "text",
 						"props": {
-							"title": "Choose a folder",
-							"label": "Choose a folder",
-							"border": "double",
-							"shadow": true
-						},
-						"children": [
-							{
-								"kind": "stack",
-								"props": {
-									"direction": "column",
-									"gap": 1
-								},
-								"children": [
-									{
-										"kind": "text",
-										"props": {
-											"text": "Choose the destination folder",
-											"role": "heading"
-										}
-									},
-									{
-										"kind": "path",
-										"bind": "install.path",
-										"props": {
-											"label": "Destination folder",
-											"mode": "directory"
-										}
-									},
-									{
-										"kind": "radio",
-										"bind": "install.scope",
-										"props": {
-											"label": "Install for",
-											"options": [
-												{
-													"id": "user",
-													"label": "Only me"
-												},
-												{
-													"id": "machine",
-													"label": "Everyone on this computer"
-												}
-											]
-										}
-									},
-									{
-										"kind": "text",
-										"props": {
-											"text": "Space required: {install.size} · Free: {system.free_space}",
-											"role": "caption"
-										}
-									}
-								]
-							},
-							{
-								"kind": "stack",
-								"props": {
-									"direction": "row",
-									"gap": 8,
-									"align": "end"
-								},
-								"children": [
-									{
-										"kind": "button",
-										"props": {
-											"label": "Back",
-											"action": "back"
-										}
-									},
-									{
-										"kind": "button",
-										"props": {
-											"label": "Next",
-											"action": "next",
-											"default": true
-										}
-									},
-									{
-										"kind": "button",
-										"props": {
-											"label": "Cancel",
-											"action": "cancel"
-										}
-									}
-								]
-							}
-						]
+							"text": "To install to this folder, click Next. To install to a different folder, click Browse and choose another folder.",
+							"role": "body"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "You can choose not to install Lieutenant Fizz by clicking Cancel to exit Setup.",
+							"role": "body"
+						}
+					},
+					{
+						"kind": "path",
+						"bind": "install.path",
+						"props": {
+							"label": "Destination Folder",
+							"mode": "directory",
+							"browse": "Browse…",
+							"hotkey": "r"
+						}
 					}
 				]
 			},
-			"tui": {
-				"kind": "window",
+			{
+				"kind": "stack",
 				"props": {
-					"title": "Lieutenant Fizz — Episode One — Choose a folder",
-					"label": "Choose a folder",
-					"border": "rounded"
+					"direction": "row",
+					"gap": 2,
+					"align": "end"
 				},
 				"children": [
 					{
-						"kind": "stack",
+						"kind": "button",
 						"props": {
-							"direction": "column",
-							"gap": 1
-						},
-						"children": [
-							{
-								"kind": "text",
-								"props": {
-									"text": "Choose the destination folder",
-									"role": "heading"
-								}
-							},
-							{
-								"kind": "path",
-								"bind": "install.path",
-								"props": {
-									"label": "Destination folder",
-									"mode": "directory"
-								}
-							},
-							{
-								"kind": "radio",
-								"bind": "install.scope",
-								"props": {
-									"label": "Install for",
-									"options": [
-										{
-											"id": "user",
-											"label": "Only me"
-										},
-										{
-											"id": "machine",
-											"label": "Everyone on this computer"
-										}
-									]
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Space required: {install.size} · Free: {system.free_space}",
-									"role": "caption"
-								}
-							}
-						]
+							"label": "Back",
+							"action": "back",
+							"hotkey": "B"
+						}
 					},
 					{
-						"kind": "stack",
+						"kind": "button",
 						"props": {
-							"direction": "row",
-							"gap": 8,
-							"align": "end"
-						},
-						"children": [
-							{
-								"kind": "button",
-								"props": {
-									"label": "Back",
-									"action": "back"
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "Next",
-									"action": "next",
-									"default": true
-								}
-							},
-							{
-								"kind": "button",
-								"props": {
-									"label": "Cancel",
-									"action": "cancel"
-								}
-							}
-						]
+							"label": "Next",
+							"action": "next",
+							"default": true,
+							"hotkey": "N"
+						}
+					},
+					{
+						"kind": "button",
+						"props": {
+							"label": "Cancel",
+							"action": "cancel"
+						}
 					}
 				]
 			}
-		}
+		]
 	}
 }

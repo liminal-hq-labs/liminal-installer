@@ -5,41 +5,66 @@
 	"root": {
 		"kind": "window",
 		"props": {
-			"title": "Neutral Sample Setup",
-			"label": "Setup complete",
-			"style": "neutral"
+			"title": "{product.name} Setup",
+			"label": "Done",
+			"style": "neutral",
+			"caption": "Default theme · what a project gets before it has a theme of its own"
 		},
 		"children": [
 			{
 				"kind": "stack",
 				"props": {
 					"direction": "column",
-					"gap": 12
+					"gap": 1
 				},
 				"children": [
 					{
-						"kind": "text",
+						"kind": "stack",
 						"props": {
-							"text": "Setup is complete",
-							"role": "heading"
-						}
-					},
-					{
-						"kind": "text",
-						"props": {
-							"text": "Neutral Sample is installed. Thank you for installing it.",
-							"role": "body"
-						}
+							"direction": "column",
+							"gap": 0,
+							"group": "lead"
+						},
+						"children": [
+							{
+								"kind": "text",
+								"props": {
+									"text": "{product.name} is ready",
+									"role": "heading",
+									"icon": {
+										"viewBox": [
+											24,
+											24
+										],
+										"shapes": [
+											{
+												"path": "M12 3l8 4v10l-8 4-8-4V7zM4 7l8 4 8-4M12 11v10",
+												"stroke": "#1d4ed8",
+												"width": 1.6,
+												"join": "round"
+											}
+										]
+									}
+								}
+							},
+							{
+								"kind": "text",
+								"props": {
+									"text": "Setup is complete. Thank you for installing it.",
+									"role": "body"
+								}
+							}
+						]
 					},
 					{
 						"kind": "checklist",
 						"bind": "finish.launch",
 						"props": {
 							"label": "After setup",
-							"options": [
+							"items": [
 								{
 									"id": "launch",
-									"label": "Start Neutral Sample"
+									"label": "Start {product.name}"
 								}
 							]
 						}
@@ -50,10 +75,18 @@
 				"kind": "stack",
 				"props": {
 					"direction": "row",
-					"gap": 8,
-					"align": "end"
+					"gap": 2,
+					"align": "end",
+					"region": "footer"
 				},
 				"children": [
+					{
+						"kind": "text",
+						"props": {
+							"text": "{product.name} {product.version} is installed.",
+							"role": "note"
+						}
+					},
 					{
 						"kind": "button",
 						"props": {
@@ -64,72 +97,6 @@
 					}
 				]
 			}
-		],
-		"overrides": {
-			"tui": {
-				"kind": "window",
-				"props": {
-					"title": "Neutral Sample — Setup complete",
-					"label": "Setup complete",
-					"border": "rounded"
-				},
-				"children": [
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "column",
-							"gap": 1
-						},
-						"children": [
-							{
-								"kind": "text",
-								"props": {
-									"text": "Setup is complete",
-									"role": "heading"
-								}
-							},
-							{
-								"kind": "text",
-								"props": {
-									"text": "Neutral Sample is installed. Thank you for installing it.",
-									"role": "body"
-								}
-							},
-							{
-								"kind": "checklist",
-								"bind": "finish.launch",
-								"props": {
-									"label": "After setup",
-									"options": [
-										{
-											"id": "launch",
-											"label": "Start Neutral Sample"
-										}
-									]
-								}
-							}
-						]
-					},
-					{
-						"kind": "stack",
-						"props": {
-							"direction": "row",
-							"gap": 8,
-							"align": "end"
-						},
-						"children": [
-							{
-								"kind": "button",
-								"props": {
-									"label": "Finish",
-									"action": "finish",
-									"default": true
-								}
-							}
-						]
-					}
-				]
-			}
-		}
+		]
 	}
 }
