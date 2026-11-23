@@ -15,6 +15,7 @@
 		"tauri:build": "cd .. && tauri build"
 	},
 	"dependencies": {
+		"@fontsource/vt323": "^5.3.0",
 		"@liminal-hq/plugin-system-appearance": "^0.1.0",
 		"@liminal-hq/studio-chrome": "link:./vendor/studio-chrome",
 		"@tauri-apps/api": "^2",
