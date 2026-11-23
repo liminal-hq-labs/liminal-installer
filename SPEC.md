@@ -413,7 +413,7 @@ Table 10. Runner commands.
 
 ## 15 · Tauri apps
 
-Design and reasons: [docs/tauri-apps.md](docs/tauri-apps.md); Windows facts: [docs/tauri-windows-spike.md](docs/tauri-windows-spike.md); decisions D47 to D50.
+Design and reasons: [docs/tauri-apps.md](docs/tauri-apps.md); Windows facts: [docs/tauri-windows-spike.md](docs/tauri-windows-spike.md); decisions D52 to D55.
 
 **Import.** `[tauri] config` names a Tauri 2 `tauri.conf.json` relative to `installer/`; `tauri.windows.conf.json`, `tauri.macos.conf.json` and `tauri.linux.conf.json` beside it are read too (the Windows one is merged over the base with RFC 7396 for the Windows settings). `liminst import tauri` writes `installer/tauri.json`, a snapshot with `product_name`, `identifier`, `app_version`, `main_binary_name`, `publisher`, `homepage`, `description`, `targets`, `windows` (`webview2`, `install_mode`, `allow_downgrades`, `start_menu_folder`, `has_installer_hooks`, `has_custom_template`), `resources` (`from`, `to`), `external_bin`, `file_associations`, `deep_link_schemes` and `updater` (`endpoints`, `pubkey`, `windows_install_mode`, `create_artifacts`), and `sources`, the SHA-256 of each file it read. It fills `[product]` `id`, `name`, `publisher` and a literal `version` (not a field named in `[tauri] override`, and not a version written as `{ from = … }`), adds `[updates] mode = "tauri"` when the app has an updater and the project has no `[updates]`, and replaces the generated block of `components.toml` (components with `origin = "tauri"`). The Studio does the same through `import_tauri` as one undoable change.
 
