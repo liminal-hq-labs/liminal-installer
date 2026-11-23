@@ -6,17 +6,18 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+use crate::screens::{TreeCtx, prepare_tree, seed_meters};
 use li_engine::{
 	CondContext, DirPayload, InstallRequest, Machine, ProjectScripts, SimMachine, State, cond,
 };
-use li_model::{Layout, Operation, Plan, Step, StepType, Target};
+use li_model::{Layout, Node, Operation, Plan, Step, StepType, Target};
 use li_render_tui::{Look, MapBindings, Screen, dump_with_controls};
 use li_script::{Limits, Page, Script, ScriptContext, ScriptError};
 use serde_json::{Value, json};
 
 use crate::backend::{
-	BackendError, HookInfo, Preview, PreviewStep, Problem, Screenshot, ScriptReport, Severity,
-	StudioBackend,
+	BackendError, HookInfo, Preview, PreviewProduct, PreviewStep, Problem, Screenshot,
+	ScriptReport, Severity, StudioBackend,
 };
 use crate::checks::check_project;
 use crate::mock::HOOKS;
@@ -99,14 +100,15 @@ fn xml(s: &str) -> String {
 }
 
 /// Draws the layout as the `tui` renderer would, as a text dump set in an SVG.
-fn screenshot(layout: &Layout, look: Look, state: &State, slug: &str) -> Screenshot {
-	let screen = Screen::new(layout, look);
-	let mut b = MapBindings::new();
-	seed(&layout.root, &mut b, slug);
-	for (k, v) in state {
-		b.0.insert(k.clone(), v.clone());
-	}
-	let text = dump_with_controls(&screen, &b, COLS, ROWS);
+fn screenshot(root: &Node, look: Look, bindings: &MapBindings) -> Screenshot {
+	let layout = Layout {
+		schema: None,
+		version: 1,
+		id: "preview".into(),
+		root: root.clone(),
+	};
+	let screen = Screen::new(&layout, look);
+	let text = dump_with_controls(&screen, bindings, COLS, ROWS);
 	let lines: Vec<&str> = text.lines().collect();
 	let (cell_w, cell_h) = (9usize, 18usize);
 	let width = usize::from(COLS) * cell_w + 32;
@@ -132,22 +134,100 @@ fn screenshot(layout: &Layout, look: Look, state: &State, slug: &str) -> Screens
 	}
 }
 
-/// Sample values so meters and paths show something.
-fn seed(node: &li_model::Node, b: &mut MapBindings, slug: &str) {
-	let node = node.for_renderer(li_render_tui::RENDERER_ID);
-	if let Some(bind) = &node.bind {
-		match node.kind.as_str() {
-			"meter" | "progress" => b.0.insert(bind.clone(), json!(0.5)).map(drop),
-			"path" => {
-				b.0.insert(bind.clone(), json!(format!("~/.local/share/{slug}")))
-					.map(drop)
-			}
-			_ => None,
-		};
+/// The sample values a screen's `{placeholders}` take in a preview.
+struct Sample<'a> {
+	eng: &'a li_engine::Project,
+	target: &'a Target,
+	plan: &'a Plan,
+	display_path: String,
+}
+
+impl Sample<'_> {
+	fn vars(&self) -> BTreeMap<String, String> {
+		let p = &self.eng.installer.product;
+		let (os, arch) = self
+			.target
+			.id
+			.split_once('-')
+			.unwrap_or((&self.target.id, ""));
+		let copies = self
+			.plan
+			.ops
+			.iter()
+			.filter(|o| matches!(o, Operation::Copy { .. }))
+			.count();
+		let file = self
+			.plan
+			.ops
+			.iter()
+			.find_map(|o| match o {
+				Operation::Copy { to, .. } => Some(to.clone()),
+				_ => None,
+			})
+			.unwrap_or_else(|| "data/level-03.lvl".into())
+			.replace("{install}", &self.display_path);
+		let pairs = [
+			("product.id", p.id.clone()),
+			("product.name", p.name.clone()),
+			("product.publisher", p.publisher.clone()),
+			(
+				"product.version",
+				self.eng.literal_version().unwrap_or("1.0.0").to_owned(),
+			),
+			("target.id", self.target.id.clone()),
+			("target.renderer", self.target.renderer.clone()),
+			("target.os", os.to_owned()),
+			("target.arch", arch.to_owned()),
+			("install.path", self.display_path.clone()),
+			("install.size", "48 MB".into()),
+			("system.free_space", "12.4 GB".into()),
+			("system.free_space_after", "12.3 GB".into()),
+			("progress.file", file),
+			("progress.percent", "55".into()),
+			(
+				"plan.summary",
+				format!("{} components · {copies} files · 48 MB", self.components()),
+			),
+			("sound.detected", "Sound Blaster".into()),
+			("feed.latest", "1.1.0".into()),
+			("receipt.installed", "1.0.0".into()),
+			("feed.notes", "Fixes and new levels.".into()),
+			("validate.problems", String::new()),
+		];
+		pairs.into_iter().map(|(k, v)| (k.to_owned(), v)).collect()
 	}
-	for c in &node.children {
-		seed(c, b, slug);
+
+	fn components(&self) -> usize {
+		self.eng
+			.components
+			.components
+			.iter()
+			.filter(|c| c.applies_to(&self.target.id))
+			.count()
 	}
+}
+
+/// How the target's platform writes the install folder, for display.
+fn display_path(target: &Target, slug: &str) -> String {
+	if target.id.starts_with("dos") || target.id.starts_with("win") {
+		format!("C:\\{}", slug.to_uppercase())
+	} else if target.id.starts_with("macos") {
+		format!("/Applications/{slug}")
+	} else {
+		format!("~/.local/share/{slug}")
+	}
+}
+
+/// Values as bindings: the sample strings first, then the page state over them.
+fn bindings_of(vars: &BTreeMap<String, String>, state: &State) -> MapBindings {
+	let mut b = MapBindings::new();
+	for (k, v) in vars {
+		b.0.insert(k.clone(), json!(v));
+	}
+	for (k, v) in state {
+		b.0.insert(k.clone(), v.clone());
+	}
+	b
 }
 
 fn slug_of(eng: &li_engine::Project) -> String {
@@ -168,6 +248,8 @@ fn script_env(target: &Target, install: &Path, version: &str) -> BTreeMap<String
 		("target".to_owned(), target.id.clone()),
 		("install".to_owned(), install.to_string_lossy().into_owned()),
 		("version".to_owned(), version.to_owned()),
+		// The sample machine has a Sound Blaster, as DOS drivers read it.
+		("BLASTER".to_owned(), "A220 I5 D1 T4".to_owned()),
 	])
 }
 
@@ -182,6 +264,8 @@ fn walk_install(
 	scripts: Option<&ProjectScripts>,
 	sim: &SimMachine,
 	install: &Path,
+	sample: &Sample,
+	root: &Path,
 	problems: &mut Vec<Problem>,
 ) -> Vec<PreviewStep> {
 	let Some(flow) = eng.flows.get("install") else {
@@ -192,13 +276,23 @@ fn walk_install(
 	} else {
 		Look::Plain
 	};
-	let slug = slug_of(eng);
+	let vars = sample.vars();
 	let mut state = State::new();
 	state.insert("components".into(), json!(selected));
+	state.insert("components.selected".into(), json!(selected));
 	state.insert(
 		"install.path".into(),
 		json!(install.to_string_lossy().into_owned()),
 	);
+	state.insert("install.scope".into(), json!("user"));
+	state.insert("licence.accepted".into(), json!("yes"));
+	state.insert("finish.launch".into(), json!(["launch"]));
+	let components: Vec<&li_model::Component> = eng
+		.components
+		.components
+		.iter()
+		.filter(|c| c.applies_to(&target.id))
+		.collect();
 	let (os, arch) = target.id.split_once('-').unwrap_or((&target.id, ""));
 	let target_value = json!({
 		"id": target.id,
@@ -239,6 +333,8 @@ fn walk_install(
 			None => false,
 		};
 		let mut screenshot_of = None;
+		let mut tree_of = None;
+		let mut shown_state = State::new();
 		let mut cursor_next = step.next.clone();
 		if !skipped {
 			if let (Some(spec), Some(scripts)) = (&step.on_enter, scripts)
@@ -270,7 +366,25 @@ fn walk_install(
 				.as_deref()
 				.and_then(|l| eng.layout_for(target, l))
 			{
-				screenshot_of = Some(screenshot(layout, look, &state, &slug));
+				let mut shown = state.clone();
+				shown.insert("install.path".into(), json!(sample.display_path));
+				let tree_in = |renderer: &str, st: &State| {
+					let cx = TreeCtx {
+						renderer,
+						components: &components,
+						state: st,
+						root,
+					};
+					prepare_tree(&layout.root, &cx)
+				};
+				let tree = tree_in(&target.renderer, &shown);
+				seed_meters(&tree, &mut shown);
+				if target.renderer.starts_with("tui") {
+					let text_tree = tree_in(li_render_tui::RENDERER_ID, &shown);
+					screenshot_of = Some(screenshot(&text_tree, look, &bindings_of(&vars, &shown)));
+				}
+				tree_of = Some(tree);
+				shown_state = shown;
 			}
 		}
 		steps.push(PreviewStep {
@@ -279,6 +393,8 @@ fn walk_install(
 			layout: step.layout.clone(),
 			skipped,
 			screenshot: screenshot_of,
+			layout_tree: tree_of,
+			state: shown_state,
 		});
 		if step.kind == StepType::Finish && !skipped {
 			break;
@@ -355,6 +471,12 @@ impl StudioBackend for EngineBackend {
 				Plan::default()
 			}
 		};
+		let sample = Sample {
+			eng: &eng,
+			target: &t,
+			plan: &plan,
+			display_path: display_path(&t, &slug_of(&eng)),
+		};
 		let steps = walk_install(
 			&eng,
 			&t,
@@ -362,10 +484,25 @@ impl StudioBackend for EngineBackend {
 			scripts.as_ref(),
 			&sim,
 			&install,
+			&sample,
+			&project.root,
 			&mut problems,
 		);
+		let p = &eng.installer.product;
 		Ok(Preview {
 			target: target.to_owned(),
+			renderer: t.renderer.clone(),
+			theme: eng.theme_id_for(&t).map(str::to_owned),
+			product: PreviewProduct {
+				id: p.id.clone(),
+				name: p.name.clone(),
+				version: sample
+					.vars()
+					.remove("product.version")
+					.unwrap_or_else(|| "1.0.0".into()),
+				publisher: p.publisher.clone(),
+			},
+			vars: sample.vars(),
 			plan,
 			problems,
 			steps,
@@ -607,6 +744,65 @@ mod tests {
 		assert!(errors.is_empty(), "{errors:?}");
 	}
 
+	fn find<'a>(n: &'a Node, kind: &str, out: &mut Vec<&'a Node>) {
+		if n.kind == kind {
+			out.push(n);
+		}
+		for c in &n.children {
+			find(c, kind, out);
+		}
+	}
+
+	#[test]
+	fn a_preview_carries_what_the_ui_draws_for_the_chosen_target() {
+		let p = open("lt-fizz");
+		let win = EngineBackend
+			.run_preview(&p, "windows-x86_64:win32-classic")
+			.unwrap();
+		assert_eq!(win.renderer, "win32-classic");
+		assert_eq!(win.theme.as_deref(), Some("fizz-win95"));
+		assert_eq!(win.product.name, "Lieutenant Fizz — Episode One");
+		assert_eq!(win.vars["target.id"], "windows-x86_64");
+		assert_eq!(win.vars["install.path"], "C:\\LT-FIZZ");
+		assert!(win.steps.iter().all(|s| s.screenshot.is_none()));
+		let comps = step(&win, "components");
+		let mut lists = Vec::new();
+		find(comps.layout_tree.as_ref().unwrap(), "checklist", &mut lists);
+		let items = lists[0].props["items"].as_array().unwrap();
+		assert_eq!(items[0]["id"], "game");
+		assert_eq!(items[0]["checked"], json!(true));
+		assert!(
+			!items.iter().any(|i| i["id"] == "sound"),
+			"sound drivers do not apply to windows-x86_64"
+		);
+		let copying = step(&win, "copying");
+		assert_eq!(copying.state["engine.meter.total"], json!(0.55));
+		assert!(copying.layout_tree.as_ref().unwrap().overrides.is_empty());
+		let dos = EngineBackend.run_preview(&p, "dos-x86:tui-retro").unwrap();
+		assert_eq!(dos.theme.as_deref(), Some("fizz-dos"));
+		let sound = step(&dos, "sound-card");
+		let mut radios = Vec::new();
+		find(sound.layout_tree.as_ref().unwrap(), "radio", &mut radios);
+		assert_eq!(radios[0].props["options"].as_array().unwrap().len(), 5);
+		assert_eq!(sound.state["sound.card"], json!("sbpro"));
+	}
+
+	#[test]
+	fn the_text_version_has_no_raw_placeholders() {
+		let p = open("lt-fizz");
+		for t in ["dos-x86:tui-retro", "linux-x86_64:tui"] {
+			let pv = EngineBackend.run_preview(&p, t).unwrap();
+			for st in pv.steps.iter().filter(|s| s.screenshot.is_some()) {
+				let data = &st.screenshot.as_ref().unwrap().data;
+				assert!(!data.contains("{product."), "{t}/{}", st.id);
+				assert!(!data.contains("{install."), "{t}/{}", st.id);
+				assert!(!data.contains("{plan."), "{t}/{}", st.id);
+			}
+			let welcome = step(&pv, "welcome").screenshot.as_ref().unwrap();
+			assert!(welcome.data.contains("Lieutenant Fizz"), "{t}");
+		}
+	}
+
 	#[test]
 	fn the_detect_hook_runs_for_the_sound_card_page() {
 		let p = open("lt-fizz");
@@ -636,7 +832,12 @@ mod tests {
 			let pv = EngineBackend.run_preview(&p, t).unwrap();
 			assert!(pv.plan.ops.len() > 3, "{t}");
 			assert!(pv.steps.iter().all(|s| !s.skipped), "{t}");
-			assert!(pv.steps.iter().any(|s| s.screenshot.is_some()));
+			assert!(pv.steps.iter().any(|s| s.layout_tree.is_some()), "{t}");
+			assert_eq!(
+				pv.steps.iter().any(|s| s.screenshot.is_some()),
+				t.ends_with(":tui"),
+				"{t}: only the tui renderer has a text version"
+			);
 		}
 		assert!(EngineBackend.run_preview(&p, "nope:tui").is_err());
 	}
