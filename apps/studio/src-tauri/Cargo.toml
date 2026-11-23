@@ -25,6 +25,10 @@ li-model = { path = "../../../crates/li-model" }
 li-studio = { path = "../../../crates/li-studio" }
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
+# Follows the system colour scheme and reduced-motion setting, so the theme and motion settings can follow the system.
+tauri-plugin-system-appearance = "0.1"
+# Remembers the size of the main and Preferences windows between runs (see `src/windows.rs`).
+tauri-plugin-window-state = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

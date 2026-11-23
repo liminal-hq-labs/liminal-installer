@@ -3,17 +3,18 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+mod agent;
 mod settings;
+mod tools;
 mod windows;
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use agent::{Agent, AgentInfo};
 use li_model::{Flow, Layout};
 use li_studio::studio::{FlowView, HistoryView, ProjectSummary, TargetInfo};
-use li_studio::{
-	EngineBackend, Preview, Problem, ScriptReport, Source, Studio, StudioError, mcp::McpServer,
-};
+use li_studio::{EngineBackend, Preview, Problem, ScriptReport, Source, Studio, StudioError};
 use serde::Serialize;
 use tauri::{Emitter, Manager, State};
 
@@ -22,13 +23,14 @@ const CHANGE_EVENT: &str = "studio://changed";
 
 struct AppState {
 	studio: Arc<Studio>,
-	mcp: Option<McpServer>,
 }
 
 #[derive(Serialize)]
-struct McpInfo {
-	url: String,
-	token: String,
+#[serde(rename_all = "camelCase")]
+struct AppInfo {
+	version: String,
+	settings_file: String,
+	log_dir: String,
 }
 
 type Res<T> = Result<T, StudioError>;
@@ -115,26 +117,57 @@ fn redo(state: State<AppState>) -> Res<HistoryView> {
 	state.studio.redo(Source::Ui)
 }
 
+/// Where the agent server listens, or nothing while it is off. The token is a separate request.
 #[tauri::command]
-fn mcp_info(state: State<AppState>) -> Option<McpInfo> {
-	state.mcp.as_ref().map(|m| McpInfo {
-		url: format!("http://{}/mcp", m.addr),
-		token: m.token.clone(),
+fn mcp_info(agent: State<Agent>) -> Option<AgentInfo> {
+	agent.info()
+}
+
+/// The token, shown only when a person asks for it. It is never logged.
+#[tauri::command]
+fn mcp_token(agent: State<Agent>) -> Option<String> {
+	agent.token()
+}
+
+#[tauri::command]
+fn mcp_regenerate_token(agent: State<Agent>) -> Result<String, String> {
+	agent.regenerate_token()
+}
+
+#[tauri::command]
+fn app_info(app: tauri::AppHandle) -> Result<AppInfo, String> {
+	let log_dir = app.path().app_log_dir().map_err(|e| e.to_string())?;
+	Ok(AppInfo {
+		version: app.package_info().version.to_string(),
+		settings_file: settings::file(&app)?.to_string_lossy().into_owned(),
+		log_dir: log_dir.to_string_lossy().into_owned(),
 	})
+}
+
+/// Shows the settings file or the log folder in the file manager. Only these two places can be asked for.
+#[tauri::command]
+fn reveal(app: tauri::AppHandle, what: String) -> Result<(), String> {
+	let path = match what.as_str() {
+		"settings" => {
+			let file = settings::file(&app)?;
+			if let Some(dir) = file.parent() {
+				std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+			}
+			file
+		}
+		"logs" => {
+			let dir = app.path().app_log_dir().map_err(|e| e.to_string())?;
+			std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+			dir
+		}
+		other => return Err(format!("cannot show `{other}`")),
+	};
+	tools::reveal(&path)
 }
 
 pub fn run() {
 	let studio = Arc::new(Studio::new(Box::new(EngineBackend)));
-	let mcp = match McpServer::start(studio.clone(), 0) {
-		Ok(server) => {
-			println!("{}", server.banner());
-			Some(server)
-		}
-		Err(e) => {
-			eprintln!("Studio MCP server did not start: {e}");
-			None
-		}
-	};
+	let agent = Agent::new(studio.clone());
 	let initial = std::env::args()
 		.nth(1)
 		.or_else(|| std::env::var("LIMINAL_STUDIO_PROJECT").ok());
@@ -148,12 +181,27 @@ pub fn run() {
 	}
 	builder
 		.plugin(tauri_plugin_dialog::init())
+		.plugin(tauri_plugin_system_appearance::init())
+		.plugin(windows::window_state_plugin())
 		.manage(AppState {
 			studio: studio.clone(),
-			mcp,
 		})
+		.manage(agent)
 		.setup(move |app| {
 			let handle = app.handle().clone();
+			// The agent server follows the saved settings; its address is logged, its token never is.
+			let saved = settings::file(&handle)
+				.map(|path| settings::load(&path))
+				.unwrap_or_default();
+			let agent = app.state::<Agent>();
+			match agent.apply(saved.mcp_enabled, saved.mcp_port) {
+				Ok(()) => {
+					if let Some(line) = agent.banner() {
+						println!("{line}");
+					}
+				}
+				Err(e) => eprintln!("Studio MCP server did not start: {e}"),
+			}
 			studio.on_change(move |event| {
 				let _ = handle.emit(CHANGE_EVENT, event);
 			});
@@ -185,8 +233,13 @@ pub fn run() {
 			undo,
 			redo,
 			mcp_info,
+			mcp_token,
+			mcp_regenerate_token,
+			app_info,
+			reveal,
 			settings::read_settings,
 			settings::write_settings,
+			settings::reset_settings,
 			windows::open_window,
 		])
 		.run(tauri::generate_context!())

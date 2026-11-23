@@ -149,3 +149,12 @@ export function inPageDialogBackend(draw: (dialog: { spec: DialogSpec; done(resu
 		},
 	};
 }
+
+/**
+ * Opens Preferences as a window of its own, or brings it forward when it is open. Unlike a dialog it does not wait
+ * for an answer and does not hold up the dialogs that follow.
+ */
+export async function openPreferencesWindow(): Promise<void> {
+	const { invoke } = await import('@tauri-apps/api/core');
+	await invoke('open_window', { kind: 'preferences' });
+}

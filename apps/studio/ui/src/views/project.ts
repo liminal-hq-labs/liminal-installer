@@ -90,7 +90,7 @@ export function projectView(ctx: Ctx): HTMLElement {
 			{ class: 'card', 'aria-labelledby': 'agent-h' },
 			h('h2', { id: 'agent-h' }, 'Agents'),
 			s.mcp
-				? h('div', {}, h('p', { class: 'muted' }, 'Agents edit this project over MCP, through the same undo history as you.'), h('p', {}, 'Endpoint ', h('code', {}, s.mcp.url)), h('p', {}, 'Token ', h('code', { class: 'token' }, s.mcp.token)))
+				? h('div', {}, h('p', { class: 'muted' }, 'Agents edit this project over MCP, through the same undo history as you.'), h('p', {}, 'Endpoint ', h('code', {}, s.mcp.url)), h('p', { class: 'dim small' }, 'The access token is in Preferences, under Agents.'))
 				: h('p', { class: 'muted' }, 'The MCP server is not running.'),
 		),
 	);

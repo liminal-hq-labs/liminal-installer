@@ -16,18 +16,20 @@ import { WindowChromeProvider } from '@liminal-hq/studio-chrome/WindowChromeProv
 import { WindowFrame } from '@liminal-hq/studio-chrome/WindowFrame';
 import type { ChromeStore } from './chromeStore';
 import { APP_NAME, DialogButtons, DialogMessage, Mark } from './DialogBodies';
-import { MNEMONICS, buildMenus, isActionId, type ActionId } from './menuModel';
-import { PreferencesScreen } from './PreferencesScreen';
+import { MNEMONICS, buildMenus, isActionId, recentPath } from './menuModel';
+import type { Host } from '../lib/host';
+import { PreferencesScreen } from '../preferences/PreferencesScreen';
 
 interface ShellProps {
 	store: ChromeStore;
-	onAction(id: ActionId): void;
+	host: Host;
+	onAction(id: string): void;
 	/** Called once with the element the app draws into. */
 	appHost(element: HTMLElement | null): void;
 }
 
 /** A dialog drawn in the page. Only the browser demo uses it: the desktop opens windows. */
-function InPageDialogView({ store }: { store: ChromeStore }) {
+function InPageDialogView({ store, host }: { store: ChromeStore; host: Host }) {
 	const { dialog } = useSyncExternalStore(store.subscribe, store.get);
 	if (!dialog) return null;
 	const { spec, done } = dialog;
@@ -39,19 +41,19 @@ function InPageDialogView({ store }: { store: ChromeStore }) {
 			size={spec.kind === 'preferences' ? 'large' : 'small'}
 			{...(spec.kind === 'preferences' ? {} : { footer: <DialogButtons spec={spec} onAnswer={done} /> })}
 		>
-			{spec.kind === 'preferences' ? <div className="prefs-inline"><PreferencesScreen store={store} /></div> : <DialogMessage spec={spec} />}
+			{spec.kind === 'preferences' ? <div className="prefs-inline"><PreferencesScreen port={store.port} host={host} /></div> : <DialogMessage spec={spec} />}
 		</Dialog>
 	);
 }
 
-function DesktopShell({ store, controls, onAction, appHost }: ShellProps & { controls: WindowControls }) {
+function DesktopShell({ store, host, controls, onAction, appHost }: ShellProps & { controls: WindowControls }) {
 	const state = useSyncExternalStore(store.subscribe, store.get);
 	const menus = useMemo(() => buildMenus(state.menu), [state.menu]);
 	const choose = useCallback(
 		(item: SelectableMenuItem) => {
-			if (isActionId(item.id)) onAction(item.id);
+			if (isActionId(item.id) || recentPath(item.id, state.menu) !== undefined) onAction(item.id);
 		},
-		[onAction],
+		[onAction, state.menu],
 	);
 	const bar = state.menu.menuBar;
 	return (
@@ -69,17 +71,17 @@ function DesktopShell({ store, controls, onAction, appHost }: ShellProps & { con
 				{bar ? <MenuBar items={menus.bar} onSelect={choose} label="Menu bar" moreLabel="More" mnemonics={MNEMONICS} /> : null}
 				<div id="app" className="app-host" ref={appHost} />
 				{/* Empty on the desktop, where dialogs are windows; the browser demo draws them here. */}
-				<InPageDialogView store={store} />
+				<InPageDialogView store={store} host={host} />
 			</WindowFrame>
 		</WindowChromeProvider>
 	);
 }
 
-function PlainShell({ store, appHost }: ShellProps) {
+function PlainShell({ store, host, appHost }: ShellProps) {
 	return (
 		<>
 			<div id="app" className="app-host plain" ref={appHost} />
-			<InPageDialogView store={store} />
+			<InPageDialogView store={store} host={host} />
 		</>
 	);
 }

@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { Settings, SettingsPort } from '../lib/settings';
-import { defaultSettings } from '../lib/settings';
+import { defaultSettings, pushRecent, sameSettings } from '../lib/settings';
 import type { DialogSpec, DialogResult } from './dialogWindow';
 import { initialMenuState, type MenuState } from './menuModel';
 
@@ -23,12 +23,18 @@ export interface ChromeState {
 }
 
 export interface ChromeStore {
+	/** Where the settings live; Preferences reads and writes through it. */
+	readonly port: SettingsPort;
 	get(): ChromeState;
 	subscribe(listener: () => void): () => void;
 	/** Reads the settings and follows changes made in any window. Resolves once the first read is in. */
 	init(): Promise<void>;
 	/** Merges the parts of the menu state the app knows. The menu bar flag comes from the settings. */
-	setMenu(patch: Partial<Omit<MenuState, 'menuBar'>>): void;
+	setMenu(patch: Partial<Omit<MenuState, 'menuBar' | 'recent'>>): void;
+	/** Puts a project at the front of the recent list and remembers it as the last one. */
+	recordProject(path: string): Promise<void>;
+	/** Drops a project from the recent list, such as one that has moved. */
+	forgetProject(path: string): Promise<void>;
 	setTitle(title: string): void;
 	setDialog(dialog: InPageDialog | null): void;
 	/** Writes the `menuBar` setting the other way round. */
@@ -45,10 +51,11 @@ export function createChromeStore(port: SettingsPort): ChromeStore {
 		for (const l of [...listeners]) l();
 	};
 	const applySettings = (settings: Settings) => {
-		if (settings.menuBar === state.settings.menuBar && settings.theme === state.settings.theme) return;
-		set({ ...state, settings, menu: { ...state.menu, menuBar: settings.menuBar } });
+		if (sameSettings(settings, state.settings)) return;
+		set({ ...state, settings, menu: { ...state.menu, menuBar: settings.menuBar, recent: settings.recentProjects } });
 	};
 	return {
+		port,
 		get: () => state,
 		subscribe(listener) {
 			listeners.add(listener);
@@ -62,6 +69,16 @@ export function createChromeStore(port: SettingsPort): ChromeStore {
 			const menu = { ...state.menu, ...patch };
 			if ((Object.keys(menu) as (keyof MenuState)[]).every((k) => menu[k] === state.menu[k])) return;
 			set({ ...state, menu });
+		},
+		async recordProject(path) {
+			const { recentProjects, recentLimit, lastProject } = state.settings;
+			const recent = pushRecent(recentProjects, path, recentLimit);
+			if (lastProject === path && recent.join('\n') === recentProjects.join('\n')) return;
+			await this.updateSettings({ recentProjects: recent, lastProject: path });
+		},
+		async forgetProject(path) {
+			if (!state.settings.recentProjects.includes(path)) return;
+			await this.updateSettings({ recentProjects: state.settings.recentProjects.filter((p) => p !== path) });
 		},
 		setTitle(title) {
 			if (title !== state.title) set({ ...state, title });

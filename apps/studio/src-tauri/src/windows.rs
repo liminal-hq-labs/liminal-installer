@@ -3,7 +3,9 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::plugin::TauriPlugin;
+use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri_plugin_window_state::{Builder as WindowStateBuilder, StateFlags};
 
 /// What a kind of window looks like. Every one loads the Studio page with `?window=<kind>`.
 #[derive(Debug, PartialEq)]
@@ -12,6 +14,8 @@ pub struct Spec {
 	pub label: String,
 	pub title: &'static str,
 	pub size: (f64, f64),
+	/// The smallest the window may be resized to.
+	pub min_size: (f64, f64),
 	/// Blocks the window it belongs to until it closes.
 	pub modal: bool,
 }
@@ -23,12 +27,14 @@ pub fn spec(kind: &str, id: Option<&str>) -> Option<Spec> {
 			label: "about".into(),
 			title: "About Liminal Installer Studio",
 			size: (440.0, 300.0),
+			min_size: (440.0, 300.0),
 			modal: true,
 		}),
 		"preferences" => Some(Spec {
 			label: "preferences".into(),
 			title: "Preferences",
-			size: (760.0, 520.0),
+			size: (820.0, 600.0),
+			min_size: (420.0, 360.0),
 			modal: false,
 		}),
 		"confirm" => {
@@ -39,6 +45,7 @@ pub fn spec(kind: &str, id: Option<&str>) -> Option<Spec> {
 				label: format!("confirm-{id}"),
 				title: "Liminal Installer Studio",
 				size: (460.0, 220.0),
+				min_size: (460.0, 220.0),
 				modal: true,
 			})
 		}
@@ -52,6 +59,21 @@ pub fn centred_on(origin: (f64, f64), parent: (f64, f64), child: (f64, f64)) -> 
 		origin.0 + (parent.0 - child.0) / 2.0,
 		origin.1 + (parent.1 - child.1) / 2.0,
 	)
+}
+
+/// Whether the window labelled `label` has its size remembered: the main window and Preferences. About and
+/// confirmations open at a fixed size and cannot be resized.
+pub fn remembers_size(label: &str) -> bool {
+	matches!(label, "main" | "preferences")
+}
+
+/// Keeps each remembered window's size in `.window-state.json` in the app's config directory, restores it when the
+/// window opens and writes it when the app exits.
+pub fn window_state_plugin<R: Runtime>() -> TauriPlugin<R> {
+	WindowStateBuilder::new()
+		.with_state_flags(StateFlags::SIZE)
+		.with_filter(remembers_size)
+		.build()
 }
 
 /// Opens a child window of the one that asked, or focuses it when a window with that label is open.
@@ -88,6 +110,7 @@ pub fn open_window(
 		.inner_size(spec.size.0, spec.size.1)
 		.position(x, y)
 		.resizable(!spec.modal)
+		.min_inner_size(spec.min_size.0, spec.min_size.1)
 		.minimizable(false)
 		.maximizable(false)
 		.decorations(false)
@@ -134,6 +157,14 @@ mod tests {
 	#[test]
 	fn unknown_kinds_are_refused() {
 		assert!(spec("shell", None).is_none());
+	}
+
+	#[test]
+	fn only_the_main_and_preferences_windows_remember_their_size() {
+		assert!(remembers_size("main"));
+		assert!(remembers_size("preferences"));
+		assert!(!remembers_size("about"));
+		assert!(!remembers_size("confirm-7"));
 	}
 
 	#[test]

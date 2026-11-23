@@ -10,6 +10,7 @@ export type Screen = 'project' | 'flow' | 'layouts' | 'script' | 'preview';
 export type ActionId =
 	| 'file.open'
 	| 'file.reload'
+	| 'file.clearRecent'
 	| 'file.save'
 	| 'file.quit'
 	| 'app.preferences'
@@ -34,6 +35,8 @@ export interface MenuState {
 	/** The Script screen has a script with edits that are not saved. */
 	scriptDirty: boolean;
 	menuBar: boolean;
+	/** Paths of the recent projects, newest first. */
+	recent: string[];
 }
 
 export const initialMenuState: MenuState = {
@@ -43,6 +46,7 @@ export const initialMenuState: MenuState = {
 	screen: 'project',
 	scriptDirty: false,
 	menuBar: false,
+	recent: [],
 };
 
 interface Action {
@@ -76,6 +80,7 @@ const screenAction = (screen: Screen, label: string, key: string): Action => ({
 export const ACTIONS: Record<ActionId, Action> = {
 	'file.open': { label: 'Open project…', keys: ['Ctrl+O'] },
 	'file.reload': { label: 'Reload', keys: ['F5'], enabled: needsProject },
+	'file.clearRecent': { label: 'Clear recent projects', enabled: (s) => s.recent.length > 0 },
 	'file.save': { label: 'Save', keys: ['Ctrl+S'], enabled: (s) => s.hasProject && s.scriptDirty },
 	'app.preferences': { label: 'Preferences…', keys: ['Ctrl+,'] },
 	'file.quit': { label: 'Quit', keys: ['Ctrl+Q'] },
@@ -92,8 +97,11 @@ export const ACTIONS: Record<ActionId, Action> = {
 	'help.about': { label: 'About Liminal Installer Studio', keys: ['F1'] },
 };
 
+/** In a group, this stands for the submenu of recent projects. */
+export const RECENT = 'recent' as const;
+
 interface Group {
-	items: ActionId[];
+	items: (ActionId | typeof RECENT)[];
 	/** In the app menu, which has no menus to order the groups, this one goes last. */
 	last?: boolean;
 }
@@ -108,7 +116,7 @@ interface Menu {
 
 /** The menus of the bar, in order. Each group of items is set off from the next by a separator. */
 export const MENUS: Menu[] = [
-	{ id: 'file', label: 'File', mnemonic: 'f', groups: [{ items: ['file.open', 'file.reload'] }, { items: ['file.save'] }, { items: ['app.preferences'] }, { items: ['file.quit'], last: true }] },
+	{ id: 'file', label: 'File', mnemonic: 'f', groups: [{ items: ['file.open', RECENT, 'file.reload'] }, { items: ['file.save'] }, { items: ['app.preferences'] }, { items: ['file.quit'], last: true }] },
 	{ id: 'edit', label: 'Edit', mnemonic: 'e', groups: [{ items: ['edit.undo', 'edit.redo'] }] },
 	{
 		id: 'view',
@@ -138,11 +146,40 @@ function item(id: ActionId, state: MenuState): SelectableMenuItem {
 	return action.checked ? { type: 'checkbox', ...base, checked: action.checked(state) } : { type: 'action', ...base };
 }
 
+const RECENT_PREFIX = 'recent:';
+
+/** The id of the menu row for the recent project at `index`. */
+export const recentId = (index: number): string => `${RECENT_PREFIX}${index}`;
+
+/** The path a recent-project row stands for, or undefined for any other id, a placeholder or a stale index. */
+export function recentPath(id: string, state: Pick<MenuState, 'recent'>): string | undefined {
+	if (!id.startsWith(RECENT_PREFIX)) return undefined;
+	return state.recent[Number(id.slice(RECENT_PREFIX.length))];
+}
+
+/** The last two parts of a path, which tell projects apart better than the folder name alone. */
+export function shortPath(path: string): string {
+	return path.split(/[\\/]/).filter(Boolean).slice(-2).join('/') || path;
+}
+
+/** Open recent: a row per project and, after a separator, Clear recent projects. */
+function recentMenu(state: MenuState): MenuItem {
+	const rows: MenuItem[] =
+		state.recent.length === 0
+			? [{ type: 'action', id: `${RECENT_PREFIX}none`, label: 'No recent projects', disabled: true }]
+			: [
+					...state.recent.map((path, i): MenuItem => ({ type: 'action', id: recentId(i), label: shortPath(path), title: path })),
+					{ type: 'separator', id: 'separator:recent' },
+					item('file.clearRecent', state),
+				];
+	return { type: 'submenu', id: 'menu:recent', label: 'Open recent', items: rows };
+}
+
 /** Items of several groups, one separator between neighbouring groups. */
 function joinGroups(groups: Group[], state: MenuState): MenuItem[] {
 	return groups.flatMap((group, index): MenuItem[] => [
 		...(index > 0 ? [{ type: 'separator' as const, id: `separator:${index}` }] : []),
-		...group.items.map((id) => item(id, state)),
+		...group.items.map((id) => (id === RECENT ? recentMenu(state) : item(id, state))),
 	]);
 }
 

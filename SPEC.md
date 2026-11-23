@@ -258,7 +258,7 @@ Example 2. A CI job.
 
 ## 13 · Studio API for agents
 
-The Studio serves MCP and GraphQL on `127.0.0.1`, protected by a token it prints at start, as the Planboard server does. Every change goes through the same undo history as a person's.
+The Studio serves MCP and GraphQL on `127.0.0.1`, protected by a token, as the Planboard server does. The Studio prints the address at start and never the token; Preferences shows it on request, copies it and replaces it, and a client holding the old one is refused from then on. The server runs only while `mcpEnabled` is on. Every change goes through the same undo history as a person's.
 
 | Tool | Purpose |
 |---|---|
@@ -275,7 +275,29 @@ The Studio runs the engine itself, not a stand-in. `check_project` is the Studio
 
 ### The Studio window
 
-The Studio draws the shared Liminal HQ window chrome in its desktop window: a 40px title bar with the gradient wordmark, an app menu, window buttons and an optional menu bar. The app menu is one flat list of groups (Open project…, Reload; Save; Undo, Redo; the five screens and Show menu bar; Run check, Run dry-run preview; Preferences…, About, Quit) opened from the wordmark, `F10` or a lone `Alt`. The menu bar (File, Edit, View, Project, Help) holds the same commands and takes `F10`, `Alt` and `Alt` plus a letter while it shows. Preferences, About and confirmations are child windows of the main window. A browser tab, used for development only, draws a plain header instead. Settings (`menuBar`, `theme`) are kept in `settings.json` in the app's config directory.
+The Studio draws the shared Liminal HQ window chrome in its desktop window: a 40px title bar with the gradient wordmark, an app menu, window buttons and an optional menu bar. The app menu is one flat list of groups (Open project…, Open recent, Reload; Save; Undo, Redo; the five screens and Show menu bar; Run check, Run dry-run preview; Preferences…, About, Quit) opened from the wordmark, `F10` or a lone `Alt`. The menu bar (File, Edit, View, Project, Help) holds the same commands and takes `F10`, `Alt` and `Alt` plus a letter while it shows. Preferences, About and confirmations are child windows of the main window. A browser tab, used for development only, draws a plain header instead. Preferences, opened with `Ctrl+,`, the app menu or File, is a child window with a side nav that becomes a select when narrow. See "Studio preferences" below for the settings.
+
+**Studio preferences.** Every change applies at once and is written to `settings.json` in the app's config directory (`app_config_dir()`: `$XDG_CONFIG_HOME/hq.liminal.installer-studio` on Linux, `~/Library/Application Support/hq.liminal.installer-studio` on macOS, `%APPDATA%\hq.liminal.installer-studio` on Windows) as a merge. A write that is refused leaves the value as it was and the row says why. Every open window follows a change at once, the theme included. The file has a `version` (1); a file written before it, with only `menuBar` and `theme`, is read as version 1, a field that is missing or invalid takes its default, and keys the Studio does not know are kept. The size of the main and Preferences windows is kept in `.window-state.json` beside it.
+
+Table 7a. Settings and defaults.
+
+| Section | Setting | Default | Effect |
+|---|---|---|---|
+| General | `menuBar` | off | The menu bar under the title bar |
+| General | `reopenLastProject` | off | Opens `lastProject` on start when none is given on the command line |
+| General | `confirmDiscard` | on | Asks before Reload, Open project or closing throws away unsaved script edits; off discards them without asking |
+| General | `recentLimit`, `recentProjects` | 10 (5 to 20), empty | File > Open recent, newest first, with Clear recent projects |
+| Appearance | `theme` | `afterglow` | `afterglow` (dark), `afterglow-light`, `afterglow-dark` (neutral dark) or `system`, which follows the desktop between `afterglow` and `afterglow-light` |
+| Appearance | `density` | `comfortable` | `compact` tightens lists, tables and toolbars |
+| Appearance | `reduceMotion` | `system` | `system`, `on` or `off` |
+| Appearance | `textSize` | 100 (90 to 130) | Scales the text of the app and the settings pane |
+| Editor | `editorFontSize`, `tabWidth`, `wrapLines`, `lineNumbers`, `formatOnSave` | 13 (10 to 24), 4 (1 to 8), on, on, off | The Scripts screen; format on save strips trailing spaces, uses line feeds and ends the file with one newline |
+| Preview | `previewTarget`, `previewAutoRun`, `showSkippedSteps` | first target, off, on | The target a dry run starts on; running it again when a flow or layout changes; listing steps skipped for the target |
+| Agents | `mcpEnabled`, `mcpPort` | on in a debug build and off in a release build, 0 | Whether the MCP server runs and where; 0 picks a free port and a port in use refuses the change |
+| Projects | `projectsFolder` | none | Where Open project… starts |
+| Projects | `runnerPath`, `dockerPath` | none | The `liminal-engine` runner and Docker; each must answer `--version` before it is saved |
+
+Advanced reveals the settings file and the log folder, shows the version and resets every setting to its default after a confirmation (recent projects included; keys the Studio does not know stay).
 
 ## 14 · The runner
 

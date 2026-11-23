@@ -42,7 +42,7 @@ export function previewView(ctx: Ctx): HTMLElement {
 						'section',
 						{ class: 'card', 'aria-label': 'Steps' },
 						h('h2', {}, 'Steps'),
-						h('ol', { class: 'steps' }, pv.steps.map((st, i) => h('li', { class: `${i === s.previewStep ? 'active' : ''} ${st.skipped ? 'skipped' : ''}` }, h('button', { class: 'linklike', disabled: st.skipped, on: { click: () => { s.previewStep = i; ctx.render(); } } }, st.id), h('span', { class: 'dim small' }, ` ${st.kind}${st.skipped ? ' · skipped for this target' : ''}`)))),
+						h('ol', { class: 'steps' }, pv.steps.flatMap((st, i) => (st.skipped && !ctx.settings().showSkippedSteps ? [] : [h('li', { class: `${i === s.previewStep ? 'active' : ''} ${st.skipped ? 'skipped' : ''}` }, h('button', { class: 'linklike', disabled: st.skipped, on: { click: () => { s.previewStep = i; ctx.render(); } } }, st.id), h('span', { class: 'dim small' }, ` ${st.kind}${st.skipped ? ' · skipped for this target' : ''}`))]))),
 					),
 					h(
 						'section',
