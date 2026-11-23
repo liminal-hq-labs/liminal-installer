@@ -1,0 +1,24 @@
+{
+	"version": 1,
+	"id": "copying",
+	"root": {
+		"kind": "backdrop",
+		"props": { "title": "Lieutenant Fizz Setup" },
+		"children": [
+			{
+				"kind": "dialog",
+				"props": { "title": "Copying files", "width": 52 },
+				"children": [
+					{ "kind": "billboard", "bind": "billboard.index", "props": { "items": [
+						"Seven new sectors of the Fizz Nebula to explore.",
+						"Now with sound card support."
+					] } },
+					{ "kind": "progress", "bind": "meter.total", "props": { "label": "Overall" } }
+				]
+			},
+			{ "kind": "meter", "bind": "meter.file", "props": { "meter": "file" } },
+			{ "kind": "meter", "bind": "meter.total", "props": { "meter": "total", "label": "Total" } },
+			{ "kind": "meter", "bind": "meter.free", "props": { "meter": "free_space", "label": "Free space" } }
+		]
+	}
+}

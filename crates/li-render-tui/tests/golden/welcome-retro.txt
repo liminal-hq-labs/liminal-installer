@@ -1,0 +1,31 @@
+ Lieutenant Fizz Setup
+
+
+
+
+              ╔═══════════════════ Welcome ════════════════════╗
+              ║ This program installs Lieutenant Fizz on your  ║
+              ║ computer. Choose Next to continue.             ║
+              ║ Folder: [/home/me/fizz                 ]       ║
+              ║ Components                                     ║
+              ║  [x] Game program                              ║
+              ║  [x] Sound drivers                             ║
+              ║  [ ] Bonus levels                              ║
+              ║ Install for                                    ║
+              ║  (•) Just me                                   ║
+              ║  ( ) Everyone                                  ║
+              ║ [ Back ]  [ Next ]  [ Cancel ]                 ║
+              ╚════════════════════════════════════════════════╝
+
+
+
+
+ Free space [█████████████████████████████████████░░░░░░░░░░░░░░░░░░░░░░░]  62%
+ Next, button  |  Tab next, Shift-Tab previous, Space toggle, Enter choose, Esc
+Controls, in tab order:
+  1. Folder (Path)
+  2. Components (Checklist)
+  3. Install for (Radio)
+  4. Back (Button)
+  5. Next (Button)
+  6. Cancel (Button)
