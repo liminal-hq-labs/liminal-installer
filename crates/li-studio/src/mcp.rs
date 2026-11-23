@@ -1,10 +1,10 @@
-// The Studio's MCP server: JSON-RPC over HTTP on 127.0.0.1, guarded by a start-up token.
+// The Studio's MCP server: JSON-RPC over HTTP on 127.0.0.1, guarded by a token that can be replaced.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use std::net::{SocketAddr, TcpListener};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::thread::JoinHandle;
 
 use axum::Router;
@@ -188,7 +188,7 @@ pub fn handle_rpc(studio: &Studio, request: &Value) -> Option<Value> {
 #[derive(Clone)]
 struct AppState {
 	studio: Arc<Studio>,
-	token: Arc<str>,
+	token: Arc<RwLock<String>>,
 }
 
 fn token_matches(given: &str, expected: &str) -> bool {
@@ -234,7 +234,8 @@ async fn mcp_post(
 		.and_then(|v| v.strip_prefix("Bearer "))
 		.map(str::to_owned);
 	let given = bearer.or(q.token).unwrap_or_default();
-	if !token_matches(&given, &state.token) {
+	let expected = state.token.read().map(|t| t.clone()).unwrap_or_default();
+	if !token_matches(&given, &expected) {
 		return (StatusCode::UNAUTHORIZED, "missing or wrong token").into_response();
 	}
 	let Ok(request) = serde_json::from_str::<Value>(&body) else {
@@ -264,7 +265,7 @@ async fn mcp_post(
 /// A running server. Dropping it stops it.
 pub struct McpServer {
 	pub addr: SocketAddr,
-	pub token: String,
+	token: Arc<RwLock<String>>,
 	shutdown: Option<tokio::sync::oneshot::Sender<()>>,
 	thread: Option<JoinHandle<()>>,
 }
@@ -281,10 +282,10 @@ impl McpServer {
 		let listener = TcpListener::bind(("127.0.0.1", port))?;
 		listener.set_nonblocking(true)?;
 		let addr = listener.local_addr()?;
-		let token = random_token()?;
+		let token = Arc::new(RwLock::new(random_token()?));
 		let state = AppState {
 			studio,
-			token: Arc::from(token.as_str()),
+			token: token.clone(),
 		};
 		let (tx, rx) = tokio::sync::oneshot::channel::<()>();
 		let thread = std::thread::Builder::new()
@@ -315,12 +316,25 @@ impl McpServer {
 		})
 	}
 
-	/// The line printed at start so a person or agent can connect.
+	/// The token a client must send. Shown only when a person asks for it; it is never logged.
+	pub fn token(&self) -> String {
+		self.token.read().map(|t| t.clone()).unwrap_or_default()
+	}
+
+	/// Replaces the token. Clients holding the old one are refused from the next request on.
+	pub fn regenerate_token(&self) -> std::io::Result<String> {
+		let fresh = random_token()?;
+		let mut guard = self
+			.token
+			.write()
+			.map_err(|_| std::io::Error::other("token lock poisoned"))?;
+		guard.clone_from(&fresh);
+		Ok(fresh)
+	}
+
+	/// The line printed at start: where the server listens. It leaves the token out, because a log is not a place for a secret.
 	pub fn banner(&self) -> String {
-		format!(
-			"Studio MCP server: http://{}/mcp\nStudio MCP token: {}",
-			self.addr, self.token
-		)
+		format!("Studio MCP server: http://{}/mcp", self.addr)
 	}
 }
 
@@ -574,7 +588,8 @@ mod tests {
 		let (_d, s, _r) = open_example("neutral");
 		let server = McpServer::start(Arc::new(s), 0).unwrap();
 		assert!(server.addr.ip().is_loopback());
-		assert!(server.banner().contains(&server.token));
+		assert!(!server.banner().contains(&server.token()));
+		let token = server.token();
 		let body = r#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#;
 
 		let no_token = post(server.addr, None, None, body);
@@ -583,21 +598,38 @@ mod tests {
 		assert!(wrong.starts_with("HTTP/1.1 401"));
 		let foreign = post(
 			server.addr,
-			Some(&server.token),
+			Some(&token),
 			Some("https://evil.example"),
 			body,
 		);
 		assert!(foreign.starts_with("HTTP/1.1 403"));
 
-		let ok = post(server.addr, Some(&server.token), None, body);
+		let ok = post(server.addr, Some(&token), None, body);
 		assert!(ok.starts_with("HTTP/1.1 200"), "{ok}");
 		assert!(ok.contains("check_project"));
 		let note = post(
 			server.addr,
-			Some(&server.token),
+			Some(&token),
 			None,
 			r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#,
 		);
 		assert!(note.starts_with("HTTP/1.1 202"));
+	}
+
+	#[test]
+	fn tokens_are_long_random_hex_and_regeneration_refuses_the_old_one() {
+		let (_d, s, _r) = open_example("neutral");
+		let server = McpServer::start(Arc::new(s), 0).unwrap();
+		let first = server.token();
+		assert_eq!(first.len(), 48);
+		assert!(first.bytes().all(|b| b.is_ascii_hexdigit()));
+		let body = r#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#;
+		assert!(post(server.addr, Some(&first), None, body).starts_with("HTTP/1.1 200"));
+
+		let second = server.regenerate_token().unwrap();
+		assert_ne!(first, second);
+		assert_eq!(server.token(), second);
+		assert!(post(server.addr, Some(&first), None, body).starts_with("HTTP/1.1 401"));
+		assert!(post(server.addr, Some(&second), None, body).starts_with("HTTP/1.1 200"));
 	}
 }
