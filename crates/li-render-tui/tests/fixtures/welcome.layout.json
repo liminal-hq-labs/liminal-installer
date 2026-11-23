@@ -1,0 +1,33 @@
+{
+	"version": 1,
+	"id": "welcome",
+	"root": {
+		"kind": "backdrop",
+		"props": { "title": "Lieutenant Fizz Setup" },
+		"children": [
+			{
+				"kind": "dialog",
+				"props": { "title": "Welcome", "width": 50 },
+				"children": [
+					{ "kind": "text", "props": { "text": "This program installs Lieutenant Fizz on your computer. Choose Next to continue." } },
+					{ "kind": "path", "bind": "state.install_dir", "props": { "label": "Folder", "width": 30 } },
+					{ "kind": "checklist", "bind": "state.components", "props": { "label": "Components", "items": [
+						{ "id": "game", "label": "Game program", "required": true },
+						{ "id": "sound", "label": "Sound drivers", "checked": true },
+						{ "id": "levels", "label": "Bonus levels" }
+					] } },
+					{ "kind": "radio", "bind": "state.scope", "props": { "label": "Install for", "default": "user", "items": [
+						{ "id": "user", "label": "Just me" },
+						{ "id": "machine", "label": "Everyone" }
+					] } },
+					{ "kind": "stack", "props": { "direction": "horizontal", "gap": 2 }, "children": [
+						{ "kind": "button", "props": { "label": "Back" } },
+						{ "kind": "button", "props": { "label": "Next", "action": "next", "default": true } },
+						{ "kind": "button", "props": { "label": "Cancel" } }
+					] }
+				]
+			},
+			{ "kind": "meter", "bind": "meter.free", "props": { "meter": "free_space", "label": "Free space" } }
+		]
+	}
+}

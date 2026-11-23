@@ -1,0 +1,12 @@
+// The `liminst` binary.
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+use std::process::ExitCode;
+
+use clap::Parser;
+
+fn main() -> ExitCode {
+	li_cli::run(li_cli::Cli::parse())
+}

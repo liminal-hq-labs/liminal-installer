@@ -1,0 +1,21 @@
+{
+  "abi": "FreeBSD:14:amd64",
+  "arch": "freebsd:14:amd64",
+  "comment": "Lieutenant Fizz — Episode One",
+  "desc": "A space adventure about carbonated heroics.",
+  "files": {
+    "/usr/local/lib/lt-fizz/.liminal/receipt.json": "998d6f9b5181f057901a3bdd94f06933a56c2e9aced840ff15fa915e8bf73c9c",
+    "/usr/local/lib/lt-fizz/SOUND/SB.DRV": "b4def8217cadae26d4da633fd2a4e58e326cbb5d570afdc3989484da07af3579",
+    "/usr/local/lib/lt-fizz/bin/fizz": "98b8a1e263528d693d043d0931258b35277eed0da1013fc5ba1fa0fb34a2fa37"
+  },
+  "licenselogic": "single",
+  "licenses": [
+    "MIT"
+  ],
+  "maintainer": "noreply@localhost",
+  "name": "lt-fizz",
+  "origin": "misc/lt-fizz",
+  "prefix": "/usr/local",
+  "version": "1.0.0",
+  "www": "https://example.org/fizz"
+}

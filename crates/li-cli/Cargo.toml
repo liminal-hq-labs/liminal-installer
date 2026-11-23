@@ -1,0 +1,38 @@
+# The liminst command line.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[package]
+name = "li-cli"
+description = "The liminst command line: init, check, preview, build, feed and theme tooling"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "li_cli"
+
+[[bin]]
+name = "liminst"
+path = "src/main.rs"
+
+[dependencies]
+li-model.workspace = true
+li-render-tui.workspace = true
+li-package.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+thiserror.workspace = true
+sha2.workspace = true
+tar.workspace = true
+flate2.workspace = true
+
+[dev-dependencies]
+assert_cmd.workspace = true
+predicates.workspace = true
+tempfile.workspace = true

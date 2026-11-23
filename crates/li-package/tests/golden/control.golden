@@ -1,0 +1,10 @@
+Package: lt-fizz
+Version: 1.0.0
+Section: misc
+Priority: optional
+Architecture: amd64
+Maintainer: Liminal HQ <noreply@localhost>
+Installed-Size: 4
+Homepage: https://example.org/fizz
+Description: Lieutenant Fizz — Episode One
+ A space adventure about carbonated heroics.

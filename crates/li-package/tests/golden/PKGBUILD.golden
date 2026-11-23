@@ -1,0 +1,18 @@
+# Maintainer: Liminal HQ
+pkgname='lt-fizz'
+pkgver='1.0.0'
+pkgrel=1
+pkgdesc='A space adventure about carbonated heroics.'
+arch=('x86_64')
+url='https://example.org/fizz'
+license=('MIT')
+options=('!strip' '!debug')
+source=("$pkgname-$pkgver.tar.gz")
+sha256sums=('27b105f3536cb43a4b53a4b918dab51a93b9d4d5ada5f7e11d9c7affe713f2b3')
+
+package() {
+	install -d "$pkgdir/opt/lt-fizz"
+	cp -a "$srcdir/$pkgname-$pkgver/." "$pkgdir/opt/lt-fizz/"
+	install -d "$pkgdir/usr/bin"
+	ln -s '/opt/lt-fizz/bin/fizz' "$pkgdir/usr/bin/$pkgname"
+}

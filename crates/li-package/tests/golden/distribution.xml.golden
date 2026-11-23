@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+	<title>Lieutenant Fizz — Episode One</title>
+	<organization>Liminal HQ</organization>
+	<options customize="never" require-scripts="false" hostArchitectures="x86_64"/>
+	<domains enable_localSystem="true"/>
+	<pkg-ref id="hq.liminal.lt-fizz"/>
+	<choices-outline>
+		<line choice="default">
+			<line choice="hq.liminal.lt-fizz"/>
+		</line>
+	</choices-outline>
+	<choice id="default"/>
+	<choice id="hq.liminal.lt-fizz" visible="false" title="Lieutenant Fizz — Episode One">
+		<pkg-ref id="hq.liminal.lt-fizz"/>
+	</choice>
+	<pkg-ref id="hq.liminal.lt-fizz" version="1.0.0" onConclusion="none">lt-fizz.pkg</pkg-ref>
+</installer-gui-script>
