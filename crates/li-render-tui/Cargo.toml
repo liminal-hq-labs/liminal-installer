@@ -15,4 +15,10 @@ rust-version.workspace = true
 [dependencies]
 li-model.workspace = true
 ratatui.workspace = true
+serde.workspace = true
 serde_json.workspace = true
+# Generates the TypeScript for the cell grid (see `packages/protocol`).
+ts-rs = { workspace = true, optional = true }
+
+[features]
+ts = ["dep:ts-rs"]

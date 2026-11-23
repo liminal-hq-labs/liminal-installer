@@ -40,6 +40,7 @@
 //! Every control's accessible name is its `name`, `label` or `text` property, in that order.
 
 mod bindings;
+mod cells;
 mod draw;
 mod dump;
 mod glyphs;
@@ -48,6 +49,7 @@ mod run;
 mod screen;
 
 pub use bindings::{Bindings, MapBindings};
+pub use cells::{Cell, CellGrid, Colour, Modifiers, render_cells};
 pub use dump::{dump, dump_with_controls};
 pub use glyphs::Look;
 pub use interp::{interpolate, interpolate_node};
