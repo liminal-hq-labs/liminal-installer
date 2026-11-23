@@ -270,6 +270,10 @@ The Studio serves MCP and GraphQL on `127.0.0.1`, protected by a token it prints
 
 Table 8. MCP tools.
 
+### The Studio window
+
+The Studio draws the shared Liminal HQ window chrome in its desktop window: a 40px title bar with the gradient wordmark, an app menu, window buttons and an optional menu bar. The app menu is one flat list of groups (Open project…, Reload; Save; Undo, Redo; the five screens and Show menu bar; Run check, Run dry-run preview; Preferences…, About, Quit) opened from the wordmark, `F10` or a lone `Alt`. The menu bar (File, Edit, View, Project, Help) holds the same commands and takes `F10`, `Alt` and `Alt` plus a letter while it shows. Preferences, About and confirmations are child windows of the main window. A browser tab, used for development only, draws a plain header instead. Settings (`menuBar`, `theme`) are kept in `settings.json` in the app's config directory.
+
 ## 14 · The runner
 
 `liminal-engine` is the small program a themed installer hands over to. It reads a `.lip`, loads the project bundled in it, and runs the real flows with the `tui` renderer.
