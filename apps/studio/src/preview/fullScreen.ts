@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { STAGE, type Look } from './model';
+import type { TerminalView } from './TerminalPreview';
 
 /** The `?window=` kind, and the label the shell gives the window. */
 export const PREVIEW_WINDOW = 'preview';
@@ -13,17 +14,56 @@ export const WINDOW_CHROME_HEIGHT = 92;
 /** The narrowest the window opens: the stepper bar needs this much. */
 export const WINDOW_MIN_WIDTH = 720;
 
-/** The query string the window opens with: the target and the step on show. */
-export function previewWindowQuery(target: string, step: number): string {
-	return new URLSearchParams({ target, step: String(step) }).toString();
+/** What the window opens with: the target and the step on show, and how a terminal target is drawn. */
+export interface PreviewQuery {
+	target: string;
+	step: number;
+	view: TerminalView;
 }
 
-export function parsePreviewQuery(search: string): { target: string; step: number } | null {
+/** The query string the window opens with. The default view is left out. */
+export function previewWindowQuery(
+	target: string,
+	step: number,
+	view: TerminalView = 'rich',
+): string {
+	const params = new URLSearchParams({ target, step: String(step) });
+	if (view !== 'rich') params.set('view', view);
+	return params.toString();
+}
+
+export function parsePreviewQuery(search: string): PreviewQuery | null {
 	const params = new URLSearchParams(search);
 	const target = params.get('target');
 	if (!target) return null;
 	const step = Number(params.get('step') ?? 0);
-	return { target, step: Number.isInteger(step) && step >= 0 ? step : 0 };
+	return {
+		target,
+		step: Number.isInteger(step) && step >= 0 ? step : 0,
+		view: params.get('view') === 'terminal' ? 'terminal' : 'rich',
+	};
+}
+
+/** The text-mode screen the full-screen window draws: 80 by 25 cells. */
+export const TERMINAL_COLS = 80;
+export const TERMINAL_ROWS = 25;
+
+/**
+ * How much to draw a terminal of `cols` by `rows` cells, each `cellW` by `cellH` pixels, in a box.
+ * The zoom is the largest whole number that fits, so the cells stay sharp; a box too small for
+ * even that scales down to fit instead. The aspect ratio is always kept.
+ */
+export function terminalFit(
+	box: { width: number; height: number },
+	cols: number,
+	rows: number,
+	cellW: number,
+	cellH: number,
+): { zoom: number; width: number; height: number } {
+	const natural = { w: cols * cellW, h: rows * cellH };
+	const fit = Math.min(box.width / natural.w, box.height / natural.h);
+	const zoom = !(fit > 0) ? 1 : fit >= 1 ? Math.floor(fit) : fit;
+	return { zoom, width: Math.round(natural.w * zoom), height: Math.round(natural.h * zoom) };
 }
 
 export interface WindowFit {

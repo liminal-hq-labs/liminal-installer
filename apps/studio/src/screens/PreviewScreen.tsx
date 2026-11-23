@@ -34,6 +34,8 @@ function FullscreenOverlay({ body, onClose }: { body: OverlayBody; onClose: () =
 	const [native, setNative] = useState(false);
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
+			// Esc the terminal view took, as the installer's own key, is already handled.
+			if (e.defaultPrevented) return;
 			if (e.key === 'Escape' && (e.target as HTMLElement | null)?.tagName !== 'SELECT') onClose();
 		};
 		const onChange = () => setNative(document.fullscreenElement !== null);
@@ -69,7 +71,8 @@ export function PreviewScreen() {
 	const previewStep = usePreview((s) => s.previewStep);
 	const targets = summary.targets;
 	const shown = pv?.steps[previewStep];
-	const [view, setView] = useState<TerminalView>('rich');
+	const view = usePreview((s) => s.previewView);
+	const setView = (next: TerminalView) => studio.preview.setState({ previewView: next });
 	const setStep = (i: number) => studio.preview.setState({ previewStep: i });
 	const run = useRun(pv, summary.components, previewStep, setStep);
 	const fullscreen = usePreview((s) => s.fullscreen);
@@ -289,6 +292,9 @@ export function PreviewScreen() {
 						target: previewTarget,
 						index: previewStep,
 						setIndex: setStep,
+						view,
+						onView: setView,
+						api: studio.api,
 						onTarget: (target) => {
 							studio.preview.setState({ previewTarget: target });
 							void studio.run(() => studio.runPreview(target));

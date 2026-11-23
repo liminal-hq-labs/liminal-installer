@@ -5,7 +5,13 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { PREVIEW_WINDOW, fitWindow, parsePreviewQuery, previewWindowQuery } from './fullScreen';
+import {
+	PREVIEW_WINDOW,
+	fitWindow,
+	parsePreviewQuery,
+	previewWindowQuery,
+	terminalFit,
+} from './fullScreen';
 import { STAGE } from './model';
 import { copyFrame, derive, driveOf, formatSize, nextFolder, stepFrom } from './sim';
 
@@ -87,9 +93,33 @@ describe('the full-screen window', () => {
 		expect(parsePreviewQuery(`?window=preview&${q}`)).toEqual({
 			target: 'win16-x86:win16',
 			step: 3,
+			view: 'rich',
 		});
 		expect(parsePreviewQuery('?window=preview')).toBeNull();
 		expect(parsePreviewQuery('?target=x&step=-2')?.step).toBe(0);
+	});
+
+	it('carries how a terminal target is drawn and keeps the default out of the address', () => {
+		expect(previewWindowQuery('dos-x86:tui-retro', 2)).toBe('target=dos-x86%3Atui-retro&step=2');
+		const q = previewWindowQuery('dos-x86:tui-retro', 2, 'terminal');
+		expect(parsePreviewQuery(`?window=preview&${q}`)).toEqual({
+			target: 'dos-x86:tui-retro',
+			step: 2,
+			view: 'terminal',
+		});
+		expect(parsePreviewQuery('?target=x&view=sideways')?.view).toBe('rich');
+	});
+
+	it('draws a terminal at the largest whole zoom that fits, and scales down only below one', () => {
+		const at = (width: number, height: number) => terminalFit({ width, height }, 80, 25, 10, 20);
+		expect(at(800, 500)).toEqual({ zoom: 1, width: 800, height: 500 });
+		expect(at(1700, 1100)).toEqual({ zoom: 2, width: 1600, height: 1000 });
+		// Height limits the zoom, and the aspect ratio stays 80 by 25 cells.
+		expect(at(2400, 1000)).toEqual({ zoom: 2, width: 1600, height: 1000 });
+		const small = at(400, 400);
+		expect(small.zoom).toBe(0.5);
+		expect(small.width / small.height).toBeCloseTo(1.6, 5);
+		expect(at(0, 0).zoom).toBe(1);
 	});
 
 	it('is sized to the look, scaled down to fit the screen with the aspect ratio kept', () => {

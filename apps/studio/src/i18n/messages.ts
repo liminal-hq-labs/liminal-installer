@@ -196,6 +196,9 @@ export const enMessages = {
 	// translator: Hint under the real terminal. F6 is a key name, not translated.
 	'terminal.hint':
 		'This is the real terminal output, and the keyboard plays it: Tab, arrows, Space, Enter and Esc. Press F6 to leave it.',
+	// translator: Hint under the real terminal in the full-screen window. Esc and F6 are key names, not translated.
+	'terminal.hintFullScreen':
+		'The keyboard plays the terminal, and Esc goes to the installer. Press F6 to leave the terminal, then Esc to leave full screen.',
 	// translator: Accessible name of the real terminal. {id} is the step or layout it shows.
 	'terminal.label': 'Terminal screen of {id}',
 	'terminal.demoUnavailable':

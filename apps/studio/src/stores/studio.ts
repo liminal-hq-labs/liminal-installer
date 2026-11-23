@@ -15,6 +15,7 @@ import { t, tn } from '../i18n/messages';
 import { errorMessage, isStudioError, type Api } from '../lib/api';
 import type { Settings } from '../lib/settings';
 import type { Flow, Layout } from '../lib/types';
+import type { TerminalView } from '../preview/TerminalPreview';
 import { createPreviewStore, type PreviewStore } from './preview';
 import { createProjectStore, type ProjectStore } from './project';
 import { createScriptStore, initialScriptState, type ScriptStore } from './script';
@@ -53,7 +54,7 @@ export interface StudioOptions {
 	/** Settles unsaved script edits before they would be lost: true to go on. Without it they are discarded. */
 	settleUnsaved?: () => Promise<boolean>;
 	/** Opens the full-screen preview in a window of its own (the desktop shell). Without it the preview fills the page. */
-	openPreviewWindow?: (target: string, step: number) => Promise<void>;
+	openPreviewWindow?: (target: string, step: number, view: TerminalView) => Promise<void>;
 }
 
 export interface Studio {
@@ -437,7 +438,7 @@ export function createStudio(options: StudioOptions): Studio {
 		'view.fullScreenPreview': async () => {
 			if (!pv().preview) await runPreview(pv().previewTarget);
 			if (options.openPreviewWindow)
-				await options.openPreviewWindow(pv().previewTarget, pv().previewStep);
+				await options.openPreviewWindow(pv().previewTarget, pv().previewStep, pv().previewView);
 			else preview.setState({ fullscreen: true });
 		},
 		'project.preview': async () => {

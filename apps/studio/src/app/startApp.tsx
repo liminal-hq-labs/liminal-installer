@@ -8,6 +8,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { ChromeStore } from '../chrome/chromeStore';
 import { createApi, errorMessage, type Api } from '../lib/api';
+import type { TerminalView } from '../preview/TerminalPreview';
 import { createStudio, type App } from '../stores/studio';
 import { createStudioRouter, routerNavigator } from './router';
 import { ShellOptionsContext } from './ShellOptions';
@@ -24,7 +25,7 @@ export interface StartOptions {
 	/** Settles unsaved script edits before they would be lost: true to go on. */
 	settleUnsaved?: () => Promise<boolean>;
 	/** Opens the full-screen preview in a window of its own. */
-	openPreviewWindow?: (target: string, step: number) => Promise<void>;
+	openPreviewWindow?: (target: string, step: number, view: TerminalView) => Promise<void>;
 }
 
 /**

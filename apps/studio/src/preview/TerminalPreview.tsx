@@ -3,10 +3,11 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { t } from '../i18n/messages';
 import type { TuiApi } from '../lib/api';
 import type { CellGrid, TuiKey, TuiOutcome } from '../lib/types';
+import { terminalFit } from './fullScreen';
 import { paintGrid, DEFAULT_BG } from './terminalPaint';
 import styles from './terminal.module.css';
 import { useTuiSession, type TuiSessionOptions } from './useTuiSession';
@@ -63,7 +64,16 @@ export function stepFor(outcome: TuiOutcome): TerminalStep | null {
 	return 'next';
 }
 
-function Canvas({ grid }: { grid: CellGrid }) {
+/** How many CSS pixels a cell is drawn at, so a window can show the text at a whole-number zoom. */
+function Canvas({
+	grid,
+	zoom = 1,
+	size,
+}: {
+	grid: CellGrid;
+	zoom?: number;
+	size?: { width: number; height: number };
+}) {
 	const ref = useRef<HTMLCanvasElement>(null);
 	const [fontsReady, setFontsReady] = useState(0);
 	useEffect(() => {
@@ -82,7 +92,7 @@ function Canvas({ grid }: { grid: CellGrid }) {
 		const canvas = ref.current;
 		const ctx = canvas?.getContext('2d');
 		if (!canvas || !ctx) return;
-		const scale = Math.max(1, Math.round(window.devicePixelRatio || 1));
+		const scale = Math.max(1, Math.round((window.devicePixelRatio || 1) * Math.max(1, zoom)));
 		const cellW = CELL_W * scale;
 		const cellH = CELL_H * scale;
 		canvas.width = grid.width * cellW;
@@ -90,13 +100,17 @@ function Canvas({ grid }: { grid: CellGrid }) {
 		ctx.fillStyle = DEFAULT_BG;
 		ctx.fillRect(0, 0, canvas.width, canvas.height);
 		paintGrid(ctx, grid, { cellW, cellH, font: `${Math.round(cellH * 1.1)}px ${FONT_FAMILY}` });
-	}, [grid, fontsReady]);
+	}, [grid, fontsReady, zoom]);
 	return (
 		<canvas
 			ref={ref}
 			className={styles.canvas}
 			aria-hidden="true"
-			style={{ aspectRatio: `${grid.width * CELL_W} / ${grid.height * CELL_H}` }}
+			style={
+				size
+					? { width: size.width, height: size.height }
+					: { aspectRatio: `${grid.width * CELL_W} / ${grid.height * CELL_H}` }
+			}
 		/>
 	);
 }
@@ -105,6 +119,13 @@ export interface TerminalPreviewProps extends TuiSessionOptions {
 	api: TuiApi;
 	/** Accessible name of the terminal, such as `Terminal screen of welcome`. */
 	label: string;
+	/**
+	 * Fill the parent: the terminal is drawn at the largest whole-number zoom that fits, centred, and
+	 * the hint says how to leave it. For the full-screen window.
+	 */
+	fill?: boolean;
+	/** Focus the terminal when it opens, so the keyboard plays it at once. */
+	autoFocus?: boolean;
 }
 
 /**
@@ -112,9 +133,37 @@ export interface TerminalPreviewProps extends TuiSessionOptions {
  * cell grid it sends; the keyboard goes to it, and the control that is focused in the screen is
  * the one the keys act on. F6 leaves the terminal, since Tab belongs to the screen.
  */
-export function TerminalPreview({ api, label, ...options }: TerminalPreviewProps) {
-	const { frame, error, press } = useTuiSession(api, options);
+export function TerminalPreview({
+	api,
+	label,
+	fill = false,
+	autoFocus = false,
+	...options
+}: TerminalPreviewProps) {
+	const { frame, error, press } = useTuiSession(
+		api,
+		fill ? { cols: 80, rows: 25, ...options } : options,
+	);
 	const host = useRef<HTMLDivElement>(null);
+	const area = useRef<HTMLDivElement>(null);
+	const [box, setBox] = useState<{ width: number; height: number } | null>(null);
+	useLayoutEffect(() => {
+		const el = area.current;
+		if (!fill || !el) return;
+		const measure = () => setBox({ width: el.clientWidth, height: el.clientHeight });
+		measure();
+		if (typeof ResizeObserver === 'undefined') return;
+		const observer = new ResizeObserver(measure);
+		observer.observe(el);
+		return () => observer.disconnect();
+	}, [fill]);
+	const grid = frame?.grid;
+	const fit =
+		fill && box && grid ? terminalFit(box, grid.width, grid.height, CELL_W, CELL_H) : null;
+	const cols = grid?.width ?? 0;
+	useEffect(() => {
+		if (autoFocus && cols > 0) host.current?.focus();
+	}, [autoFocus, cols]);
 	const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
 		if (e.key === 'F6') {
 			host.current?.blur();
@@ -126,33 +175,36 @@ export function TerminalPreview({ api, label, ...options }: TerminalPreviewProps
 		press(key);
 	};
 	return (
-		<div className={styles.wrap}>
+		<div className={fill ? `${styles.wrap} ${styles.fill}` : styles.wrap}>
 			{error ? (
 				<p role="alert" className={styles.error}>
 					{error}
 				</p>
 			) : null}
-			<div
-				ref={host}
-				className={styles.terminal}
-				role="group"
-				tabIndex={0}
-				aria-label={label}
-				onKeyDown={onKeyDown}
-			>
-				{frame ? (
-					<>
-						<Canvas grid={frame.grid} />
-						<pre className={styles.sr}>{gridText(frame.grid)}</pre>
-						<p className={styles.sr} aria-live="polite">
-							{frame.focus}
-						</p>
-					</>
-				) : error ? null : (
-					<p className={styles.opening}>{t('terminal.opening')}</p>
-				)}
+			<div ref={area} className={fill ? styles.area : styles.areaNatural}>
+				<div
+					ref={host}
+					className={fill ? `${styles.terminal} ${styles.terminalFill}` : styles.terminal}
+					style={fit ? { width: fit.width, height: fit.height } : undefined}
+					role="group"
+					tabIndex={0}
+					aria-label={label}
+					onKeyDown={onKeyDown}
+				>
+					{frame ? (
+						<>
+							<Canvas grid={frame.grid} zoom={fit?.zoom} size={fit ?? undefined} />
+							<pre className={styles.sr}>{gridText(frame.grid)}</pre>
+							<p className={styles.sr} aria-live="polite">
+								{frame.focus}
+							</p>
+						</>
+					) : error ? null : (
+						<p className={styles.opening}>{t('terminal.opening')}</p>
+					)}
+				</div>
 			</div>
-			<p className={styles.hint}>{t('terminal.hint')}</p>
+			<p className={styles.hint}>{t(fill ? 'terminal.hintFullScreen' : 'terminal.hint')}</p>
 		</div>
 	);
 }
