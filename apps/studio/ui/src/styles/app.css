@@ -217,7 +217,8 @@ input[type="text"], select, textarea {
 	border: 1px solid var(--lh-border-default); border-radius: var(--lh-radius-sm); padding: 4px 8px; min-width: 0;
 }
 input[type="text"] { height: 28px; width: 100%; }
-select { height: 28px; }
+select { height: auto; min-height: 32px; line-height: 1.4; box-sizing: border-box; text-overflow: ellipsis; }
+select, input[type="text"] { overflow: visible; }
 .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
 .field.inline { flex-direction: row; align-items: center; margin: 0; }
 .field-label { font-size: 11px; color: var(--lh-text-muted); }
@@ -247,6 +248,7 @@ select { height: 28px; }
 .layout-grid { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr) 320px; gap: 12px; align-items: start; }
 /* The properties panel sits on the right, as in the designs. */
 .layout-grid > :nth-child(2) { order: 3; }
+.layout-grid > * { min-width: 0; }
 ul.tree { list-style: none; margin: 0; padding: 0; max-height: 52vh; overflow: auto; }
 ul.tree li { display: flex; gap: 6px; align-items: center; padding: 3px 8px; border-radius: var(--lh-radius-sm); cursor: pointer; }
 ul.tree li:hover { background: var(--lh-bg-hover); }
