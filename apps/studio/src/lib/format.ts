@@ -33,6 +33,20 @@ export function formatOp(op: Operation): { name: string; detail: string } {
 			return { name: 'url_scheme', detail: `${s('scheme')}://` };
 		case 'path.add':
 			return { name: 'path.add', detail: s('entry') };
+		case 'prereq.webview2':
+			return {
+				name: op.op,
+				detail: `${t('op.webview2', { mode: op.mode })}${
+					op.min_version ? ` · ${t('op.webview2Min', { version: op.min_version })}` : ''
+				}`,
+			};
+		case 'tauri.wrap':
+			return {
+				name: op.op,
+				detail: `${t('op.tauriWrap', { product: op.product_name })}${
+					op.args.length ? ` ${op.args.join(' ')}` : ''
+				}`,
+			};
 		case 'os.register':
 			return { name: 'os.register', detail: `${s('product')} ${s('version')}` };
 		default:
@@ -61,7 +75,7 @@ export function historyRows(
 	return [...entries].reverse().map((e) => ({
 		label: e.label,
 		source: e.source === 'mcp' ? t('history.sourceAgent') : t('history.sourceYou'),
-		doc: `${e.doc.type} ${e.doc.id}`,
+		doc: e.doc.type === 'tauri' ? e.doc.type : `${e.doc.type} ${e.doc.id}`,
 		undone: !e.applied,
 	}));
 }

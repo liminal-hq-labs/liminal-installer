@@ -10,6 +10,7 @@ import { createChromeStore } from '../chrome/chromeStore';
 import { SCREEN_ACTIONS } from '../chrome/menuModel';
 import { noTerminal, type Api } from '../lib/api';
 import { browserSettings } from '../lib/settings';
+import { tauriViewFixture } from '../lib/tauriFixture';
 import type { Flow, Layout, Preview, ProjectSummary } from '../lib/types';
 import { startApp, type App } from './startApp';
 
@@ -101,6 +102,7 @@ function fake() {
 		mcpError: async () => null,
 		onChange: async () => () => undefined,
 		pickProject: async () => null,
+		getTauri: async () => tauriViewFixture(),
 	} as unknown as Api;
 	return { api, saved };
 }

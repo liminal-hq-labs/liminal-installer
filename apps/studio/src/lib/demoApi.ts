@@ -8,9 +8,11 @@ import { validateFlow } from './flowEdit';
 import { resolveForRenderer } from './layoutEdit';
 import { composeScreen } from './stage';
 import type { Api } from './api';
+import { demoTauri } from './demoTauri';
 import { demoTerminal } from './demoTerminal';
 import type {
 	ChangeEvent,
+	DocKey,
 	Flow,
 	HistoryEntry,
 	Layout,
@@ -63,7 +65,7 @@ function tables(text: string, name: string): Record<string, string>[] {
 const unquote = (s: string | undefined) => (s ?? '').replace(/^"|"$/g, '');
 const list = (s: string | undefined) => [...(s ?? '').matchAll(/"([^"]*)"/g)].map((m) => m[1]!);
 
-type Doc = { type: 'flow' | 'layout' | 'script'; id: string };
+type Doc = DocKey;
 interface Entry extends HistoryEntry {
 	before: string | undefined;
 	after: string | undefined;
@@ -89,15 +91,20 @@ export function demoApi(): Api {
 	let cursor = 0;
 	let preview: Preview | null = null;
 
+	const tauri = demoTauri();
 	const read = (d: Doc): string | undefined =>
-		d.type === 'flow'
-			? json(flows.get(d.id))
-			: d.type === 'layout'
-				? json(layouts.get(d.id))
-				: scripts.get(d.id);
+		d.type === 'tauri'
+			? tauri.snapshot()
+			: d.type === 'flow'
+				? json(flows.get(d.id))
+				: d.type === 'layout'
+					? json(layouts.get(d.id))
+					: scripts.get(d.id);
 	const json = (v: unknown) => (v === undefined ? undefined : JSON.stringify(v));
 	const write = (d: Doc, text: string | undefined) => {
-		if (d.type === 'script') text === undefined ? scripts.delete(d.id) : scripts.set(d.id, text);
+		if (d.type === 'tauri') tauri.restore(text);
+		else if (d.type === 'script')
+			text === undefined ? scripts.delete(d.id) : scripts.set(d.id, text);
 		else {
 			const map = (d.type === 'flow' ? flows : layouts) as Map<string, unknown>;
 			text === undefined ? map.delete(d.id) : map.set(d.id, JSON.parse(text));
@@ -112,8 +119,7 @@ export function demoApi(): Api {
 		listeners.forEach((l) =>
 			l({ kind, doc, label, source, can_undo: cursor > 0, can_redo: cursor < entries.length }),
 		);
-	const edit = (doc: Doc, after: string, label: string) => {
-		const before = read(doc);
+	const edit = (doc: Doc, after: string, label: string, before: string | undefined = read(doc)) => {
 		if (before === after) return;
 		write(doc, after);
 		entries = [
@@ -346,6 +352,19 @@ export function demoApi(): Api {
 		history: async () => view(),
 		undo: async () => step(-1),
 		redo: async () => step(1),
+		getTauri: async () => tauri.view(),
+		importTauri: async (_config, label) => {
+			const before = tauri.snapshot();
+			const result = tauri.importConfig();
+			edit({ type: 'tauri' }, tauri.snapshot(), label, before);
+			return result;
+		},
+		setTauriSettings: async (change, label) => {
+			const before = tauri.snapshot();
+			const next = tauri.set(change);
+			edit({ type: 'tauri' }, tauri.snapshot(), label, before);
+			return next;
+		},
 		mcpInfo: async () => null,
 		mcpError: async () => null,
 		onChange: async (handler) => {
@@ -353,6 +372,7 @@ export function demoApi(): Api {
 			return () => listeners.delete(handler);
 		},
 		pickProject: async () => null,
+		pickTauriConfig: async () => 'src-tauri/tauri.conf.json',
 	};
 }
 

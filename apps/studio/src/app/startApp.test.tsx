@@ -11,6 +11,7 @@ import { startApp, type App } from './startApp';
 import { createChromeStore } from '../chrome/chromeStore';
 import { StudioError, noTerminal, type Api } from '../lib/api';
 import { browserSettings } from '../lib/settings';
+import { tauriViewFixture } from '../lib/tauriFixture';
 import type {
 	ChangeEvent,
 	Flow,
@@ -136,6 +137,12 @@ function fakeApi(overrides: Partial<Api> = {}): Fake {
 			return () => listeners.delete(handler);
 		},
 		pickProject: async () => null,
+		getTauri: async () => tauriViewFixture(),
+		importTauri: async () => {
+			throw new Error('not used');
+		},
+		setTauriSettings: async () => tauriViewFixture(),
+		pickTauriConfig: async () => null,
 		...overrides,
 	};
 	return fake;

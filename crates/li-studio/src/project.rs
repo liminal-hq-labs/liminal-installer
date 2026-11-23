@@ -21,6 +21,18 @@ pub enum DocKey {
 	Layout(String),
 	/// A path relative to `installer/`, such as `scripts/sound-setup.lua`.
 	Script(String),
+	/// The Tauri import and its settings: `installer.toml`, `components.toml` and `tauri.json`
+	/// change together, so they are one document in the undo history.
+	Tauri,
+}
+
+/// The text of the files a Tauri import or settings change writes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TauriFiles {
+	pub installer_toml: String,
+	pub components_toml: String,
+	/// `None` when the project has not been imported.
+	pub snapshot_json: Option<String>,
 }
 
 /// The contents of one editable document.
@@ -29,6 +41,7 @@ pub enum Doc {
 	Flow(Flow),
 	Layout(Layout),
 	Script(String),
+	Tauri(TauriFiles),
 }
 
 /// An `installer/` directory loaded into memory.
@@ -84,6 +97,7 @@ impl DocKey {
 			DocKey::Flow(id) => safe_id(id) && !id.contains('/'),
 			DocKey::Layout(id) => safe_id(id),
 			DocKey::Script(path) => safe_script(path),
+			DocKey::Tauri => true,
 		};
 		if ok {
 			Ok(())
@@ -100,6 +114,7 @@ impl DocKey {
 				None => format!("layouts/{id}.layout.json"),
 			},
 			DocKey::Script(path) => path.clone(),
+			DocKey::Tauri => "installer.toml".to_owned(),
 		}
 	}
 }
@@ -208,12 +223,22 @@ impl Project {
 			DocKey::Flow(id) => self.flows.get(id).cloned().map(Doc::Flow),
 			DocKey::Layout(id) => self.layouts.get(id).cloned().map(Doc::Layout),
 			DocKey::Script(path) => self.scripts.get(path).cloned().map(Doc::Script),
+			DocKey::Tauri => Some(Doc::Tauri(TauriFiles {
+				installer_toml: fs::read_to_string(self.root.join("installer.toml")).ok()?,
+				components_toml: fs::read_to_string(self.root.join("components.toml"))
+					.unwrap_or_default(),
+				snapshot_json: fs::read_to_string(self.root.join(li_model::TauriSnapshot::PATH))
+					.ok(),
+			})),
 		}
 	}
 
 	/// Replaces, creates or (with `None`) removes a document, in memory and on disk.
 	pub fn put(&mut self, key: &DocKey, doc: Option<Doc>) -> Result<(), StudioError> {
 		key.validate()?;
+		if *key == DocKey::Tauri {
+			return self.put_tauri(doc);
+		}
 		let path = self.root.join(key.relative_path());
 		match doc {
 			Some(doc) => {
@@ -249,6 +274,7 @@ impl Project {
 						};
 						self.scripts.insert(p.clone(), s).map(drop)
 					}
+					Doc::Tauri(_) => None,
 				};
 			}
 			None => {
@@ -259,9 +285,48 @@ impl Project {
 					DocKey::Flow(id) => self.flows.remove(id).map(drop),
 					DocKey::Layout(id) => self.layouts.remove(id).map(drop),
 					DocKey::Script(p) => self.scripts.remove(p).map(drop),
+					DocKey::Tauri => None,
 				};
 			}
 		}
+		Ok(())
+	}
+
+	fn put_tauri(&mut self, doc: Option<Doc>) -> Result<(), StudioError> {
+		let Some(Doc::Tauri(files)) = doc else {
+			return Err(StudioError::invalid(
+				"document",
+				"the Tauri import cannot be removed",
+			));
+		};
+		// Parse first, so a refused change leaves every file as it was.
+		let installer: InstallerFile = toml::from_str(&files.installer_toml)
+			.map_err(|e| StudioError::invalid("installer.toml", e))?;
+		let components: ComponentsFile = if files.components_toml.trim().is_empty() {
+			ComponentsFile::default()
+		} else {
+			toml::from_str(&files.components_toml)
+				.map_err(|e| StudioError::invalid("components.toml", e))?
+		};
+		let write = |name: &str, text: &str| {
+			let path = self.root.join(name);
+			fs::write(&path, text).map_err(|e| StudioError::io(&path, e))
+		};
+		write("installer.toml", &files.installer_toml)?;
+		if !files.components_toml.is_empty() || self.root.join("components.toml").exists() {
+			write("components.toml", &files.components_toml)?;
+		}
+		let snapshot = self.root.join(li_model::TauriSnapshot::PATH);
+		match &files.snapshot_json {
+			Some(text) => write(li_model::TauriSnapshot::PATH, text)?,
+			None => {
+				if snapshot.exists() {
+					fs::remove_file(&snapshot).map_err(|e| StudioError::io(&snapshot, e))?;
+				}
+			}
+		}
+		self.installer = installer;
+		self.components = components;
 		Ok(())
 	}
 

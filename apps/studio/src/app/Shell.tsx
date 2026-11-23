@@ -24,6 +24,7 @@ const NAV: { route: Screen; icon: string }[] = [
 	{ route: 'layouts', icon: ICON_PATHS.layouts },
 	{ route: 'script', icon: ICON_PATHS.code },
 	{ route: 'preview', icon: ICON_PATHS.eye },
+	{ route: 'tauri', icon: ICON_PATHS.package },
 ];
 
 function NavIcon({ d }: { d: string }) {

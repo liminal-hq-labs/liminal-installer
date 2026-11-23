@@ -18,6 +18,9 @@ import type {
 	ScriptDiagnostic,
 	ScriptReport,
 	TargetInfo,
+	TauriImportResult,
+	TauriSettingsChange,
+	TauriView,
 	TuiFrame,
 	TuiKey,
 	TuiKeyResult,
@@ -75,10 +78,18 @@ export interface Api extends TuiApi {
 	mcpInfo(): Promise<McpInfo | null>;
 	/** Why the agent server is not running although it is switched on, or null. */
 	mcpError(): Promise<string | null>;
+	/** The project's Tauri state: the import, its drift, the install and update settings and the checks. */
+	getTauri(): Promise<TauriView>;
+	/** Imports a `tauri.conf.json` (a path, absolute or in the project); null imports the project's `[tauri]` config again. */
+	importTauri(config: string | null, label: string): Promise<TauriImportResult>;
+	/** Changes the project's Tauri settings; a field of `change` left out is not touched. */
+	setTauriSettings(change: TauriSettingsChange, label: string): Promise<TauriView>;
 	/** Calls `handler` after every change from any source; resolves to an unsubscribe function. */
 	onChange(handler: (e: ChangeEvent) => void): Promise<() => void>;
 	/** Asks the person for a project folder; null if cancelled or unsupported. */
 	pickProject(startIn?: string): Promise<string | null>;
+	/** Asks the person for a `tauri.conf.json`; null if cancelled or unsupported. */
+	pickTauriConfig(startIn?: string): Promise<string | null>;
 }
 
 export const CHANGE_EVENT = 'studio://changed';
@@ -180,12 +191,25 @@ async function tauriApi(): Promise<Api> {
 		redo: () => invoke('redo'),
 		mcpInfo: () => invoke('mcp_info'),
 		mcpError: () => invoke('mcp_error'),
+		getTauri: () => invoke('get_tauri'),
+		importTauri: (config, label) => invoke('import_tauri', { config, label }),
+		setTauriSettings: (change, label) => invoke('set_tauri_settings', { change, label }),
 		onChange: async (handler) => listen<ChangeEvent>(CHANGE_EVENT, (e) => handler(e.payload)),
 		pickProject: async (startIn) => {
 			const { open } = await import('@tauri-apps/plugin-dialog');
 			const picked = await open({
 				directory: true,
 				title: t('api.openProjectTitle'),
+				...(startIn ? { defaultPath: startIn } : {}),
+			});
+			return typeof picked === 'string' ? picked : null;
+		},
+		pickTauriConfig: async (startIn) => {
+			const { open } = await import('@tauri-apps/plugin-dialog');
+			const picked = await open({
+				directory: false,
+				title: t('api.pickTauriTitle'),
+				filters: [{ name: t('api.tauriFilter'), extensions: ['json', 'json5'] }],
 				...(startIn ? { defaultPath: startIn } : {}),
 			});
 			return typeof picked === 'string' ? picked : null;

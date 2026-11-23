@@ -8,7 +8,7 @@ import { t, type MessageId } from '../i18n/messages';
 import type { IconName } from '../ui/iconPaths';
 import { menuIcon } from './menuIcons';
 
-export type Screen = 'project' | 'flow' | 'layouts' | 'script' | 'preview';
+export type Screen = 'project' | 'flow' | 'layouts' | 'script' | 'preview' | 'tauri';
 
 export type ActionId =
 	| 'file.new'
@@ -25,6 +25,7 @@ export type ActionId =
 	| 'view.layouts'
 	| 'view.script'
 	| 'view.preview'
+	| 'view.tauri'
 	| 'view.fullScreenPreview'
 	| 'view.menuBar'
 	| 'project.check'
@@ -78,6 +79,7 @@ export const SCREEN_ACTIONS: Record<Screen, ActionId> = {
 	layouts: 'view.layouts',
 	script: 'view.script',
 	preview: 'view.preview',
+	tauri: 'view.tauri',
 };
 
 const screenAction = (screen: Screen, label: MessageId, key: string, icon: IconName): Action => ({
@@ -124,6 +126,7 @@ export const ACTIONS: Record<ActionId, Action> = {
 	'view.layouts': screenAction('layouts', 'menu.viewLayouts', '3', 'layouts'),
 	'view.script': screenAction('script', 'menu.viewScripts', '4', 'code'),
 	'view.preview': screenAction('preview', 'menu.viewDryRun', '5', 'eye'),
+	'view.tauri': screenAction('tauri', 'menu.viewTauri', '6', 'package'),
 	'view.fullScreenPreview': {
 		label: 'menu.fullScreenPreview',
 		icon: 'fullScreen',
@@ -184,7 +187,16 @@ export const MENUS: Menu[] = [
 		label: 'menu.view',
 		mnemonic: 'v',
 		groups: [
-			{ items: ['view.project', 'view.flow', 'view.layouts', 'view.script', 'view.preview'] },
+			{
+				items: [
+					'view.project',
+					'view.flow',
+					'view.layouts',
+					'view.script',
+					'view.preview',
+					'view.tauri',
+				],
+			},
 			{ items: ['view.fullScreenPreview', 'view.menuBar'] },
 		],
 	},

@@ -445,7 +445,13 @@ impl StudioBackend for EngineBackend {
 				.filter(|p| p.scope.starts_with("flow:install") || p.scope.starts_with("target:")),
 		);
 
-		let sim = SimMachine::new();
+		// A Windows Tauri product is drawn against a Windows machine with no WebView2 runtime, so
+		// the plan shows what its WebView2 step does when the runtime is missing.
+		let sim = if eng.installer.tauri.is_some() && t.id.starts_with("windows") {
+			SimMachine::new().with_os("windows")
+		} else {
+			SimMachine::new()
+		};
 		let install = PathBuf::from(format!("/opt/{}", slug_of(&eng)));
 		let version = eng.literal_version().unwrap_or("0.0.0").to_owned();
 		let selected =

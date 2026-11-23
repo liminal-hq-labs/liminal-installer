@@ -46,6 +46,9 @@ pub fn tool_list() -> Value {
 		{"name": "get_preview", "description": "The last preview, or null if the project changed since it ran.", "inputSchema": schema(json!({}), &[])},
 		{"name": "tui_render", "description": "Open a live terminal session on a `tui` target (os-arch:renderer) and return the real terminal screen as text and ANSI. `page` is an install-flow step or a layout id; `state` is the page state; `keys` are pressed first (names such as Tab, Enter, Escape, ArrowDown, Space, or single characters). Returns the session id for `tui_key`; pass `close` to free it at once.", "inputSchema": schema(json!({"target": {"type": "string"}, "page": {"type": "string"}, "state": {"type": "object"}, "keys": {"type": "array", "items": {"type": "string"}}, "cols": {"type": "integer"}, "rows": {"type": "integer"}, "close": {"type": "boolean"}, "grid": {"type": "boolean", "description": "Also return the cell grid, for clients that draw their own terminal."}}), &["target", "page"])},
 		{"name": "tui_key", "description": "Press keys in a terminal session and return the real screen as text and ANSI, with what the last key did: nothing, a changed value, a chosen button (`activate`) or Esc (`cancel`). Pass `close` to free the session afterwards.", "inputSchema": schema(json!({"session": {"type": "string"}, "key": {"type": "string"}, "keys": {"type": "array", "items": {"type": "string"}}, "close": {"type": "boolean"}, "grid": {"type": "boolean"}}), &["session"])},
+		{"name": "get_tauri", "description": "Read the Tauri state: what `tauri.conf.json` was imported, whether it drifted since (and what importing again would change), the product fields and which are overridden, the WebView2 choice with each mode's cost, the Windows install mode (native or wrap) and the update settings.", "inputSchema": schema(json!({}), &[])},
+		{"name": "import_tauri", "description": "Import a Tauri 2 `tauri.conf.json` (default: the one `[tauri] config` names; a relative path is read from installer/): writes tauri.json, fills [product] and the generated components, and returns what changed. One undoable change.", "inputSchema": schema(json!({"config": {"type": "string"}, "label": label}), &[])},
+		{"name": "update_tauri_settings", "description": "Change the project's Tauri settings: `windows` (native or wrap), `overrides` (product fields the project keeps over the import), `webview2` (replaces [tauri.webview2]: mode downloadBootstrapper, embedBootstrapper, offlineInstaller, fixedRuntime or skip, plus silent, path, min_version; {} drops the override) and `updates` (replaces [updates]: mode none, liminal, tauri or both, with feed, channel and check_interval_hours). One undoable change.", "inputSchema": schema(json!({"windows": {"type": "string", "enum": ["native", "wrap"]}, "overrides": {"type": "array", "items": {"type": "string"}}, "webview2": {"type": "object"}, "updates": {"type": "object"}, "label": label}), &[])},
 		{"name": "check_project", "description": "The same checks as `liminst check`.", "inputSchema": schema(json!({}), &[])}
 	])
 }
@@ -269,6 +272,20 @@ pub fn call_tool(studio: &Studio, name: &str, args: &Value) -> Result<Value, Stu
 		"check_script_syntax" => to_value(&studio.check_script_syntax(str_arg(args, "source")?)),
 		"run_preview" => to_value(&studio.run_preview(str_arg(args, "target")?)?),
 		"get_preview" => to_value(&studio.get_preview()?),
+		"get_tauri" => to_value(&studio.tauri_view()?),
+		"import_tauri" => to_value(&studio.tauri_import(
+			args.get("config").and_then(Value::as_str),
+			&label("Agent: import tauri.conf.json".to_owned()),
+			Source::Mcp,
+		)?),
+		"update_tauri_settings" => {
+			let change: crate::tauri::TauriSettingsChange = parse(args, "arguments")?;
+			to_value(&studio.tauri_set(
+				change,
+				&label("Agent: change Tauri settings".to_owned()),
+				Source::Mcp,
+			)?)
+		}
 		"check_project" => to_value(&studio.check_project()?),
 		"tui_render" => tui_render(studio, args),
 		"tui_key" => tui_key(studio, args),
@@ -595,6 +612,9 @@ mod tests {
 				"get_preview",
 				"tui_render",
 				"tui_key",
+				"get_tauri",
+				"import_tauri",
+				"update_tauri_settings",
 				"check_project"
 			]
 		);

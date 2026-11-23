@@ -3,4 +3,4 @@
 /**
  * Names one editable document.
  */
-export type DocKey = { "type": "flow", "id": string } | { "type": "layout", "id": string } | { "type": "script", "id": string };
+export type DocKey = { "type": "flow", "id": string } | { "type": "layout", "id": string } | { "type": "script", "id": string } | { "type": "tauri" };
