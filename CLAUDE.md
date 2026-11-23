@@ -4,7 +4,7 @@ A summary of [AGENTS.md](AGENTS.md), which is canonical. Keep the two in sync.
 
 ## What this is
 
-{{PROJECT_TITLE}} is a Liminal HQ Labs experiment: {{PROJECT_DESCRIPTION}}. Experimental, so anything may change. Behaviour lives in `SPEC.md`, decisions in `docs/decisions.md`.
+Liminal Installer is a Liminal HQ Labs experiment: Themeable installers, updaters and launchers for every platform, from one project. Experimental, so anything may change. Behaviour lives in `SPEC.md`, decisions in `docs/decisions.md`.
 
 ## Rules to remember
 

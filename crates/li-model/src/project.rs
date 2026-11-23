@@ -1,0 +1,133 @@
+// Types for `installer.toml` and `components.toml`.
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+use serde::{Deserialize, Serialize};
+
+/// `installer.toml`: identity, defaults, targets and signing.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InstallerFile {
+	pub product: Product,
+	#[serde(default)]
+	pub defaults: Defaults,
+	#[serde(default, rename = "target")]
+	pub targets: Vec<Target>,
+	#[serde(default)]
+	pub signing: Signing,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Product {
+	pub id: String,
+	pub name: String,
+	pub publisher: String,
+	pub version: VersionSource,
+	#[serde(default)]
+	pub licence: Option<String>,
+}
+
+/// A literal version, or the place to read it from at build time (`{ from = "git-tag" }`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum VersionSource {
+	Literal(String),
+	From { from: String },
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Defaults {
+	#[serde(default)]
+	pub scope: Scope,
+	#[serde(default)]
+	pub theme: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Scope {
+	#[default]
+	User,
+	Machine,
+	Ask,
+}
+
+/// A build target such as `linux-x86_64` drawn by one renderer.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Target {
+	pub id: String,
+	pub renderer: String,
+	#[serde(default)]
+	pub theme: Option<String>,
+	#[serde(default)]
+	pub outputs: Vec<String>,
+}
+
+impl Target {
+	/// The `os-arch:renderer` form used in receipts.
+	pub fn full_id(&self) -> String {
+		format!("{}:{}", self.id, self.renderer)
+	}
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Signing {
+	#[serde(default)]
+	pub feed_key: Option<String>,
+}
+
+/// `components.toml`.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct ComponentsFile {
+	#[serde(default, rename = "component")]
+	pub components: Vec<Component>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Component {
+	pub id: String,
+	pub name: String,
+	#[serde(default)]
+	pub required: bool,
+	/// Targets this component applies to; empty means all.
+	#[serde(default)]
+	pub targets: Vec<String>,
+	#[serde(default)]
+	pub files: Vec<FileRule>,
+	#[serde(default)]
+	pub shortcut: Vec<ShortcutRule>,
+	#[serde(default)]
+	pub file_types: Vec<FileTypeRule>,
+	#[serde(default)]
+	pub url_schemes: Vec<String>,
+	#[serde(default)]
+	pub path: Vec<String>,
+}
+
+impl Component {
+	pub fn applies_to(&self, target_id: &str) -> bool {
+		self.targets.is_empty() || self.targets.iter().any(|t| t == target_id)
+	}
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FileRule {
+	pub from: String,
+	pub to: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ShortcutRule {
+	pub name: String,
+	pub target: String,
+	#[serde(rename = "in")]
+	pub place: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FileTypeRule {
+	pub extension: String,
+	pub name: String,
+	#[serde(default)]
+	pub open_with: Option<String>,
+}

@@ -18,7 +18,7 @@
 
 ## Project status
 
-{{PROJECT_TITLE}} is a [Liminal HQ Labs](https://github.com/liminal-hq-labs) experiment: {{PROJECT_DESCRIPTION}}. It is **experimental**, so interfaces, file formats and behaviour may change between any two commits. `SPEC.md` is the source of truth for behaviour, and `docs/decisions.md` records why. The [Labs charter](https://github.com/liminal-hq-labs/.github/blob/main/docs/labs-charter.md) covers what that status means and how a project graduates.
+Liminal Installer is a [Liminal HQ Labs](https://github.com/liminal-hq-labs) experiment: Themeable installers, updaters and launchers for every platform, from one project. It is **experimental**, so interfaces, file formats and behaviour may change between any two commits. `SPEC.md` is the source of truth for behaviour, and `docs/decisions.md` records why. The [Labs charter](https://github.com/liminal-hq-labs/.github/blob/main/docs/labs-charter.md) covers what that status means and how a project graduates.
 
 ## Spelling and writing
 
