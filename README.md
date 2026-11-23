@@ -37,6 +37,7 @@ The `liminst` binary is in `target/release/`.
 ## Documentation
 
 - [SPEC.md](SPEC.md) — behaviour and interfaces
+- [docs/walkthrough.md](docs/walkthrough.md) — build, install, update and open the Studio
 - [docs/architecture.md](docs/architecture.md) — how the pieces fit together
 - [docs/decisions.md](docs/decisions.md) — decisions and why
 - [AGENTS.md](AGENTS.md) — contributor and agent rules
