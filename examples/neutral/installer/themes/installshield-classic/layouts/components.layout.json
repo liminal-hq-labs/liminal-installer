@@ -112,7 +112,14 @@
 					{
 						"kind": "text",
 						"props": {
-							"text": "Space required: {install.size} · Free: {system.free_space}",
+							"text": "Space required: {install.size}",
+							"role": "caption"
+						}
+					},
+					{
+						"kind": "text",
+						"props": {
+							"text": "Space available: {system.free_space}",
 							"role": "caption"
 						}
 					}
