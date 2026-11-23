@@ -10,8 +10,15 @@ export interface DialogButton {
 	danger?: boolean;
 }
 
+export type DialogKind = 'about' | 'confirm' | 'preferences' | 'shortcuts' | 'agent' | 'new-project';
+
+export const DIALOG_KINDS: DialogKind[] = ['about', 'confirm', 'preferences', 'shortcuts', 'agent', 'new-project'];
+
+/** The answer of New project when it made a project: `created:` and the project's folder. */
+export const CREATED_PREFIX = 'created:';
+
 export interface DialogSpec {
-	kind: 'about' | 'confirm' | 'preferences';
+	kind: DialogKind;
 	title: string;
 	message?: string;
 	detail?: string;
@@ -87,7 +94,7 @@ export function decodeSpec(search: string): DialogSpec | undefined {
 	try {
 		const raw = new URLSearchParams(search).get('spec');
 		const v = raw ? (JSON.parse(raw) as Partial<DialogSpec>) : undefined;
-		if (!v || typeof v.title !== 'string' || !['about', 'confirm', 'preferences'].includes(v.kind as string)) return undefined;
+		if (!v || typeof v.title !== 'string' || !DIALOG_KINDS.includes(v.kind as DialogKind)) return undefined;
 		return v as DialogSpec;
 	} catch {
 		return undefined;
@@ -151,10 +158,12 @@ export function inPageDialogBackend(draw: (dialog: { spec: DialogSpec; done(resu
 }
 
 /**
- * Opens Preferences as a window of its own, or brings it forward when it is open. Unlike a dialog it does not wait
- * for an answer and does not hold up the dialogs that follow.
+ * Opens a window of its own that does not wait for an answer and does not hold up the dialogs that follow
+ * (Preferences, Keyboard shortcuts, Connect an agent), or brings it forward when it is open.
  */
-export async function openPreferencesWindow(): Promise<void> {
+export async function openChildWindow(kind: 'preferences' | 'shortcuts' | 'agent'): Promise<void> {
 	const { invoke } = await import('@tauri-apps/api/core');
-	await invoke('open_window', { kind: 'preferences' });
+	await invoke('open_window', { kind });
 }
+
+export const openPreferencesWindow = () => openChildWindow('preferences');

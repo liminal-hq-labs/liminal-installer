@@ -15,6 +15,7 @@ import type { ChromeStore } from './chromeStore';
 import { DialogButtons, DialogMessage } from './DialogBodies';
 import { DIALOG_RESULT_EVENT, decodeSpec, type DialogAnswer, type DialogResult, type DialogSpec } from './dialogWindow';
 import type { Host } from '../lib/host';
+import { PageDialog } from './DialogPages';
 import { PreferencesScreen } from '../preferences/PreferencesScreen';
 import { inTauri } from './windowControls';
 
@@ -70,6 +71,11 @@ function InfoWindow({ spec, id, store, host, controls }: InfoWindowProps) {
 					<div className="app-host prefs-host">
 						<PreferencesScreen port={store.port} host={host} />
 					</div>
+				) : spec.kind === 'shortcuts' || spec.kind === 'agent' || spec.kind === 'new-project' ? (
+					<div className="dlg-body">
+						<PageDialog kind={spec.kind} host={host} settings={store.get().settings} onAnswer={(r) => void answer(id, r, controls)} />
+						{spec.kind === 'new-project' ? null : <DialogButtons spec={spec} onAnswer={(r) => void answer(id, r, controls)} />}
+					</div>
 				) : (
 					<div className="dlg-body">
 						<DialogMessage spec={spec} />
@@ -85,7 +91,7 @@ function InfoWindow({ spec, id, store, host, controls }: InfoWindowProps) {
 export function mountInfoWindow(container: HTMLElement, search: string, store: ChromeStore, host: Host, controls: WindowControls): boolean {
 	const params = new URLSearchParams(search);
 	const kind = params.get('window');
-	const spec = decodeSpec(search) ?? (kind === 'preferences' ? ({ kind: 'preferences', title: 'Preferences' } as DialogSpec) : undefined);
+	const spec = decodeSpec(search) ?? (kind === 'preferences' ? ({ kind: 'preferences', title: 'Preferences' } as DialogSpec) : kind === 'shortcuts' ? ({ kind: 'shortcuts', title: 'Keyboard Shortcuts' } as DialogSpec) : kind === 'agent' ? ({ kind: 'agent', title: 'Connect an Agent' } as DialogSpec) : undefined);
 	if (!spec) return false;
 	createRoot(container).render(
 		<StrictMode>

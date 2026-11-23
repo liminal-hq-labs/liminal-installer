@@ -57,7 +57,7 @@ pub enum Command {
 	/// Work with themes
 	#[command(subcommand)]
 	Theme(ThemeCommand),
-	/// Serve the project to the Studio and agents (not available yet)
+	/// Serve the project to agents over MCP, without a window
 	Studio(StudioArgs),
 }
 
@@ -205,9 +205,12 @@ pub struct ThemePackArgs {
 
 #[derive(Debug, Args)]
 pub struct StudioArgs {
-	/// Serve MCP to the Studio and agents
+	/// Serve the project over MCP on 127.0.0.1 until Ctrl+C. Prints the URL and a new token once
 	#[arg(long)]
 	pub mcp: bool,
+	/// The port to listen on (default: any free port)
+	#[arg(long, default_value_t = 0, value_name = "PORT", requires = "mcp")]
+	pub port: u16,
 }
 
 fn load(cli: &Cli) -> CliResult<Project> {
@@ -443,11 +446,40 @@ pub fn execute(cli: &Cli) -> CliResult<u8> {
 			if !a.mcp {
 				return Err(CliError::new("nothing to serve; pass --mcp"));
 			}
-			Err(CliError::new(
-				"`liminst studio --mcp` is not available yet: the Studio and its MCP server are still to be built",
-			))
+			serve_mcp(&cli.project, a.port)
 		}
 	}
+}
+
+/// Opens the project and serves it over MCP until the process is interrupted.
+///
+/// The first two lines of standard output are `Studio MCP server: <url>` and `Token: <token>`,
+/// so a script can read them. The token is printed here once and never again, and it changes on
+/// every run. Edits go to the files on disk; the undo history lives in memory for the run.
+fn serve_mcp(project: &std::path::Path, port: u16) -> CliResult<u8> {
+	use std::io::Write;
+	use std::sync::Arc;
+
+	use li_studio::mcp::{McpServer, wait_for_interrupt};
+	use li_studio::{EngineBackend, Studio};
+
+	let studio = Arc::new(Studio::new(Box::new(EngineBackend)));
+	studio
+		.open(project)
+		.map_err(|e| CliError::new(format!("cannot open the project: {e}")))?;
+	let server = McpServer::start(studio, port)
+		.map_err(|e| CliError::new(format!("the MCP server did not start: {e}")))?;
+	let mut out = std::io::stdout().lock();
+	let line = |out: &mut std::io::StdoutLock<'_>| {
+		writeln!(out, "{}", server.banner())?;
+		writeln!(out, "Token: {}", server.token())?;
+		out.flush()
+	};
+	line(&mut out).map_err(|e| CliError::new(e.to_string()))?;
+	drop(out);
+	eprintln!("Serving until Ctrl+C. Send the token as a bearer token.");
+	wait_for_interrupt().map_err(|e| CliError::new(format!("cannot wait for Ctrl+C: {e}")))?;
+	Ok(0)
 }
 
 fn print_report(report: &crate::diag::Report, json: bool) {

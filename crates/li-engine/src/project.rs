@@ -71,7 +71,19 @@ impl Project {
 	/// `themes/*/theme.toml` with `layouts/*.layout.json`, and `scripts/*.lua`. Only
 	/// `installer.toml` is required.
 	pub fn load(dir: &Path) -> Result<Project> {
-		let installer_dir = dir.join("installer");
+		let mut project = Self::load_installer_dir(&dir.join("installer"))?;
+		project.root = dir.to_owned();
+		Ok(project)
+	}
+
+	/// Loads a project whose files sit directly in `installer_dir`, whatever that folder is called.
+	/// `root` is the folder's parent, or the folder itself when it has none.
+	pub fn load_installer_dir(installer_dir: &Path) -> Result<Project> {
+		let dir = installer_dir
+			.parent()
+			.filter(|p| !p.as_os_str().is_empty())
+			.unwrap_or(installer_dir);
+		let installer_dir = installer_dir.to_path_buf();
 		let installer_path = installer_dir.join("installer.toml");
 		let installer: InstallerFile = toml::from_str(&read_text(&installer_path)?)
 			.map_err(|e| parse_err(&installer_path, e))?;

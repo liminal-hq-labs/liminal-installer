@@ -9,7 +9,7 @@ Everything in this specification is in progress. Nothing is released, and any pa
 - **Engine** (plan, stage, commit, record): in progress. Install, update, modify, repair, uninstall and launch work end to end on Linux through the runner (§14).
 - **CLI** (`check`, `preview`, `build`, `keygen`, `feed`, `theme`, `studio`): in progress. `check`, `preview` and the Linux `build` (themed `.run` and `.lip`) work, and feeds and themes are signed.
 - **Renderers**: `tui` is in progress; `tui-retro`, `win16`, `win32-classic`, `canvas` and `web` are in progress as scaffolds or designs.
-- **Studio** and its MCP and GraphQL API: in progress.
+- **Studio** and its MCP server: in progress. GraphQL is deferred (D26).
 - **Example installers** for Planboard and Lt. Fizz: in progress.
 - **Feeds, the web stub and the Hub**: in progress.
 - **Delta updates, a theme gallery and macOS notarization in the CI step**: in progress as designs only.
@@ -259,7 +259,7 @@ A feed is published with a detached signature at `feed.json.sig`: the Ed25519 si
 | `keygen` | Make an Ed25519 key pair: `<out>.key` (secret) and `<out>.pub` (public, as hex) |
 | `feed add` | Add the built release to a feed; `--sign-key` signs it |
 | `theme pack` | Package a theme for sharing; `--sign-key` signs it |
-| `studio --mcp` | Serve the project to the Studio and agents |
+| `studio --mcp` | Serve the project to agents over MCP, with no window; `--port` picks the port |
 
 Table 7. `liminst` commands.
 
@@ -279,7 +279,9 @@ Example 2. A CI job.
 
 ## 13 · Studio API for agents
 
-The Studio serves MCP and GraphQL on `127.0.0.1`, protected by a token, as the Planboard server does. The Studio prints the address at start and never the token; Preferences shows it on request, copies it and replaces it, and a client holding the old one is refused from then on. The server runs only while `mcpEnabled` is on. Every change goes through the same undo history as a person's.
+The Studio serves MCP on `127.0.0.1`, protected by a token, as the Planboard server does. There is no GraphQL API (D26). The Studio prints the address at start and never the token; Preferences shows it on request, copies it and replaces it, and a client holding the old one is refused from then on. The server runs only while `mcpEnabled` is on. Every change goes through the same undo history as a person's. When the server cannot start, such as when its port is taken, the Studio says why in the agent card and in Preferences under Agents.
+
+`liminst studio --mcp` serves the project given by `-C` the same way with no window, until Ctrl+C. It listens on `127.0.0.1`, on `--port` or a free port. Its first two lines of standard output are `Studio MCP server: <url>` and `Token: <token>`; this is the one place a token is printed, it is new on every run, and it is never logged. The undo history lives in memory for the run, and every change is written to the project's files at once.
 
 | Tool | Purpose |
 |---|---|
@@ -296,7 +298,7 @@ The Studio runs the engine itself, not a stand-in. `check_project` is the Studio
 
 ### The Studio window
 
-The Studio draws the shared Liminal HQ window chrome in its desktop window: a 40px title bar with the gradient wordmark, an app menu, window buttons and an optional menu bar. The app menu is one flat list of groups (Open project…, Open recent, Reload; Save; Undo, Redo; the five screens and Show menu bar; Run check, Run dry-run preview; Preferences…, About, Quit) opened from the wordmark, `F10` or a lone `Alt`. The menu bar (File, Edit, View, Project, Help) holds the same commands and takes `F10`, `Alt` and `Alt` plus a letter while it shows. Preferences, About and confirmations are child windows of the main window. A browser tab, used for development only, draws a plain header instead. Preferences, opened with `Ctrl+,`, the app menu or File, is a child window with a side nav that becomes a select when narrow. See "Studio preferences" below for the settings.
+The Studio draws the shared Liminal HQ window chrome in its desktop window: a 40px title bar with the gradient wordmark, an app menu, window buttons and an optional menu bar. The app menu is one flat list of groups (New project…, Open project…, Open recent, Reload; Save; Undo, Redo; the five screens and Show menu bar; Run check, Run dry-run preview; Preferences…, Keyboard shortcuts, Connect an agent…, About, Quit) opened from the wordmark, `F10` or a lone `Alt`. The menu bar (File, Edit, View, Project, Help) holds the same commands and takes `F10`, `Alt` and `Alt` plus a letter while it shows. Preferences, Keyboard shortcuts, Connect an agent, New project, About and confirmations are child windows of the main window. New project (`Ctrl+N`) asks for a name, id, publisher and a folder, writes the same files as `liminst init` into a folder named after the project, and opens it; it refuses an id that is not reverse-DNS and a folder that already holds a project. Keyboard shortcuts lists the table every shortcut is matched against. Connect an agent shows the endpoint, copies the URL, the token or a sample `mcpServers` client configuration, and says why the server is off when it failed to start. Opening another project drops the previous project's selections and loaded documents. The status bar counts errors and warnings (a click opens the Overview's checks), and its History count leaves out undone entries. A browser tab, used for development only, draws a plain header instead. Preferences, opened with `Ctrl+,`, the app menu or File, is a child window with a side nav that becomes a select when narrow. See "Studio preferences" below for the settings.
 
 **Studio preferences.** Every change applies at once and is written to `settings.json` in the app's config directory (`app_config_dir()`: `$XDG_CONFIG_HOME/hq.liminal.installer-studio` on Linux, `~/Library/Application Support/hq.liminal.installer-studio` on macOS, `%APPDATA%\hq.liminal.installer-studio` on Windows) as a merge. A write that is refused leaves the value as it was and the row says why. Every open window follows a change at once, the theme included. The file has a `version` (1); a file written before it, with only `menuBar` and `theme`, is read as version 1, a field that is missing or invalid takes its default, and keys the Studio does not know are kept. The size of the main and Preferences windows is kept in `.window-state.json` beside it.
 

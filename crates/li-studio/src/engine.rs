@@ -49,15 +49,7 @@ pub struct EngineBackend;
 
 fn engine_project(project: &Project) -> Result<li_engine::Project, BackendError> {
 	let root = project.root.canonicalize().unwrap_or(project.root.clone());
-	let dir = match (root.file_name(), root.parent()) {
-		(Some(n), Some(parent)) if n == "installer" => parent,
-		_ => {
-			return Err(BackendError(
-				"the engine needs the project's files in a folder named `installer`".into(),
-			));
-		}
-	};
-	li_engine::Project::load(dir).map_err(|e| BackendError(e.to_string()))
+	li_engine::Project::load_installer_dir(&root).map_err(|e| BackendError(e.to_string()))
 }
 
 /// The scope and step an engine location such as `flow install, step welcome` refers to.
@@ -716,6 +708,20 @@ mod tests {
 
 	fn step<'a>(p: &'a Preview, id: &str) -> &'a PreviewStep {
 		p.steps.iter().find(|s| s.id == id).unwrap()
+	}
+
+	#[test]
+	fn a_project_folder_not_named_installer_checks_and_previews() {
+		let tmp = tempfile::tempdir().unwrap();
+		let dir = tmp.path().join("my-product-files");
+		crate::studio::testutil::copy_dir(
+			&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/lt-fizz/installer"),
+			&dir,
+		);
+		let p = Project::open(&dir).unwrap();
+		EngineBackend.check(&p).unwrap();
+		let preview = EngineBackend.run_preview(&p, "dos-x86:tui-retro").unwrap();
+		assert!(!preview.steps.is_empty());
 	}
 
 	#[test]

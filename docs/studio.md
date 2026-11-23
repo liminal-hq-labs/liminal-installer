@@ -1,6 +1,6 @@
 # Studio desktop shell
 
-How the Studio window is put together, and how to drive it while developing. `SPEC.md` has the behaviour and `decisions.md` the reasons (D15 to D23).
+How the Studio window is put together, and how to drive it while developing. `SPEC.md` has the behaviour and `decisions.md` the reasons (D15 to D27).
 
 ## What draws what
 
@@ -9,6 +9,9 @@ How the Studio window is put together, and how to drive it while developing. `SP
 - `menuModel.ts` declares every command once, with its label, shortcut and enabled state, and builds both the flat app menu and the menu bar from it. The same table answers key presses.
 - `chromeStore.ts` holds what the chrome shows (menu state, title, settings) outside React. The settings come from `settings.json` through `read_settings` and `write_settings` (a merge), and every window follows the `studio://settings-changed` event. `src/lib/settings.ts` and `src-tauri/src/settings.rs` hold the same schema and the same limits, and a test fails if they differ.
 - `dialogWindow.ts` opens a dialog, waits for its answer and closes it. Preferences is a window of its own (opened with `open_window` and not waited for); About and confirmations are dialogs. In the desktop shell each is a child window: `open_window` in `src-tauri/src/windows.rs` loads the same page with `?window=about`, `?window=preferences` or `?window=confirm`, centred on the main window and modal for About and confirmations. `InfoWindow.tsx` draws it under a title bar with only Close and sends the answer back by event. A browser tab, which has no windows to open, draws the same content in an in-page dialog.
+- Keyboard shortcuts, Connect an agent and New project are child windows of their own (`shortcuts`, `agent`, `new-project` in `windows.rs` and both capability files). Their bodies are in `DialogPages.tsx`. Keyboard shortcuts is built from `shortcutTable()` in `menuModel.ts`. Connect an agent reads `mcp_info`, `mcp_error` and `mcp_token`. New project calls `new_project`, which runs the `li_studio::scaffold` code `liminst init` also uses, then answers `created:<folder>` so the main window opens it.
+- `App.dispatch` and `App.openPath` resolve once the action is done, with true on success. `main.ts` awaits a save before it goes on to quit, open or reload, and stops when the save fails.
+- `src/app.test.ts` runs `startApp` against a fake `Api` under happy-dom. `src-tauri/src/api_contract.rs` parses the UI sources and checks that every `invoke` and `call` names a registered command and sends exactly its argument names.
 - In a browser tab the page draws its own header and no chrome. In development, add `?chrome` to the URL to draw the chrome there for a look.
 
 The chrome copy is refreshed from Waypoint by the steps in `apps/studio/ui/vendor/studio-chrome/PROVENANCE.md`. The design tokens are regenerated with `bun run tokens` from `src/styles/tokens.json`, the design system export.
@@ -19,7 +22,9 @@ The chrome copy is refreshed from Waypoint by the steps in `apps/studio/ui/vendo
 
 `src/lib/appearance.ts` turns the Appearance settings into `data-theme`, `data-density`, `data-motion` and `--text-scale` on every window. Follow system reads the colour scheme and reduced-motion setting from `tauri-plugin-system-appearance`, as Planboard does, and from the browser's media queries outside the shell and where the plugin has no answer. `tauri-plugin-window-manager` is not used: the Studio has no window of its own to place beyond what `open_window` does.
 
-`src-tauri/src/agent.rs` starts, stops and moves the MCP server from `mcpEnabled` and `mcpPort`. `write_settings` refuses a taken port with the reason and leaves the running server alone. `tools.rs` runs `<tool> --version` for the runner and Docker paths and opens the file manager.
+`src-tauri/src/agent.rs` starts, stops and moves the MCP server from `mcpEnabled` and `mcpPort`. `write_settings` refuses a taken port with the reason and leaves the running server alone. `liminst studio --mcp` (in `crates/li-cli`) runs the same `McpServer` with no window, over an `EngineBackend` studio opened on `-C`. It prints `Studio MCP server: <url>` and `Token: <token>` on the first two lines of standard output and waits for Ctrl+C; the history is in memory and writes go to disk. A failed start of the desktop shell's server is kept by `agent.rs` as the reason shown on the agent card and in Preferences under Agents.
+
+`tools.rs` runs `<tool> --version` for the runner and Docker paths and opens the file manager.
 
 ### Where files live
 

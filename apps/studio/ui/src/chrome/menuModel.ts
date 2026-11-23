@@ -8,6 +8,7 @@ import type { MenuItem, SelectableMenuItem } from '@liminal-hq/studio-chrome/Con
 export type Screen = 'project' | 'flow' | 'layouts' | 'script' | 'preview';
 
 export type ActionId =
+	| 'file.new'
 	| 'file.open'
 	| 'file.reload'
 	| 'file.clearRecent'
@@ -24,6 +25,8 @@ export type ActionId =
 	| 'view.menuBar'
 	| 'project.check'
 	| 'project.preview'
+	| 'help.shortcuts'
+	| 'help.agent'
 	| 'help.about';
 
 /** What the menus need to know to label, tick and enable their items. */
@@ -78,6 +81,7 @@ const screenAction = (screen: Screen, label: string, key: string): Action => ({
 });
 
 export const ACTIONS: Record<ActionId, Action> = {
+	'file.new': { label: 'New project…', keys: ['Ctrl+N'] },
 	'file.open': { label: 'Open project…', keys: ['Ctrl+O'] },
 	'file.reload': { label: 'Reload', keys: ['F5'], enabled: needsProject },
 	'file.clearRecent': { label: 'Clear recent projects', enabled: (s) => s.recent.length > 0 },
@@ -94,6 +98,8 @@ export const ACTIONS: Record<ActionId, Action> = {
 	'view.menuBar': { label: 'Show menu bar', keys: ['Ctrl+Shift+M'], checked: (s) => s.menuBar },
 	'project.check': { label: 'Run check', keys: ['F7'], enabled: needsProject },
 	'project.preview': { label: 'Run dry-run preview', keys: ['F8'], enabled: needsProject },
+	'help.shortcuts': { label: 'Keyboard shortcuts', keys: ['Ctrl+/'] },
+	'help.agent': { label: 'Connect an agent…' },
 	'help.about': { label: 'About Liminal Installer Studio', keys: ['F1'] },
 };
 
@@ -116,7 +122,7 @@ interface Menu {
 
 /** The menus of the bar, in order. Each group of items is set off from the next by a separator. */
 export const MENUS: Menu[] = [
-	{ id: 'file', label: 'File', mnemonic: 'f', groups: [{ items: ['file.open', RECENT, 'file.reload'] }, { items: ['file.save'] }, { items: ['app.preferences'] }, { items: ['file.quit'], last: true }] },
+	{ id: 'file', label: 'File', mnemonic: 'f', groups: [{ items: ['file.new', 'file.open', RECENT, 'file.reload'] }, { items: ['file.save'] }, { items: ['app.preferences'] }, { items: ['file.quit'], last: true }] },
 	{ id: 'edit', label: 'Edit', mnemonic: 'e', groups: [{ items: ['edit.undo', 'edit.redo'] }] },
 	{
 		id: 'view',
@@ -125,7 +131,7 @@ export const MENUS: Menu[] = [
 		groups: [{ items: ['view.project', 'view.flow', 'view.layouts', 'view.script', 'view.preview'] }, { items: ['view.menuBar'] }],
 	},
 	{ id: 'project', label: 'Project', mnemonic: 'p', groups: [{ items: ['project.check', 'project.preview'] }] },
-	{ id: 'help', label: 'Help', mnemonic: 'h', groups: [{ items: ['help.about'] }] },
+	{ id: 'help', label: 'Help', mnemonic: 'h', groups: [{ items: ['help.shortcuts', 'help.agent'] }, { items: ['help.about'] }] },
 ];
 
 /** Alt plus a letter, for the bar: letters to the ids of the menus the bar builds. */
@@ -238,4 +244,15 @@ export function actionForEvent(event: KeyEventLike, state: MenuState, inTextFiel
 		if (action.keys?.some((k) => matchesShortcut(event, k)) && isEnabled(id, state)) return id;
 	}
 	return undefined;
+}
+
+/** The shortcut table for the Keyboard shortcuts window: every command that has a key, grouped by its menu. */
+export function shortcutTable(): { menu: string; rows: { id: ActionId; label: string; keys: string[] }[] }[] {
+	return MENUS.map((menu) => ({
+		menu: menu.label,
+		rows: menu.groups
+			.flatMap((g) => g.items)
+			.filter((id): id is ActionId => id !== RECENT && (ACTIONS[id].keys?.length ?? 0) > 0)
+			.map((id) => ({ id, label: ACTIONS[id].label, keys: ACTIONS[id].keys! })),
+	})).filter((g) => g.rows.length > 0);
 }

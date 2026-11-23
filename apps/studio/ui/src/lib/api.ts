@@ -35,6 +35,8 @@ export interface Api {
 	undo(): Promise<HistoryView>;
 	redo(): Promise<HistoryView>;
 	mcpInfo(): Promise<McpInfo | null>;
+	/** Why the agent server is not running although it is switched on, or null. */
+	mcpError(): Promise<string | null>;
 	/** Calls `handler` after every change from any source; resolves to an unsubscribe function. */
 	onChange(handler: (e: ChangeEvent) => void): Promise<() => void>;
 	/** Asks the person for a project folder; null if cancelled or unsupported. */
@@ -64,6 +66,7 @@ async function tauriApi(): Promise<Api> {
 		undo: () => invoke('undo'),
 		redo: () => invoke('redo'),
 		mcpInfo: () => invoke('mcp_info'),
+		mcpError: () => invoke('mcp_error'),
 		onChange: async (handler) => listen<ChangeEvent>(CHANGE_EVENT, (e) => handler(e.payload)),
 		pickProject: async (startIn) => {
 			const { open } = await import('@tauri-apps/plugin-dialog');

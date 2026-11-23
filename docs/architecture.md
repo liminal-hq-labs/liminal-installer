@@ -26,7 +26,7 @@ One installer project per product, built in that product's CI, that installs, up
 - **The whole life of an app.** Install, update, modify, repair, uninstall and launch, all from the same project and the same themed shell.
 - **Native where it counts.** Each platform gets a renderer built from its own toolkit, and the builder also writes the platform's own package formats.
 - **CI first.** A Rust CLI validates, previews and builds in any pipeline; the Studio is a convenience, never a requirement.
-- **Agents are first-class.** The Studio exposes the project over MCP and GraphQL, as Planboard does, so an agent can build layouts and flows while you watch the preview.
+- **Agents are first-class.** The Studio exposes the project over MCP, as Planboard does, so an agent can build layouts and flows while you watch the preview.
 - **A public product.** Built for Liminal HQ's own products first, but documented and licensed (Apache-2.0 OR MIT) for anyone to use.
 
 ## Non-goals
@@ -136,7 +136,7 @@ The Studio is a Tauri app built with the Liminal HQ design system. It opens an i
 
 - The **layout editor** draws each step with the real renderer code, compiled for the Studio, so what you see is what ships.
 - The **preview** runs the engine against a simulated machine. For retro targets it can also start a disk image in 86Box or DOSBox-X and run the real build there.
-- An **MCP server and GraphQL API** on localhost, protected by a token, let an agent read the project, change flows and layouts, run previews and read their results. Agent changes appear live and can be undone like your own.
+- An **MCP server** on localhost, protected by a token, let an agent read the project, change flows and layouts, run previews and read their results. Agent changes appear live and can be undone like your own.
 
 ## 9 · Security and trust
 
