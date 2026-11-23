@@ -1,0 +1,20 @@
+# Sandboxed Lua 5.4 scripting for installer hooks.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[package]
+name = "li-script"
+description = "Sandboxed Lua 5.4 hooks with declared capabilities and execution limits"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+li-model.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+mlua.workspace = true

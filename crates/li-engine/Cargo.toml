@@ -1,0 +1,28 @@
+# The installer engine: projects, checks, flows and the Plan, Stage, Commit, Record lifecycle.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[package]
+name = "li-engine"
+description = "Loads installer projects, checks them, and runs install, update, modify, repair and uninstall"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+li-model.workspace = true
+li-pack.workspace = true
+li-script.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+thiserror.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+rustix.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
