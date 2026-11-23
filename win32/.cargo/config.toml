@@ -21,7 +21,7 @@ rustflags = [
 	"-C", "link-arg=/FILEALIGN:512",
 ]
 
-# The prebuilt `core` for i686 assumes SSE2, so `core` and `alloc` are built here for a Pentium (D52). The build script sets RUSTC_BOOTSTRAP=1.
+# The prebuilt `core` for i686 assumes SSE2, so `core` and `alloc` are built here for a Pentium (D62). The build script sets RUSTC_BOOTSTRAP=1.
 [unstable]
 build-std = ["core", "alloc", "compiler_builtins"]
 build-std-features = ["compiler-builtins-mem"]

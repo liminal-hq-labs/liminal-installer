@@ -99,6 +99,7 @@ Use `#` comments for shell, YAML, TOML and Dockerfiles, and an XML comment for S
 - **Scripts get only declared capabilities.** A Lua script runs in a sandbox and holds only what its `-- capabilities:` header names. Writing files goes through the plan.
 - **Wire types are generated.** A Rust type the Studio UI or an MCP client receives derives `ts_rs::TS`, and its TypeScript is generated into `packages/protocol`, never written by hand. Failed commands and tools carry `{ kind, message }` (`StudioError`).
 - **The DOS runtime is Rust, and its foundation is a copy.** `dos/` is refreshed only by the steps in `dos/PROVENANCE.md`. The portable parts live in `li-retro` (`no_std` plus `alloc`, tested on the host); `dos/setup` holds only what touches the machine. No Lua on DOS: a step names a `builtin:` action.
+- **The Win32 runtime is the same VM with a native window.** `win32/` (its own Cargo workspace, `win32/PROVENANCE.md`) builds `SETUP.EXE` for Windows 95 and later: Rust `no_std`, no C runtime, a Pentium target with `core` built from source, ANSI imports only, subsystem 4.0. `li-retro`'s `Gui` trait is the seam; `win32/setup` holds only what touches Windows. Keep `win32/tools/imports.allow` to functions Windows 95 exports, and never import a `...W` function.
 - **The pack format is specified first.** `.LPK` is defined byte by byte in `docs/lpk-format.md`; `li-lpk`'s reader is `no_std`, allocates nothing, and answers any damaged input with a typed error, never a panic. A format change follows the version and compatibility rule on that page and updates the golden files in `crates/li-lpk/tests/golden/` (`LI_UPDATE_GOLDEN=1`).
 - **Vendored chrome is refreshed by its recipe.** `packages/chrome` changes only by the steps in its `PROVENANCE.md`, never by hand. The Studio imports it by deep path.
 - **Every visible string is in the catalogue.** UI text comes from `apps/studio/src/i18n/messages.ts` through `t('area.key')` (en-CA, sentence case), never a literal in JSX. `bun run check:i18n` enforces it; look at a layout with `?locale=en-XA` and `?locale=ar-XB` in a development build.
@@ -117,6 +118,7 @@ Use `#` comments for shell, YAML, TOML and Dockerfiles, and an XML comment for S
 - `cd apps/studio/src-tauri && cargo check && cargo clippy -- -D warnings` — the Tauri shell
 - `cd apps/runner/src-tauri && cargo check && cargo clippy -- -D warnings` — the web runner's Tauri shell
 - `bash scripts/e2e-linux.sh` (or `make e2e-linux`) — install, update, repair and uninstall in a Debian container
+- `make win32` — the Win32 runtime: `win32/check.sh` (format, clippy, build, then the Pentium instruction scan, the import allowlist and the PE checks; needs `lld-link` and `llvm-objdump`), the host tests of the Win32 flow, and `win32/tools/wine-e2e.sh` (Lt. Fizz and Planboard installed and removed under Wine on Xvfb, pages compared with `crates/li-retro-build/tests/golden/win32`). `WIN32_REQUIRE_TOOLS=1` turns a missing tool into an error. Never build Rust inside a virtual machine; copy the binaries in
 - `make dos` — the DOS runtime: `dos/tools/fetch-tools.sh`, `dos/check.sh` (format, clippy, build, `SETUP.EXE` under headless DOSBox) and `dos/tools/e2e.sh` (Lt. Fizz installed and removed under DOSBox with typed keys, screens compared with the host goldens). `DOS_VENDOR` and `CARGO_TARGET_DIR` keep the tools and the build output out of the checkout. The DOS crates build with `RUSTC_BOOTSTRAP=1` and `-Zbuild-std` (see `dos/.cargo/config.toml`)
 - `bash scripts/check-banner.sh` — hero banner rules and text fit (needs `xmllint`, `rsvg-convert`, `python3` and Chromium; `--shots DIR` writes frames to look at)
 - `docker run --rm -v "$PWD:/workdir" davidanson/markdownlint-cli2:v0.17.2 "**/*.md"` — markdown
@@ -144,6 +146,7 @@ apps/studio/   the Studio: index.html, vite.config.ts, src/ (React) and src-taur
 apps/runner/   the web runner (`liminal-runner`): the same layout, a window over the real flow; see docs/web-runner.md
 packages/      renderer/ (`@liminal-hq/installer-renderer`, the shared React renderer), chrome/ (`@liminal-hq/studio-chrome`, vendored, see its PROVENANCE.md) and protocol/ (`@liminal-hq/installer-protocol`: ts-rs bindings, generated, committed)
 examples/      lt-fizz, planboard, neutral and tauri-notes projects
+win32/         the Win32 runtime for Windows 95 and later: `setup` (`SETUP.EXE`), the Pentium target spec, the executable checks and the Wine run; its own Cargo workspace
 dos/           the DOS runtime: Desk's Rust-on-DOS foundation (PROVENANCE.md), `rt`, `setup` (`SETUP.EXE`); its own Cargo workspace
 retro/         the Open Watcom spike and its build container (Windows 3.1, which stays C)
 assets/        hero banner

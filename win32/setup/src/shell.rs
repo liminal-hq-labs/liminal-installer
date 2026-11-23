@@ -5,7 +5,7 @@
 
 //! Start menu shortcuts are `.lnk` files written through `IShellLink` and `IPersistFile` (COM, from
 //! `ole32`, which Windows 95 has). The vtables are called by hand: there is no `windows` crate here and
-//! no C runtime. See D55 for why this and not Program Manager DDE or writing the `.lnk` format.
+//! no C runtime. See D65 for why this and not Program Manager DDE or writing the `.lnk` format.
 
 use alloc::string::String;
 use core::ffi::c_void;

@@ -6,7 +6,7 @@
 #
 # usage: win32/tools/scan-pentium.sh [SETUP.EXE]
 #
-# The prebuilt Rust `core` assumes SSE2 (D52), so the build compiles `core` from source for a Pentium; this is the check that nothing
+# The prebuilt Rust `core` assumes SSE2 (D62), so the build compiles `core` from source for a Pentium; this is the check that nothing
 # else slipped in, such as a prebuilt object. Needs llvm-objdump; WIN32_REQUIRE_TOOLS=1 makes a missing one an error.
 set -euo pipefail
 cd "$(dirname "$0")/.."
