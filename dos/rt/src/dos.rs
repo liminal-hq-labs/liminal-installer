@@ -300,3 +300,53 @@ pub fn write_direct_unsafe(handle: u16, buf: &[u8]) -> Result<usize, DosError> {
 		Ok(ax as usize & 0xFFFF)
 	}
 }
+
+// What Liminal Installer added to the copy (see PROVENANCE.md): directories, attributes and free space.
+
+/// AH=39h: create a directory.
+pub fn mkdir(path: &str) -> Result<(), DosError> {
+	put_path(path)?;
+	let mut r = RealRegs {
+		eax: 0x3900,
+		ds: tb_segment(),
+		..RealRegs::default()
+	};
+	rm21(&mut r)
+}
+
+/// AH=3Ah: remove an empty directory.
+pub fn rmdir(path: &str) -> Result<(), DosError> {
+	put_path(path)?;
+	let mut r = RealRegs {
+		eax: 0x3A00,
+		ds: tb_segment(),
+		..RealRegs::default()
+	};
+	rm21(&mut r)
+}
+
+/// AX=4300h: the attributes of a file or directory (bit 4 is a directory).
+pub fn attributes(path: &str) -> Result<u16, DosError> {
+	put_path(path)?;
+	let mut r = RealRegs {
+		eax: 0x4300,
+		ds: tb_segment(),
+		..RealRegs::default()
+	};
+	rm21(&mut r)?;
+	Ok(r.ecx as u16)
+}
+
+/// AH=36h: the free space on a drive (0 is the current drive, 1 is A:), in bytes. DOS reports at most 2 GiB.
+pub fn free_space(drive: u8) -> Result<u64, DosError> {
+	let mut r = RealRegs {
+		eax: 0x3600,
+		edx: u32::from(drive),
+		..RealRegs::default()
+	};
+	rm21(&mut r)?;
+	if r.eax as u16 == 0xFFFF {
+		return Err(DosError(0x0F));
+	}
+	Ok(u64::from(r.eax as u16) * u64::from(r.ebx as u16) * u64::from(r.ecx as u16))
+}

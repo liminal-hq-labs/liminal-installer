@@ -25,6 +25,10 @@ pub struct HostPlatform {
 	pub capacity: u64,
 	/// `SETUP.DAT`.
 	pub data: Vec<u8>,
+	/// The focus descriptions announced, in order.
+	pub announcements: Vec<String>,
+	/// What the runtime printed to the console, in order.
+	pub reports: Vec<String>,
 	/// The text of every screen shown, in order.
 	pub frames: Vec<String>,
 	/// The last cells presented.
@@ -52,6 +56,8 @@ impl HostPlatform {
 			env: BTreeMap::new(),
 			capacity: 64 * 1024 * 1024,
 			data,
+			announcements: Vec::new(),
+			reports: Vec::new(),
 			frames: Vec::new(),
 			last: None,
 			fail_after: None,
@@ -254,6 +260,14 @@ impl Platform for HostPlatform {
 
 	fn beep(&mut self, hz: u32, ms: u32) {
 		self.beeps.push((hz, ms));
+	}
+
+	fn announce(&mut self, text: &str) {
+		self.announcements.push(text.to_string());
+	}
+
+	fn report(&mut self, text: &str) {
+		self.reports.push(text.to_string());
 	}
 
 	fn dump(&mut self, text: &str) {

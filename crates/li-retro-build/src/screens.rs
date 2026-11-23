@@ -179,6 +179,7 @@ fn widget(
 			template: str_of(n, "text").unwrap_or_default().to_owned(),
 		},
 		"button" => {
+			let attr = model::Theme::default().button;
 			let label = name_of(n);
 			let action = str_of(n, "action")
 				.or_else(|| str_of(n, "id"))
@@ -321,7 +322,15 @@ pub fn compile(
 		.with("product.version", json!(cx.version))
 		.with("target.id", json!(cx.target.id))
 		.with("target.renderer", json!(cx.target.renderer));
-	let flat = screen.flatten(&statics, &samples(), COLS as u16, ROWS as u16);
+	// A `backdrop` layout is drawn as the Fizz-DOS artboard; any other root as the plain Retro look.
+	let flat = li_render_tui::flatten_artboard(
+		&flat_layout,
+		&statics,
+		&samples(),
+		COLS as u16,
+		ROWS as u16,
+	)
+	.unwrap_or_else(|| screen.flatten(&statics, &samples(), COLS as u16, ROWS as u16));
 	let mut cells = Vec::with_capacity(COLS * ROWS);
 	for c in &flat.cells {
 		let ch = c.symbol.chars().next().unwrap_or(' ');

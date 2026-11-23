@@ -111,7 +111,8 @@ fn defaults_focus_and_draw() {
 	assert_eq!(v.list("parts").unwrap(), &["core".to_string()]);
 	assert_eq!(v.str("name"), Some("ann"));
 	// The default button has the focus.
-	assert!(text.contains("Next, button"), "{text}");
+	assert_eq!(p.describe_focus(&[], &v), "Next, button");
+	assert!(text.contains("< Next >"), "{text}");
 }
 
 #[test]
@@ -122,7 +123,7 @@ fn keys_move_toggle_and_type() {
 	// Shift-Tab ×2 from Next reaches the field, then the checklist.
 	assert_eq!(p.key(Key::BackTab, &[], &mut v), Outcome::Redraw);
 	assert_eq!(p.key(Key::BackTab, &[], &mut v), Outcome::Redraw);
-	assert!(draw(&p, &v).contains("Name, text field"));
+	assert!(p.describe_focus(&[], &v).starts_with("Name, text field"));
 	for c in b"!x" {
 		p.key(Key::Char(*c), &[], &mut v);
 	}
@@ -143,7 +144,7 @@ fn keys_move_toggle_and_type() {
 	assert_eq!(v.list("parts").unwrap(), &["core".to_string()]);
 	// Down off the end of the list moves on to the field.
 	p.key(Key::Down, &[], &mut v);
-	assert!(draw(&p, &v).contains("Name, text field"));
+	assert!(p.describe_focus(&[], &v).starts_with("Name, text field"));
 }
 
 #[test]

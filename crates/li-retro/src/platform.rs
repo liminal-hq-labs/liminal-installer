@@ -79,6 +79,10 @@ pub trait Platform {
 	fn port_out(&mut self, port: u16, value: u8);
 	/// A tone on the PC speaker for `ms` milliseconds.
 	fn beep(&mut self, _hz: u32, _ms: u32) {}
+	/// Prints a line to the console after the screen is given back: usage errors and `/V`.
+	fn report(&mut self, _text: &str) {}
+	/// What the focused control is, for a screen reader or a test. Not drawn on the screen.
+	fn announce(&mut self, _text: &str) {}
 	/// A hook for tests: called with the screen's text whenever a screen is shown to a person.
 	fn dump(&mut self, _text: &str) {}
 }

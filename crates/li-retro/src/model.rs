@@ -32,6 +32,10 @@ pub struct Theme {
 	pub status: u8,
 	/// A disabled button.
 	pub disabled: u8,
+	/// A button: blue on cyan, drawn `< Next >`.
+	pub button: u8,
+	/// The button that has the focus.
+	pub button_focus: u8,
 	/// The access key of a button.
 	pub hotkey: u8,
 	/// A text field: black on bright white, which needs the card's intensity mode.
@@ -50,6 +54,8 @@ impl Default for Theme {
 			warn: 0x1c,
 			status: 0x30,
 			disabled: 0x78,
+			button: 0x31,
+			button_focus: 0x1f,
 			hotkey: 0x74,
 			field: 0xf0,
 		}

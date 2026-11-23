@@ -343,7 +343,7 @@ impl Page {
 				} => {
 					let on = self.enabled(w, strings, v);
 					let style = if focused {
-						t.focus
+						t.button_focus
 					} else if !on {
 						t.disabled
 					} else {
@@ -351,7 +351,7 @@ impl Page {
 					};
 					let label = v.interpolate(label);
 					let (x, y) = (usize::from(rect.x), usize::from(rect.y));
-					cells.put(x, y, &format!("[ {label} ]"), style, COLS);
+					cells.put(x, y, &format!("< {label} >"), style, COLS);
 					if !focused
 						&& on && *hotkey != 0
 						&& let Some(i) = label
@@ -516,22 +516,6 @@ impl Page {
 				}
 			}
 		}
-		// The status line.
-		let status = format!(
-			" {}  |  Tab move, Space toggle, Enter choose, Esc cancel",
-			self.describe_focus(strings, v)
-		);
-		cells.fill(
-			Rect {
-				x: 0,
-				y: (ROWS - 1) as u8,
-				w: COLS as u8,
-				h: 1,
-			},
-			b' ',
-			t.status,
-		);
-		cells.put(0, ROWS - 1, status.trim_end(), t.status, COLS);
 	}
 
 	/// What the focused control is, for the status line: `Install, button`.

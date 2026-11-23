@@ -17,3 +17,4 @@ path = "src/main.rs"
 
 [dependencies]
 rt = { path = "../rt" }
+li-retro = { path = "../../crates/li-retro", default-features = false }

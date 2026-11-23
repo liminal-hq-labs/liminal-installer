@@ -89,21 +89,27 @@ pub fn run<P: Platform>(p: &mut P, args: &str) -> i32 {
 	let mode = match Mode::from_args(args) {
 		Ok(m) => m,
 		Err(m) => {
-			p.dump(&format!("{m}\n"));
-			return 2;
-		}
-	};
-	let (project, payload_off) = match load_project(p) {
-		Ok(x) => x,
-		Err(e) => {
-			p.dump(&format!("SETUP.DAT: {e}\n"));
+			p.report(&format!("{m}\n"));
 			return 2;
 		}
 	};
 	if mode == Mode::Version {
-		p.dump(&format!("{} {}\n", project.name, project.version));
+		p.report(&format!(
+			"Liminal Installer for DOS {}\n",
+			env!("CARGO_PKG_VERSION")
+		));
+		if let Ok((project, _)) = load_project(p) {
+			p.report(&format!("{} {}\n", project.name, project.version));
+		}
 		return 0;
 	}
+	let (project, payload_off) = match load_project(p) {
+		Ok(x) => x,
+		Err(e) => {
+			p.report(&format!("SETUP.DAT: {e}\n"));
+			return 2;
+		}
+	};
 	let mut s = Session {
 		p,
 		project: &project,
@@ -218,6 +224,8 @@ impl<P: Platform> Session<'_, P> {
 		page.draw(&self.project.strings, &self.v, &mut cells);
 		self.p.present(&cells);
 		self.p.cursor(None);
+		let said = page.describe_focus(&self.project.strings, &self.v);
+		self.p.announce(&said);
 		let t = cells.text();
 		self.p.dump(&t);
 	}
