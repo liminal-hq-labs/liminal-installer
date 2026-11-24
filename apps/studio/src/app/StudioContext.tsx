@@ -6,6 +6,7 @@
 import { createContext, useContext, useSyncExternalStore } from 'react';
 import { useStore } from 'zustand';
 import type { ChromeState } from '../chrome/chromeStore';
+import type { MediaState } from '../stores/media';
 import type { PreviewState } from '../stores/preview';
 import type { ProjectState } from '../stores/project';
 import type { ScriptState } from '../stores/script';
@@ -37,6 +38,10 @@ export function useScript<T>(select: (state: ScriptState) => T): T {
 
 export function useTauri<T>(select: (state: TauriState) => T): T {
 	return useStore(useStudio().tauri.store, select);
+}
+
+export function useMedia<T>(select: (state: MediaState) => T): T {
+	return useStore(useStudio().media.store, select);
 }
 
 export function useToast<T>(select: (state: ToastState) => T): T {

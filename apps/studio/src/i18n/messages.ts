@@ -73,6 +73,7 @@ export const enMessages = {
 	'nav.scripts': 'Scripts',
 	// translator: The dry-run screen shows the plan and the screens an install would show, without changing anything.
 	'nav.dryRun': 'Dry-run preview',
+	'nav.media': 'Media',
 	'nav.project': 'Project',
 	'nav.agentOn': 'Agent endpoint ready',
 	'nav.agentFailed': 'Agent endpoint did not start',
@@ -469,6 +470,7 @@ export const enMessages = {
 	'menu.viewLayouts': 'Layouts',
 	'menu.viewScripts': 'Scripts',
 	'menu.viewDryRun': 'Dry run',
+	'menu.viewMedia': 'Media',
 	'menu.showMenuBar': 'Show menu bar',
 	'menu.runCheck': 'Run check',
 	'menu.runPreview': 'Run dry-run preview',
@@ -859,6 +861,50 @@ export const enMessages = {
 	'tauri.problems.none': 'No findings for the Tauri settings.',
 	'tauri.problems.error': 'Error',
 	'tauri.problems.warning': 'Warning',
+	// translator: Media are the disks and discs a project ships on, such as a floppy disk or a CD.
+	'media.title': 'Media',
+	'media.intro':
+		'The disks and discs this project ships on. A medium holds several targets, and files they share are stored once.',
+	'media.add.floppy': 'Add floppy',
+	'media.add.cd': 'Add CD',
+	// translator: A kind of medium: a 3½-inch 1.44 MB floppy disk, and a CD-ROM disc.
+	'media.kind.floppy': 'Floppy',
+	'media.kind.cdrom': 'CD',
+	'media.loading': 'Loading the media…',
+	'media.unavailable':
+		'Media are not available in this build yet. The browser demo (bun run dev) shows the screen with sample sizes.',
+	'media.empty.title': 'No media yet',
+	'media.empty.help':
+		'A medium is one disk or disc that holds several targets, such as DOS, Windows 3.x and Windows 95 on one floppy. Add one to see how full it is and what is on it.',
+	'media.list.label': 'Media',
+	// translator: {free} is a number of bytes already formatted, such as 171,008.
+	'media.list.free': '{free} bytes free',
+	'media.list.disks.one': '{count} disk',
+	'media.list.disks.other': '{count} disks',
+	'media.list.warnings.one': '{count} warning',
+	'media.list.warnings.other': '{count} warnings',
+	// translator: How a medium stands, in a pill: it fits, it fits with little room, or it does not fit.
+	'media.fit.ok': 'Fits',
+	'media.fit.warning': 'Tight',
+	'media.fit.error': 'Does not fit',
+	'media.detail.summary': '{kind} · {label} · {targets}',
+	'media.detail.targets.one': '{count} target',
+	'media.detail.targets.other': '{count} targets',
+	'media.detail.capacity': 'Capacity',
+	'media.detail.used': 'Used',
+	'media.detail.free': 'Free',
+	'media.detail.total': 'Disk size',
+	'media.detail.warnings': 'Warnings',
+	'media.detail.noWarnings': 'Nothing to warn about.',
+	'media.detail.pick': 'Pick a medium to see what is on it.',
+	'history.mediaAdd': 'Add medium ({kind})',
+	'history.mediaRemove': 'Remove medium {id}',
+	'media.remove.title': 'Remove Medium',
+	// translator: {label} is the volume label of the medium, such as QUILL, and {id} its id, such as floppy.
+	'media.remove.message': 'Remove the medium {id} (labelled {label})?',
+	'media.remove.detail': 'The project stops shipping on it. Undo in the Edit menu puts it back.',
+	'media.remove.confirm': 'Remove',
+	'media.remove.button': 'Remove medium',
 	// <end of messages>
 } as const;
 
