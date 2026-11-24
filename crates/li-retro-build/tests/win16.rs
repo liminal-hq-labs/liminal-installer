@@ -209,38 +209,156 @@ fn planboard_compiles_for_windows_3_1_with_8_3_names() {
 	assert!(c.project.files.iter().any(|f| f.dest == "DOCS\\README.TXT"));
 }
 
+const GROUP: &str = "Lieutenant Fizz \u{2014} Episode One";
+
+fn program_manager(c: &li_retro_build::Compiled, root: &Path) -> HostPlatform {
+	let mut p = win16(c, root);
+	p.program_manager = true;
+	p
+}
+
 #[test]
 fn a_program_manager_shell_gets_group_items_and_a_receipt_line() {
 	let tmp = tempfile::tempdir().unwrap();
 	let c = compile("win16-x86");
-	let mut p = win16(&c, tmp.path());
-	p.program_manager = true;
+	let mut p = program_manager(&c, tmp.path());
 	assert_eq!(app::run(&mut p, ""), 0);
 	assert_eq!(
 		p.groups,
 		[(
-			"Lieutenant Fizz \u{2014} Episode One".to_string(),
+			GROUP.to_string(),
 			"Lieutenant Fizz".to_string(),
 			"C:\\LTFIZZ\\FIZZ.EXE".to_string()
 		)]
 	);
 	let lir = receipt(tmp.path());
 	assert!(
-		lir.contains("\r\nG Lieutenant Fizz \u{2014} Episode One|Lieutenant Fizz\r\n"),
+		lir.contains(&format!("\r\nG {GROUP}|Lieutenant Fizz\r\nP {GROUP}\r\n")),
 		"{lir}"
 	);
 	// A group item replaces the batch launcher.
 	assert!(!tmp.path().join("LTFIZZ/FIZZ.BAT").exists());
-	let mut p = win16(&c, tmp.path());
-	p.program_manager = true;
+	let install_log = p.progman_log.join("\n") + "\n";
+
+	// The uninstall sends one conversation: the items, then the group the install made.
+	let mut p = program_manager(&c, tmp.path());
+	p.group_names = vec![GROUP.to_string()];
 	p.groups = vec![(
-		"Lieutenant Fizz \u{2014} Episode One".to_string(),
+		GROUP.to_string(),
 		"Lieutenant Fizz".to_string(),
 		String::new(),
 	)];
 	assert_eq!(app::run(&mut p, "/U"), 0);
 	assert!(p.groups.is_empty());
+	assert!(p.group_names.is_empty());
 	assert_eq!(p.tree(), Vec::<String>::new());
+	golden(
+		"lt-fizz.progman",
+		&format!(
+			"install\n{install_log}uninstall\n{}\n",
+			p.progman_log.join("\n")
+		),
+	);
+}
+
+#[test]
+fn a_group_that_was_there_is_left_and_only_our_items_go() {
+	let tmp = tempfile::tempdir().unwrap();
+	let c = compile("win16-x86");
+	let mut p = program_manager(&c, tmp.path());
+	p.group_names = vec![GROUP.to_string()];
+	p.groups = vec![(
+		GROUP.to_string(),
+		"Other".to_string(),
+		"C:\\O.EXE".to_string(),
+	)];
+	assert_eq!(app::run(&mut p, ""), 0);
+	let lir = receipt(tmp.path());
+	assert!(lir.contains("\r\nG "), "{lir}");
+	assert!(!lir.contains("\r\nP "), "{lir}");
+	assert_eq!(p.groups.len(), 2);
+
+	let mut p2 = program_manager(&c, tmp.path());
+	p2.group_names = p.group_names.clone();
+	p2.groups = p.groups.clone();
+	assert_eq!(app::run(&mut p2, "/U"), 0);
+	assert_eq!(p2.group_names, [GROUP]);
+	assert_eq!(
+		p2.groups,
+		[(
+			GROUP.to_string(),
+			"Other".to_string(),
+			"C:\\O.EXE".to_string()
+		)]
+	);
+	assert!(!p2.progman_log.iter().any(|c| c.starts_with("[DeleteGroup")));
+}
+
+#[test]
+fn installing_twice_replaces_the_item_and_the_second_install_made_no_group() {
+	let tmp = tempfile::tempdir().unwrap();
+	let c = compile("win16-x86");
+	let mut p = program_manager(&c, tmp.path());
+	assert_eq!(app::run(&mut p, ""), 0);
+	let (names, items) = (p.group_names.clone(), p.groups.clone());
+	let mut again = program_manager(&c, tmp.path());
+	again.group_names = names;
+	again.groups = items;
+	assert_eq!(app::run(&mut again, ""), 0);
+	assert_eq!(again.groups.len(), 1);
+	// The group was there, so the second receipt has no `P`; its install made none.
+	assert!(!receipt(tmp.path()).contains("\r\nP "));
+}
+
+#[test]
+fn without_program_manager_the_install_writes_the_batch_launcher() {
+	let tmp = tempfile::tempdir().unwrap();
+	let c = compile("win16-x86");
+	let mut p = program_manager(&c, tmp.path());
+	p.progman_absent = true;
+	assert_eq!(app::run(&mut p, ""), 0);
+	assert!(p.groups.is_empty() && p.progman_log.is_empty());
+	assert!(tmp.path().join("LTFIZZ/FIZZ.BAT").is_file());
+	let lir = receipt(tmp.path());
+	assert!(!lir.contains("\r\nG ") && !lir.contains("\r\nP "), "{lir}");
+}
+
+#[test]
+fn a_failed_install_removes_the_items_and_the_group_it_made() {
+	let tmp = tempfile::tempdir().unwrap();
+	let c = compile("win16-x86");
+	let mut ok = program_manager(&c, tmp.path());
+	assert_eq!(app::run(&mut ok, ""), 0);
+	// The receipt is the last file written; failing on its last byte comes after the items.
+	let total: u64 = ok
+		.tree()
+		.iter()
+		.filter(|f| !f.ends_with('\\'))
+		.map(|f| {
+			std::fs::metadata(tmp.path().join(f.replace('\\', "/")))
+				.unwrap()
+				.len()
+		})
+		.sum();
+	let b = tempfile::tempdir().unwrap();
+	let mut p = program_manager(&c, b.path());
+	p.fail_after = Some(total - 1);
+	assert_ne!(app::run(&mut p, ""), 0);
+	assert!(!p.progman_log.is_empty(), "the items were added first");
+	assert!(p.groups.is_empty(), "{:?}", p.groups);
+	assert!(p.group_names.is_empty());
+	assert_eq!(p.tree(), Vec::<String>::new());
+}
+
+#[test]
+fn a_name_program_manager_cannot_take_stops_the_install() {
+	use li_retro::platform::Shell;
+	let tmp = tempfile::tempdir().unwrap();
+	let c = compile("win16-x86");
+	let mut p = program_manager(&c, tmp.path());
+	let err = p.add_group_item("Fizz", "Say \"hi\"", "C:\\F.EXE", "C:\\");
+	assert!(err.is_err());
+	assert!(p.groups.is_empty() && p.group_names.is_empty());
 }
 
 /// Compares `text` with `tests/golden/win16/<name>.txt`; `LI_UPDATE_GOLDEN=1` rewrites it. The Wine and Windows 3.11

@@ -1,0 +1,9 @@
+install
+[CreateGroup(Lieutenant Fizz — Episode One,LIEUTENA.GRP)]
+[ShowGroup(Lieutenant Fizz — Episode One,1)]
+[ReplaceItem(Lieutenant Fizz)]
+[AddItem(C:\LTFIZZ\FIZZ.EXE,Lieutenant Fizz,C:\LTFIZZ\FIZZ.EXE,0,-1,-1,C:\LTFIZZ)]
+uninstall
+[ShowGroup(Lieutenant Fizz — Episode One,1)]
+[DeleteItem(Lieutenant Fizz)]
+[DeleteGroup(Lieutenant Fizz — Episode One)]
