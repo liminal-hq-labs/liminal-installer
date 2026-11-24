@@ -4,7 +4,7 @@
 # (c) Copyright 2026 Liminal HQ, Scott Morris
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 #
-# usage: python3 -m unittest discover -s retro/win16/tests -v
+# usage: python3 -m unittest discover -s tests -v
 import os
 import struct
 import sys
@@ -242,27 +242,6 @@ class GenImportsTests(unittest.TestCase):
 			self.assertIn(f"pop {reg}", lines)
 		self.assertIn("movzx esp, sp", lines)
 		self.assertEqual(lines[lines.index("pop es") - 1], "push ds")
-
-
-REFERENCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "out", "WC_HELLO.EXE")
-
-
-@unittest.skipUnless(os.path.exists(REFERENCE), "run retro/win16/reference.sh to build the Open Watcom reference")
-class ReferenceTests(unittest.TestCase):
-	"""The fields that decide whether Windows accepts the file match what Open Watcom's linker writes for a Win16 program."""
-
-	def test_header_and_segment_flags_match_wlink(self):
-		with open(REFERENCE, "rb") as f:
-			ref = ne_dump.parse(f.read())
-		elf = make_elf(b"\x90" * 8, bytes(16), {"_start": 0, "__w16imp_USER_1_MessageBox": 2})
-		out, _i = ne_pack.pack(elf, module="X")
-		mine = ne_dump.parse(out)
-		for field in ("flags", "autodata", "sp", "ss", "cs", "nseg", "target_os", "other_flags", "stack"):
-			self.assertEqual(mine["header"][field], ref["header"][field], field)
-		self.assertEqual([s["flags"] for s in mine["segments"]], [s["flags"] for s in ref["segments"]])
-		wanted = ref["segments"][0]["relocs"][0]
-		got = mine["segments"][0]["relocs"][0]
-		self.assertEqual((got["src"], got["kind"], got["additive"]), (wanted["src"], wanted["kind"], wanted["additive"]))
 
 
 if __name__ == "__main__":

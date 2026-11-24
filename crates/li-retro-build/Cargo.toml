@@ -24,3 +24,4 @@ thiserror.workspace = true
 [dev-dependencies]
 tempfile.workspace = true
 ratatui.workspace = true
+postcard = { version = "1", default-features = false, features = ["use-std"] }

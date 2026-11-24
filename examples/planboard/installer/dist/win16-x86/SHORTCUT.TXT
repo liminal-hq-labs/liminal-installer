@@ -1,0 +1,3 @@
+Planboard shortcuts
+
+Press N for a new sticky, F for a new frame, Delete to remove the selection.

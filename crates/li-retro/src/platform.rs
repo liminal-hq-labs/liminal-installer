@@ -89,17 +89,46 @@ pub trait Platform {
 	/// A hook for tests: called with the screen's text whenever a screen is shown to a person.
 	fn dump(&mut self, _text: &str) {}
 
-	// What a graphical machine with a shell adds. The defaults are for DOS, which has none of it.
-
-	/// Whether this is a Windows machine: long file names that keep their case, shortcuts through
-	/// the shell, an uninstall entry in the registry and an uninstaller kept in the install folder.
-	fn native_shell(&self) -> bool {
-		false
-	}
 	/// The native window that shows the pages, when there is one. The text screens are used when
 	/// this returns `None`.
 	fn gui(&mut self) -> Option<&mut dyn Gui> {
 		None
+	}
+	/// What the machine's shell adds to an install: shortcuts, an uninstall entry, an uninstaller
+	/// kept in the install folder. DOS has none of it, so the default is `None`; the Windows 95
+	/// runtime answers with its `IShellLink` and registry code and the Windows 3.1 runtime with
+	/// Program Manager.
+	fn shell(&mut self) -> Option<&mut dyn Shell> {
+		None
+	}
+}
+
+/// How a shell makes a shortcut.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShortcutKind {
+	/// A `.lnk` file in a Start menu folder (Windows 95 and later).
+	Link,
+	/// An item in a Program Manager group (Windows 3.x).
+	GroupItem,
+}
+
+/// The parts of an install that depend on the machine's shell. It is separate from [`Gui`]: a page
+/// presenter is the same on Windows 3.1 and Windows 95, a shell is not. The defaults are the
+/// Windows 95 behaviour except where a method says otherwise.
+pub trait Shell {
+	/// Whether file names keep their case and length (Windows 95) or are 8.3 in upper case (DOS and
+	/// Windows 3.1).
+	fn long_names(&self) -> bool {
+		true
+	}
+	/// How a shortcut is made here.
+	fn shortcut_kind(&self) -> ShortcutKind {
+		ShortcutKind::Link
+	}
+	/// Whether the product is listed for removal (Add/Remove Programs) with an uninstaller kept in
+	/// the install folder. Windows 3.1 has neither.
+	fn registers_uninstall(&self) -> bool {
+		true
 	}
 	/// The folder that holds the programs on the Start menu, without a trailing backslash.
 	fn start_menu_programs(&mut self) -> Option<String> {
@@ -119,12 +148,26 @@ pub trait Platform {
 	) -> Result<(), Error> {
 		Ok(())
 	}
+	/// Adds an item to the group `group` (made when it is missing) that starts `command` in
+	/// `work_dir`. `Ok(false)` says the shell could not, and the install falls back to the batch
+	/// launcher.
+	fn add_group_item(
+		&mut self,
+		_group: &str,
+		_name: &str,
+		_command: &str,
+		_work_dir: &str,
+	) -> Result<bool, Error> {
+		Ok(false)
+	}
+	/// Removes the item [`Shell::add_group_item`] made, and the group when it is empty.
+	fn remove_group_item(&mut self, _group: &str, _name: &str) {}
 	/// Adds the product to Add/Remove Programs: the key's name, its values and the command that
 	/// removes it.
 	fn register_uninstall(&mut self, _key: &str, _values: &[(&str, &str)]) -> Result<(), Error> {
 		Ok(())
 	}
-	/// Removes the entry [`Platform::register_uninstall`] made.
+	/// Removes the entry [`Shell::register_uninstall`] made.
 	fn unregister_uninstall(&mut self, _key: &str) {}
 	/// Keeps a copy of the runtime and the compiled project in `dir` so the product can be
 	/// removed later; returns the names (below `dir`) of the files it wrote.

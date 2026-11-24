@@ -15,7 +15,7 @@ use crate::Error;
 use crate::gui::{Gui, GuiEvent, GuiPage};
 use crate::install::Progress;
 use crate::model::Widget;
-use crate::platform::{Key, Platform};
+use crate::platform::{Key, Platform, Shell, ShortcutKind};
 use crate::ui::Cells;
 
 /// DOS paths below `root`: `C:\FIZZ\SOUND` is `root/FIZZ/SOUND`, whatever the drive.
@@ -46,6 +46,10 @@ pub struct HostPlatform {
 	pub port_writes: Vec<(u16, u8)>,
 	/// Behave as a Windows machine: long names keep their case, shortcuts, an uninstall entry.
 	pub native: bool,
+	/// Behave as a Windows 3.1 machine: Program Manager group items, 8.3 names, no uninstall entry.
+	pub program_manager: bool,
+	/// The Program Manager items made: group, name and command.
+	pub groups: Vec<(String, String, String)>,
 	/// The answers a person gives a native window.
 	pub gui: Option<ScriptGui>,
 	/// The ids of the steps entered, in order.
@@ -78,6 +82,8 @@ impl HostPlatform {
 			ports: BTreeMap::new(),
 			port_writes: Vec::new(),
 			native: false,
+			program_manager: false,
+			groups: Vec::new(),
 			gui: None,
 			steps: Vec::new(),
 			registry: BTreeMap::new(),
@@ -292,64 +298,16 @@ impl Platform for HostPlatform {
 		self.steps.push(id.to_string());
 	}
 
-	fn native_shell(&self) -> bool {
-		self.native
-	}
-
 	fn gui(&mut self) -> Option<&mut dyn Gui> {
 		self.gui.as_mut().map(|g| g as &mut dyn Gui)
 	}
 
-	fn start_menu_programs(&mut self) -> Option<String> {
-		let dir = "C:\\WINDOWS\\Start Menu\\Programs";
-		fs::create_dir_all(self.host(dir)).ok()?;
-		Some(dir.to_string())
-	}
-
-	fn program_files(&mut self) -> Option<String> {
-		Some("C:\\Program Files".to_string())
-	}
-
-	fn make_shortcut(
-		&mut self,
-		lnk: &str,
-		target: &str,
-		work_dir: &str,
-		description: &str,
-	) -> Result<(), Error> {
-		let body = alloc::format!(
-			"target={target}\r\nstart_in={work_dir}\r\ndescription={description}\r\n"
-		);
-		fs::write(self.host(lnk), body).map_err(|e| Self::io(lnk, e))
-	}
-
-	fn register_uninstall(&mut self, key: &str, values: &[(&str, &str)]) -> Result<(), Error> {
-		self.registry.insert(
-			key.to_string(),
-			values
-				.iter()
-				.map(|(k, v)| (k.to_string(), v.to_string()))
-				.collect(),
-		);
-		Ok(())
-	}
-
-	fn unregister_uninstall(&mut self, key: &str) {
-		self.registry.remove(key);
-	}
-
-	fn install_uninstaller(&mut self, dir: &str, project: &[u8]) -> Result<Vec<String>, Error> {
-		fs::write(self.host(&alloc::format!("{dir}\\UNINST.EXE")), b"MZ stub")
-			.and_then(|()| fs::write(self.host(&alloc::format!("{dir}\\UNINST.DAT")), project))
-			.map_err(|e| Self::io(dir, e))?;
-		Ok(alloc::vec![
-			"UNINST.EXE".to_string(),
-			"UNINST.DAT".to_string()
-		])
-	}
-
-	fn uninstall_project(&mut self) -> Option<Vec<u8>> {
-		self.kept_project.take()
+	fn shell(&mut self) -> Option<&mut dyn Shell> {
+		if self.native || self.program_manager {
+			Some(self)
+		} else {
+			None
+		}
 	}
 
 	fn dump(&mut self, text: &str) {
@@ -503,5 +461,91 @@ impl Gui for ScriptGui {
 
 	fn message(&mut self, text: &str) {
 		self.messages.push(text.to_string());
+	}
+}
+
+impl Shell for HostPlatform {
+	fn long_names(&self) -> bool {
+		self.native
+	}
+
+	fn shortcut_kind(&self) -> ShortcutKind {
+		if self.program_manager {
+			ShortcutKind::GroupItem
+		} else {
+			ShortcutKind::Link
+		}
+	}
+
+	fn registers_uninstall(&self) -> bool {
+		self.native
+	}
+
+	fn add_group_item(
+		&mut self,
+		group: &str,
+		name: &str,
+		command: &str,
+		_work_dir: &str,
+	) -> Result<bool, Error> {
+		self.groups
+			.push((group.to_string(), name.to_string(), command.to_string()));
+		Ok(true)
+	}
+
+	fn remove_group_item(&mut self, group: &str, name: &str) {
+		self.groups.retain(|(g, n, _)| !(g == group && n == name));
+	}
+
+	fn start_menu_programs(&mut self) -> Option<String> {
+		let dir = "C:\\WINDOWS\\Start Menu\\Programs";
+		fs::create_dir_all(self.host(dir)).ok()?;
+		Some(dir.to_string())
+	}
+
+	fn program_files(&mut self) -> Option<String> {
+		Some("C:\\Program Files".to_string())
+	}
+
+	fn make_shortcut(
+		&mut self,
+		lnk: &str,
+		target: &str,
+		work_dir: &str,
+		description: &str,
+	) -> Result<(), Error> {
+		let body = alloc::format!(
+			"target={target}\r\nstart_in={work_dir}\r\ndescription={description}\r\n"
+		);
+		fs::write(self.host(lnk), body).map_err(|e| Self::io(lnk, e))
+	}
+
+	fn register_uninstall(&mut self, key: &str, values: &[(&str, &str)]) -> Result<(), Error> {
+		self.registry.insert(
+			key.to_string(),
+			values
+				.iter()
+				.map(|(k, v)| (k.to_string(), v.to_string()))
+				.collect(),
+		);
+		Ok(())
+	}
+
+	fn unregister_uninstall(&mut self, key: &str) {
+		self.registry.remove(key);
+	}
+
+	fn install_uninstaller(&mut self, dir: &str, project: &[u8]) -> Result<Vec<String>, Error> {
+		fs::write(self.host(&alloc::format!("{dir}\\UNINST.EXE")), b"MZ stub")
+			.and_then(|()| fs::write(self.host(&alloc::format!("{dir}\\UNINST.DAT")), project))
+			.map_err(|e| Self::io(dir, e))?;
+		Ok(alloc::vec![
+			"UNINST.EXE".to_string(),
+			"UNINST.DAT".to_string()
+		])
+	}
+
+	fn uninstall_project(&mut self) -> Option<Vec<u8>> {
+		self.kept_project.take()
 	}
 }

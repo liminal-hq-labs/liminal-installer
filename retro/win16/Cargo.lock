@@ -3,5 +3,19 @@
 version = 4
 
 [[package]]
+name = "li-lpk"
+version = "0.1.0"
+
+[[package]]
+name = "li-retro"
+version = "0.1.0"
+dependencies = [
+ "li-lpk",
+]
+
+[[package]]
 name = "win16"
 version = "0.0.0"
+dependencies = [
+ "li-retro",
+]

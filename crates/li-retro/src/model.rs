@@ -9,7 +9,6 @@
 
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-use serde::{Deserialize, Serialize};
 
 use crate::Error;
 
@@ -21,7 +20,8 @@ pub const ROWS: usize = 25;
 pub const FORMAT: u16 = 2;
 
 /// The attributes of the retro look.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct Theme {
 	pub base: u8,
 	pub dialog: u8,
@@ -62,7 +62,8 @@ impl Default for Theme {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct Component {
 	pub id: String,
 	pub name: String,
@@ -70,7 +71,8 @@ pub struct Component {
 }
 
 /// A component's files are those `FileEntry`s whose `component` is its index.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct FileEntry {
 	pub component: u16,
 	/// The destination below the install directory with `\` separators: 8.3 on DOS, any Windows
@@ -84,7 +86,8 @@ pub struct FileEntry {
 }
 
 /// The kinds of step, as in a flow file.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub enum Kind {
 	Page,
 	Action,
@@ -94,7 +97,8 @@ pub enum Kind {
 }
 
 /// The `builtin:` actions the DOS runtime carries out itself. Scripts are not available on DOS.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub enum Builtin {
 	None,
 	/// Reads `BLASTER`, probes the usual ports and fills the `sound.*` fields.
@@ -103,7 +107,8 @@ pub enum Builtin {
 	CheckDiskSpace,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct Step {
 	pub id: String,
 	pub kind: Kind,
@@ -115,14 +120,16 @@ pub struct Step {
 	pub branches: Vec<(Vec<u8>, u16)>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct Flow {
 	pub id: String,
 	pub start: u16,
 	pub steps: Vec<Step>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct Rect {
 	pub x: u8,
 	pub y: u8,
@@ -130,7 +137,8 @@ pub struct Rect {
 	pub h: u8,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct Item {
 	pub id: String,
 	pub label: String,
@@ -138,14 +146,16 @@ pub struct Item {
 	pub required: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub enum Align {
 	Left,
 	Centre,
 	Right,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub enum Source {
 	File,
 	Total,
@@ -154,7 +164,8 @@ pub enum Source {
 
 /// What a screen draws from live values, over its static cells. The controls (`Button`, `List`,
 /// `Field`) are in tab order.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub enum Widget {
 	/// Text with `{placeholders}`; `limit` is the column it may grow to.
 	Text {
@@ -221,7 +232,8 @@ impl Widget {
 }
 
 /// A flattened screen: character and attribute planes in runs, and the widgets over them.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct Screen {
 	pub id: String,
 	/// The dialog's title, with `{placeholders}`: the heading of a native window (the text
@@ -276,7 +288,8 @@ impl Screen {
 }
 
 /// A plan operation the DOS runtime performs besides copying the component files.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub enum Op {
 	/// Creates a directory below the install directory.
 	Mkdir { path: String },
@@ -297,7 +310,8 @@ pub enum Op {
 	},
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 pub struct Project {
 	pub format: u16,
 	pub id: String,
@@ -322,13 +336,16 @@ impl Project {
 		self.flows.iter().find(|f| f.id == id)
 	}
 
+	/// The `postcard` encoding the compiler writes (host only: the runtimes only decode).
+	#[cfg(feature = "std")]
 	pub fn encode(&self) -> Result<Vec<u8>, Error> {
 		postcard::to_allocvec(self).map_err(|e| Error::Format(e.to_string()))
 	}
 
-	/// Decodes and validates.
+	/// Decodes and validates. The decoder is written by hand against `postcard`'s wire format (see
+	/// [`crate::decode`]) so a 16-bit runtime does not carry serde's generated code.
 	pub fn decode(bytes: &[u8]) -> Result<Project, Error> {
-		let p: Project = postcard::from_bytes(bytes).map_err(|e| Error::Format(e.to_string()))?;
+		let p = crate::decode::project(bytes)?;
 		p.validate()?;
 		Ok(p)
 	}
@@ -392,6 +409,9 @@ impl Project {
 			if usize::from(f.component) >= self.components.len() {
 				return bad("a file belongs to a component that does not exist");
 			}
+		}
+		if self.files.windows(2).any(|w| w[0].dest >= w[1].dest) {
+			return bad("the files are not in destination order");
 		}
 		Ok(())
 	}

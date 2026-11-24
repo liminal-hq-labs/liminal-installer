@@ -40,7 +40,7 @@ use alloc::vec::Vec;
 use crate::Error;
 use crate::model::{FileEntry, Op, Project};
 use crate::pack::{Crc, Pack};
-use crate::platform::Platform;
+use crate::platform::{Platform, ShortcutKind};
 use crate::ui::Values;
 
 /// The receipt's file name.
@@ -81,10 +81,10 @@ pub fn normalize_dir(dir: &str) -> String {
 	d.to_string()
 }
 
-/// [`normalize_dir`] for a machine that keeps the case of long names (`native_shell`): the same
+/// [`normalize_dir`] for a machine that keeps the case of long names (`Shell::long_names`): the same
 /// cleaning without the upper-casing.
-pub fn normalize_dir_for<P: Platform>(p: &P, dir: &str) -> String {
-	if p.native_shell() {
+pub fn normalize_dir_for<P: Platform>(p: &mut P, dir: &str) -> String {
+	if p.shell().is_some_and(|s| s.long_names()) {
 		let d = dir.trim().replace('/', "\\");
 		d.trim_end_matches('\\').to_string()
 	} else {
@@ -94,7 +94,9 @@ pub fn normalize_dir_for<P: Platform>(p: &P, dir: &str) -> String {
 
 /// The files a set of components installs, in the order the receipt lists them.
 pub fn selected_files<'p>(project: &'p Project, selected: &[String]) -> Vec<&'p FileEntry> {
-	let mut files: Vec<&FileEntry> = project
+	// The compiler writes `files` in destination order and `Project::validate` checks it, so the
+	// receipt order needs no sort here.
+	let files: Vec<&FileEntry> = project
 		.files
 		.iter()
 		.filter(|f| {
@@ -102,7 +104,6 @@ pub fn selected_files<'p>(project: &'p Project, selected: &[String]) -> Vec<&'p 
 			c.required || selected.contains(&c.id)
 		})
 		.collect();
-	files.sort_by(|a, b| a.dest.cmp(&b.dest));
 	files
 }
 
@@ -233,7 +234,9 @@ pub fn ini_set(text: &str, section: &str, key: &str, value: &str) -> String {
 	out
 }
 
-/// A shortcut on the Start menu, in a folder named for the product, written through the shell.
+/// A shortcut made through the machine's shell: a `.lnk` file on the Start menu in a folder named for
+/// the product, or an item in a Program Manager group named for it. Returns false when the shell
+/// has no way to make one, and the caller writes the batch launcher instead.
 fn shell_shortcut<P: Platform>(
 	p: &mut P,
 	project: &Project,
@@ -242,9 +245,23 @@ fn shell_shortcut<P: Platform>(
 	target: &str,
 	j: &mut Journal,
 	made: &mut Made,
-) -> Result<(), Error> {
-	let Some(programs) = p.start_menu_programs() else {
-		return Ok(());
+) -> Result<bool, Error> {
+	let Some(kind) = p.shell().map(|s| s.shortcut_kind()) else {
+		return Ok(false);
+	};
+	if kind == ShortcutKind::GroupItem {
+		let command = join(dir, target);
+		let added = match p.shell() {
+			Some(s) => s.add_group_item(&project.name, name, &command, dir)?,
+			None => false,
+		};
+		if added {
+			made.groups.push(format!("{}|{name}", project.name));
+		}
+		return Ok(added);
+	}
+	let Some(programs) = p.shell().and_then(|s| s.start_menu_programs()) else {
+		return Ok(true);
 	};
 	let folder = format!("{programs}\\{}", file_safe(&project.name));
 	if p.mkdir(&folder)? {
@@ -252,12 +269,14 @@ fn shell_shortcut<P: Platform>(
 	}
 	let lnk = format!("{folder}\\{}.lnk", file_safe(name));
 	let existed = p.exists(&lnk);
-	p.make_shortcut(&lnk, &join(dir, target), dir, name)?;
+	if let Some(s) = p.shell() {
+		s.make_shortcut(&lnk, &join(dir, target), dir, name)?;
+	}
 	if !existed {
 		j.files.push(lnk.clone());
 	}
 	made.shortcuts.push(lnk);
-	Ok(())
+	Ok(true)
 }
 
 /// A name with the characters a file name cannot hold taken out.
@@ -286,6 +305,8 @@ struct Made {
 	shortcuts: Vec<String>,
 	extras: Vec<String>,
 	keys: Vec<String>,
+	/// Program Manager items, as `group|name`.
+	groups: Vec<String>,
 }
 
 /// Installs the selected components (and the required ones) into `dir`.
@@ -320,6 +341,7 @@ pub fn install<P: Platform>(
 		shortcuts: Vec::new(),
 		extras: Vec::new(),
 		keys: Vec::new(),
+		groups: Vec::new(),
 	};
 	let result = do_install(
 		p, project, pack, &dir, selected, v, &files, free, &mut j, &mut made, progress,
@@ -418,8 +440,7 @@ fn do_install<P: Platform>(
 				target,
 				batch,
 			} => {
-				if p.native_shell() {
-					shell_shortcut(p, project, dir, name, target, j, made)?;
+				if shell_shortcut(p, project, dir, name, target, j, made)? {
 					continue;
 				}
 				let to = join(dir, batch);
@@ -439,24 +460,30 @@ fn do_install<P: Platform>(
 			}
 		}
 	}
-	if p.native_shell() {
-		let bytes = project.encode()?;
-		for name in p.install_uninstaller(dir, &bytes)? {
+	if p.shell().is_some_and(|s| s.registers_uninstall()) {
+		let bytes = pack.project_bytes(p)?;
+		let names = match p.shell() {
+			Some(s) => s.install_uninstaller(dir, &bytes)?,
+			None => Vec::new(),
+		};
+		for name in names {
 			j.files.push(join(dir, &name));
 			made.extras.push(name);
 		}
 		let uninstall = format!("\"{}\" /U \"{dir}\"", join(dir, "UNINST.EXE"));
 		let key = project.id.clone();
-		p.register_uninstall(
-			&key,
-			&[
-				("DisplayName", &project.name),
-				("DisplayVersion", &project.version),
-				("Publisher", &project.publisher),
-				("InstallLocation", dir),
-				("UninstallString", &uninstall),
-			],
-		)?;
+		if let Some(s) = p.shell() {
+			s.register_uninstall(
+				&key,
+				&[
+					("DisplayName", &project.name),
+					("DisplayVersion", &project.version),
+					("Publisher", &project.publisher),
+					("InstallLocation", dir),
+					("UninstallString", &uninstall),
+				],
+			)?;
+		}
 		made.keys.push(key);
 	}
 	let mut lir = String::from("LIR 1\r\n");
@@ -497,6 +524,9 @@ fn do_install<P: Platform>(
 	for k in &made.keys {
 		lir.push_str(&format!("R {k}\r\n"));
 	}
+	for g in &made.groups {
+		lir.push_str(&format!("G {g}\r\n"));
+	}
 	let receipt = join(dir, RECEIPT);
 	write_text(p, &receipt, &lir)?;
 	j.files.push(receipt);
@@ -519,6 +549,8 @@ pub struct Receipt {
 	/// The shortcut files (full paths) and the registry keys a Windows install made.
 	pub shortcuts: Vec<String>,
 	pub keys: Vec<String>,
+	/// The Program Manager items a Windows 3.1 install made, as `group|name`.
+	pub groups: Vec<String>,
 	/// The uninstaller's own files, below the install folder.
 	pub extras: Vec<String>,
 }
@@ -569,6 +601,8 @@ impl Receipt {
 				r.extras.push(rest.to_string());
 			} else if let Some(rest) = line.strip_prefix("R ") {
 				r.keys.push(rest.to_string());
+			} else if let Some(rest) = line.strip_prefix("G ") {
+				r.groups.push(rest.to_string());
 			}
 		}
 		if r.dir.is_empty() {
@@ -641,7 +675,14 @@ pub fn uninstall<P: Platform>(
 		}
 	}
 	for k in &r.keys {
-		p.unregister_uninstall(k);
+		if let Some(s) = p.shell() {
+			s.unregister_uninstall(k);
+		}
+	}
+	for g in &r.groups {
+		if let (Some((group, name)), Some(s)) = (g.split_once('|'), p.shell()) {
+			s.remove_group_item(group, name);
+		}
 	}
 	for x in &r.extras {
 		let path = join(&dir, x);

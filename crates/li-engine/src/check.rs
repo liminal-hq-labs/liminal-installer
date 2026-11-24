@@ -95,8 +95,9 @@ pub const BUILTIN_ACTIONS: &[&str] = &[
 	"check-disk-space",
 ];
 
-/// The renderer whose runtime has no Lua interpreter, so a step on it can only name a built-in.
-pub const NO_SCRIPT_RENDERER: &str = "tui-retro";
+/// The renderers whose runtimes have no Lua interpreter (DOS and Windows 3.1), so a step on one can
+/// only name a built-in.
+pub const NO_SCRIPT_RENDERERS: &[&str] = &["tui-retro", "win16"];
 
 /// Validates a project for every target.
 pub fn check(project: &Project) -> Vec<Diagnostic> {
@@ -283,7 +284,7 @@ pub fn check(project: &Project) -> Vec<Diagnostic> {
 		.installer
 		.targets
 		.iter()
-		.filter(|t| t.renderer == NO_SCRIPT_RENDERER)
+		.filter(|t| NO_SCRIPT_RENDERERS.contains(&t.renderer.as_str()))
 	{
 		for (id, flow) in &project.flows {
 			for step in &flow.steps {
@@ -296,8 +297,8 @@ pub fn check(project: &Project) -> Vec<Diagnostic> {
 						"script-on-retro",
 						format!("flow {id}, step {}", step.id),
 						format!(
-							"on_enter `{spec}` runs a script, and target `{}` uses the `{NO_SCRIPT_RENDERER}` renderer, whose runtime has no Lua; use a built-in such as `builtin:detect-sound` or `builtin:check-disk-space`",
-							t.id
+							"on_enter `{spec}` runs a script, and target `{}` uses the `{}` renderer, whose runtime has no Lua; use a built-in such as `builtin:detect-sound` or `builtin:check-disk-space`",
+							t.id, t.renderer
 						),
 					));
 				}

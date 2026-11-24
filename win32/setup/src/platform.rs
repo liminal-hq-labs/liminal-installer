@@ -10,7 +10,7 @@ use alloc::vec::Vec;
 use core::ptr::{null, null_mut};
 
 use li_retro::gui::Gui;
-use li_retro::platform::Key;
+use li_retro::platform::{Key, Shell};
 use li_retro::ui::Cells;
 use li_retro::{Error, Platform};
 
@@ -363,14 +363,16 @@ impl Platform for Win32 {
 		unsafe { MessageBoxA(NULL, t.as_ptr(), b"Setup\0".as_ptr(), MB_OK | MB_ICONINFORMATION) };
 	}
 
-	fn native_shell(&self) -> bool {
-		true
-	}
-
 	fn gui(&mut self) -> Option<&mut dyn Gui> {
 		Some(&mut self.wizard)
 	}
 
+	fn shell(&mut self) -> Option<&mut dyn Shell> {
+		Some(self)
+	}
+}
+
+impl Shell for Win32 {
 	fn start_menu_programs(&mut self) -> Option<String> {
 		shell::special_folder(CSIDL_PROGRAMS)
 	}

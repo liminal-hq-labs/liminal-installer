@@ -8,7 +8,6 @@
 //! Retro drawing so the two stay comparable. Keys follow its [`Screen::handle_key`] too, with the
 //! additions a DOS setup has: access keys, F3 to quit, a scrolling document and disabled buttons.
 
-use alloc::collections::BTreeMap;
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec;
@@ -71,6 +70,45 @@ impl Cells {
 	}
 }
 
+/// A small map from names to values, a vector searched in order: a run holds a few dozen names, and
+/// a balanced tree costs more code than the whole search is worth in a 64 KB Windows 3.1 program.
+#[derive(Debug, Clone)]
+pub struct VecMap<V>(Vec<(String, V)>);
+
+impl<V> Default for VecMap<V> {
+	fn default() -> Self {
+		VecMap(Vec::new())
+	}
+}
+
+impl<V> VecMap<V> {
+	pub fn get(&self, key: &str) -> Option<&V> {
+		self.0.iter().find(|(k, _)| k == key).map(|(_, v)| v)
+	}
+
+	pub fn contains_key(&self, key: &str) -> bool {
+		self.get(key).is_some()
+	}
+
+	/// Sets `key`, returning the value it replaced.
+	pub fn insert(&mut self, key: String, value: V) -> Option<V> {
+		match self.0.iter_mut().find(|(k, _)| *k == key) {
+			Some((_, old)) => Some(core::mem::replace(old, value)),
+			None => {
+				self.0.push((key, value));
+				None
+			}
+		}
+	}
+}
+
+impl<V> core::ops::Index<&str> for VecMap<V> {
+	type Output = V;
+	fn index(&self, key: &str) -> &V {
+		self.get(key).expect("no such name")
+	}
+}
+
 /// A value the person has chosen or typed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Value {
@@ -83,9 +121,9 @@ pub enum Value {
 #[derive(Debug, Clone, Default)]
 pub struct Values {
 	/// Fields by bind name, such as `install.path` and `components.selected`.
-	pub state: BTreeMap<String, Value>,
+	pub state: VecMap<Value>,
 	/// Computed text such as `product.name`, `install.size` and `progress.file`.
-	pub vars: BTreeMap<String, String>,
+	pub vars: VecMap<String>,
 	/// The meters, in whole percent.
 	pub file_pct: u32,
 	pub total_pct: u32,

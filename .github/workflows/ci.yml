@@ -299,3 +299,35 @@ jobs:
           WIN32_REQUIRE_TOOLS: '1'
         run: bash win32/check.sh
 
+  # The Windows 3.1 runtime. The host tests (the flow against DOS's, the compiler, the pack, the CLI) and the cheap parts of retro/win16 always
+  # run: format, lints, the packer's tests, the build, `file` on the executables and the size report. The Wine install and uninstall is a
+  # separate step that may be skipped; Windows 3.11 under DOSBox-X needs a tree the repository cannot carry and is run by hand.
+  win16:
+    name: Windows 3.1 runtime
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Install the pinned Rust toolchain and the tools the checks use
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustup component add rust-src
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq file python3
+
+      - name: Cache Rust build output
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: liminal-installer-win16
+
+      - name: Test the Windows 3.1 crates on the host
+        run: |
+          cargo test --locked -p li-retro -p li-retro-build
+          cargo test --locked -p li-cli --test win16
+
+      - name: Format, lints, packer tests, build, NE check and sizes
+        run: bash retro/win16/check.sh

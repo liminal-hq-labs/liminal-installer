@@ -32,6 +32,7 @@ use crate::build::{BuildError, BuildRequest, BuiltArtefact};
 pub enum Flavour {
 	Dos,
 	Win32,
+	Win16,
 }
 
 impl Flavour {
@@ -39,12 +40,14 @@ impl Flavour {
 		match self {
 			Flavour::Dos => "dos",
 			Flavour::Win32 => "win32",
+			Flavour::Win16 => "win16",
 		}
 	}
 	fn label(self) -> &'static str {
 		match self {
 			Flavour::Dos => "DOS",
 			Flavour::Win32 => "Win32",
+			Flavour::Win16 => "Windows 3.1",
 		}
 	}
 }
@@ -66,6 +69,7 @@ fn runtime(req: &BuildRequest, flavour: Flavour) -> Result<Vec<u8>, BuildError> 
 	let (var, named, label) = match flavour {
 		Flavour::Dos => ("LIMINST_DOS_RUNTIME", &req.dos_runtime, "DOS"),
 		Flavour::Win32 => ("LIMINST_WIN32_RUNTIME", &req.win32_runtime, "Win32"),
+		Flavour::Win16 => ("LIMINST_WIN16_RUNTIME", &req.win16_runtime, "Windows 3.1"),
 	};
 	let from_env = std::env::var_os(var).map(PathBuf::from);
 	if let Some(p) = named.clone().or(from_env) {
@@ -108,7 +112,44 @@ fn runtime(req: &BuildRequest, flavour: Flavour) -> Result<Vec<u8>, BuildError> 
 	)))
 }
 
+/// The Windows 3.1 runtime, if there is one: the named file, else `retro/win16/out/SETUP.EXE`
+/// found by walking up. `SETUP.EXE` is built by `retro/win16/build.sh`; without one `build` says so.
+fn win16_runtime(req: &BuildRequest) -> Result<Option<Vec<u8>>, BuildError> {
+	let from_env = std::env::var_os("LIMINST_WIN16_RUNTIME").map(PathBuf::from);
+	if let Some(p) = req.win16_runtime.clone().or(from_env) {
+		return std::fs::read(&p).map(Some).map_err(|e| {
+			other(format!(
+				"cannot read the Windows 3.1 runtime {}: {e}",
+				p.display()
+			))
+		});
+	}
+	let mut starts = vec![
+		std::env::current_dir().unwrap_or_default(),
+		req.project.root.clone(),
+	];
+	if let Ok(exe) = std::env::current_exe() {
+		starts.extend(exe.parent().map(Path::to_path_buf));
+	}
+	for s in &starts {
+		for d in s.ancestors() {
+			let p = d.join("retro/win16/out/SETUP.EXE");
+			if p.is_file() {
+				return std::fs::read(&p)
+					.map(Some)
+					.map_err(|e| other(format!("{}: {e}", p.display())));
+			}
+		}
+	}
+	Ok(None)
+}
+
 fn readme(name: &str, version: &str, flavour: Flavour) -> String {
+	if flavour == Flavour::Win16 {
+		return format!(
+			"{name} {version}\r\n\r\nTo install, choose File, Run in Program Manager and run SETUP from this disk or folder.\r\nTo remove it, run SETUP /U.\r\n\r\nSETUP needs Windows 3.1 or 3.11 in 386 Enhanced mode.\r\nKeep SETUP.EXE and SETUP.LPK together.\r\n"
+		);
+	}
 	if flavour == Flavour::Win32 {
 		return format!(
 			"{name} {version}\r\n\r\nTo install, run SETUP.EXE from this disk or folder.\r\nTo remove it, use Add/Remove Programs, or run SETUP.EXE /U.\r\n\r\nSETUP needs Windows 95 or later (a Pentium or better). Keep SETUP.EXE and SETUP.LPK together.\r\n"
@@ -143,17 +184,24 @@ pub fn build_for(
 	let compiled = match flavour {
 		Flavour::Dos => li_retro_build::compile(req.project, &req.target.id, &req.version),
 		Flavour::Win32 => li_retro_build::compile_win32(req.project, &req.target.id, &req.version),
+		Flavour::Win16 => li_retro_build::compile_win16(req.project, &req.target.id, &req.version),
 	}
 	.map_err(|e| other(e.to_string()))?;
 	let dat = compiled.lpk().map_err(|e| other(e.to_string()))?;
 	let pack_len = dat.len();
-	let exe = runtime(req, flavour)?;
+	let exe = if flavour == Flavour::Win16 {
+		win16_runtime(req)?
+	} else {
+		Some(runtime(req, flavour)?)
+	};
 	let readme = readme(&req.project.installer.product.name, &req.version, flavour).into_bytes();
-	let files = vec![
-		("SETUP.EXE".to_owned(), exe),
-		("SETUP.LPK".to_owned(), dat),
-		("README.TXT".to_owned(), readme),
-	];
+	let mut files = Vec::new();
+	if let Some(exe) = exe {
+		files.push(("SETUP.EXE".to_owned(), exe));
+	}
+	files.push(("SETUP.LPK".to_owned(), dat));
+	files.push(("README.TXT".to_owned(), readme));
+	let has_exe = files.iter().any(|(n, _)| n == "SETUP.EXE");
 	let loose = dir.join(flavour.folder());
 	std::fs::create_dir_all(&loose).map_err(|e| PackageError::io(&loose, e))?;
 	for (n, d) in &files {
@@ -164,11 +212,21 @@ pub fn build_for(
 		kind: "files".into(),
 		path: Some(loose),
 		note: Some(format!(
-			"SETUP.EXE, SETUP.LPK and README.TXT; {} bytes installed from a {}-byte pack",
+			"{}SETUP.LPK and README.TXT; {} bytes installed from a {}-byte pack",
+			if has_exe { "SETUP.EXE, " } else { "" },
 			compiled.install_bytes(),
 			pack_len
 		)),
 	}];
+	if flavour == Flavour::Win16 && !has_exe {
+		built.push(BuiltArtefact {
+			kind: "warning".into(),
+			path: None,
+			note: Some(
+				"no Windows 3.1 SETUP.EXE: build it with retro/win16/build.sh (see docs/retro-win16.md) and pass --win16-runtime PATH to carry it".into(),
+			),
+		});
+	}
 	for w in &compiled.warnings {
 		built.push(BuiltArtefact {
 			kind: "warning".into(),
