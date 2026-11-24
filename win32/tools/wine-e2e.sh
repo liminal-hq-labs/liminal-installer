@@ -28,17 +28,21 @@ fail() { echo "wine-e2e: FAIL: $*" >&2; exit 1; }
 norm() { sed -e 's/Program Files (x86)/Program Files/g' -e 's/^text: Space available: .*/text: Space available: N/' -e 's/Free: [0-9.]* [KMG]B/Free: N/' -e '/^file:/d' -e '/^report:/d' -e 's/\r$//' "$1"; }
 # A 32-bit program on 64-bit Windows (or Wine) writes below Wow6432Node, which /reg:32 reads.
 reg() { wine reg query "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\$1" /reg:32 "${@:2}" 2>&1 | tr -d '\r' | grep REG_ || true; }
+# The default value of a HKEY_CLASSES_ROOT key, read in both registry views (a 32-bit program's classes are redirected on 64-bit Windows).
+cls() { { wine reg query "HKCR\\$1" /ve /reg:32 2>&1; wine reg query "HKCR\\$1" /ve /reg:64 2>&1; } | tr -d '\r' | grep REG_SZ | head -1 | sed -e 's/^ *[^ ]* *REG_SZ *//' || true; }
 # The X server must outlive every process the program starts (the uninstaller hands over to a copy of itself), so wait for the wineserver.
 win() { (cd "$1" && shift && timeout 240 xvfb-run -a -s "-screen 0 1024x768x24" bash -c 'wine "$@"; rc=$?; wineserver -w; exit $rc' wine "$@" > /dev/null 2>&1); }
 
 run_project() {
-	local project="$1" id="$2" name="$3" want="$4"
+	local project="$1" id="$2" name="$3" want="$4" ext="${5:-}" prog="${6:-}"
 	local out="$WORK/$project" play="$WORK/$project.play"
 	"$LIMINST" build -C "$ROOT/examples/$project" -t windows-x86 --version 1.0.0 -o "$out" --win32-runtime "$HERE/dist/SETUP.EXE" > /dev/null
 	local d="$out/win32"
 	printf 'licence choose licence.accepted yes\n' > "$play"
 	local shotdir=""
 	[ -z "$SHOTS" ] || { shotdir="$WORK/shots-$project"; mkdir -p "$shotdir"; }
+	# A file type the product declares replaces an owner: seed one, to see it taken and given back.
+	[ -z "$ext" ] || wine reg add "HKCR\\.$ext" /ve /d txtfile /f /reg:32 > /dev/null 2>&1
 	win "$d" SETUP.EXE /PLAY "$play" /DUMP "$WORK/$project.dump" ${shotdir:+/SHOT "$shotdir"} || fail "$project: SETUP.EXE did not finish ok"
 	diff <(norm "$WORK/$project.dump") <(norm "$ROOT/crates/li-retro-build/tests/golden/win32/$project.pages.txt" | grep -v '^$') \
 		> "$WORK/$project.diff" || { cat "$WORK/$project.diff"; fail "$project: the pages the controls show differ from the host's"; }
@@ -78,6 +82,14 @@ PY
 	grep -q 'UNINST.EXE" /U "' <<< "$un" || fail "$project: no UninstallString in the registry: $un"
 	reg "$id" /v DisplayName | grep -q . || fail "$project: no DisplayName"
 	echo "wine-e2e: $project: Add/Remove Programs entry has an UninstallString"
+	if [ -n "$ext" ]; then
+		[ "$(cls ".$ext")" = "$prog" ] || fail "$project: .$ext names '$(cls ".$ext")', not $prog"
+		[ "$(cls "$prog")" = "Planboard board" ] || fail "$project: $prog has no name"
+		cls "$prog\\shell\\open\\command" | grep -q 'planboard.exe" "%1"$' || fail "$project: no open command: $(cls "$prog\\shell\\open\\command")"
+		cls "$prog\\DefaultIcon" | grep -q 'planboard.exe,0$' || fail "$project: no icon: $(cls "$prog\\DefaultIcon")"
+		grep -q "^A $ext|$prog|.*planboard.exe|txtfile" "$dir/INSTALL.LIR" || fail "$project: the receipt has no A record that keeps txtfile"
+		echo "wine-e2e: $project: .$ext, $prog, its icon and open command are registered; the receipt keeps the old owner"
+	fi
 	# Uninstall from the installed folder, as Add/Remove Programs runs it: the copy in the temporary folder does the work.
 	local wdir="C:\\Program Files (x86)\\$name"
 	[ -d "$WINEPREFIX/drive_c/Program Files (x86)/$name" ] || wdir="C:\\Program Files\\$name"
@@ -87,6 +99,11 @@ PY
 	[ ! -d "$dir" ] || fail "$project: the uninstall left the folder"
 	[ -z "$(find "$WINEPREFIX/drive_c/users" -name '*.lnk' -path "*$name*")" ] || fail "$project: the shortcut is still there"
 	[ -z "$(reg "$id" /v DisplayName)" ] || fail "$project: the registry entry is still there"
+	if [ -n "$ext" ]; then
+		[ "$(cls ".$ext")" = "txtfile" ] || fail "$project: .$ext names '$(cls ".$ext")' after the uninstall, not txtfile"
+		[ -z "$(cls "$prog")" ] && [ -z "$(cls "$prog\\shell\\open\\command")" ] || fail "$project: $prog's keys are still there"
+		echo "wine-e2e: $project: uninstalled: .$ext names txtfile again and $prog is gone"
+	fi
 	grep -q '^== confirm' "$WORK/$project.undump" || fail "$project: the uninstall did not show its confirm page"
 	echo "wine-e2e: $project: uninstalled: files, folder, shortcut and registry entry are gone"
 	if [ -n "$SHOTS" ]; then
@@ -97,5 +114,5 @@ PY
 }
 
 run_project lt-fizz hq.liminal.lt-fizz "Lieutenant Fizz — Episode One" "FIZZ.EXE INSTALL.LIR LEVELS/EP1.LVL LEVELS/EP1.PAL UNINST.DAT UNINST.EXE"
-run_project planboard hq.liminal.planboard "Planboard" "INSTALL.LIR UNINST.DAT UNINST.EXE bin/pbcli.exe docs/GETTING-STARTED.md docs/SHORTCUTS.md planboard.exe"
+run_project planboard hq.liminal.planboard "Planboard" "INSTALL.LIR UNINST.DAT UNINST.EXE bin/pbcli.exe docs/GETTING-STARTED.md docs/SHORTCUTS.md planboard.exe" planboard hq.liminal.planboard.planboard
 echo "wine-e2e: ok"

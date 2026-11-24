@@ -228,7 +228,7 @@ Table 4. Operations.
 
 A `registry.set` value may be written `dword:xxxxxxxx` (a `REG_DWORD`, as in a `.reg` file), and a `{placeholder}` in a value is resolved when it is written; the receipt keeps the placeholder form. `prereq.webview2` and `tauri.wrap` are the Windows operations of a Tauri product (§15). Each records what it did in the receipt: the version the WebView2 step found and whether it ran an installer, and the uninstall entry the wrapped setup left.
 
-The DOS runtime performs `mkdir`, `copy`, `write_ini` and `shortcut` (a launcher batch file), then writes the receipt. File types, URL schemes and `PATH` entries are skipped with a build warning. The Win32 runtime (`windows-x86` with `win32-classic`) performs `mkdir`, `copy` and `shortcut` (a `.lnk` in a Start menu folder named for the product), adds the product to Add/Remove Programs and keeps an uninstaller in the install folder; it skips file types, URL schemes and `PATH` entries with a build warning, and `detect-sound` (see [docs/retro-win32.md](docs/retro-win32.md)).
+The DOS runtime performs `mkdir`, `copy`, `write_ini` and `shortcut` (a launcher batch file), then writes the receipt. File types, URL schemes and `PATH` entries are skipped with a build warning. The Win32 runtime (`windows-x86` with `win32-classic`) performs `mkdir`, `copy`, `shortcut` (a `.lnk` in a Start menu folder named for the product) and `file_type` (the product's own association in `HKEY_CLASSES_ROOT`, with what it replaced kept in the receipt), adds the product to Add/Remove Programs and keeps an uninstaller in the install folder; it skips URL schemes and `PATH` entries with a build warning, and `detect-sound` (see [docs/retro-win32.md](docs/retro-win32.md)).
 
 ## 9 · Lifecycle and receipts
 

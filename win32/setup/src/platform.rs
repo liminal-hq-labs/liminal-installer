@@ -390,6 +390,19 @@ impl Shell for Win32 {
 			.map_err(|c| Error::Io(format!("cannot write the shortcut {lnk} (COM error {c:08X})")))
 	}
 
+	fn file_types(&self) -> bool {
+		true
+	}
+
+	fn register_file_type(&mut self, ext: &str, prog_id: &str, name: &str, exe: &str) -> Result<Option<String>, Error> {
+		shell::register_file_type(ext, prog_id, name, exe)
+			.map_err(|c| Error::Io(format!("cannot register the .{ext} file type (registry error {c})")))
+	}
+
+	fn unregister_file_type(&mut self, ext: &str, prog_id: &str, _exe: &str, previous: Option<&str>) {
+		shell::unregister_file_type(ext, prog_id, previous);
+	}
+
 	fn register_uninstall(&mut self, key: &str, values: &[(&str, &str)]) -> Result<(), Error> {
 		shell::register_uninstall(key, values)
 			.map_err(|c| Error::Io(format!("cannot write the uninstall entry (registry error {c})")))

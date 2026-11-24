@@ -167,6 +167,107 @@ pub fn unregister_uninstall(key: &str) {
 	}
 }
 
+/// The places a file type is written, in the order tried: the merged classes root, which a
+/// machine-wide install can write, then the current user's own classes (Windows 2000 and later),
+/// which an account without that right can.
+const CLASS_ROOTS: [(usize, &str); 2] = [(HKEY_CLASSES_ROOT, ""), (HKEY_CURRENT_USER, "Software\\Classes\\")];
+
+/// Sets the default value of `sub` below `root`, making the key.
+fn set_default(root: usize, sub: &str, value: &str) -> Result<(), i32> {
+	let (s, v) = (ansi(sub), ansi(value));
+	// SAFETY: registry calls on NUL-ended names and values.
+	unsafe {
+		let mut k = 0usize;
+		let mut disp = 0u32;
+		let r = RegCreateKeyExA(root, s.as_ptr(), 0, null(), 0, KEY_ALL_ACCESS, null(), &mut k, &mut disp);
+		if r != 0 {
+			return Err(r);
+		}
+		let r = RegSetValueExA(k, b"\0".as_ptr(), 0, REG_SZ, v.as_ptr(), v.len() as u32);
+		RegCloseKey(k);
+		if r == 0 { Ok(()) } else { Err(r) }
+	}
+}
+
+/// Whether the key `sub` exists below `root`.
+fn key_exists(root: usize, sub: &str) -> bool {
+	let s = ansi(sub);
+	// SAFETY: a registry open on a NUL-ended name.
+	unsafe {
+		let mut k = 0usize;
+		let found = RegOpenKeyExA(root, s.as_ptr(), 0, KEY_READ, &mut k) == 0;
+		if found {
+			RegCloseKey(k);
+		}
+		found
+	}
+}
+
+/// Tells Explorer that associations changed, so icons and verbs are read again.
+fn notify_associations() {
+	// SAFETY: the event takes no items.
+	unsafe { SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, null(), null()) };
+}
+
+/// Makes `exe` the owner of `.ext`: the type `prog_id` with its name, its icon (the program's first)
+/// and its `open` command, then the extension pointing at it. Returns what the extension named
+/// before: `None` when it had no key, `Some("")` when it had a key and no default. `Content Type`
+/// and the old type's own keys are left as they were.
+pub fn register_file_type(ext: &str, prog_id: &str, name: &str, exe: &str) -> Result<Option<String>, i32> {
+	let dot = alloc::format!(".{ext}");
+	let previous = if key_exists(HKEY_CLASSES_ROOT, &dot) {
+		Some(registry_string(HKEY_CLASSES_ROOT, &dot, "").unwrap_or_default())
+	} else {
+		None
+	};
+	let command = alloc::format!("\"{exe}\" \"%1\"");
+	let icon = alloc::format!("{exe},0");
+	let mut last = 0;
+	for (root, prefix) in CLASS_ROOTS {
+		let at = |rest: &str| alloc::format!("{prefix}{rest}");
+		let done = set_default(root, &at(prog_id), name)
+			.and_then(|_| set_default(root, &at(&alloc::format!("{prog_id}\\DefaultIcon")), &icon))
+			.and_then(|_| set_default(root, &at(&alloc::format!("{prog_id}\\shell\\open\\command")), &command))
+			.and_then(|_| set_default(root, &at(&dot), prog_id));
+		match done {
+			Ok(()) => {
+				notify_associations();
+				return Ok(previous);
+			}
+			Err(e) => last = e,
+		}
+	}
+	Err(last)
+}
+
+/// Takes the file type back: `previous` becomes the extension's owner again only while it still
+/// names `prog_id`, and with no previous the extension's key goes. The type's own keys go either
+/// way, deepest first because Windows NT's `RegDeleteKey` does not remove a key that has subkeys.
+pub fn unregister_file_type(ext: &str, prog_id: &str, previous: Option<&str>) {
+	let dot = alloc::format!(".{ext}");
+	let ours = registry_string(HKEY_CLASSES_ROOT, &dot, "").is_some_and(|c| c.eq_ignore_ascii_case(prog_id));
+	if ours && let Some(p) = previous {
+		// The first place that takes it: a second write would leave a stray copy of the key.
+		for (root, prefix) in CLASS_ROOTS {
+			if set_default(root, &alloc::format!("{prefix}{dot}"), p).is_ok() {
+				break;
+			}
+		}
+	}
+	for (root, prefix) in CLASS_ROOTS {
+		let at = |rest: &str| ansi(&alloc::format!("{prefix}{rest}"));
+		if ours && previous.is_none() {
+			// SAFETY: a registry call on a NUL-ended name.
+			unsafe { RegDeleteKeyA(root, at(&dot).as_ptr()) };
+		}
+		for rest in ["\\shell\\open\\command", "\\shell\\open", "\\shell", "\\DefaultIcon", ""] {
+			// SAFETY: a registry call on a NUL-ended name.
+			unsafe { RegDeleteKeyA(root, at(&alloc::format!("{prog_id}{rest}")).as_ptr()) };
+		}
+	}
+	notify_associations();
+}
+
 /// The folder picker (`SHBrowseForFolder`): the chosen path, or `None` when cancelled.
 pub fn browse_folder(owner: Handle, title: &str) -> Option<String> {
 	let t = ansi(title);

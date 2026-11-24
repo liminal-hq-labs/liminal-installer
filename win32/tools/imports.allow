@@ -60,6 +60,7 @@ ole32.dll!CoInitialize
 ole32.dll!CoTaskMemFree
 ole32.dll!CoUninitialize
 shell32.dll!SHBrowseForFolderA
+shell32.dll!SHChangeNotify
 shell32.dll!SHGetPathFromIDListA
 shell32.dll!SHGetSpecialFolderLocation
 user32.dll!AdjustWindowRect
