@@ -12,11 +12,40 @@ fn example(name: &str) -> PathBuf {
 		.join(name)
 }
 
+fn copy_dir(from: &Path, to: &Path) {
+	std::fs::create_dir_all(to).unwrap();
+	for e in std::fs::read_dir(from).unwrap().flatten() {
+		let dest = to.join(e.file_name());
+		if e.path().is_dir() {
+			copy_dir(&e.path(), &dest);
+		} else {
+			std::fs::copy(e.path(), dest).unwrap();
+		}
+	}
+}
+
 fn build(project: &Path, out: &Path, runtime: Option<&Path>) -> std::process::Output {
-	let mut c = Command::new(env!("CARGO_BIN_EXE_liminst"));
+	build_with(project, out, runtime, &[])
+}
+
+fn build_with(
+	project: &Path,
+	out: &Path,
+	runtime: Option<&Path>,
+	extra: &[&str],
+) -> std::process::Output {
+	// The binary and the project are copied to the temporary folder, so that the lookups that walk up from
+	// them cannot reach this repository's `retro/win16/out/SETUP.EXE` when it has been built.
+	let tmp = out.parent().unwrap();
+	let liminst = tmp.join("liminst");
+	std::fs::copy(env!("CARGO_BIN_EXE_liminst"), &liminst).unwrap();
+	let copy = tmp.join("project");
+	copy_dir(project, &copy);
+	let mut c = Command::new(&liminst);
 	c.arg("-C")
-		.arg(project)
-		.args(["build", "-t", "win16-x86", "--version", "1.0.0"]);
+		.arg(&copy)
+		.args(["build", "-t", "win16-x86", "--version", "1.0.0"])
+		.args(extra);
 	if let Some(r) = runtime {
 		c.arg("--win16-runtime").arg(r);
 	}
@@ -33,7 +62,7 @@ fn build(project: &Path, out: &Path, runtime: Option<&Path>) -> std::process::Ou
 fn builds_the_pack_and_says_when_there_is_no_runtime() {
 	let tmp = tempfile::tempdir().unwrap();
 	let out = tmp.path().join("out");
-	let o = build(&example("lt-fizz"), &out, None);
+	let o = build_with(&example("lt-fizz"), &out, None, &["--output", "files"]);
 	assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
 	let said = String::from_utf8_lossy(&o.stdout);
 	assert!(said.contains("no Windows 3.1 SETUP.EXE"), "{said}");
@@ -42,6 +71,17 @@ fn builds_the_pack_and_says_when_there_is_no_runtime() {
 	assert!(!out.join("win16/SETUP.EXE").exists());
 	let readme = std::fs::read_to_string(out.join("win16/README.TXT")).unwrap();
 	assert!(readme.contains("Windows 3.1"), "{readme}");
+}
+
+#[test]
+fn a_floppy_without_a_runtime_is_an_error_naming_the_flag() {
+	let tmp = tempfile::tempdir().unwrap();
+	let out = tmp.path().join("out");
+	let o = build(&example("lt-fizz"), &out, None);
+	assert!(!o.status.success());
+	let said = String::from_utf8_lossy(&o.stderr);
+	assert!(said.contains("--win16-runtime"), "{said}");
+	assert!(!out.join("lt-fizz-1.0.0-win16-x86-1440.img").exists());
 }
 
 #[test]
@@ -68,7 +108,7 @@ fn carries_a_runtime_when_given_one() {
 fn planboard_has_a_windows_3_1_target_with_8_3_files() {
 	let tmp = tempfile::tempdir().unwrap();
 	let out = tmp.path().join("out");
-	let o = build(&example("planboard"), &out, None);
+	let o = build_with(&example("planboard"), &out, None, &["--output", "files"]);
 	assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
 	assert!(out.join("win16/SETUP.LPK").is_file());
 }

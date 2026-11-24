@@ -115,3 +115,49 @@ fn a_missing_runtime_says_what_to_do() {
 	assert!(!o.status.success());
 	assert!(String::from_utf8_lossy(&o.stderr).contains("cannot read the DOS runtime"));
 }
+
+/// A product repository with its own `dos/build.sh` (no `setup/Cargo.toml`) is not the runtime:
+/// the script is never run, and the error names the flag. The binary is copied beside the
+/// project so the lookup that walks up from it cannot reach this repository's own `dos/`.
+#[cfg(unix)]
+#[test]
+fn a_product_repositorys_own_build_script_is_never_run() {
+	use std::os::unix::fs::PermissionsExt;
+	let tmp = tempfile::tempdir().unwrap();
+	let root = tmp.path().join("product");
+	let project = root.join("project");
+	copy_dir(&fizz(), &project);
+	let marker = root.join("RAN");
+	for folder in ["dos", "win32"] {
+		std::fs::create_dir_all(root.join(folder)).unwrap();
+		std::fs::write(
+			root.join(folder).join("build.sh"),
+			format!("#!/bin/sh\ntouch {}\n", marker.display()),
+		)
+		.unwrap();
+	}
+	let bin = root.join("bin");
+	std::fs::create_dir_all(&bin).unwrap();
+	let liminst = bin.join("liminst");
+	std::fs::copy(env!("CARGO_BIN_EXE_liminst"), &liminst).unwrap();
+	std::fs::set_permissions(&liminst, std::fs::Permissions::from_mode(0o755)).unwrap();
+	for (target, flag) in [
+		("dos-x86", "--dos-runtime"),
+		("windows-x86", "--win32-runtime"),
+	] {
+		let o = Command::new(&liminst)
+			.current_dir(&root)
+			.env_remove("LIMINST_DOS_RUNTIME")
+			.env_remove("LIMINST_WIN32_RUNTIME")
+			.arg("-C")
+			.arg(&project)
+			.args(["build", "-t", target, "--version", "1.0.0", "-o"])
+			.arg(root.join("out"))
+			.output()
+			.unwrap();
+		assert!(!o.status.success());
+		let said = String::from_utf8_lossy(&o.stderr);
+		assert!(said.contains(flag), "{said}");
+		assert!(!marker.exists(), "the product's own build script ran");
+	}
+}
