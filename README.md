@@ -42,6 +42,7 @@ The `liminst` binary is in `target/release/`.
 - [docs/web-runner.md](docs/web-runner.md) — the web runner: a Tauri window over the real flow
 - [docs/architecture.md](docs/architecture.md) — how the pieces fit together
 - [docs/decisions.md](docs/decisions.md) — decisions and why
+- [docs/plans/](docs/plans/README.md) — planner write-ups kept for reference
 - [AGENTS.md](AGENTS.md) — contributor and agent rules
 
 ## Contributing
