@@ -19,6 +19,7 @@ export function MediaScreen() {
 	const selected = useMedia((s) => s.selected);
 	const loaded = useMedia((s) => s.loaded);
 	const loading = useMedia((s) => s.loading);
+	const tab = useMedia((s) => s.tab);
 	const busy = useMedia((s) => s.busy);
 	const error = useMedia((s) => s.error);
 	const current = items.find((m) => m.id === selected);
@@ -77,7 +78,9 @@ export function MediaScreen() {
 						<MediaDetail
 							info={current}
 							plan={plans[current.id]}
+							tab={tab}
 							busy={busy}
+							onTab={(next) => studio.media.setTab(next)}
 							onRemove={() => remove(current.id)}
 						/>
 					) : (
