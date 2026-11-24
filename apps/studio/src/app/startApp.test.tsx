@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { problemSummary } from '../lib/format';
 import { startApp, type App } from './startApp';
 import { createChromeStore } from '../chrome/chromeStore';
-import { StudioError, noTerminal, type Api } from '../lib/api';
+import { StudioError, noMedia, noTerminal, type Api } from '../lib/api';
 import { browserSettings } from '../lib/settings';
 import { tauriViewFixture } from '../lib/tauriFixture';
 import type {
@@ -126,6 +126,7 @@ function fakeApi(overrides: Partial<Api> = {}): Fake {
 		},
 		getPreview: async () => null,
 		...noTerminal,
+		...noMedia,
 		checkProject: async () => fake.problems,
 		history: async () => view(),
 		undo: async () => view(),

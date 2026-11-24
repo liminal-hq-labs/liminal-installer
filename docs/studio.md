@@ -6,9 +6,9 @@ How the Studio window is put together, and how to drive it while developing. `SP
 
 `apps/studio` is the house layout: `index.html`, `vite.config.ts` and `src/` (React 19) with `src-tauri/` beside them. The shared window chrome is the workspace package `packages/chrome`. The Studio's own folders:
 
-- `src/app/` has `startApp.tsx` (mounts the app, returns the `App` a shell drives), `Shell.tsx` (sidebar, status bar, history popover, toast), `router.tsx` (the six routes on memory history) and `StudioContext.tsx` (the hooks that read the stores).
+- `src/app/` has `startApp.tsx` (mounts the app, returns the `App` a shell drives), `Shell.tsx` (sidebar, status bar, history popover, toast), `router.tsx` (the seven routes on memory history) and `StudioContext.tsx` (the hooks that read the stores).
 - `src/stores/` has the zustand stores (project, preview, script draft, toasts) and `studio.ts`, where `createStudio` holds the actions. The backend arrives as `api`, so `src/app/*.test.tsx` runs the whole app against a fake one under happy-dom.
-- `src/screens/` has Project, Flow, Layouts, Scripts, Dry-run and Tauri, each with its CSS Module. `src/preview/` draws a layout tree in the four looks. `src/ui/` has the shared CSS Modules (cards, buttons, fields, text colours).
+- `src/screens/` has Project, Flow, Layouts, Scripts, Dry-run, Tauri and Media (with its parts in `src/screens/media/`), each with its CSS Module. `src/preview/` draws a layout tree in the four looks. `src/ui/` has the shared CSS Modules (cards, buttons, fields, text colours).
 - `src/chrome/` is the layer around the chrome package, described below. `src/i18n/` is the message catalogue. `src/theme/` has the tokens. `src/services/logger.ts` forwards `console.*` to `tauri-plugin-log`.
 
 Imports of the chrome are by deep path (`@liminal-hq/studio-chrome/TitleBar`), never a barrel.
@@ -114,3 +114,41 @@ Full screen is the `preview` child window (`PreviewWindow.tsx`, `FullScreenBody.
 For `tui` and `tui-retro` targets the Dry-run and Layouts screens have a View switch: Rich (the HTML drawing above) or Terminal (real), which is the `tui` renderer's own output. The renderer runs in Rust. `li_render_tui::render_cells` returns a `CellGrid` (one `Cell` per terminal cell: `ch`, `fg`, `bg`, modifiers) and `to_ansi` writes it as ANSI text. `li_studio::tui` keeps live sessions: `Studio::tui_session_open`, `tui_session_key`, `tui_session_resize` and `tui_session_close`, exposed as the Tauri commands `tui_session_open`, `tui_session_key`, `tui_session_resize` and `tui_session_close` (app commands need no capability entries) and, for agents, the MCP tools `tui_render` and `tui_key`. A session holds the `Screen` and the page state, so the UI keeps none: it sends a key and draws the frame it gets back. `StudioBackend::tui_page` resolves the page as the preview does, in `EngineBackend`, with the theme's stage composed around it by `li_engine::Project::screen_for` (the stage's `slot`, `show_on` and `hide_on`), so the terminal shows the same whole screen as the rich view; the tui renderer draws a stage's `backdrop` and its meters, and a node it has no text form for (such as art) is left out. A stage layout opened on its own is drawn alone, and the Layouts terminal reopens after an edit to the layout or its stage. In Dry-run the session starts from the step's page state, and it is not tied to the interactive `useRun` state, so choices made in the rich view do not carry over.
 
 `src/preview/TerminalPreview.tsx` draws the grid on a canvas and forwards keys; `useTuiSession.ts` owns the session (open, ordered keys, close on change or unmount); `terminalPaint.ts` paints. Box-drawing and block characters are drawn as rectangles, not font glyphs, so frames meet without gaps at any size, and every other character is drawn at the centre of its cell in VT323 with a monospace fallback. The 16 ANSI colours are the VGA ones and the default pair is a dark terminal. A hidden `<pre>` and a live region carry the screen as text and the focused control for screen readers. Tab belongs to the screen, so F6 leaves the terminal. In Dry-run, a chosen Next or any other button goes to the next step, Back to the previous, and Cancel or Esc back to the first. The browser demo draws a stand-in screen, not the renderer's output. `api.ts` has `TuiApi` for the four calls, and `noTerminal` for fakes.
+
+## Media screen
+
+The Media screen (View > Media, `Ctrl+7`, `/media`) is where a person sees and edits the disks and discs a project ships on. `SPEC.md` section 13 has the behaviour, the warning codes and the rules; D83 to D85 have the reasons. It is built in layers, each of which can be replaced without touching the one above.
+
+- **Wire types** are in the `li-media` crate (`MediaInfo`, `MediaEdit`, `MediaPlan`, `VolumePlan`, `DiskEntry`, `ComponentSize`, `MediaWarning` and the rest), derive `ts_rs::TS` behind the `ts` feature and are generated into `packages/protocol`. `li-media` has no UI dependency, so `liminst`, the Studio and the MCP server will all call its planner.
+- **The `Api`** has `listMedia`, `getMediaPlan`, `addMedia`, `setMedia`, `removeMedia` and `pickReadme`. Until the planner exists the browser demo answers them from `src/lib/demoMedia.ts`, which plans a medium from the Quill sizes in `src/lib/mediaFixture.ts`, and the desktop shell answers with a "not available yet" error, the way `noTerminal` does for the terminal view. A test fake in `src/lib/fakeMedia.ts` keeps its own undo stack.
+- **The store** (`src/stores/media.ts`) holds the media, their plans, the one picked and the tab. An edit is one `setMedia` call with a label, so it is one undoable history entry; the store reads the plan again afterwards, which is how a switch's free-space change reaches the screen.
+- **The screen** (`src/screens/MediaScreen.tsx`, with `src/screens/media/`) draws the list, the capacity meter and the tabs.
+
+### What it looks like
+
+The screen has a header with the title, one line of help, Add floppy and Add CD. Below it are two columns. The narrow left one is the media list, one row per medium with its kind, id, label, a pill that says fits, warning or does not fit, the free bytes and "N disks" when it spans. With no media it holds an empty state that explains what a medium is and offers both Add buttons. The wide right column is the picked medium: a heading with its kind, label and capacity, then the capacity card, then the tabs.
+
+The capacity card has the meter, a row of totals (used, common pack, free, reserve) and, on a floppy, a second thin bar for "Without sharing" with the bytes it would need and by how much it would overflow. Both bars are rows of block cells in VT323 (`█` used, `▓` common pack, `▒` reserve, `░` free), one per 16 KiB on a floppy, and are hidden from assistive technology; the meter's own text carries the numbers. A CD shows a plain bar with 80 cells and no second bar.
+
+- **Disk map.** A tree. The root is the volume (`A:\ QUILL`, with its serial), then `SETUP.EXE`, `SETUP.LPK`, `COMMON.LPK` (which opens into its `Cnnnnnnn` entries), `README.TXT` and a folder per target with its own files. Each row shows its size in whole clusters (512 bytes on a floppy, 2048 on a CD) and a role. A details pane beside it shows the picked row's raw, packed and on-disk sizes, its pack and chunk size, its targets and its component. A medium that spans shows one tree per disk side by side, each with its own meter.
+- **Sizes.** A table of components (required or switchable, raw, packed, pack, disk, and what the switch would change) and a table of files, both sortable by clicking a heading. A card above them sets the reserve and what happens on overflow.
+- **Targets.** A row per retro target of the project: whether it is on this medium, its folder, where its `SETUP.EXE` came from ("found at …" or "estimated: no runtime was found") and its size.
+- **Label and README.** The label with a live count against 11 and the rule, the serial (automatic or eight hex digits), on a CD the derived ISO volume id and Joliet label, and the README text in a 76-column box with a line-width and CRLF check, with a button to use a file of one's own.
+- **Autorun.** On a CD, the `AUTORUN.INF` text, the target it opens and its icon. Elsewhere, or with no Windows 95 target on the medium, the tab says why it is off.
+- **Warnings.** Under the capacity card, one row per warning with its severity and message; a row that has a tab to fix it is a button that opens it.
+
+### Keys and accessibility
+
+- The meter is `role="meter"` with `aria-valuemin`, `aria-valuemax`, `aria-valuenow` and an `aria-valuetext` such as "1,286,656 of 1,457,664 bytes used; 171,008 free; reserve met".
+- The disk map is an ARIA `tree`: Up and Down move, Right opens a branch or enters it, Left closes it or goes to the parent, Home and End go to the ends, Enter or Space picks a row for the details pane, and only one row is in the tab order.
+- The tabs are a `tablist` that Left and Right (mirrored in right-to-left text) and Home and End move through. The list is a `listbox`; Delete on a row asks to remove it.
+- A component's switch is `role="switch"`, and its note, which says what flipping it does, is its `aria-describedby`. A table's sorted heading carries `aria-sort`. The motion setting turns off the one transition the meter has.
+- Remove asks in the confirmation child window, never an overlay, with Remove as a danger button and Cancel as the safe one.
+
+### What is not built
+
+Nothing here builds, writes a disk or starts an emulator. Build jobs, the `studio://media-build` events, results with checksums, the emulator buttons, writing to a physical floppy (a `write-floppy` child window that lists only removable 1.44 MB disks, never picks one and asks for the device and the label to be typed) and the Dry-run "Run from" controls are the later steps of the plan in D85. The MCP media tools answer one request at a time, so a client reads a build's progress by asking again.
+
+### Testing
+
+`src/app/mediaScreen.test.tsx` runs the app over the test fake and the Quill fixture: add and remove (with the confirmation), undo and redo, a switch changing the free space, the label rule, the spanning view, the tree's keys and the warnings' links. Screenshots of each tab in `en-CA`, `en-XA` and `ar-XB` come from the dev server in the browser demo (`?locale=`), or from the Tauri MCP when it connects.

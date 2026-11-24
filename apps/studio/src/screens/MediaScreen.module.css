@@ -1,0 +1,428 @@
+/*
+ * (c) Copyright 2026 Liminal HQ, Scott Morris
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ */
+
+.body {
+	display: grid;
+	grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+	gap: 16px;
+	align-items: start;
+}
+@media (max-width: 760px) {
+	.body {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+.empty {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	align-items: flex-start;
+}
+.list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+}
+.row {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	gap: 10px;
+	align-items: start;
+	padding: 10px 12px;
+	border: 1px solid var(--lis-border-subtle);
+	border-radius: var(--lis-radius-lg);
+	background: var(--lis-bg-card);
+	cursor: pointer;
+}
+.row:hover {
+	border-color: var(--lis-border-default);
+}
+.row:focus-visible {
+	outline: 2px solid var(--lis-border-focus);
+	outline-offset: 1px;
+}
+.rowOn {
+	border-color: var(--lis-accent);
+	background: var(--lis-accent-soft);
+}
+.rowGlyph {
+	color: var(--lis-accent);
+	display: inline-flex;
+	padding-top: 2px;
+}
+.rowMain {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+.rowTitle {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: baseline;
+	color: var(--lis-text-bright);
+}
+.rowWarn {
+	color: var(--lis-colour-warning);
+}
+.detail {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	min-width: 0;
+}
+.detailHead {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+.headGlyph {
+	color: var(--lis-accent);
+	display: inline-flex;
+}
+.headText {
+	flex: 1;
+	min-width: 0;
+}
+.headText h2,
+.headText p {
+	margin: 0;
+}
+.capacity {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+.totals {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 24px;
+	margin: 0;
+}
+.totals dt {
+	font-size: 12px;
+	color: var(--lis-text-secondary);
+}
+.totals dd {
+	margin: 0;
+	font: 600 18px var(--lis-font-heading);
+	color: var(--lis-text-bright);
+}
+
+/* The capacity meter: block cells in VT323, one for each 16 KiB of a floppy. */
+.meter {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+.bar {
+	font-family: 'VT323', var(--lis-font-mono);
+	font-size: 22px;
+	line-height: 0.9;
+	letter-spacing: 0;
+}
+.cells {
+	display: flex;
+	flex-wrap: wrap;
+	max-width: 100%;
+	white-space: pre;
+}
+.cellsOver .cellOwn,
+.cellsOver .cellCommon {
+	color: var(--lis-colour-error);
+}
+.cellOwn {
+	color: var(--lis-accent);
+}
+.cellCommon {
+	color: var(--lis-brand-purple);
+}
+.cellReserve {
+	color: var(--lis-colour-warning);
+}
+.cellFree {
+	color: var(--lis-text-muted);
+}
+.key {
+	font-family: 'VT323', var(--lis-font-mono);
+	margin-inline-end: 6px;
+}
+.without {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+.thin {
+	font-family: 'VT323', var(--lis-font-mono);
+	font-size: 12px;
+	line-height: 1;
+}
+.without p {
+	margin: 0;
+}
+.totals dt {
+	display: flex;
+	align-items: center;
+}
+
+/* The disk map: a tree for each disk and a details pane. */
+.map {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+.disks {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 12px;
+}
+@media (min-width: 900px) {
+	.map:not(.mapSpan) {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+		align-items: start;
+	}
+	.map > p {
+		grid-column: 1 / -1;
+	}
+}
+.disksSpan {
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+.tree {
+	list-style: none;
+	margin: 8px 0 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+}
+.node {
+	display: grid;
+	grid-template-columns: 14px minmax(0, 1fr) auto auto;
+	gap: 8px;
+	align-items: baseline;
+	padding-block: 3px;
+	padding-inline-end: 8px;
+	border-radius: var(--lis-radius-sm);
+	cursor: pointer;
+}
+.node:hover {
+	background: var(--lis-bg-hover);
+}
+.node:focus-visible {
+	outline: 2px solid var(--lis-border-focus);
+	outline-offset: -2px;
+}
+.nodeOn {
+	background: var(--lis-accent-soft);
+}
+.twisty {
+	color: var(--lis-text-muted);
+}
+.nodeName {
+	overflow-wrap: anywhere;
+}
+.nodeRole {
+	white-space: nowrap;
+}
+.nodeSize {
+	text-align: end;
+}
+.details {
+	min-width: 0;
+}
+.details h3 {
+	margin-top: 0;
+	overflow-wrap: anywhere;
+}
+.facts {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: 4px 12px;
+	margin: 0;
+}
+.facts dt {
+	color: var(--lis-text-secondary);
+	font-size: 12px;
+}
+.facts dd {
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+/* The sizes tables. */
+.sizes {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+.scroll {
+	overflow-x: auto;
+}
+.table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+.table th,
+.table td {
+	padding: 4px 10px;
+	text-align: start;
+	border-bottom: 1px solid var(--lis-border-subtle);
+	vertical-align: baseline;
+}
+.table thead th {
+	color: var(--lis-text-secondary);
+	font-weight: 500;
+	white-space: nowrap;
+}
+.table tbody th {
+	font-weight: 500;
+	color: var(--lis-text-bright);
+}
+.table .num {
+	text-align: end;
+	font-variant-numeric: tabular-nums;
+}
+.sortBtn {
+	background: none;
+	border: 0;
+	padding: 0;
+	font: inherit;
+	color: inherit;
+	cursor: pointer;
+}
+.sortBtn:focus-visible {
+	outline: 2px solid var(--lis-border-focus);
+	outline-offset: 2px;
+}
+.sortMark {
+	font-size: 10px;
+}
+
+/* Fields, switches and the README box. */
+.input {
+	font: inherit;
+	color: var(--lis-text-primary);
+	background: var(--lis-bg-input);
+	border: 1px solid var(--lis-border-default);
+	border-radius: var(--lis-radius-sm);
+	padding: 4px 8px;
+	min-width: 0;
+}
+.input:focus-visible {
+	outline: 2px solid var(--lis-border-focus);
+	outline-offset: 1px;
+}
+.input[aria-invalid='true'] {
+	border-color: var(--lis-colour-error);
+}
+.input:disabled {
+	opacity: 0.5;
+}
+.narrow {
+	inline-size: 10ch;
+}
+.fieldBlock {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 4px;
+	margin-block: 8px;
+}
+.fieldBlock p {
+	margin: 0;
+}
+.fieldRow {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+}
+.fieldRow .input {
+	flex: 0 1 24ch;
+}
+.fieldCell {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+.fieldCell .input {
+	inline-size: 14ch;
+}
+.group {
+	border: 0;
+	margin: 12px 0 0;
+	padding: 0;
+	min-width: 0;
+}
+.group legend {
+	font-size: 12px;
+	color: var(--lis-text-secondary);
+	padding: 0;
+	margin-bottom: 6px;
+}
+.inlineCheck {
+	display: inline-flex;
+	gap: 8px;
+	align-items: center;
+}
+.switch {
+	display: inline-flex;
+	gap: 6px;
+	align-items: center;
+	font: inherit;
+	color: var(--lis-text-secondary);
+	background: var(--lis-bg-modal);
+	border: 1px solid var(--lis-border-default);
+	border-radius: var(--lis-radius-pill);
+	padding: 1px 10px;
+	cursor: pointer;
+}
+.switch:focus-visible {
+	outline: 2px solid var(--lis-border-focus);
+	outline-offset: 2px;
+}
+.switch:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+.switchOn {
+	color: var(--lis-accent);
+	border-color: var(--lis-accent);
+}
+.readme {
+	font-family: 'VT323', var(--lis-font-mono);
+	font-size: 18px;
+	line-height: 1.1;
+	margin: 8px 0;
+	padding: 8px 10px;
+	max-inline-size: 100%;
+	overflow-x: auto;
+	background: var(--lis-bg-code);
+	border: 1px solid var(--lis-border-subtle);
+	border-radius: var(--lis-radius-sm);
+	white-space: pre;
+}
+.readme:focus-visible {
+	outline: 2px solid var(--lis-border-focus);
+	outline-offset: 1px;
+}
+
+.detail h3,
+.details h3,
+.map h3 {
+	margin: 0 0 8px;
+	font-size: 14px;
+}
+.mapSpan {
+	display: flex;
+	flex-direction: column;
+}
+.empty h2,
+.empty p {
+	margin: 0;
+}

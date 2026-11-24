@@ -8,7 +8,7 @@ import { t, type MessageId } from '../i18n/messages';
 import type { IconName } from '../ui/iconPaths';
 import { menuIcon } from './menuIcons';
 
-export type Screen = 'project' | 'flow' | 'layouts' | 'script' | 'preview' | 'tauri';
+export type Screen = 'project' | 'flow' | 'layouts' | 'script' | 'preview' | 'tauri' | 'media';
 
 export type ActionId =
 	| 'file.new'
@@ -26,6 +26,7 @@ export type ActionId =
 	| 'view.script'
 	| 'view.preview'
 	| 'view.tauri'
+	| 'view.media'
 	| 'view.fullScreenPreview'
 	| 'view.menuBar'
 	| 'project.check'
@@ -80,6 +81,7 @@ export const SCREEN_ACTIONS: Record<Screen, ActionId> = {
 	script: 'view.script',
 	preview: 'view.preview',
 	tauri: 'view.tauri',
+	media: 'view.media',
 };
 
 const screenAction = (screen: Screen, label: MessageId, key: string, icon: IconName): Action => ({
@@ -127,6 +129,7 @@ export const ACTIONS: Record<ActionId, Action> = {
 	'view.script': screenAction('script', 'menu.viewScripts', '4', 'code'),
 	'view.preview': screenAction('preview', 'menu.viewDryRun', '5', 'eye'),
 	'view.tauri': screenAction('tauri', 'menu.viewTauri', '6', 'package'),
+	'view.media': screenAction('media', 'menu.viewMedia', '7', 'floppy'),
 	'view.fullScreenPreview': {
 		label: 'menu.fullScreenPreview',
 		icon: 'fullScreen',
@@ -195,6 +198,7 @@ export const MENUS: Menu[] = [
 					'view.script',
 					'view.preview',
 					'view.tauri',
+					'view.media',
 				],
 			},
 			{ items: ['view.fullScreenPreview', 'view.menuBar'] },

@@ -8,6 +8,7 @@
 
 import { isStageId, stageIdFor, type Scheme } from '@liminal-hq/installer-renderer';
 import type { ChromeStore } from '../chrome/chromeStore';
+import type { DialogResult, DialogSpec } from '../chrome/dialogWindow';
 import { SCREEN_ACTIONS, type ActionId, type Screen } from '../chrome/menuModel';
 import type { ScriptEditor } from '../editor/scriptEditor';
 import { formatLua } from '../editor/format';
@@ -17,12 +18,13 @@ import type { Settings } from '../lib/settings';
 import type { Flow, Layout } from '../lib/types';
 import type { TerminalView } from '../preview/TerminalPreview';
 import { createPreviewStore, type PreviewStore } from './preview';
+import { createMedia, type Media } from './media';
 import { createProjectStore, type ProjectStore } from './project';
 import { createScriptStore, initialScriptState, type ScriptStore } from './script';
 import { createTauri, type Tauri } from './tauri';
 import { createToastStore, type ToastStore } from './toasts';
 
-/** Moves between the six screens. The router implements it; tests may stand in. */
+/** Moves between the seven screens. The router implements it; tests may stand in. */
 export interface Navigator {
 	go(screen: Screen): Promise<void>;
 	current(): Screen;
@@ -37,6 +39,7 @@ export const SCREEN_TITLE: Record<Screen, Parameters<typeof t>[0]> = {
 	script: 'nav.scripts',
 	preview: 'nav.dryRun',
 	tauri: 'nav.tauri',
+	media: 'nav.media',
 };
 
 /** What the shell drives the app with. */
@@ -55,6 +58,11 @@ export interface StudioOptions {
 	nav: Navigator;
 	/** Settles unsaved script edits before they would be lost: true to go on. Without it they are discarded. */
 	settleUnsaved?: () => Promise<boolean>;
+	/**
+	 * Asks the person in a confirmation window. Without it nothing is confirmed, so a removal that needs
+	 * a yes does not happen.
+	 */
+	confirm?: (spec: DialogSpec) => Promise<DialogResult>;
 	/** Opens the full-screen preview in a window of its own (the desktop shell). Without it the preview fills the page. */
 	openPreviewWindow?: (
 		target: string,
@@ -74,6 +82,8 @@ export interface Studio {
 	readonly toasts: ToastStore;
 	/** The project's Tauri import and settings. */
 	readonly tauri: Tauri;
+	/** The project's media and their plans. */
+	readonly media: Media;
 	/** The live editor, registered by the Scripts screen while it is on screen. */
 	readonly editor: { current: ScriptEditor | null };
 	readonly settings: () => Settings;
@@ -85,6 +95,8 @@ export interface Studio {
 	loadLayout(id: string): Promise<void>;
 	saveLayout(layout: Layout, label: string): Promise<void>;
 	runPreview(target: string): Promise<void>;
+	/** Removes a medium after the person confirms it in a window of its own. True when it was removed. */
+	removeMedia(id: string): Promise<boolean>;
 	openProject(): Promise<void>;
 	openPath(path: string): Promise<void>;
 	showChecks(): void;
@@ -110,6 +122,7 @@ export function createStudio(options: StudioOptions): Studio {
 	const script = createScriptStore();
 	const toasts = createToastStore();
 	const tauri = createTauri(api);
+	const media = createMedia(api);
 	const editor: Studio['editor'] = { current: null };
 	const disposers: (() => void)[] = [];
 
@@ -341,6 +354,7 @@ export function createStudio(options: StudioOptions): Studio {
 		scriptActions.clearScript();
 		preview.setState({ previewTarget: '', previewStep: 0, preview: null });
 		tauri.clear();
+		media.clear();
 	}
 
 	/** Reloads whatever the current project and screen show. A dirty script is kept. A selection the project no longer has falls back to its first. */
@@ -353,6 +367,8 @@ export function createStudio(options: StudioOptions): Studio {
 		project.setState({ mcpError: await api.mcpError().catch(() => null) });
 		// Reads its own failure into the store, so a project with no Tauri state does not fail the refresh.
 		await tauri.load();
+		// Media are read when the screen is first shown; after that a change from anywhere, an undo included, reads them again.
+		await media.refresh();
 		if (!summary.targets.some((x) => x.full_id === pv().previewTarget))
 			preview.setState({ previewTarget: defaultTarget(summary.targets.map((x) => x.full_id)) });
 		const current = await api.getPreview();
@@ -410,6 +426,7 @@ export function createStudio(options: StudioOptions): Studio {
 		if (screen === 'flow' && !s.flow && s.flowId) await loadFlow(s.flowId);
 		if (screen === 'layouts' && !s.layout && s.layoutId) await loadLayout(s.layoutId);
 		if (screen === 'tauri' && !tauri.store.getState().view) await tauri.load();
+		if (screen === 'media' && !media.store.getState().loaded) await media.load();
 		if (screen === 'script' && !sc().scriptPath && s.summary?.scripts[0])
 			await scriptActions.loadScript(s.summary.scripts[0]);
 	}
@@ -552,6 +569,7 @@ export function createStudio(options: StudioOptions): Studio {
 		script,
 		toasts,
 		tauri,
+		media,
 		editor,
 		settings,
 		run,
@@ -569,6 +587,21 @@ export function createStudio(options: StudioOptions): Studio {
 			else project.setState({ layout: saved });
 		},
 		runPreview,
+		removeMedia: async (id) => {
+			const found = media.store.getState().items.find((m) => m.id === id);
+			if (!found || !options.confirm) return false;
+			const answer = await options.confirm({
+				kind: 'confirm',
+				title: t('media.remove.title'),
+				message: t('media.remove.message', { label: found.label, id }),
+				detail: t('media.remove.detail'),
+				buttons: [
+					{ id: 'remove', label: t('media.remove.confirm'), danger: true },
+					{ id: 'cancel', label: t('common.cancel') },
+				],
+			});
+			return answer === 'remove' && (await media.remove(id));
+		},
 		openProject: async () => {
 			const path = await api.pickProject(settings().projectsFolder || undefined);
 			if (path) await openPath(path);

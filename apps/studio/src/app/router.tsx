@@ -1,4 +1,4 @@
-// The router for the main window's six screens, over an in-memory history.
+// The router for the main window's seven screens, over an in-memory history.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -11,6 +11,7 @@ import {
 } from '@tanstack/react-router';
 import { FlowScreen } from '../screens/FlowScreen';
 import { LayoutsScreen } from '../screens/LayoutsScreen';
+import { MediaScreen } from '../screens/MediaScreen';
 import { PreviewScreen } from '../screens/PreviewScreen';
 import { ProjectScreen } from '../screens/ProjectScreen';
 import { ScriptScreen } from '../screens/ScriptScreen';
@@ -47,6 +48,11 @@ const routeTree = rootRoute.addChildren([
 		getParentRoute: () => rootRoute,
 		path: SCREEN_PATHS.tauri,
 		component: TauriScreen,
+	}),
+	createRoute({
+		getParentRoute: () => rootRoute,
+		path: SCREEN_PATHS.media,
+		component: MediaScreen,
 	}),
 ]);
 

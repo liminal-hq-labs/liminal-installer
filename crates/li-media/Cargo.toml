@@ -1,0 +1,25 @@
+# Media: the disks and discs a project ships on, shared by the CLI, the Studio and the MCP tools.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[package]
+name = "li-media"
+description = "The wire types and rules for a project's media: floppies and discs that hold several targets"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true
+# Generates the TypeScript the Studio UI imports (see `packages/protocol`).
+ts-rs = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[features]
+ts = ["dep:ts-rs"]

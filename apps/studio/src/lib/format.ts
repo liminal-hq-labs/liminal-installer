@@ -75,7 +75,7 @@ export function historyRows(
 	return [...entries].reverse().map((e) => ({
 		label: e.label,
 		source: e.source === 'mcp' ? t('history.sourceAgent') : t('history.sourceYou'),
-		doc: e.doc.type === 'tauri' ? e.doc.type : `${e.doc.type} ${e.doc.id}`,
+		doc: 'id' in e.doc ? `${e.doc.type} ${e.doc.id}` : e.doc.type,
 		undone: !e.applied,
 	}));
 }

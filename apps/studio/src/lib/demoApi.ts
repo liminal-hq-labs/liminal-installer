@@ -8,6 +8,8 @@ import { validateFlow } from './flowEdit';
 import { resolveForRenderer } from './layoutEdit';
 import { composeScreen } from '@liminal-hq/installer-renderer';
 import type { Api } from './api';
+import { demoMedia } from './demoMedia';
+import { MEDIA_DOC } from './media';
 import { demoTauri } from './demoTauri';
 import { demoTerminal } from './demoTerminal';
 import type {
@@ -66,6 +68,8 @@ const unquote = (s: string | undefined) => (s ?? '').replace(/^"|"$/g, '');
 const list = (s: string | undefined) => [...(s ?? '').matchAll(/"([^"]*)"/g)].map((m) => m[1]!);
 
 type Doc = DocKey;
+/** The media document has no variant in the generated `DocKey` yet (D84). */
+const isMedia = (d: Doc): boolean => (d as { type: string }).type === 'media';
 interface Entry extends HistoryEntry {
 	before: string | undefined;
 	after: string | undefined;
@@ -92,17 +96,21 @@ export function demoApi(): Api {
 	let preview: Preview | null = null;
 
 	const tauri = demoTauri();
+	const media = demoMedia();
 	const read = (d: Doc): string | undefined =>
-		d.type === 'tauri'
-			? tauri.snapshot()
-			: d.type === 'flow'
-				? json(flows.get(d.id))
-				: d.type === 'layout'
-					? json(layouts.get(d.id))
-					: scripts.get(d.id);
+		isMedia(d)
+			? media.snapshot()
+			: d.type === 'tauri'
+				? tauri.snapshot()
+				: d.type === 'flow'
+					? json(flows.get(d.id))
+					: d.type === 'layout'
+						? json(layouts.get(d.id))
+						: scripts.get(d.id);
 	const json = (v: unknown) => (v === undefined ? undefined : JSON.stringify(v));
 	const write = (d: Doc, text: string | undefined) => {
-		if (d.type === 'tauri') tauri.restore(text);
+		if (isMedia(d)) media.restore(text);
+		else if (d.type === 'tauri') tauri.restore(text);
 		else if (d.type === 'script')
 			text === undefined ? scripts.delete(d.id) : scripts.set(d.id, text);
 		else {
@@ -352,6 +360,26 @@ export function demoApi(): Api {
 		history: async () => view(),
 		undo: async () => step(-1),
 		redo: async () => step(1),
+		listMedia: async () => media.list(),
+		getMediaPlan: async (id, overrides) => media.plan(id, overrides),
+		addMedia: async (kind, label) => {
+			const before = media.snapshot();
+			const added = media.add(kind);
+			edit(MEDIA_DOC, media.snapshot(), label, before);
+			return added;
+		},
+		setMedia: async (id, change, label) => {
+			const before = media.snapshot();
+			const next = media.set(id, change);
+			edit(MEDIA_DOC, media.snapshot(), label, before);
+			return next;
+		},
+		removeMedia: async (id, label) => {
+			const before = media.snapshot();
+			media.remove(id);
+			edit(MEDIA_DOC, media.snapshot(), label, before);
+		},
+		pickReadme: async () => 'media/README.TXT',
 		getTauri: async () => tauri.view(),
 		importTauri: async (_config, label) => {
 			const before = tauri.snapshot();
