@@ -7,6 +7,7 @@ import { RouterProvider } from '@tanstack/react-router';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { ChromeStore } from '../chrome/chromeStore';
+import type { DialogResult, DialogSpec } from '../chrome/dialogWindow';
 import { createApi, errorMessage, type Api } from '../lib/api';
 import type { Scheme } from '@liminal-hq/installer-renderer';
 import type { TerminalView } from '../preview/TerminalPreview';
@@ -25,6 +26,8 @@ export interface StartOptions {
 	api?: Api;
 	/** Settles unsaved script edits before they would be lost: true to go on. */
 	settleUnsaved?: () => Promise<boolean>;
+	/** Asks the person in a confirmation window; without it a confirmation is never given. */
+	confirm?: (spec: DialogSpec) => Promise<DialogResult>;
 	/** Opens the full-screen preview in a window of its own. */
 	openPreviewWindow?: (
 		target: string,
@@ -58,6 +61,7 @@ export async function startApp(
 		chrome,
 		nav: routerNavigator(router),
 		...(options.settleUnsaved ? { settleUnsaved: options.settleUnsaved } : {}),
+		...(options.confirm ? { confirm: options.confirm } : {}),
 		...(options.openPreviewWindow ? { openPreviewWindow: options.openPreviewWindow } : {}),
 	});
 	reactRoot.render(

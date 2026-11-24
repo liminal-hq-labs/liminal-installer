@@ -14,6 +14,7 @@ export const SCREEN_PATHS: Record<Screen, string> = {
 	script: '/scripts',
 	preview: '/dry-run',
 	tauri: '/tauri',
+	media: '/media',
 };
 
 export const screenAt = (pathname: string): Screen =>

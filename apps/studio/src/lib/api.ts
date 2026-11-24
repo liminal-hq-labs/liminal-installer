@@ -11,6 +11,10 @@ import type {
 	FlowView,
 	HistoryView,
 	Layout,
+	MediaEdit,
+	MediaInfo,
+	MediaKind,
+	MediaPlan,
 	McpInfo,
 	Preview,
 	Problem,
@@ -55,7 +59,44 @@ export const noTerminal: TuiApi = {
 	tuiSessionClose: async () => undefined,
 };
 
-export interface Api extends TuiApi {
+/** The project's media (`[[media]]`): the disks and discs it ships on, and what is on each. */
+export interface MediaApi {
+	listMedia(): Promise<MediaInfo[]>;
+	/** The plan of one medium; `overrides` plans it with unsaved edits applied and writes nothing. */
+	getMediaPlan(id: string, overrides?: MediaEdit): Promise<MediaPlan>;
+	/** Adds a medium of `kind` with every retro target; `label` names the history entry. */
+	addMedia(kind: MediaKind, label: string): Promise<MediaInfo>;
+	/** Changes one medium; a field of `edit` left out is not touched. `label` names the history entry. */
+	setMedia(id: string, edit: MediaEdit, label: string): Promise<MediaInfo>;
+	removeMedia(id: string, label: string): Promise<void>;
+	/** Asks the person for a file to use as the medium's `README.TXT`; null if cancelled. */
+	pickReadme(startIn?: string): Promise<string | null>;
+}
+
+/**
+ * A media API for backends that cannot plan a medium: the desktop shell until `li-media`'s planner is
+ * wired in (D84). Every call fails with a message the screen shows.
+ */
+export const noMedia: MediaApi = {
+	listMedia: async () => {
+		throw new StudioError('backend', t('media.unavailable'));
+	},
+	getMediaPlan: async () => {
+		throw new StudioError('backend', t('media.unavailable'));
+	},
+	addMedia: async () => {
+		throw new StudioError('backend', t('media.unavailable'));
+	},
+	setMedia: async () => {
+		throw new StudioError('backend', t('media.unavailable'));
+	},
+	removeMedia: async () => {
+		throw new StudioError('backend', t('media.unavailable'));
+	},
+	pickReadme: async () => null,
+};
+
+export interface Api extends TuiApi, MediaApi {
 	openProject(path: string): Promise<ProjectSummary>;
 	projectSummary(): Promise<ProjectSummary>;
 	listTargets(): Promise<TargetInfo[]>;
@@ -185,6 +226,7 @@ async function tauriApi(): Promise<Api> {
 		tuiSessionResize: (session, cols, rows) =>
 			invoke('tui_session_resize', { session, cols, rows }),
 		tuiSessionClose: (session) => invoke('tui_session_close', { session }),
+		...noMedia,
 		checkProject: () => invoke('check_project'),
 		history: () => invoke('history'),
 		undo: () => invoke('undo'),

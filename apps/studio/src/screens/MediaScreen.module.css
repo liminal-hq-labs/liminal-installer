@@ -1,0 +1,114 @@
+/*
+ * (c) Copyright 2026 Liminal HQ, Scott Morris
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ */
+
+.body {
+	display: grid;
+	grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+	gap: 16px;
+	align-items: start;
+}
+@media (max-width: 760px) {
+	.body {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+.empty {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	align-items: flex-start;
+}
+.list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+}
+.row {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	gap: 10px;
+	align-items: start;
+	padding: 10px 12px;
+	border: 1px solid var(--lis-border-subtle);
+	border-radius: var(--lis-radius-lg);
+	background: var(--lis-bg-card);
+	cursor: pointer;
+}
+.row:hover {
+	border-color: var(--lis-border-default);
+}
+.row:focus-visible {
+	outline: 2px solid var(--lis-border-focus);
+	outline-offset: 1px;
+}
+.rowOn {
+	border-color: var(--lis-accent);
+	background: var(--lis-accent-soft);
+}
+.rowGlyph {
+	color: var(--lis-accent);
+	display: inline-flex;
+	padding-top: 2px;
+}
+.rowMain {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+.rowTitle {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: baseline;
+	color: var(--lis-text-bright);
+}
+.rowWarn {
+	color: var(--lis-colour-warning);
+}
+.detail {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	min-width: 0;
+}
+.detailHead {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+.headGlyph {
+	color: var(--lis-accent);
+	display: inline-flex;
+}
+.headText {
+	flex: 1;
+	min-width: 0;
+}
+.headText h2,
+.headText p {
+	margin: 0;
+}
+.capacity {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+.totals {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 24px;
+	margin: 0;
+}
+.totals dt {
+	font-size: 12px;
+	color: var(--lis-text-secondary);
+}
+.totals dd {
+	margin: 0;
+	font: 600 18px var(--lis-font-heading);
+	color: var(--lis-text-bright);
+}

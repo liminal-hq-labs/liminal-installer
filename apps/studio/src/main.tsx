@@ -163,6 +163,7 @@ async function boot(): Promise<void> {
 	app = await startApp(appHost, store, {
 		header: !chrome,
 		settleUnsaved,
+		confirm: (spec) => dialogs.open(spec).result,
 		...(inTauri() ? { openPreviewWindow } : {}),
 	});
 
