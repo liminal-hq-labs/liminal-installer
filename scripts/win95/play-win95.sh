@@ -160,7 +160,7 @@ INRUN="/w/${RUN#"$W95_HOME"/}"
 docker rm -f "$CONTAINER" > /dev/null 2>&1 || true
 
 # The X server: the Xauthority cookie goes in read-only, and the hostname matches the host's so the cookie is found.
-XARGS=(-e "DISPLAY=$DISPLAY" -e SDL_VIDEODRIVER=x11 -v /tmp/.X11-unix:/tmp/.X11-unix --hostname "$(uname -n)")
+XARGS=(-e "DISPLAY=$DISPLAY" -e SDL_VIDEODRIVER=x11 -e LIBGL_ALWAYS_SOFTWARE=1 -v /tmp/.X11-unix:/tmp/.X11-unix --hostname "$(uname -n)")
 XA="${XAUTHORITY:-$HOME/.Xauthority}"
 [ ! -f "$XA" ] || XARGS+=(-v "$XA:/tmp/.Xauthority:ro" -e XAUTHORITY=/tmp/.Xauthority)
 if [ "$XHOST" = 1 ]; then
