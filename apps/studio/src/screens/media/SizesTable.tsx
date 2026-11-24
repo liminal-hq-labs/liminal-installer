@@ -100,7 +100,41 @@ function onMediumText(c: ComponentSize): string {
 	return t(c.on_medium ? 'media.onMedium.on' : 'media.onMedium.off');
 }
 
-export function SizesTable({ plan }: { plan: MediaPlan }) {
+export interface SizesTableProps {
+	plan: MediaPlan;
+	busy: boolean;
+	/** Puts a component on the medium or leaves it off. */
+	onToggle(component: ComponentSize, on: boolean): void;
+}
+
+/** The switch of an optional component, and a word for a required one. */
+function OnMedium({
+	c,
+	busy,
+	onToggle,
+}: {
+	c: ComponentSize;
+	busy: boolean;
+	onToggle(on: boolean): void;
+}) {
+	if (c.required) return <>{t('media.onMedium.required')}</>;
+	return (
+		<button
+			type="button"
+			role="switch"
+			aria-checked={c.on_medium}
+			aria-label={t('media.switch.label', { component: c.name })}
+			aria-describedby={`switch-note-${c.id}`}
+			className={cx(styles.switch, c.on_medium && styles.switchOn)}
+			disabled={busy}
+			onClick={() => onToggle(!c.on_medium)}
+		>
+			<span aria-hidden="true">{c.on_medium ? '■' : '□'}</span> {onMediumText(c)}
+		</button>
+	);
+}
+
+export function SizesTable({ plan, busy, onToggle }: SizesTableProps) {
 	const [cSort, sortComponents] = useSort();
 	const [fSort, sortFiles] = useSort();
 	const cCols = componentColumns;
@@ -129,13 +163,18 @@ export function SizesTable({ plan }: { plan: MediaPlan }) {
 							{components.map((c) => (
 								<tr key={c.id}>
 									<th scope="row">{c.name}</th>
-									<td>{onMediumText(c)}</td>
+									<td>
+										<OnMedium c={c} busy={busy} onToggle={(on) => onToggle(c, on)} />
+									</td>
 									<td className={styles.num}>{c.on_medium ? formatBytes(c.raw) : DASH}</td>
 									<td className={styles.num}>{c.on_medium ? formatBytes(c.packed) : DASH}</td>
 									<td>{t(c.pack === 'common' ? 'media.pack.common' : 'media.pack.own')}</td>
 									<td>{targetNames(c.targets)}</td>
 									<td className={styles.num}>{disk(c.volume)}</td>
-									<td className={cx(styles.num, !c.fits_if_toggled && text.err)}>
+									<td
+										id={`switch-note-${c.id}`}
+										className={cx(styles.num, !c.fits_if_toggled && text.err)}
+									>
 										{c.required ? DASH : toggleNote(c)}
 									</td>
 								</tr>

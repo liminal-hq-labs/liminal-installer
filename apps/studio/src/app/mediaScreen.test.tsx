@@ -183,7 +183,8 @@ describe('the capacity meter', () => {
 		expect(m.rows()[0]!.textContent).toContain('Does not fit');
 		const meter = m.root.querySelector('[role="meter"]')!;
 		expect(meter.getAttribute('aria-valuetext')).toMatch(/bytes used; over by [\d,]+$/);
-		expect(m.root.textContent).toContain('does_not_fit');
+		expect(m.root.textContent).toContain('Does not fit');
+		expect(m.root.textContent).toContain('Open Sizes');
 	});
 
 	it('is a plain bar of 80 cells on a CD, with nothing to say about sharing', async () => {
@@ -311,15 +312,25 @@ describe('the Sizes tab', () => {
 	it('is a tab that the arrow keys reach, with its panel labelled by it', async () => {
 		const m = await mountMedia([quillFloppy()]);
 		const tabs = [...m.root.querySelectorAll<HTMLElement>('[role="tab"]')];
-		expect(tabs.map((x) => x.textContent)).toEqual(['Disk map', 'Sizes']);
+		expect(tabs.map((x) => x.textContent)).toEqual([
+			'Disk map',
+			'Sizes',
+			'Targets',
+			'Label and README',
+			'Autorun',
+		]);
 		expect(tabs[0]!.getAttribute('aria-selected')).toBe('true');
 		await m.key(tabs[0]!, 'ArrowRight');
 		expect(tabs[1]!.getAttribute('aria-selected')).toBe('true');
 		expect(document.activeElement).toBe(tabs[1]);
 		const panel = m.root.querySelector('[role="tabpanel"]')!;
 		expect(panel.getAttribute('aria-labelledby')).toBe('media-tab-sizes');
-		await m.key(tabs[1]!, 'ArrowRight');
+		await m.key(tabs[1]!, 'End');
+		expect(tabs[4]!.getAttribute('aria-selected')).toBe('true');
+		await m.key(tabs[4]!, 'ArrowRight');
 		expect(tabs[0]!.getAttribute('aria-selected')).toBe('true');
+		await m.key(tabs[0]!, 'ArrowLeft');
+		expect(tabs[4]!.getAttribute('aria-selected')).toBe('true');
 	});
 
 	it('lists each component with its sizes and what its switch would change', async () => {
@@ -335,11 +346,11 @@ describe('the Sizes tab', () => {
 			'More dictionaries',
 		]);
 		const dict = rows[3]!;
-		expect(dict.slice(1, 5)).toEqual(['On', '300,086', '210,547', 'Common']);
+		expect(dict.slice(1, 5)).toEqual(['■ On', '300,086', '210,547', 'Common']);
 		expect(dict[5]).toBe('DOS, Windows 3.x, Windows 95');
 		expect(dict[7]).toMatch(/^Leaving it off frees 21\d,\d{3}$/);
 		const more = rows[4]!;
-		expect(more[1]).toBe('Off');
+		expect(more[1]).toBe('□ Off');
 		expect(more[7]).toMatch(/^Putting it back needs 4\d\d,\d{3} \(does not fit\)$/);
 		expect(rows[0]![1]).toBe('Required');
 		expect(rows[0]![7]).toBe('—');
@@ -364,5 +375,413 @@ describe('the Sizes tab', () => {
 		expect(heading('Raw').getAttribute('aria-sort')).toBe('none');
 		expect(heading('File').getAttribute('aria-sort')).toBe('ascending');
 		expect(table.querySelectorAll('tbody tr').length).toBeGreaterThan(10);
+	});
+});
+
+describe('the switches', () => {
+	const freeText = (root: HTMLElement) => root.querySelector('[role="status"]')!.textContent;
+	const meterText = (root: HTMLElement) =>
+		root.querySelector('[role="meter"]')!.getAttribute('aria-valuetext');
+	const toggle = (root: HTMLElement, component: string) =>
+		root.querySelector<HTMLElement>(`[role="switch"][aria-label="On this medium: ${component}"]`)!;
+
+	it('are role=switch, say whether they are on, and are described by a note of what they would change', async () => {
+		const m = await mountMedia([quillFloppy()]);
+		await m.tab('sizes');
+		const dict = toggle(m.root, 'Canadian dictionary');
+		expect(dict.getAttribute('aria-checked')).toBe('true');
+		expect(toggle(m.root, 'More dictionaries').getAttribute('aria-checked')).toBe('false');
+		const note = m.root.querySelector(`#${dict.getAttribute('aria-describedby')}`)!;
+		expect(note.textContent).toMatch(/^Leaving it off frees 21\d,\d{3}$/);
+		expect(m.root.querySelectorAll('[role="switch"]')).toHaveLength(3);
+	});
+
+	it('leaving a component off frees the bytes its note promised, at once, and undo takes it back', async () => {
+		const m = await mountMedia([quillFloppy()]);
+		await m.tab('sizes');
+		expect(freeText(m.root)).toBe('171,008 bytes free on QUILL');
+		const note = m.root.querySelector('#switch-note-dicts')!.textContent!;
+		const frees = Number(/frees ([\d,]+)/.exec(note)![1]!.replace(/,/g, ''));
+		await m.click(toggle(m.root, 'Canadian dictionary'));
+		const freed = `${(171_008 + frees).toLocaleString('en-CA')} bytes free on QUILL`;
+		expect(freeText(m.root)).toBe(freed);
+		expect(meterText(m.root)).toContain(`${(171_008 + frees).toLocaleString('en-CA')} free`);
+		expect(toggle(m.root, 'Canadian dictionary').getAttribute('aria-checked')).toBe('false');
+		expect(m.root.querySelector('#switch-note-dicts')!.textContent).toBe(
+			`Putting it back needs ${frees.toLocaleString('en-CA')}`,
+		);
+		expect(m.media.edits().at(-1)).toBe('setMedia(floppy, {"exclude":["dicts-more","dicts"]})');
+		expect((await m.media.history()).entries.at(-1)!.label).toBe(
+			'Leave Canadian dictionary off medium floppy',
+		);
+		await m.act(() => m.app.dispatch('edit.undo'));
+		expect(freeText(m.root)).toBe('171,008 bytes free on QUILL');
+		expect(toggle(m.root, 'Canadian dictionary').getAttribute('aria-checked')).toBe('true');
+		await m.act(() => m.app.dispatch('edit.redo'));
+		expect(freeText(m.root)).toBe(freed);
+	});
+
+	it('warn that putting the other dictionaries back does not fit, and then say so on the list', async () => {
+		const m = await mountMedia([quillFloppy()]);
+		await m.tab('sizes');
+		expect(m.root.querySelector('#switch-note-dicts-more')!.textContent).toMatch(
+			/^Putting it back needs 4\d\d,\d{3} \(does not fit\)$/,
+		);
+		expect(m.rows()[0]!.textContent).toContain('Fits');
+		await m.click(toggle(m.root, 'More dictionaries'));
+		expect(m.rows()[0]!.textContent).toContain('Does not fit');
+		expect(freeText(m.root)).toMatch(/^-\d/);
+		expect(m.root.querySelector('#switch-note-dicts-more')!.textContent).toMatch(
+			/^Leaving it off frees/,
+		);
+	});
+
+	it('leave a required component without a switch', async () => {
+		const m = await mountMedia([quillFloppy()]);
+		await m.tab('sizes');
+		const row = [...m.root.querySelectorAll('table')[0]!.querySelectorAll('tbody tr')][1]!;
+		expect(row.textContent).toContain('Help file');
+		expect(row.querySelector('[role="switch"]')).toBeNull();
+		expect(row.children[1]!.textContent).toBe('Required');
+	});
+});
+
+describe('the label', () => {
+	const field = (root: HTMLElement) => root.querySelector<HTMLInputElement>('#media-label')!;
+
+	it('counts as it is typed, shows the rule, and writes nothing while the label is too long', async () => {
+		const m = await mountMedia([quillFloppy()]);
+		await m.tab('label');
+		expect(field(m.root).value).toBe('QUILL');
+		expect(m.root.textContent).toContain('5 / 11');
+		expect(m.root.querySelector('#media-label-rule')!.textContent).toContain(
+			'Up to 11 capital letters',
+		);
+		await m.type(field(m.root), 'QUILL RELEASE');
+		expect(m.root.textContent).toContain('13 / 11');
+		expect(m.root.querySelector('#media-label-rule')!.textContent).toBe(
+			'The label is 13 characters; the most is 11.',
+		);
+		expect(field(m.root).getAttribute('aria-invalid')).toBe('true');
+		await m.key(field(m.root), 'Enter');
+		await m.leave(field(m.root));
+		expect(m.media.calls.some((c) => c.startsWith('setMedia'))).toBe(false);
+	});
+
+	it('turns what is typed into capitals, refuses a character a label may not hold, and writes a good one on Enter', async () => {
+		const m = await mountMedia([quillFloppy()]);
+		await m.tab('label');
+		await m.type(field(m.root), 'a.b');
+		expect(field(m.root).value).toBe('A.B');
+		expect(m.root.querySelector('#media-label-rule')!.textContent).toBe(
+			'“.” cannot be in a label.',
+		);
+		await m.type(field(m.root), 'quill 2');
+		expect(field(m.root).value).toBe('QUILL 2');
+		expect(field(m.root).getAttribute('aria-invalid')).toBe('false');
+		await m.key(field(m.root), 'Enter');
+		expect(m.media.edits().at(-1)).toBe('setMedia(floppy, {"label":"QUILL 2"})');
+		expect(m.rows()[0]!.textContent).toContain('QUILL 2');
+		expect((await m.media.history()).entries.at(-1)!.label).toBe('Set label of medium floppy');
+	});
+
+	it('writes a good label when the field is left, puts the old one back on Escape and follows an undo', async () => {
+		const m = await mountMedia([quillFloppy()]);
+		await m.tab('label');
+		await m.type(field(m.root), 'DISK ONE');
+		await m.leave(field(m.root));
+		expect(m.media.edits().at(-1)).toBe('setMedia(floppy, {"label":"DISK ONE"})');
+		await m.type(field(m.root), 'OTHER');
+		await m.key(field(m.root), 'Escape');
+		expect(field(m.root).value).toBe('DISK ONE');
+		await m.act(() => m.app.dispatch('edit.undo'));
+		expect(field(m.root).value).toBe('QUILL');
+	});
+
+	it('allows 16 characters on a CD and shows its ISO volume id and Joliet label', async () => {
+		const m = await mountMedia([quillCd()]);
+		await m.tab('label');
+		expect(m.root.textContent).toContain('5 / 16');
+		await m.type(field(m.root), 'QUILL 1.0 DISC');
+		expect(m.root.querySelector('#media-label-rule')!.textContent).toBe(
+			'“.” cannot be in a label.',
+		);
+		await m.type(field(m.root), 'QUILL ONE DISC');
+		await m.key(field(m.root), 'Enter');
+		const facts = [...m.root.querySelectorAll('dl')].map((d) => d.textContent).join(' ');
+		expect(facts).toContain('ISO volume idQUILL_ONE_DISC');
+		expect(facts).toContain('Joliet labelQUILL ONE DISC');
+	});
+});
+
+describe('the serial', () => {
+	it('is automatic by default, and a fixed one is eight hex digits shown as XXXX-XXXX', async () => {
+		const m = await mountMedia([quillFloppy()]);
+		await m.tab('label');
+		const radios = [...m.root.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
+		expect(radios.map((r) => r.checked)).toEqual([true, false]);
+		expect(m.root.textContent).toContain('Currently 0001-0000');
+		await m.click(radios[1]);
+		expect(m.media.edits().at(-1)).toBe('setMedia(floppy, {"serial":"0001-0000"})');
+		const serial = m.root.querySelector<HTMLInputElement>('input[aria-label="Serial number"]')!;
+		await m.type(serial, 'dead-be');
+		expect(m.root.textContent).toContain('A serial is eight hexadecimal digits.');
+		await m.type(serial, 'dead-beef');
+		await m.key(serial, 'Enter');
+		expect(m.media.edits().at(-1)).toBe('setMedia(floppy, {"serial":"DEAD-BEEF"})');
+		await m.tab('map');
+		expect(m.root.textContent).toContain('Serial DEAD-BEEF');
+		await m.tab('label');
+		await m.click(m.root.querySelectorAll('input[type="radio"]')[0]);
+		expect(m.media.edits().at(-1)).toBe('setMedia(floppy, {"serial":"auto"})');
+	});
+});
+
+describe('the targets', () => {
+	const folder = (root: HTMLElement, name: string) =>
+		root.querySelector<HTMLInputElement>(`input[aria-label="Folder for ${name}"]`)!;
+
+	it('list each target with its folder, whether its SETUP.EXE was found, and its size', async () => {
+		const m = await mountMedia([quillFloppy()]);
+		await m.tab('targets');
+		const rows = [...m.root.querySelectorAll('tbody tr')];
+		expect(rows).toHaveLength(3);
+		expect(folder(m.root, 'Windows 3.x').value).toBe('WIN31');
+		expect(folder(m.root, 'DOS').value).toBe('');
+		expect(rows[0]!.textContent).toContain('Found at dos/dist/SETUP.EXE');
+		expect(rows[2]!.textContent).toContain('Estimated: no runtime was found');
+		expect(rows[2]!.textContent).toContain('140,000');
+	});
+
+	it('check a folder as it is typed and write a good one, in capitals', async () => {
+		const m = await mountMedia([quillFloppy()]);
+		await m.tab('targets');
+		const win = folder(m.root, 'Windows 95');
+		await m.type(win, 'WINDOWS95X');
+		expect(m.root.querySelector('[role="alert"]')!.textContent).toBe(
+			'“WINDOWS95X” is not an 8.3 name.',
+		);
+		await m.key(win, 'Enter');
+		expect(m.media.calls.some((c) => c.startsWith('setMedia'))).toBe(false);
+		await m.type(win, 'win31');
+		expect(m.root.querySelector('[role="alert"]')!.textContent).toBe(
+			'Another target already uses this folder.',
+		);
+		await m.type(win, 'a/b');
+		expect(m.root.querySelector('[role="alert"]')!.textContent).toBe(
+			'A folder is one name, with no slash.',
+		);
+		await m.type(win, 'win32');
+		expect(win.value).toBe('WIN32');
+		expect(m.root.querySelector('[role="alert"]')).toBeNull();
+		await m.key(win, 'Enter');
+		expect(m.media.edits().at(-1)).toContain('"dir":"WIN32"');
+		expect(folder(m.root, 'Windows 95').value).toBe('WIN32');
+	});
+
+	it('take a target off the medium, which frees its files, and put it back in its usual folder', async () => {
+		const m = await mountMedia([quillFloppy()]);
+		const before = (await m.media.getMediaPlan('floppy')).free;
+		await m.tab('targets');
+		const box = m.root.querySelector<HTMLInputElement>(
+			'input[aria-label="Put Windows 95 on this medium"]',
+		)!;
+		expect(box.checked).toBe(true);
+		await m.click(box);
+		expect(folder(m.root, 'Windows 95').disabled).toBe(true);
+		expect((await m.media.getMediaPlan('floppy')).free).toBeGreaterThan(before);
+		expect((await m.media.history()).entries.at(-1)!.label).toBe(
+			'Take Windows 95 off medium floppy',
+		);
+		await m.click(m.root.querySelector('input[aria-label="Put Windows 95 on this medium"]'));
+		expect(folder(m.root, 'Windows 95').value).toBe('WIN95');
+		expect((await m.media.getMediaPlan('floppy')).free).toBe(before);
+	});
+});
+
+describe('the space card', () => {
+	it('warns when less than the reserve stays free, and stops when the reserve is lowered', async () => {
+		const m = await mountMedia([quillFloppy()]);
+		await m.tab('sizes');
+		const reserve = m.root.querySelector<HTMLInputElement>('#media-reserve')!;
+		expect(reserve.value).toBe('16');
+		expect(m.root.textContent).not.toContain('Below the reserve');
+		await m.type(reserve, '200');
+		await m.key(reserve, 'Enter');
+		expect(m.media.edits().at(-1)).toBe('setMedia(floppy, {"reserve":204800})');
+		expect(m.rows()[0]!.textContent).toContain('Tight');
+		expect(m.root.textContent).toContain('Below the reserve');
+		expect(m.root.querySelector('[role="meter"]')!.getAttribute('aria-valuetext')).toContain(
+			'Below the reserve',
+		);
+		await m.type(reserve, '0');
+		await m.leave(reserve);
+		expect(m.root.textContent).not.toContain('Below the reserve');
+	});
+
+	it('refuses a reserve that is not a whole number of KiB', async () => {
+		const m = await mountMedia([quillFloppy()]);
+		await m.tab('sizes');
+		const reserve = m.root.querySelector<HTMLInputElement>('#media-reserve')!;
+		await m.type(reserve, '1.5');
+		expect(m.root.textContent).toContain('The reserve is a whole number of KiB.');
+		await m.key(reserve, 'Enter');
+		expect(m.media.calls.some((c) => c.startsWith('setMedia'))).toBe(false);
+	});
+
+	it('continues on a second disk when asked, and then a medium that did not fit does', async () => {
+		const m = await mountMedia([{ ...quillFloppy(), exclude: [] }]);
+		await m.tab('sizes');
+		expect(m.rows()[0]!.textContent).toContain('Does not fit');
+		const overflow = m.root.querySelector<HTMLSelectElement>('#media-overflow')!;
+		expect(overflow.value).toBe('error');
+		await m.act(async () => {
+			overflow.value = 'span';
+			overflow.dispatchEvent(new Event('change', { bubbles: true }));
+		});
+		expect(m.media.edits().at(-1)).toBe('setMedia(floppy, {"overflow":"span"})');
+		expect(m.rows()[0]!.textContent).toContain('2 disks');
+		expect(m.rows()[0]!.textContent).not.toContain('Does not fit');
+		await m.tab('map');
+		expect(m.root.querySelectorAll('[role="tree"]')).toHaveLength(2);
+	});
+
+	it('has no second disk on a CD', async () => {
+		const m = await mountMedia([quillCd()]);
+		await m.tab('sizes');
+		expect(m.root.querySelector<HTMLSelectElement>('#media-overflow')!.disabled).toBe(true);
+		expect(m.root.textContent).toContain('never continues on a second disk');
+	});
+});
+
+describe('the README', () => {
+	it('previews the generated text in a 76-column box and checks it against DOS', async () => {
+		const m = await mountMedia([quillFloppy()]);
+		await m.tab('label');
+		const box = m.root.querySelector('pre')!;
+		expect(box.getAttribute('aria-label')).toBe('The text of README.TXT');
+		expect(box.textContent).toContain('QUILL 0.1.0');
+		expect(box.textContent).toContain('Windows 95: choose Run and type A:\\WIN95\\SETUP');
+		expect(m.root.textContent).toContain('Written from the targets on this medium.');
+		expect(m.root.textContent).toContain('Every line fits in 76 columns.');
+		expect(m.root.textContent).toContain('Lines end in CR LF, as DOS expects.');
+	});
+
+	it('follows the targets: a target taken off leaves the README', async () => {
+		const m = await mountMedia([quillFloppy()]);
+		await m.tab('targets');
+		await m.click(m.root.querySelector('input[aria-label="Put Windows 95 on this medium"]'));
+		await m.tab('label');
+		expect(m.root.querySelector('pre')!.textContent).not.toContain('Windows 95');
+	});
+
+	it('uses a file of one’s own, and goes back to the generated text', async () => {
+		const m = await mountMedia([quillFloppy()]);
+		await m.tab('label');
+		const generate = () => m.button('Use the generated text')!;
+		expect(generate().disabled).toBe(true);
+		await m.click(m.button('Use my own file…'));
+		expect(m.media.edits().at(-1)).toBe(
+			'setMedia(floppy, {"readme":"/project/installer/media/README.TXT"})',
+		);
+		expect(m.root.textContent).toContain('From the file /project/installer/media/README.TXT.');
+		expect(generate().disabled).toBe(false);
+		await m.click(generate());
+		expect(m.media.edits().at(-1)).toBe('setMedia(floppy, {"readme":""})');
+		expect(m.root.textContent).toContain('Written from the targets on this medium.');
+	});
+
+	it('does nothing when the file picker is cancelled', async () => {
+		const m = await mountMedia([quillFloppy()]);
+		m.media.picked = null;
+		await m.tab('label');
+		await m.click(m.button('Use my own file…'));
+		expect(m.media.calls.some((c) => c.startsWith('setMedia'))).toBe(false);
+	});
+});
+
+describe('the autorun', () => {
+	it('is explained and switched off on a floppy', async () => {
+		const m = await mountMedia([quillFloppy()]);
+		await m.tab('autorun');
+		expect(m.root.textContent).toContain('Only a CD has an AUTORUN.INF');
+		expect(m.root.querySelector('select')!.disabled).toBe(true);
+		expect(m.root.querySelector('pre')).toBeNull();
+	});
+
+	it('shows the AUTORUN.INF of a CD and the target it opens, and lets it be changed', async () => {
+		const m = await mountMedia([quillCd()]);
+		await m.tab('autorun');
+		const select = m.root.querySelector<HTMLSelectElement>('select')!;
+		expect(select.value).toBe('windows-x86');
+		expect(m.root.querySelector('pre')!.textContent).toBe(
+			'[autorun]\nopen=WIN95\\SETUP.EXE\nicon=WIN95\\SETUP.EXE,0\n',
+		);
+		await m.act(async () => {
+			select.value = '';
+			select.dispatchEvent(new Event('change', { bubbles: true }));
+		});
+		expect(m.media.edits().at(-1)).toBe('setMedia(cd, {"autorun":""})');
+		expect(m.root.querySelector('pre')).toBeNull();
+	});
+
+	it('drops the autorun with the target it opened, in the same undo step', async () => {
+		const m = await mountMedia([quillCd()]);
+		await m.tab('targets');
+		await m.click(m.root.querySelector('input[aria-label="Put Windows 95 on this medium"]'));
+		expect(m.media.edits().at(-1)).toContain('"autorun":""');
+		await m.tab('autorun');
+		expect(m.root.textContent).toContain('Put a Windows 95 target on this medium');
+		expect(m.root.querySelector('select')!.disabled).toBe(true);
+		await m.act(() => m.app.dispatch('edit.undo'));
+		expect(m.root.querySelector('select')!.value).toBe('windows-x86');
+	});
+
+	it('warns about an autorun that names a target the medium does not have, and the warning opens the tab', async () => {
+		const m = await mountMedia([{ ...quillCd(), autorun: 'windows-x86_64' }]);
+		expect(m.root.textContent).toContain('autorun names windows-x86_64');
+		await m.click(m.button('Open Autorun'));
+		expect(m.root.querySelector('#media-tab-autorun')!.getAttribute('aria-selected')).toBe('true');
+		expect(document.activeElement).toBe(m.root.querySelector('#media-tab-autorun'));
+	});
+});
+
+describe('the warnings', () => {
+	it('lead to the tab that fixes them, and the note on 4 KiB chunks leads nowhere', async () => {
+		const m = await mountMedia([{ ...quillFloppy(), reserve: 400_000 }]);
+		const titles = [...m.root.querySelectorAll('ul li strong')].map((x) => x.textContent);
+		expect(titles).toContain('Windows 3.x chunk size');
+		expect(titles).toContain('Runtime estimated');
+		expect(titles).toContain('Below the reserve');
+		const item = (title: string) =>
+			[...m.root.querySelectorAll('ul li')].find(
+				(li) => li.querySelector('strong')?.textContent === title,
+			)!;
+		expect(item('Windows 3.x chunk size').querySelector('button')).toBeNull();
+		expect(item('Windows 3.x chunk size').textContent).toMatch(
+			/costs about [\d,]+ bytes against 32 KiB/,
+		);
+		await m.click(item('Runtime estimated').querySelector('button'));
+		expect(m.root.querySelector('#media-tab-targets')!.getAttribute('aria-selected')).toBe('true');
+		await m.tab('map');
+		await m.click(item('Below the reserve').querySelector('button'));
+		expect(m.root.querySelector('#media-tab-sizes')!.getAttribute('aria-selected')).toBe('true');
+	});
+
+	it('shows a bad label as an error that opens the label tab', async () => {
+		const m = await mountMedia([{ ...quillFloppy(), label: 'quill release' }]);
+		const li = [...m.root.querySelectorAll('ul li')].find((x) => x.textContent!.includes('Label'))!;
+		expect(li.className).toContain('error');
+		await m.click(li.querySelector('button'));
+		expect(m.root.querySelector('#media-tab-label')!.getAttribute('aria-selected')).toBe('true');
+	});
+
+	it('keeps the tab and the picked row when the medium is edited', async () => {
+		const m = await mountMedia([quillFloppy(), quillCd()]);
+		await m.click(m.rows()[1]);
+		await m.tab('sizes');
+		await m.click(m.root.querySelector('[role="switch"]'));
+		expect(m.rows()[1]!.getAttribute('aria-selected')).toBe('true');
+		expect(m.root.querySelector('#media-tab-sizes')!.getAttribute('aria-selected')).toBe('true');
 	});
 });

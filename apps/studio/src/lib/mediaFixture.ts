@@ -535,10 +535,15 @@ function serialOf(info: MediaInfo): string {
 
 const readmeLines = (info: MediaInfo): string[] => {
 	const drive = info.kind === 'cdrom' ? 'D:' : 'A:';
+	const named = info.targets.flatMap((t) =>
+		FIXTURE_TARGETS[t.target] ? [FIXTURE_TARGETS[t.target]!.name] : [],
+	);
+	const list =
+		named.length > 1 ? `${named.slice(0, -1).join(', ')} and ${named.at(-1)}` : (named[0] ?? '');
 	const lines = [
 		`${FIXTURE_PRODUCT.slug.toUpperCase()} ${FIXTURE_PRODUCT.version}`,
 		'',
-		`This ${info.kind === 'cdrom' ? 'disc' : 'disk'} installs Quill on DOS, Windows 3.x and Windows 95.`,
+		`This ${info.kind === 'cdrom' ? 'disc' : 'disk'} installs Quill${list ? ` on ${list}` : ''}.`,
 		'',
 	];
 	for (const t of info.targets) {
@@ -732,8 +737,9 @@ export function planFromFixture(info: MediaInfo): MediaPlan {
 		});
 
 	const without = layoutOf(info, false);
+	// The demo cannot read a file, so a README of one's own previews as a note naming it.
 	const readme = info.readme
-		? { generated: false, text: generatedReadme(info) }
+		? { generated: false, text: `(The demo does not read ${info.readme}.)\r\n` }
 		: { generated: true, text: generatedReadme(info) };
 	const autorun = autorunText(info);
 
