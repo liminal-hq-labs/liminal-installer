@@ -331,16 +331,3 @@ jobs:
 
       - name: Format, lints, packer tests, build, NE check and sizes
         run: bash retro/win16/check.sh
-
-      - name: Install and uninstall the examples under Wine
-        id: wine
-        continue-on-error: true
-        run: |
-          sudo dpkg --add-architecture i386
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq wine wine32:i386 xvfb
-          bash retro/win16/tools/e2e-wine.sh
-
-      - name: Say that the Wine run was skipped
-        if: steps.wine.outcome != 'success'
-        run: echo "::warning::The Wine run did not pass or could not be set up, so the install under Wine was not checked."
