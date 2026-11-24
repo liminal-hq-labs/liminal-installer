@@ -20,9 +20,9 @@ python3 -m unittest discover -s tests
 
 out="$(mktemp -d)"
 trap 'rm -rf "$out"' EXIT
-OUT_DIR="$out" bash build.sh --probes
+OUT_DIR="$out" bash build.sh
 
-for exe in SETUP ENGINE UIDEMO; do
+for exe in SETUP; do
 	desc="$(file "$out/$exe.EXE")"
 	echo "$desc"
 	if ! grep -Eq 'NE (version [0-9.]+ )?for MS Windows' <<<"$desc"; then

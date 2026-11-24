@@ -37,14 +37,6 @@ name = "lisetup"
 path = "src/bin/lisetup/main.rs"
 
 [[bin]]
-name = "engine"
-path = "src/bin/engine.rs"
-
-[[bin]]
-name = "uidemo"
-path = "src/bin/uidemo.rs"
-
-[[bin]]
 name = "msgbox"
 path = "src/bin/msgbox.rs"
 

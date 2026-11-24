@@ -72,7 +72,7 @@ impl Flavour {
 	}
 
 	/// The pack's chunk size as a power of two: the decoder's window. A Windows 3.1 program has one
-	/// 64 KB data segment for its heap, stack and this window, so its chunks are 8 KiB.
+	/// 64 KB data segment for its heap, stack and this window, so its chunks are 4 KiB.
 	pub fn chunk_log2(self) -> u8 {
 		match self {
 			Flavour::Win16 => WIN16_CHUNK_LOG2,
@@ -81,8 +81,8 @@ impl Flavour {
 	}
 }
 
-/// The chunk size of a Windows 3.1 pack as a power of two (8 KiB).
-pub const WIN16_CHUNK_LOG2: u8 = 13;
+/// The chunk size of a Windows 3.1 pack as a power of two (4 KiB).
+pub const WIN16_CHUNK_LOG2: u8 = 12;
 
 /// What stops a compile.
 #[derive(Debug, thiserror::Error)]

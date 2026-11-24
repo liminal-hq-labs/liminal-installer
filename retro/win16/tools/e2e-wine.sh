@@ -33,8 +33,8 @@ cargo build -q --locked -p li-cli
 liminst="${CARGO_TARGET_DIR:-$root/target}/debug/liminst"
 wine wineboot -i > /dev/null 2>&1 || true
 
-# The host's pages and the controls' pages differ only in the free space.
-norm() { tr -d '\r' < "$1" | sed -e 's/^text: Space available: .*/text: Space available: N/' -e 's/Free: [0-9.]* [KMG]B/Free: N/'; }
+# The host's pages and the controls' pages differ only in the free space and in what the machine's sound hardware is.
+norm() { tr -d '\r' < "$1" | sed -e 's/^text: Space available: .*/text: Space available: N/' -e 's/Free: [0-9.]* [KMG]B/Free: N/' -e 's/^text: Setup found: .*/text: Setup found: N/' -e 's/^field: \(Port\|IRQ\|DMA\) = .*/field: \1 = N/' -e '/^radio: Sound card/,/^[^ ]/ s/^  (o)/  ( )/'; }
 
 fail=0
 for ex in lt-fizz planboard; do

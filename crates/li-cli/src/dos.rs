@@ -113,8 +113,7 @@ fn runtime(req: &BuildRequest, flavour: Flavour) -> Result<Vec<u8>, BuildError> 
 }
 
 /// The Windows 3.1 runtime, if there is one: the named file, else `retro/win16/out/SETUP.EXE`
-/// found by walking up. The whole runtime does not fit a 16-bit code segment yet
-/// (`docs/retro-win16.md`), so `None` is the usual answer and `build` says so.
+/// found by walking up. `SETUP.EXE` is built by `retro/win16/build.sh`; without one `build` says so.
 fn win16_runtime(req: &BuildRequest) -> Result<Option<Vec<u8>>, BuildError> {
 	let from_env = std::env::var_os("LIMINST_WIN16_RUNTIME").map(PathBuf::from);
 	if let Some(p) = req.win16_runtime.clone().or(from_env) {
@@ -224,7 +223,7 @@ pub fn build_for(
 			kind: "warning".into(),
 			path: None,
 			note: Some(
-				"no Windows 3.1 SETUP.EXE: the whole runtime is over the 64 KB a Win16 code segment holds, so it is not built yet (see docs/retro-win16.md); pass --win16-runtime PATH to carry one".into(),
+				"no Windows 3.1 SETUP.EXE: build it with retro/win16/build.sh (see docs/retro-win16.md) and pass --win16-runtime PATH to carry it".into(),
 			),
 		});
 	}

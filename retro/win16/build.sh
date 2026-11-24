@@ -6,24 +6,22 @@
 
 set -euo pipefail
 
-# Usage: build.sh [--regen] [--spike] [--probes]
+# Usage: build.sh [--regen] [--spike]
 #
 # Writes out/SETUP.EXE, the Windows 3.1 installer (code in several segments, see PROVENANCE.md and tools/ne_pack.py), and its
-# out/SETUP.MAP. `--spike` also builds the spike's MSGBOX, HELLO and SETUP proof as out/SPIKE*.EXE names. `--probes` also builds
-# ENGINE.EXE and UIDEMO.EXE, the engine and the page viewer, as small programs of their own. `--regen` rebuilds src/imports.rs from
-# tools/imports.tbl first. Set CARGO_TARGET_DIR to keep the build output outside the tree, OUT_DIR to move out/.
+# out/SETUP.MAP. `--spike` also builds the spike's MSGBOX, HELLO and SETUP proof as out/SPIKE*.EXE names. `--regen` rebuilds
+# src/imports.rs from tools/imports.tbl first. Set CARGO_TARGET_DIR to keep the build output outside the tree, OUT_DIR to move out/.
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 export RUSTC_BOOTSTRAP=1
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$PWD/target}"
 mkdir -p "$CARGO_TARGET_DIR"
 
-regen=0 spike=0 probes=0
+regen=0 spike=0
 for a in "$@"; do
 	case "$a" in
 		--regen) regen=1 ;;
 		--spike) spike=1 ;;
-		--probes) probes=1 ;;
 		*) echo "build.sh: unknown option $a" >&2; exit 2 ;;
 	esac
 done
@@ -32,7 +30,6 @@ done
 
 # bin:OUTNAME:stack:heap. The local heap is the one Windows' edit controls keep their text in.
 progs=("lisetup:SETUP:0x2000:0x2000")
-[ "$probes" = 1 ] && progs+=("engine:ENGINE:0x2000:0x1000" "uidemo:UIDEMO:0x2000:0x3000")
 [ "$spike" = 1 ] && progs+=("msgbox:SPIKEMSG:0x2000:0x1000" "hello:SPIKEHEL:0x2000:0x1000" "setup:SPIKESET:0x2000:0x1000")
 
 bins=()

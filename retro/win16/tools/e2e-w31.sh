@@ -82,7 +82,7 @@ wait_exit() { # wait_exit <log in C:> <seconds>
 	return 1
 }
 stop() { docker rm -f "$name" > /dev/null 2>&1 || true; }
-norm() { tr -d '\r' < "$1" | sed -e 's/^text: Space available: .*/text: Space available: N/' -e 's/Free: [0-9.]* [KMG]B/Free: N/'; }
+norm() { tr -d '\r' < "$1" | sed -e 's/^text: Space available: .*/text: Space available: N/' -e 's/Free: [0-9.]* [KMG]B/Free: N/' -e 's/^text: Setup found: .*/text: Setup found: N/' -e 's/^field: \(Port\|IRQ\|DMA\) = .*/field: \1 = N/' -e '/^radio: Sound card/,/^[^ ]/ s/^  (o)/  ( )/'; }
 
 pass=0 total=0
 for ex in "${examples[@]}"; do
@@ -92,6 +92,7 @@ for ex in "${examples[@]}"; do
 	for run in $(seq 1 "$runs"); do
 		total=$((total + 1))
 		ok=1
+		why=''
 		cp "$work/out-$ex/win16/SETUP.EXE" "$work/out-$ex/win16/SETUP.LPK" "$work/d/"
 		printf 'licence choose licence.accepted yes\n' > "$work/d/PLAY.TXT"
 		: > "$work/d/PLAY2.TXT"
@@ -107,10 +108,10 @@ for ex in "${examples[@]}"; do
 				import -window root "$SHOTS/w31-$ex-$(printf %02d "$i").png" 2> /dev/null || true
 			done
 		fi
-		wait_exit S.LOG 240 || ok=0
+		wait_exit S.LOG 240 || { ok=0; why+=' install-no-exit'; }
 		stop
-		[ "$(tail -n1 "$work/c/S.LOG" 2> /dev/null | tr -d '\r')" = "exit 0" ] || ok=0
-		diff <(norm "$work/c/S.TXT") <(norm "crates/li-retro-build/tests/golden/win16/$ex.pages.txt") > /dev/null 2>&1 || ok=0
+		[ "$(tail -n1 "$work/c/S.LOG" 2> /dev/null | tr -d '\r')" = "exit 0" ] || { ok=0; why+=" install-exit:$(tail -n1 "$work/c/S.LOG" 2> /dev/null | tr -d '\r')"; }
+		diff <(norm "$work/c/S.TXT") <(norm "crates/li-retro-build/tests/golden/win16/$ex.pages.txt") > "$work/diff" 2>&1 || { ok=0; why+=' pages'; head -8 "$work/diff" >&2; }
 		n=0
 		if [ -f "$host/INSTALL.LIR" ]; then
 			while read -r kind fname size _crc; do
@@ -122,12 +123,12 @@ for ex in "${examples[@]}"; do
 			ok=0
 		fi
 		session "D:\\SETUP.EXE /U $dir /LOG=C:\\U.LOG /PLAY=D:\\PLAY2.TXT" U.LOG 240 || true
-		wait_exit U.LOG 240 || ok=0
+		wait_exit U.LOG 240 || { ok=0; why+=' uninstall-no-exit'; }
 		stop
-		[ "$(tail -n1 "$work/c/U.LOG" 2> /dev/null | tr -d '\r')" = "exit 0" ] || ok=0
-		[ ! -e "$host" ] || ok=0
+		[ "$(tail -n1 "$work/c/U.LOG" 2> /dev/null | tr -d '\r')" = "exit 0" ] || { ok=0; why+=" uninstall-exit:$(tail -n1 "$work/c/U.LOG" 2> /dev/null | tr -d '\r')"; }
+		[ ! -e "$host" ] || { ok=0; why+=' folder-left'; }
 		pass=$((pass + ok))
-		echo "e2e-w31: $ex run $run: $([ "$ok" = 1 ] && echo pass || echo FAIL) ($n files; $(grep -h 'heap peak' "$work/c/S.LOG" 2> /dev/null | tr -d '\r'))"
+		echo "e2e-w31: $ex run $run: $([ "$ok" = 1 ] && echo pass || echo "FAIL$why") ($n files; $(grep -h 'heap peak' "$work/c/S.LOG" 2> /dev/null | tr -d '\r'))"
 	done
 done
 echo "e2e-w31: $pass of $total runs passed"
