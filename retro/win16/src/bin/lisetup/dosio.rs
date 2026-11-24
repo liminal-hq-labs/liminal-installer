@@ -35,12 +35,18 @@ pub fn int21(ax: u16, bx: u16, cx: u16, dx: u16) -> Out {
 		asm!(
 			"push ebx",
 			"mov bx, di",
+			// Windows and DOS run on the real 16-bit stack, never on the 32-bit alias Rust uses (see lib.rs).
+			"mov ss, word ptr [__w16_ss16]",
+			"movzx esp, sp",
 			"int 0x21",
 			"mov di, bx",
 			"sbb ebx, ebx",
 			"shl ebx, 16",
 			"movzx edi, di",
 			"or edi, ebx",
+			".byte 0x66, 0xe8",
+			".long w16_sync_alias - . - 4",
+			"mov ss, word ptr [__w16_ss32]",
 			"movzx esp, sp",
 			"pop ebx",
 			"push ds",

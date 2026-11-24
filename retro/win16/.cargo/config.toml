@@ -12,5 +12,11 @@ build-std-features = ["compiler-builtins-mem"]
 json-target-spec = true
 
 [target.win16]
-# No jump tables: a `match` that LLVM turns into an indirect jump through a table faulted on Windows 3.11 in the Quill probes.
-rustflags = ["-C", "link-arg=-Tlink.ld", "-C", "link-arg=--no-dynamic-linker", "-C", "jump-tables=no"]
+# `--unique`, `--emit-relocs` and `--noinhibit-exec` leave each code section apart with its relocations for tools/ne_pack.py (see link.ld).
+rustflags = [
+	"-C", "link-arg=-Tlink.ld",
+	"-C", "link-arg=--no-dynamic-linker",
+	"-C", "link-arg=--unique",
+	"-C", "link-arg=--emit-relocs",
+	"-C", "link-arg=--noinhibit-exec",
+]

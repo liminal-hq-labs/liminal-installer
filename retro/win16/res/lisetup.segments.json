@@ -1,0 +1,6 @@
+{
+	"segments": {
+		"1": { "name": "MAIN", "budget": 40000 }
+	},
+	"auto": { "budget": 40000 }
+}

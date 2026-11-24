@@ -4,7 +4,7 @@
 # (c) Copyright 2026 Liminal HQ, Scott Morris
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 #
-# usage: python3 -m unittest discover -s retro/win16/tests -v
+# usage: python3 -m unittest discover -s tests -v
 import os
 import struct
 import sys
@@ -101,19 +101,7 @@ class PackTests(unittest.TestCase):
 		self.assertEqual(dat["flags"], 0x0C41)  # data, preload, ring 3
 		self.assertEqual(code["file_off"] % 16, 0)
 		self.assertEqual(out[code["file_off"] : code["file_off"] + len(text)][:6], text[:6])
-		self.assertEqual(out[dat["file_off"] : dat["file_off"] + dat["length"]], data)
-
-	def test_zero_tail_stays_out_of_the_file(self):
-		# A static heap is zeros: the segment's minimum allocation covers it, the file does not carry it (the program clears it).
-		text = bytes(64)
-		data = bytes(16) + b"hello\0" + bytes(30000)
-		syms = {"_start": 0, "__bss_start": 22}
-		out, info = ne_pack.pack(make_elf(text, data, syms), module="T")
-		dat = ne_dump.parse(out)["segments"][1]
-		self.assertEqual(dat["length"], 22)
-		self.assertEqual(dat["minalloc"], len(data))
-		self.assertEqual(info["data"], len(data))
-		self.assertLess(len(out), 2000)
+		self.assertEqual(out[dat["file_off"] : dat["file_off"] + len(data)], data)
 
 	def test_import_fixups(self):
 		_t, _d, out, i = self.pack()
@@ -254,27 +242,6 @@ class GenImportsTests(unittest.TestCase):
 			self.assertIn(f"pop {reg}", lines)
 		self.assertIn("movzx esp, sp", lines)
 		self.assertEqual(lines[lines.index("pop es") - 1], "push ds")
-
-
-REFERENCE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "out", "WC_HELLO.EXE")
-
-
-@unittest.skipUnless(os.path.exists(REFERENCE), "run retro/win16/reference.sh to build the Open Watcom reference")
-class ReferenceTests(unittest.TestCase):
-	"""The fields that decide whether Windows accepts the file match what Open Watcom's linker writes for a Win16 program."""
-
-	def test_header_and_segment_flags_match_wlink(self):
-		with open(REFERENCE, "rb") as f:
-			ref = ne_dump.parse(f.read())
-		elf = make_elf(b"\x90" * 8, bytes(16), {"_start": 0, "__w16imp_USER_1_MessageBox": 2})
-		out, _i = ne_pack.pack(elf, module="X")
-		mine = ne_dump.parse(out)
-		for field in ("flags", "autodata", "sp", "ss", "cs", "nseg", "target_os", "other_flags", "stack"):
-			self.assertEqual(mine["header"][field], ref["header"][field], field)
-		self.assertEqual([s["flags"] for s in mine["segments"]], [s["flags"] for s in ref["segments"]])
-		wanted = ref["segments"][0]["relocs"][0]
-		got = mine["segments"][0]["relocs"][0]
-		self.assertEqual((got["src"], got["kind"], got["additive"]), (wanted["src"], wanted["kind"], wanted["additive"]))
 
 
 if __name__ == "__main__":

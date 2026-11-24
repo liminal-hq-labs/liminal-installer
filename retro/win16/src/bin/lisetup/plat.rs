@@ -26,6 +26,7 @@ pub struct Win16Platform {
 	/// `/LOG=path`: a text log of the pages shown, for the tests.
 	log_path: Option<String>,
 	log: String,
+	dump_path: Option<String>,
 }
 
 fn io(path: &str, what: &str) -> Error {
@@ -51,12 +52,28 @@ impl Win16Platform {
 			ui: Ui::new(),
 			log_path,
 			log: String::new(),
+			dump_path: None,
 		}
+	}
+
+	/// `/PLAY script`: presses the real controls as the script says; `/DUMP file`: the page text, written when the run ends.
+	pub fn testing(&mut self, play: Option<&str>, dump: Option<String>, pause: u32) {
+		self.ui.set_pause(pause);
+		if let Some(text) = play {
+			self.ui.play(text);
+		}
+		self.dump_path = dump;
 	}
 
 	/// Writes the log file and takes the window down.
 	pub fn finish(&mut self, code: i32) {
 		self.ui.close();
+		if let Some(p) = &self.dump_path
+			&& let Some(h) = dosio::create(p)
+		{
+			dosio::write(h, self.ui.dump().as_bytes());
+			dosio::close(h);
+		}
 		self.log.push_str("heap peak ");
 		self.log.push_str(&crate::heap::HEAP.peak().to_string());
 		self.log.push_str(" of ");

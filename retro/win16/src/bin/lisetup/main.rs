@@ -30,9 +30,18 @@ pub extern "C" fn w16_main(_hinst: u32, _hprev: u32, _show: u32) -> u32 {
 	let tail = command_line();
 	let mut args = String::new();
 	let mut log = None;
+	let mut play = None;
+	let mut dump = None;
+	let mut pause = 0u32;
 	for w in tail.split_whitespace() {
 		if let Some(p) = w.strip_prefix("/LOG=").or_else(|| w.strip_prefix("/log=")) {
 			log = Some(String::from(p));
+		} else if let Some(p) = w.strip_prefix("/PLAY=") {
+			play = dosio::read_file(p).map(|b| String::from_utf8_lossy(&b).into_owned());
+		} else if let Some(p) = w.strip_prefix("/PAUSE=") {
+			pause = p.parse().unwrap_or(0);
+		} else if let Some(p) = w.strip_prefix("/DUMP=") {
+			dump = Some(String::from(p));
 		} else {
 			if !args.is_empty() {
 				args.push(' ');
@@ -41,6 +50,7 @@ pub extern "C" fn w16_main(_hinst: u32, _hprev: u32, _show: u32) -> u32 {
 		}
 	}
 	let mut p = plat::Win16Platform::new(log);
+	p.testing(play.as_deref(), dump, pause);
 	let code = li_retro::app::run(&mut p, &args);
 	p.finish(code);
 	code as u32

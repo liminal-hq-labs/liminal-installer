@@ -242,3 +242,47 @@ fn a_program_manager_shell_gets_group_items_and_a_receipt_line() {
 	assert!(p.groups.is_empty());
 	assert_eq!(p.tree(), Vec::<String>::new());
 }
+
+/// Compares `text` with `tests/golden/win16/<name>.txt`; `LI_UPDATE_GOLDEN=1` rewrites it. The Wine and Windows 3.11
+/// runs compare the text `SETUP.EXE /DUMP` writes with the same files.
+fn golden(name: &str, text: &str) {
+	let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+		.join("tests/golden/win16")
+		.join(format!("{name}.txt"));
+	if std::env::var_os("LI_UPDATE_GOLDEN").is_some() {
+		std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+		std::fs::write(&path, text).unwrap();
+	}
+	let want = std::fs::read_to_string(&path)
+		.unwrap_or_else(|_| panic!("{} is missing; run with LI_UPDATE_GOLDEN=1", path.display()));
+	assert_eq!(text, want, "{name} differs from {}", path.display());
+}
+
+fn pages_of(example: &str) -> String {
+	let project = Project::load(&fizz_dir().join("..").join(example)).expect("load");
+	let c = li_retro_build::compile_win16(&project, "win16-x86", "1.0.0").expect("compile");
+	let tmp = tempfile::tempdir().unwrap();
+	let mut p = win16(&c, tmp.path());
+	assert_eq!(app::run(&mut p, ""), 0);
+	p.gui.as_ref().unwrap().described.concat()
+}
+
+#[test]
+fn the_pages_match_their_goldens() {
+	golden("lt-fizz.pages", &pages_of("lt-fizz"));
+	golden("planboard.pages", &pages_of("planboard"));
+}
+
+#[test]
+fn the_uninstall_pages_match_their_golden() {
+	let tmp = tempfile::tempdir().unwrap();
+	install_win16(tmp.path());
+	let c = compile("win16-x86");
+	let mut u = HostPlatform::new(tmp.path(), c.lpk().unwrap());
+	u.gui = Some(ScriptGui::default());
+	assert_eq!(app::run(&mut u, "/U"), 0);
+	golden(
+		"lt-fizz.uninstall-pages",
+		&u.gui.as_ref().unwrap().described.concat(),
+	);
+}

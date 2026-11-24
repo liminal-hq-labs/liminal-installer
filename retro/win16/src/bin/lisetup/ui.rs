@@ -82,10 +82,25 @@ struct Ctl {
 	pos: (u32, u32),
 }
 
+/// One step of a `/PLAY` script.
+enum Op {
+	Set(String, String),
+	Toggle(String),
+	Choose(String, String),
+	Click(String),
+}
+
 pub struct Ui {
 	hwnd: u32,
 	/// The widgets of the page on show, with the commit page's default meters added.
 	ws: Vec<Widget>,
+	/// The `/PLAY` script: per step, what to do on its page, in order. A page with nothing left presses its default button.
+	script: Option<Vec<(String, Op)>>,
+	/// What `/DUMP` writes: the text of every page shown.
+	dump: String,
+	guard: u32,
+	/// `/PAUSE=ms`: how long each page stays up before the script acts, so a screenshot can be taken.
+	pause: u32,
 	ctls: Vec<Ctl>,
 	started: u32,
 	/// The gauge's inner width in pixels.
@@ -234,6 +249,10 @@ impl Ui {
 		Ui {
 			hwnd: 0,
 			ws: Vec::new(),
+			script: None,
+			dump: String::new(),
+			guard: 0,
+			pause: 0,
 			ctls: Vec::new(),
 			started: 0,
 			gauge_w: 0,
@@ -819,12 +838,14 @@ impl Ui {
 	fn run_page(&mut self, page: &mut GuiPage<'_>) -> GuiEvent {
 		let now = unsafe { GetTickCount() };
 		if page.fresh {
+			self.dump.push_str(&page.describe());
 			self.close();
 			if !self.build(page, now) {
 				return GuiEvent::Action(String::from("cancel"));
 			}
 		}
 		self.sync(page, now);
+		self.play_step(page);
 		loop {
 			if take_close() {
 				return GuiEvent::Action(String::from("cancel"));
@@ -915,12 +936,16 @@ impl Ui {
 	fn run_working(&mut self, page: &mut GuiPage<'_>) -> bool {
 		let now = unsafe { GetTickCount() };
 		if page.fresh {
+			self.dump.push_str(&page.describe());
 			self.close();
 			if !self.build(page, now) {
 				return true;
 			}
 		}
 		self.sync(page, now);
+		if page.fresh && self.script.is_some() && self.pause > 0 {
+			self.hold(self.pause);
+		}
 		pump(self.hwnd);
 		let mut go = !take_close();
 		while let Some((id, _)) = take_event() {
@@ -932,6 +957,140 @@ impl Ui {
 			go &= !cancel;
 		}
 		go
+	}
+}
+
+impl Ui {
+	/// Reads a `/PLAY` script: `step op args`, with `set bind value`, `toggle id`, `choose bind id`, `click action` and `#`
+	/// comments, as the Win32 runtime does. A page with nothing left in its script presses its default button.
+	pub fn play(&mut self, text: &str) {
+		let mut v = Vec::new();
+		for line in text.lines() {
+			let line = line.trim();
+			if line.is_empty() || line.starts_with('#') {
+				continue;
+			}
+			let mut it = line.splitn(3, ' ');
+			let (Some(step), Some(op)) = (it.next(), it.next()) else {
+				continue;
+			};
+			let rest = it.next().unwrap_or("").trim();
+			let op = match op {
+				"set" => rest
+					.split_once(' ')
+					.map(|(b, x)| Op::Set(b.into(), x.trim().into())),
+				"toggle" => Some(Op::Toggle(rest.into())),
+				"choose" => rest
+					.split_once(' ')
+					.map(|(b, x)| Op::Choose(b.into(), x.trim().into())),
+				"click" => Some(Op::Click(rest.into())),
+				_ => None,
+			};
+			if let Some(op) = op {
+				v.push((String::from(step), op));
+			}
+		}
+		self.script = Some(v);
+	}
+
+	pub fn set_pause(&mut self, ms: u32) {
+		self.pause = ms;
+	}
+
+	/// Lets Windows run for `ms` milliseconds with the page on show.
+	fn hold(&self, ms: u32) {
+		let t0 = unsafe { GetTickCount() };
+		while unsafe { GetTickCount() }.wrapping_sub(t0) < ms {
+			pump(self.hwnd);
+		}
+	}
+
+	/// The text of every page shown, as `GuiPage::describe` wrote it, for `/DUMP`.
+	pub fn dump(&self) -> &str {
+		&self.dump
+	}
+
+	/// Presses a button as a click would: the mouse going down and up on it.
+	fn click(&self, hwnd: u32) {
+		unsafe {
+			SendMessage(hwnd, 0x0201, 1, 0x0002_0002);
+			SendMessage(hwnd, 0x0202, 0, 0x0002_0002);
+		}
+	}
+
+	fn click_action(&self, ws: &[Widget], action: &str) {
+		for c in &self.ctls {
+			if c.kind == Kind::Button
+				&& c.enabled && matches!(&ws[c.widget], Widget::Button { action: a, .. } if a == action)
+			{
+				self.click(c.hwnd);
+				return;
+			}
+		}
+		// Nothing to press: leave with a code a test can see.
+		unsafe { w16_exit(9) };
+	}
+
+	/// Plays the next scripted step on the real controls (when there is a script): one call, one step.
+	fn play_step(&mut self, page: &GuiPage<'_>) {
+		if self.script.is_some() && self.pause > 0 {
+			self.hold(self.pause);
+		}
+		let Some(script) = self.script.as_mut() else {
+			return;
+		};
+		self.guard += 1;
+		if self.guard > 400 {
+			unsafe { w16_exit(9) };
+		}
+		let pos = script.iter().position(|(st, _)| st == page.step);
+		let op = pos.map(|i| script.remove(i).1);
+		let ws = core::mem::take(&mut self.ws);
+		match op {
+			Some(Op::Set(bind, text)) => {
+				for c in &self.ctls {
+					if c.kind == Kind::Edit
+						&& matches!(&ws[c.widget], Widget::Field { bind: b, .. } if *b == bind)
+					{
+						unsafe { SetWindowText(c.hwnd, near(&ansi(&text))) };
+					}
+				}
+			}
+			Some(Op::Toggle(id)) => {
+				for c in &self.ctls {
+					if c.kind == Kind::Check
+						&& matches!(&ws[c.widget], Widget::List { items, .. } if items[c.item].id == id)
+					{
+						self.click(c.hwnd);
+					}
+				}
+			}
+			Some(Op::Choose(bind, id)) => {
+				for c in &self.ctls {
+					if c.kind == Kind::Radio
+						&& matches!(&ws[c.widget], Widget::List { bind: b, items, .. } if *b == bind && items[c.item].id == id)
+					{
+						self.click(c.hwnd);
+					}
+				}
+			}
+			Some(Op::Click(action)) => self.click_action(&ws, &action),
+			None => {
+				let action = ws
+					.iter()
+					.find_map(|w| match w {
+						Widget::Button {
+							default: true,
+							action,
+							..
+						} => Some(action.clone()),
+						_ => None,
+					})
+					.unwrap_or_else(|| String::from("next"));
+				self.click_action(&ws, &action);
+			}
+		}
+		self.ws = ws;
 	}
 }
 
