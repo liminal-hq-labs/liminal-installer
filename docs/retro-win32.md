@@ -107,7 +107,7 @@ The banner colour and the controls are the system's, not the theme's: `win32-cla
 
 ## The compiled project
 
-The compiled project is `li-retro`'s `Project`, format version 3 (2 is still read). Version 3 adds `Op::FileType`. Version 2 added `Screen.title` (the dialog title, which the text runtime has in the border cells) and `FileEntry.stored`. The Win32 flavour differs from DOS in what `compile_win32` does:
+The compiled project is `li-retro`'s `Project`, format version 4 (3 and 2 are still read). Version 4 adds `Component.default` and `Project.owners` (see [retro-dos.md](retro-dos.md)). Version 3 adds `Op::FileType`. Version 2 added `Screen.title` (the dialog title, which the text runtime has in the border cells) and `FileEntry.stored`. The Win32 flavour differs from DOS in what `compile_win32` does:
 
 - A target must use the `win32-classic` renderer and the id `windows-x86` for `liminst build`.
 - Destinations keep their case and length and may have spaces. The pack stores each file under a generated 8.3 name (`F0000001` and on) with the real path as its long name (D64); `liminst lpk list` shows both.

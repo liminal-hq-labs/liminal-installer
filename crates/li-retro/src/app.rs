@@ -36,10 +36,14 @@ pub enum Mode {
 }
 
 impl Mode {
-	/// Reads the command tail: `/U [dir]` uninstalls, `/V` prints the version.
+	/// Reads the command tail: `/U [dir]` uninstalls, `/V` prints the version. The install switches
+	/// (`/S`, `/COMPONENTS=`) may stand anywhere and are read by [`Switches::of`].
 	pub fn from_args(args: &str) -> Result<Mode, String> {
 		let words = words_of(args);
-		let mut words = words.iter().map(String::as_str);
+		let mut words = words
+			.iter()
+			.map(String::as_str)
+			.filter(|w| Switches::word(w).is_none());
 		match words.next() {
 			None => Ok(Mode::Install),
 			Some(w) if w.eq_ignore_ascii_case("/U") || w.eq_ignore_ascii_case("-U") => {
@@ -50,6 +54,48 @@ impl Mode {
 				"unknown option {w}; use SETUP, SETUP /U [folder] or SETUP /V"
 			)),
 		}
+	}
+}
+
+/// The install switches of a command tail: `/S` installs without pages, and `/COMPONENTS=a,b`
+/// installs exactly the components named, besides the required ones. Without it an install takes the
+/// components that start ticked.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Switches {
+	pub silent: bool,
+	pub components: Option<Vec<String>>,
+}
+
+impl Switches {
+	/// What one word says, when it is a switch: `Some(None)` for `/S`, `Some(Some(list))` for
+	/// `/COMPONENTS=`.
+	fn word(w: &str) -> Option<Option<&str>> {
+		if w.eq_ignore_ascii_case("/S") {
+			return Some(None);
+		}
+		let (name, list) = w.split_at_checked(12)?;
+		name.eq_ignore_ascii_case("/COMPONENTS=")
+			.then_some(Some(list))
+	}
+
+	pub fn of(args: &str) -> Switches {
+		let mut out = Switches::default();
+		for w in words_of(args) {
+			match Switches::word(&w) {
+				Some(None) => out.silent = true,
+				Some(Some(list)) => {
+					out.components = Some(
+						list.split(',')
+							.map(str::trim)
+							.filter(|c| !c.is_empty())
+							.map(str::to_string)
+							.collect(),
+					);
+				}
+				None => {}
+			}
+		}
+		out
 	}
 }
 
@@ -94,6 +140,8 @@ struct Session<'a, P: Platform> {
 	/// `None` for an uninstall run from the install folder, which has no payload.
 	pack: Option<Pack>,
 	v: Values,
+	/// `/S`: no page is shown.
+	silent: bool,
 }
 
 /// Opens `SETUP.LPK` through the platform and reads the compiled project, its first entry.
@@ -143,13 +191,21 @@ pub fn run<P: Platform>(p: &mut P, args: &str) -> i32 {
 			return 2;
 		}
 	};
+	let switches = Switches::of(args);
 	let mut s = Session {
 		p,
 		project: &project,
 		pack,
 		v: Values::default(),
+		silent: switches.silent,
 	};
 	s.seed(&mode);
+	if let Some(ids) = &switches.components
+		&& let Err(m) = s.choose(ids)
+	{
+		s.p.report(&format!("{m}\n"));
+		return 2;
+	}
 	let flow_id = if matches!(mode, Mode::Uninstall(_)) {
 		"uninstall"
 	} else {
@@ -163,6 +219,10 @@ pub fn run<P: Platform>(p: &mut P, args: &str) -> i32 {
 	match outcome {
 		Outcome2::Finished => 0,
 		Outcome2::Cancelled => 3,
+		Outcome2::Failed(m) if s.silent => {
+			s.p.report(&format!("{m}\n"));
+			1
+		}
 		Outcome2::Failed(m) => {
 			s.message(&["Setup could not finish.", &m]);
 			1
@@ -216,11 +276,37 @@ impl<P: Platform> Session<'_, P> {
 		};
 		let dir = install::normalize_dir_for(self.p, &dir);
 		self.v.set_str("install.path", &dir);
-		let all: Vec<String> = pr.components.iter().map(|c| c.id.clone()).collect();
+		let on: Vec<String> = pr
+			.components
+			.iter()
+			.filter(|c| c.required || c.default)
+			.map(|c| c.id.clone())
+			.collect();
 		self.v
 			.state
-			.insert("components.selected".into(), Value::List(all));
+			.insert("components.selected".into(), Value::List(on));
 		self.refresh();
+	}
+
+	/// Takes exactly these components, besides the required ones.
+	fn choose(&mut self, ids: &[String]) -> Result<(), String> {
+		let known = &self.project.components;
+		if let Some(bad) = ids
+			.iter()
+			.find(|i| !known.iter().any(|c| c.id.eq_ignore_ascii_case(i)))
+		{
+			return Err(format!("unknown component {bad}"));
+		}
+		let on = known
+			.iter()
+			.filter(|c| c.required || ids.iter().any(|i| c.id.eq_ignore_ascii_case(i)))
+			.map(|c| c.id.clone())
+			.collect();
+		self.v
+			.state
+			.insert("components.selected".into(), Value::List(on));
+		self.refresh();
+		Ok(())
 	}
 
 	fn selected(&self) -> Vec<String> {
@@ -363,7 +449,12 @@ impl<P: Platform> Session<'_, P> {
 			match step.kind {
 				Kind::Page => {
 					self.enter(step);
-					match self.page(step) {
+					let action = if self.silent {
+						Action::Next
+					} else {
+						self.page(step)
+					};
+					match action {
 						Action::Cancel => return Outcome2::Cancelled,
 						Action::Back => {
 							if let Some(prev) = history.pop() {
@@ -419,7 +510,9 @@ impl<P: Platform> Session<'_, P> {
 					}
 				}
 				Kind::Finish => {
-					self.page(step);
+					if !self.silent {
+						self.page(step);
+					}
 					return Outcome2::Finished;
 				}
 			}
@@ -588,9 +681,8 @@ impl<P: Platform> Session<'_, P> {
 		let dir = self.dir();
 		let sel = self.selected();
 		let now = self.now();
-		let page = step
-			.screen
-			.map(|s| Page::new(self.project, usize::from(s), &mut self.v, now));
+		let shown = step.screen.filter(|_| !self.silent);
+		let page = shown.map(|s| Page::new(self.project, usize::from(s), &mut self.v, now));
 		self.refresh();
 		let project = self.project;
 		let values = self.v.clone();
@@ -598,7 +690,7 @@ impl<P: Platform> Session<'_, P> {
 			project,
 			v: self.v.clone(),
 			page,
-			screen: step.screen.map(usize::from),
+			screen: shown.map(usize::from),
 			step: step.id.clone(),
 			kind: step.kind,
 			fresh: true,

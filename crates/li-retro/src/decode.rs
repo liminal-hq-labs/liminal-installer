@@ -166,6 +166,8 @@ impl R<'_> {
 			id: self.string(),
 			name: self.string(),
 			required: self.bool(),
+			// Format 4 added the starting state; older projects tick everything.
+			default: self.format < 4 || self.bool(),
 		}
 	}
 
@@ -379,6 +381,11 @@ pub(crate) fn project(bytes: &[u8]) -> Result<Project, Error> {
 		screens: r.seq(R::screen),
 		files: r.seq(R::file),
 		ops: r.seq(R::op),
+		owners: if format >= 4 {
+			r.seq(R::u16)
+		} else {
+			Vec::new()
+		},
 	};
 	if r.unknown {
 		return Err(Error::Format(String::from(

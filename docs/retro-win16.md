@@ -87,7 +87,7 @@ Text roles (`heading`, `caption`, `summary`) ride in `Widget::Text.attr`, which 
 
 ## The runtime
 
-`SETUP` installs, `SETUP /U [folder]` removes, `SETUP /V` shows the version. Exit codes are the runner's: 0 done, 1 failed (rolled back), 2 bad arguments or a damaged pack, 3 cancelled.
+`SETUP` installs, `SETUP /U [folder]` removes, `SETUP /V` shows the version; `/S` and `/COMPONENTS=a,b` install without pages and name the components (see [retro-dos.md](retro-dos.md)). Exit codes are the runner's: 0 done, 1 failed (rolled back), 2 bad arguments or a damaged pack, 3 cancelled.
 
 - **Pack.** `SETUP.LPK` beside `SETUP.EXE`, found through `GetModuleFileName`, read with `_lopen`, `_llseek` and `_lread`. The compiler packs for Windows with 4 KiB chunks (`WIN16_CHUNK_LOG2`, 12) instead of DOS's 32 KiB, so the decoder's window, which the heap holds for the whole run, is an eighth the size. Every chunk's CRC-32 is checked before the bytes are written.
 - **Files.** Created with `_lcreat` and `_lwrite`; directories, delete, attributes and free space by INT 21h (39h, 3Ah, 41h, 43h, 36h), each on the real 16-bit stack (see the ESP finding below). Free space stops at 2 GiB, as on DOS.

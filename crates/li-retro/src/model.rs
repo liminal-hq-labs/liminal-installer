@@ -17,10 +17,14 @@ pub const COLS: usize = 80;
 /// The rows of the text screen.
 pub const ROWS: usize = 25;
 /// The version of the compiled format the compiler writes.
-pub const FORMAT: u16 = 3;
+pub const FORMAT: u16 = 4;
 /// The oldest version the runtime still reads. Version 3 added [`Op::FileType`]; a version 2 project has
-/// no such operation, and a runtime that predates version 3 refuses a version 3 project.
+/// no such operation, and a runtime that predates version 3 refuses a version 3 project. Version 4 added
+/// [`Component::default`] and [`Project::owners`]; a project older than 4 has every component ticked and
+/// every operation unconditional.
 pub const FORMAT_MIN: u16 = 2;
+/// The owner of an operation that no component owns, so it always runs.
+pub const NO_OWNER: u16 = u16::MAX;
 
 /// The attributes of the retro look.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -71,6 +75,9 @@ pub struct Component {
 	pub id: String,
 	pub name: String,
 	pub required: bool,
+	/// Whether the component starts ticked (format 4; always true before). Never false when
+	/// `required` is true.
+	pub default: bool,
 }
 
 /// A component's files are those `FileEntry`s whose `component` is its index.
@@ -342,6 +349,9 @@ pub struct Project {
 	pub screens: Vec<Screen>,
 	pub files: Vec<FileEntry>,
 	pub ops: Vec<Op>,
+	/// The component each operation of `ops` belongs to, by index, or [`NO_OWNER`]: the operation runs
+	/// only when that component is installed. Empty (format 3 and older) means every operation runs.
+	pub owners: Vec<u16>,
 }
 
 impl Project {
@@ -371,6 +381,16 @@ impl Project {
 		}
 		if self.format < 3 && self.ops.iter().any(|o| matches!(o, Op::FileType { .. })) {
 			return bad("a file type needs format version 3");
+		}
+		// Format 4: an owner for every operation that names a component, and no unticked required one.
+		let owners_ok = self.owners.len() == if self.format >= 4 { self.ops.len() } else { 0 }
+			&& self
+				.owners
+				.iter()
+				.all(|&o| o == NO_OWNER || usize::from(o) < self.components.len())
+			&& self.components.iter().all(|c| c.default || !c.required);
+		if !owners_ok {
+			return bad("the components or their operations are wrong");
 		}
 		for s in &self.screens {
 			let mut n = 0usize;

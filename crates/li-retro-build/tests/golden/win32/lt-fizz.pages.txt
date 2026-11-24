@@ -18,6 +18,8 @@ button: Cancel
 check: Components
   [x] Game program
   [x] Episode one levels
+  [ ] Bonus levels
+  [ ] Open saved games (.FZS) with Fizz
 text: Space required: 2 KB
 text: Space available: 64.0 MB
 button: Back

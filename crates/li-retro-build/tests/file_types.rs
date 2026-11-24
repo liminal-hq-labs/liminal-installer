@@ -140,6 +140,33 @@ fn windows_3_1_skips_an_extension_longer_than_three_letters() {
 	);
 }
 
+/// The postcard encoding of `p` as a compiler of format 3 and older wrote it: a component has no
+/// starting state and the project has no owners.
+fn legacy(p: &model::Project) -> Vec<u8> {
+	let components: Vec<_> = p
+		.components
+		.iter()
+		.map(|c| (&c.id, &c.name, c.required))
+		.collect();
+	postcard::to_allocvec(&(
+		p.format,
+		&p.id,
+		&p.name,
+		&p.publisher,
+		&p.version,
+		&p.target,
+		&p.default_dir,
+		&p.theme,
+		&p.strings,
+		components,
+		&p.flows,
+		&p.screens,
+		&p.files,
+		&p.ops,
+	))
+	.unwrap()
+}
+
 #[test]
 fn the_decoder_reads_format_3_and_refuses_what_a_format_2_project_cannot_hold() {
 	let c = compile32();
@@ -149,17 +176,26 @@ fn the_decoder_reads_format_3_and_refuses_what_a_format_2_project_cannot_hold() 
 	let by_serde: model::Project = postcard::from_bytes(&bytes).unwrap();
 	assert_eq!(back, by_serde);
 
-	// The same project claiming format 2: the file type's tag (3) is not an operation there.
+	// The same project as an older compiler wrote it, which had no starting state for a component
+	// and no owner for an operation. Format 2's tag 3 is not an operation.
 	let mut old = c.project.clone();
 	old.format = 2;
-	let bytes = old.encode().unwrap();
-	let err = model::Project::decode(&bytes).unwrap_err();
+	let err = model::Project::decode(&legacy(&old)).unwrap_err();
 	assert!(format!("{err:?}").contains("newer"), "{err:?}");
 
-	// Without the file type, the same project is a good format 2 project.
+	// Without the file type, the same project is a good format 2 project, with every component
+	// ticked and every operation unconditional.
 	old.ops.retain(|o| !matches!(o, Op::FileType { .. }));
-	let bytes = old.encode().unwrap();
-	assert_eq!(model::Project::decode(&bytes).unwrap().format, 2);
+	let read = model::Project::decode(&legacy(&old)).unwrap();
+	assert_eq!(read.format, 2);
+	assert!(read.components.iter().all(|c| c.default) && read.owners.is_empty());
+
+	// Format 3 reads the same way, file type included.
+	let mut three = c.project.clone();
+	three.format = 3;
+	let read = model::Project::decode(&legacy(&three)).unwrap();
+	assert_eq!(read.format, 3);
+	assert_eq!(read.ops, c.project.ops);
 
 	// A format this runtime has never heard of is refused before anything is read.
 	let mut future = c.project.clone();
