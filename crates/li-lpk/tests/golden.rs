@@ -11,7 +11,7 @@ use std::path::PathBuf;
 
 use common::*;
 use li_lpk::writer::{FileSpec, Options, Packed, pack};
-use li_lpk::{flags, targets};
+use li_lpk::{Error, Reader, SliceSource, flags, targets};
 
 fn golden(name: &str) -> PathBuf {
 	PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -58,6 +58,31 @@ fn span_options() -> Options {
 	Options {
 		chunk_log2: 11,
 		volume_sizes: vec![6000, 6500],
+		..Options::default()
+	}
+}
+
+/// A shared pack (`docs/lpk-format.md`, "Shared packs"): `Cnnnnnnn` entries with the real paths as
+/// long names, the target mask of all three consumers, and 4 KiB chunks for the smallest window.
+fn common_files() -> Vec<FileSpec> {
+	let mut dict = FileSpec::new("C0000001", bytes(5, 9000));
+	dict.long_name = "dict/en_ca.dic".into();
+	let mut logo = FileSpec::new("C0000002", noise(6, 6000));
+	logo.long_name = "gfx/quill.bmp".into();
+	let text = "Quill reads and writes plain text and .QLD files.\r\n".repeat(80);
+	let mut help = FileSpec::new("C0000003", text.into_bytes());
+	help.long_name = "help/quill.txt".into();
+	let mut files = vec![dict, logo, help];
+	for f in &mut files {
+		f.targets = targets::DOS | targets::WIN16 | targets::WIN32;
+	}
+	files
+}
+
+fn common_options() -> Options {
+	Options {
+		chunk_log2: 12,
+		set_id: Some(0x434f_4d4e),
 		..Options::default()
 	}
 }
@@ -124,6 +149,52 @@ fn spanned_pack_is_reproduced_and_read() {
 	for (g, f) in got.iter().zip(&files) {
 		assert_eq!(g.data, f.data);
 	}
+}
+
+#[test]
+fn shared_pack_is_reproduced_and_read() {
+	let files = common_files();
+	let p = pack(&files, &common_options()).unwrap();
+	assert_eq!(p.volumes.len(), 1);
+	check("common", &p);
+	let vols = read_golden("common", 1);
+	let views = [vols[0].as_slice()];
+	let mut src = SliceSource::new(&views);
+	let r = Reader::open(&mut src).unwrap();
+	assert_eq!(r.header().chunk_size(), 4096);
+	assert_eq!(r.header().set_id, 0x434f_4d4e);
+	let got = unpack_all(&[&vols[0]]).unwrap();
+	assert_eq!(got.len(), 3);
+	for (g, f) in got.iter().zip(&files) {
+		assert_eq!(g.short, f.short_name.as_bytes());
+		assert_eq!(g.long, f.long_name.as_bytes());
+		assert_eq!(g.data, f.data);
+	}
+}
+
+#[test]
+fn every_shared_entry_is_for_all_three_runtimes() {
+	let vols = read_golden("common", 1);
+	let views = [vols[0].as_slice()];
+	let mut src = SliceSource::new(&views);
+	let mut r = Reader::open(&mut src).unwrap();
+	let mut dir_bytes = vec![0u8; r.directory_len()];
+	let dir = r.read_directory(&mut src, &mut dir_bytes).unwrap();
+	let mut n = 0;
+	for e in dir.entries() {
+		let e = e.unwrap();
+		assert_eq!(e.targets, 7);
+		for t in [targets::DOS, targets::WIN16, targets::WIN32] {
+			assert!(r.begin_for(&mut src, &e, t).is_ok());
+		}
+		// The POSIX bit is not in the mask, so a POSIX reader is refused.
+		assert_eq!(
+			r.begin_for(&mut src, &e, targets::POSIX).unwrap_err(),
+			Error::WrongTarget
+		);
+		n += 1;
+	}
+	assert_eq!(n, 3);
 }
 
 /// The worked example in `docs/lpk-format.md` is what the packer writes.
