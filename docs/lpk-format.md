@@ -16,6 +16,7 @@ This is **version 1.0**. The format is experimental, so it may change until the 
 - [Chunks](#chunks)
 - [Compression](#compression)
 - [Spanning](#spanning)
+- [Shared packs](#shared-packs)
 - [Self-extracting stubs](#self-extracting-stubs)
 - [Checksums](#checksums)
 - [Versions and compatibility](#versions-and-compatibility)
@@ -214,6 +215,19 @@ Rules for reading, which the reader follows when it needs a chunk:
 
 A DOS or Windows runtime that installs from a disk set reads the directory from disk 1, then unpacks in directory order, and the `Source` prompts when `open_volume` is called. A set for several systems is one set per system, each its own pack; the **targets** mask lets one pack hold files for more than one system when the disks are shared.
 
+## Shared packs
+
+Several installers on one disk or CD (a `WIN31\` and a `WIN95\` program beside a DOS one, say) often carry the same files. A **shared pack** holds those files once. This is a convention for writers and runtimes, not a change to the format: a shared pack is an ordinary version 1.0 pack, read by the same reader, and the writer still writes the lowest minor version that can express it.
+
+- **Name.** The pack is `COMMON.LPK` (and `COMMON.L02` and so on if it spans), in the folder the runtimes agree on, beside or above the programs that read it.
+- **Entry names.** Entries are `Cnnnnnnn` in the short name, where *nnnnnnn* is a seven-digit decimal number from 0000001, and the long name holds the real path, as for a Win32 pack ([Directory](#directory)). A consumer finds an entry by that name and never by its position, so the order of the shared pack and the order of its consumers' projects do not have to agree.
+- **Target mask.** An entry's mask is the union of the target bits of the programs that use it, so a file used by DOS, Windows 3.1 and Windows 95 carries 7. A program reading an entry whose mask does not include its own bit has been given the wrong pack or a damaged project; a reader may check it with `Reader::begin_for`.
+- **Chunk size.** The pack's chunk size is that of the smallest window among its consumers, because each of them decodes one chunk at a time into its own window. A set read by a Windows 3.1 program uses 4 KiB (`chunk_log2` 12).
+- **Set id.** The header's set id is what ties a consumer to its shared pack. Each consumer's project records the set id of the shared pack it expects, and refuses a `COMMON.LPK` with another one (`WrongVolume`) before it writes anything. That catches a pack from another build or another product's disk.
+- **Reading.** A consumer's own pack (`SETUP.LPK`) still holds its project and the files only it needs. Uninstalling reads neither pack, since the receipt records each file.
+
+The golden file `crates/li-lpk/tests/golden/common.lpk` is a shared pack of this shape (three entries, 4 KiB chunks, mask 7). It is rewritten, with the other golden files, by `LI_UPDATE_GOLDEN=1 cargo test -p li-lpk --test golden`.
+
 ## Self-extracting stubs
 
 A stub is an executable with a pack appended. It reads the last 32 bytes of its own file, parses the footer (`Footer::parse`: magic and checksum), and starts the pack at `file length − pack length`. A `Source` for the stub adds that start to every offset. For a set, the stub is on disk 1 and the later volumes are separate files; give the first volume a smaller limit to leave room for the stub.
@@ -258,6 +272,7 @@ Reader::open(src)                                  // volume 1: header and foote
 reader.read_directory(src, buf)                    // checks the directory CRC-32
 reader.directory(bytes)                            // the same directory again, from the kept buffer
 reader.begin(src, &entry) -> Extract               // then step until None
+reader.begin_for(src, &entry, target) -> Extract   // the same, refusing an entry not for `target`
 reader.step(src, &mut extract, window) -> Option<usize>
 reader.extract(src, &entry, window, sink)          // begin and step, in pieces of 4 KiB
 ```
@@ -274,6 +289,7 @@ reader.extract(src, &entry, window, sink)          // begin and step, in pieces 
 | `BadHeader`, `HeaderChecksum`, `BadFooter`, `Truncated` | A header field out of range, the header or footer damaged, the volume cut short |
 | `WrongVolume` | The volume handed over is not the next of this set |
 | `DirectoryChecksum`, `BadEntry`, `BadName` | The directory damaged, an entry malformed, a name unsafe or not 8.3 |
+| `WrongTarget` | `begin_for` was given an entry whose target mask does not include the reader's own bit |
 | `BadChunk`, `ChunkChecksum`, `UnsupportedMethod`, `Inflate(…)` | A chunk header or its data damaged |
 | `SizeMismatch`, `FileChecksum` | The chunks do not add up to the size, the file does not match its CRC-32 |
 | `BufferTooSmall` | The window or directory buffer is smaller than the pack needs |
