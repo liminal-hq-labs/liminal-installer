@@ -86,8 +86,37 @@ export async function mountMedia(initial: MediaInfo[] = [], options: MountOption
 			el?.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, ...init }));
 		});
 	const settle = () => act(async () => undefined);
+	/** Types into a text field the way a person does: the value changes and React hears an input event. */
+	const type = (input: Element | null, value: string) =>
+		act(async () => {
+			const field = input as HTMLInputElement;
+			Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(field, value);
+			field.dispatchEvent(new Event('input', { bubbles: true }));
+		});
+	/** Leaves a field, as clicking away does. */
+	const leave = (input: Element | null) =>
+		act(async () => {
+			input?.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+		});
+	const tab = (id: string) => click(root.querySelector(`#media-tab-${id}`));
 	const run = (action: () => Promise<unknown>) => act(async () => void (await action()));
-	return { app, chrome, root, media, confirm, asked, click, button, rows, key, settle, act: run };
+	return {
+		app,
+		chrome,
+		root,
+		media,
+		confirm,
+		asked,
+		click,
+		button,
+		rows,
+		key,
+		settle,
+		type,
+		leave,
+		tab,
+		act: run,
+	};
 }
 
 export type Mounted = Awaited<ReturnType<typeof mountMedia>>;

@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { t } from '../i18n/messages';
+import type { Change } from '../lib/mediaEdit';
 import { useMedia, useStudio } from '../app/StudioContext';
 import { cx } from '../ui/cx';
 import text from '../ui/text.module.css';
@@ -24,6 +25,11 @@ export function MediaScreen() {
 	const error = useMedia((s) => s.error);
 	const current = items.find((m) => m.id === selected);
 
+	const change = (id: string, c: Change) => void studio.media.edit(id, c.edit, c.label);
+	const pickReadme = async (id: string) => {
+		const file = await studio.api.pickReadme(studio.project.getState().summary?.root);
+		if (file) await studio.media.edit(id, { readme: file }, t('history.mediaReadme', { id }));
+	};
 	const remove = (id: string) => void studio.run(() => studio.removeMedia(id));
 	return (
 		<div className={ui.screen}>
@@ -82,6 +88,8 @@ export function MediaScreen() {
 							busy={busy}
 							onTab={(next) => studio.media.setTab(next)}
 							onRemove={() => remove(current.id)}
+							onChange={(c) => change(current.id, c)}
+							onPickReadme={() => void studio.run(() => pickReadme(current.id))}
 						/>
 					) : (
 						<p className={text.muted}>{t('media.detail.pick')}</p>

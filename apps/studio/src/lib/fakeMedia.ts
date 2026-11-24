@@ -16,6 +16,8 @@ export interface FakeMedia extends MediaApi {
 	onChange(handler: (e: ChangeEvent) => void): Promise<() => void>;
 	/** The calls made, as `name(args)` text, oldest first. */
 	readonly calls: string[];
+	/** The `setMedia` calls among them: the edits a person made. */
+	edits(): string[];
 	/** The file `pickReadme` answers with; null cancels. */
 	picked: string | null;
 }
@@ -69,6 +71,7 @@ export function fakeMedia(initial: MediaInfo[] = []): FakeMedia {
 
 	const fake: FakeMedia = {
 		calls,
+		edits: () => calls.filter((c) => c.startsWith('setMedia')),
 		picked: '/project/installer/media/README.TXT',
 		listMedia: async () => {
 			calls.push('listMedia()');

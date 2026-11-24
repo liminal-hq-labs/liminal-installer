@@ -184,7 +184,7 @@ export function DiskMap({ plan }: { plan: MediaPlan }) {
 			return next;
 		});
 	return (
-		<div className={styles.map}>
+		<div className={cx(styles.map, spans && styles.mapSpan)}>
 			{spans && later.length > 0 ? (
 				<p className={cx(text.muted, text.small)}>
 					{t('media.span.note', { components: later.join(', ') })}

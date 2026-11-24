@@ -72,9 +72,13 @@ export function demoMedia(initial?: MediaInfo[]): DemoMedia {
 			const before = find(id);
 			const after = applyEdit(before, edit);
 			// An edit may not add a label, serial or folder error; one the file already had stays viewable.
+			// A broken autorun is a warning, not a refusal, as it is when `check` finds it in the file.
 			const had = new Set(validateInfo(before).map((w) => `${w.code}:${w.subject}`));
 			const worse = validateInfo(after).find(
-				(w) => w.severity === 'error' && !had.has(`${w.code}:${w.subject}`),
+				(w) =>
+					w.severity === 'error' &&
+					w.code !== 'autorun_target' &&
+					!had.has(`${w.code}:${w.subject}`),
 			);
 			if (worse) throw new StudioError('invalid_input', worse.message);
 			items = items.map((m) => (m.id === id ? after : m));

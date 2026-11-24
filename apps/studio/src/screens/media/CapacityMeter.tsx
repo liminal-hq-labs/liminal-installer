@@ -26,17 +26,17 @@ const PART_CLASS = {
 	free: styles.cellFree,
 } as const;
 
-/** A row of block cells. Drawn for the eye only: the meter's text carries the numbers. */
+/** A row of block cells, one span for each so that a narrow window wraps the bar rather than cutting it. Drawn for the eye only. */
 function Cells({ parts, count, over }: { parts: MeterParts; count: number; over: boolean }) {
 	const cells = meterCells(parts, count);
 	return (
 		<span className={cx(styles.cells, over && styles.cellsOver)} aria-hidden="true">
-			{ORDER.map((k) =>
-				cells[k] > 0 ? (
-					<span key={k} className={PART_CLASS[k]}>
-						{BLOCKS[k].repeat(cells[k])}
+			{ORDER.flatMap((k) =>
+				Array.from({ length: cells[k] }, (_, i) => (
+					<span key={`${k}${i}`} className={PART_CLASS[k]}>
+						{BLOCKS[k]}
 					</span>
-				) : null,
+				)),
 			)}
 		</span>
 	);
