@@ -142,7 +142,7 @@ README.md SPEC.md AGENTS.md CLAUDE.md LICENSE-APACHE LICENSE-MIT Makefile
 .editorconfig .markdownlint.jsonc .gitignore rustfmt.toml rust-toolchain.toml
 crates/        li-model, li-engine, li-script, li-render-tui, li-pack, li-package, li-cli (`liminst`),
                li-runner (`liminal-engine`), li-studio (the Studio's editing core), li-examples-test,
-               li-retro (the `no_std` DOS runtime core), li-retro-build (its compiler), li-lpk (the `.LPK` pack format: a `no_std` reader and a host packer) and
+               li-retro (the `no_std` DOS runtime core), li-retro-build (its compiler), li-lpk (the `.LPK` pack format: a `no_std` reader and a host packer), li-media (the wire types and rules for a project's floppies and discs, shared by the CLI, the Studio and the MCP tools) and
                li-render-web (the web renderer's session and headless runner)
 apps/studio/   the Studio: index.html, vite.config.ts, src/ (React) and src-tauri/ (the desktop shell)
 apps/runner/   the web runner (`liminal-runner`): the same layout, a window over the real flow; see docs/web-runner.md

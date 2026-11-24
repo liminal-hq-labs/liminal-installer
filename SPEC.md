@@ -364,7 +364,7 @@ A **medium** is one disk or disc that holds several targets, declared as a `[[me
 | `default_on_later_disk` | A component ticked by default lands on a later disk | Sizes |
 | `win16_window` | `COMMON.LPK` uses 4 KiB chunks because Windows 3.x reads it, at a stated cost against 32 KiB | none |
 | `label` | The label breaks the label rule below | Label and README |
-| `dir_not_8_3` | A target's folder is not a valid 8.3 name | Targets |
+| `dir_not_8_3` | A target's folder is not a valid 8.3 name, or two targets use one folder | Targets |
 | `autorun_target` | `autorun` names a target that is not on the medium | Autorun |
 | `runtime_estimated` | No `SETUP.EXE` was found for a target, so its budgeted size is used | Targets |
 | `runtime_lacks` | A runtime is older than a feature the medium needs (spanning, the redirect page) | Targets |
