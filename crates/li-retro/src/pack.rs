@@ -121,6 +121,31 @@ impl Pack {
 		Ok(out)
 	}
 
+	/// Writes the compiled project to `path` a chunk at a time, for a runtime whose heap has no
+	/// room for the whole of it beside everything else an install holds.
+	pub fn write_project<P: Platform>(&mut self, p: &mut P, path: &str) -> Result<(), Error> {
+		let mut x = self.begin(p, PROJECT_FILE)?;
+		let h = p.create(path)?;
+		let mut result = Ok(());
+		loop {
+			match self.next(p, &mut x) {
+				Ok(Some(chunk)) => {
+					if let Err(e) = p.write(h, chunk) {
+						result = Err(e);
+						break;
+					}
+				}
+				Ok(None) => break,
+				Err(e) => {
+					result = Err(e);
+					break;
+				}
+			}
+		}
+		let closed = p.close(h);
+		result.and(closed)
+	}
+
 	/// The destination of the file for `dest` (`SOUND\ADLIB.DRV`) as the pack names it.
 	pub fn name_of(dest: &str) -> String {
 		dest.replace('\\', "/")

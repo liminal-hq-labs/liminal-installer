@@ -40,7 +40,7 @@ use alloc::vec::Vec;
 use crate::Error;
 use crate::model::{FileEntry, Op, Project};
 use crate::pack::{Crc, Pack};
-use crate::platform::{Platform, ShortcutKind};
+use crate::platform::{GroupAdd, Platform, ShortcutKind};
 use crate::ui::Values;
 
 /// The receipt's file name.
@@ -124,6 +124,31 @@ fn rollback<P: Platform>(p: &mut P, j: &Journal) {
 	}
 	for d in j.dirs.iter().rev() {
 		let _ = p.remove_dir(d);
+	}
+}
+
+/// Removes Program Manager items, given as `group|name`, one conversation for each group, and
+/// the groups in `made` as well when they are left empty by it.
+fn remove_groups<P: Platform>(p: &mut P, items: &[String], made: &[String]) {
+	let mut groups: Vec<&str> = Vec::new();
+	for g in items {
+		if let Some((group, _)) = g.split_once('|')
+			&& !groups.contains(&group)
+		{
+			groups.push(group);
+		}
+	}
+	for group in groups {
+		let names: Vec<&str> = items
+			.iter()
+			.filter_map(|g| g.split_once('|'))
+			.filter(|(gr, _)| *gr == group)
+			.map(|(_, n)| n)
+			.collect();
+		let made_group = made.iter().any(|m| m == group);
+		if let Some(s) = p.shell() {
+			s.remove_group(group, &names, made_group);
+		}
 	}
 }
 
@@ -250,15 +275,7 @@ fn shell_shortcut<P: Platform>(
 		return Ok(false);
 	};
 	if kind == ShortcutKind::GroupItem {
-		let command = join(dir, target);
-		let added = match p.shell() {
-			Some(s) => s.add_group_item(&project.name, name, &command, dir)?,
-			None => false,
-		};
-		if added {
-			made.groups.push(format!("{}|{name}", project.name));
-		}
-		return Ok(added);
+		return group_item(p, project, name, &join(dir, target), dir, made);
 	}
 	let Some(programs) = p.shell().and_then(|s| s.start_menu_programs()) else {
 		return Ok(true);
@@ -277,6 +294,33 @@ fn shell_shortcut<P: Platform>(
 	}
 	made.shortcuts.push(lnk);
 	Ok(true)
+}
+
+/// An item in the product's Program Manager group. False when there is no Program Manager to
+/// make it, and the caller falls back to a batch launcher.
+fn group_item<P: Platform>(
+	p: &mut P,
+	project: &Project,
+	name: &str,
+	command: &str,
+	dir: &str,
+	made: &mut Made,
+) -> Result<bool, Error> {
+	let added = match p.shell() {
+		Some(s) => s.add_group_item(&project.name, name, command, dir)?,
+		None => GroupAdd::Unavailable,
+	};
+	Ok(match added {
+		GroupAdd::Unavailable => false,
+		GroupAdd::Added { made_group } => {
+			made.groups.push(format!("{}|{name}", project.name));
+			// Only the call that made the group sees it missing; later items find it there.
+			if made_group && !made.made_groups.contains(&project.name) {
+				made.made_groups.push(project.name.clone());
+			}
+			true
+		}
+	})
 }
 
 /// A name with the characters a file name cannot hold taken out.
@@ -307,6 +351,8 @@ struct Made {
 	keys: Vec<String>,
 	/// Program Manager items, as `group|name`.
 	groups: Vec<String>,
+	/// The Program Manager groups this install made, so the uninstall may delete them.
+	made_groups: Vec<String>,
 }
 
 /// Installs the selected components (and the required ones) into `dir`.
@@ -342,12 +388,15 @@ pub fn install<P: Platform>(
 		extras: Vec::new(),
 		keys: Vec::new(),
 		groups: Vec::new(),
+		made_groups: Vec::new(),
 	};
 	let result = do_install(
 		p, project, pack, &dir, selected, v, &files, free, &mut j, &mut made, progress,
 	);
 	if result.is_err() {
 		rollback(p, &j);
+		// The items go before the group, and the files they start are already gone.
+		remove_groups(p, &made.groups, &made.made_groups);
 	}
 	result
 }
@@ -460,8 +509,13 @@ fn do_install<P: Platform>(
 			}
 		}
 	}
-	if p.shell().is_some_and(|s| s.registers_uninstall()) {
-		let bytes = pack.project_bytes(p)?;
+	if p.shell().is_some_and(|s| s.keeps_uninstaller()) {
+		let streamed = p.shell().is_some_and(|s| s.streams_project());
+		let bytes = if streamed {
+			Vec::new()
+		} else {
+			pack.project_bytes(p)?
+		};
 		let names = match p.shell() {
 			Some(s) => s.install_uninstaller(dir, &bytes)?,
 			None => Vec::new(),
@@ -470,6 +524,20 @@ fn do_install<P: Platform>(
 			j.files.push(join(dir, &name));
 			made.extras.push(name);
 		}
+		if streamed {
+			let dat = join(dir, "UNINST.DAT");
+			j.files.push(dat.clone());
+			pack.write_project(p, &dat)?;
+			made.extras.push("UNINST.DAT".to_string());
+		}
+		// Where the shell has groups, the uninstaller is an item in the product's group.
+		if p.shell().map(|s| s.shortcut_kind()) == Some(ShortcutKind::GroupItem) {
+			let item = format!("Uninstall {}", project.name);
+			let command = format!("{} /U {dir}", join(dir, "UNINST.EXE"));
+			group_item(p, project, &item, &command, dir, made)?;
+		}
+	}
+	if p.shell().is_some_and(|s| s.registers_uninstall()) {
 		let uninstall = format!("\"{}\" /U \"{dir}\"", join(dir, "UNINST.EXE"));
 		let key = project.id.clone();
 		if let Some(s) = p.shell() {
@@ -527,9 +595,13 @@ fn do_install<P: Platform>(
 	for g in &made.groups {
 		lir.push_str(&format!("G {g}\r\n"));
 	}
+	for g in &made.made_groups {
+		lir.push_str(&format!("P {g}\r\n"));
+	}
 	let receipt = join(dir, RECEIPT);
+	// Noted first, so a receipt that fails half way through is rolled back with the rest.
+	j.files.push(receipt.clone());
 	write_text(p, &receipt, &lir)?;
-	j.files.push(receipt);
 	Ok(())
 }
 
@@ -551,6 +623,9 @@ pub struct Receipt {
 	pub keys: Vec<String>,
 	/// The Program Manager items a Windows 3.1 install made, as `group|name`.
 	pub groups: Vec<String>,
+	/// The Program Manager groups the install made (`P`), which the uninstall deletes; a group it
+	/// found there is left.
+	pub made_groups: Vec<String>,
 	/// The uninstaller's own files, below the install folder.
 	pub extras: Vec<String>,
 }
@@ -603,6 +678,8 @@ impl Receipt {
 				r.keys.push(rest.to_string());
 			} else if let Some(rest) = line.strip_prefix("G ") {
 				r.groups.push(rest.to_string());
+			} else if let Some(rest) = line.strip_prefix("P ") {
+				r.made_groups.push(rest.to_string());
 			}
 		}
 		if r.dir.is_empty() {
@@ -679,11 +756,7 @@ pub fn uninstall<P: Platform>(
 			s.unregister_uninstall(k);
 		}
 	}
-	for g in &r.groups {
-		if let (Some((group, name)), Some(s)) = (g.split_once('|'), p.shell()) {
-			s.remove_group_item(group, name);
-		}
-	}
+	remove_groups(p, &r.groups, &r.made_groups);
 	for x in &r.extras {
 		let path = join(&dir, x);
 		if p.exists(&path) {

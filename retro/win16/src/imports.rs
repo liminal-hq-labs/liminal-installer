@@ -846,6 +846,40 @@ global_asm!(
 	".byte 0x66, 0xc3",
 );
 
+// KERNEL.134 GetWindowsDirectory
+global_asm!(
+	".code16",
+	".section .text.imp_GetWindowsDirectory,\"ax\"",
+	".globl GetWindowsDirectory",
+	"GetWindowsDirectory:",
+	"push ebp",
+	"mov bp, sp",
+	"push ebx",
+	"push esi",
+	"push edi",
+	"push ds",
+	"push word ptr [bp+8]",
+	"push word ptr [bp+12]",
+	"mov ss, word ptr [__w16_ss16]",
+	"movzx esp, sp",
+	".byte 0x9a",
+	".globl __w16imp_KERNEL_134_GetWindowsDirectory",
+	"__w16imp_KERNEL_134_GetWindowsDirectory:",
+	".word 0, 0",
+	".byte 0x66, 0xe8",
+	".long w16_sync_alias - . - 4",
+	"mov ss, word ptr [__w16_ss32]",
+	"movzx esp, sp",
+	"push ds",
+	"pop es",
+	"movzx eax, ax",
+	"pop edi",
+	"pop esi",
+	"pop ebx",
+	"pop ebp",
+	".byte 0x66, 0xc3",
+);
+
 // KERNEL.128 GetPrivateProfileString
 global_asm!(
 	".code16",
@@ -986,6 +1020,40 @@ global_asm!(
 	"movzx eax, ax",
 	"shl edx, 16",
 	"or eax, edx",
+	"pop edi",
+	"pop esi",
+	"pop ebx",
+	"pop ebp",
+	".byte 0x66, 0xc3",
+);
+
+// KERNEL.166 WinExec
+global_asm!(
+	".code16",
+	".section .text.imp_WinExec,\"ax\"",
+	".globl WinExec",
+	"WinExec:",
+	"push ebp",
+	"mov bp, sp",
+	"push ebx",
+	"push esi",
+	"push edi",
+	"push ds",
+	"push word ptr [bp+8]",
+	"push word ptr [bp+12]",
+	"mov ss, word ptr [__w16_ss16]",
+	"movzx esp, sp",
+	".byte 0x9a",
+	".globl __w16imp_KERNEL_166_WinExec",
+	"__w16imp_KERNEL_166_WinExec:",
+	".word 0, 0",
+	".byte 0x66, 0xe8",
+	".long w16_sync_alias - . - 4",
+	"mov ss, word ptr [__w16_ss32]",
+	"movzx esp, sp",
+	"push ds",
+	"pop es",
+	"movzx eax, ax",
 	"pop edi",
 	"pop esi",
 	"pop ebx",
@@ -1520,6 +1588,38 @@ global_asm!(
 	".byte 0x9a",
 	".globl __w16imp_USER_42_ShowWindow",
 	"__w16imp_USER_42_ShowWindow:",
+	".word 0, 0",
+	".byte 0x66, 0xe8",
+	".long w16_sync_alias - . - 4",
+	"mov ss, word ptr [__w16_ss32]",
+	"movzx esp, sp",
+	"push ds",
+	"pop es",
+	"movzx eax, ax",
+	"pop edi",
+	"pop esi",
+	"pop ebx",
+	"pop ebp",
+	".byte 0x66, 0xc3",
+);
+
+// USER.47 IsWindow
+global_asm!(
+	".code16",
+	".section .text.imp_IsWindow,\"ax\"",
+	".globl IsWindow",
+	"IsWindow:",
+	"push ebp",
+	"mov bp, sp",
+	"push ebx",
+	"push esi",
+	"push edi",
+	"push word ptr [bp+8]",
+	"mov ss, word ptr [__w16_ss16]",
+	"movzx esp, sp",
+	".byte 0x9a",
+	".globl __w16imp_USER_47_IsWindow",
+	"__w16imp_USER_47_IsWindow:",
 	".word 0, 0",
 	".byte 0x66, 0xe8",
 	".long w16_sync_alias - . - 4",
@@ -2463,6 +2563,71 @@ global_asm!(
 	".byte 0x66, 0xc3",
 );
 
+// USER.268 GlobalAddAtom
+global_asm!(
+	".code16",
+	".section .text.imp_GlobalAddAtom,\"ax\"",
+	".globl GlobalAddAtom",
+	"GlobalAddAtom:",
+	"push ebp",
+	"mov bp, sp",
+	"push ebx",
+	"push esi",
+	"push edi",
+	"push ds",
+	"push word ptr [bp+8]",
+	"mov ss, word ptr [__w16_ss16]",
+	"movzx esp, sp",
+	".byte 0x9a",
+	".globl __w16imp_USER_268_GlobalAddAtom",
+	"__w16imp_USER_268_GlobalAddAtom:",
+	".word 0, 0",
+	".byte 0x66, 0xe8",
+	".long w16_sync_alias - . - 4",
+	"mov ss, word ptr [__w16_ss32]",
+	"movzx esp, sp",
+	"push ds",
+	"pop es",
+	"movzx eax, ax",
+	"pop edi",
+	"pop esi",
+	"pop ebx",
+	"pop ebp",
+	".byte 0x66, 0xc3",
+);
+
+// USER.269 GlobalDeleteAtom
+global_asm!(
+	".code16",
+	".section .text.imp_GlobalDeleteAtom,\"ax\"",
+	".globl GlobalDeleteAtom",
+	"GlobalDeleteAtom:",
+	"push ebp",
+	"mov bp, sp",
+	"push ebx",
+	"push esi",
+	"push edi",
+	"push word ptr [bp+8]",
+	"mov ss, word ptr [__w16_ss16]",
+	"movzx esp, sp",
+	".byte 0x9a",
+	".globl __w16imp_USER_269_GlobalDeleteAtom",
+	"__w16imp_USER_269_GlobalDeleteAtom:",
+	".word 0, 0",
+	".byte 0x66, 0xe8",
+	".long w16_sync_alias - . - 4",
+	"mov ss, word ptr [__w16_ss32]",
+	"movzx esp, sp",
+	"push ds",
+	"pop es",
+	"movzx eax, ax",
+	"pop edi",
+	"pop esi",
+	"pop ebx",
+	"pop ebp",
+	".byte 0x66, 0xc3",
+);
+
 // USER.308 DefDlgProc
 global_asm!(
 	".code16",
@@ -2629,10 +2794,12 @@ unsafe extern "C" {
 	pub fn _lwrite_far(a0: u32, a1: u32, a2: u32) -> u32;
 	pub fn SetErrorMode(a0: u32) -> u32;
 	pub fn OutputDebugString(a0: u32) -> u32;
+	pub fn GetWindowsDirectory(a0: u32, a1: u32) -> u32;
 	pub fn GetPrivateProfileString(a0: u32, a1: u32, a2: u32, a3: u32, a4: u32, a5: u32) -> u32;
 	pub fn WritePrivateProfileString(a0: u32, a1: u32, a2: u32, a3: u32) -> u32;
 	pub fn GetDOSEnvironment() -> u32;
 	pub fn GetWinFlags() -> u32;
+	pub fn WinExec(a0: u32, a1: u32) -> u32;
 	pub fn MessageBox(a0: u32, a1: u32, a2: u32, a3: u32) -> u32;
 	pub fn InitApp(a0: u32) -> u32;
 	pub fn PostQuitMessage(a0: u32) -> u32;
@@ -2649,6 +2816,7 @@ unsafe extern "C" {
 	pub fn EndPaint(a0: u32, a1: u32) -> u32;
 	pub fn CreateWindow(a0: u32, a1: u32, a2: u32, a3: u32, a4: u32, a5: u32, a6: u32, a7: u32, a8: u32, a9: u32, a10: u32) -> u32;
 	pub fn ShowWindow(a0: u32, a1: u32) -> u32;
+	pub fn IsWindow(a0: u32) -> u32;
 	pub fn DestroyWindow(a0: u32) -> u32;
 	pub fn MoveWindow(a0: u32, a1: u32, a2: u32, a3: u32, a4: u32, a5: u32) -> u32;
 	pub fn RegisterClass(a0: u32) -> u32;
@@ -2676,6 +2844,8 @@ unsafe extern "C" {
 	pub fn LoadString(a0: u32, a1: u32, a2: u32, a3: u32) -> u32;
 	pub fn GetSystemMetrics(a0: u32) -> u32;
 	pub fn GetDialogBaseUnits() -> u32;
+	pub fn GlobalAddAtom(a0: u32) -> u32;
+	pub fn GlobalDeleteAtom(a0: u32) -> u32;
 	pub fn DefDlgProc(a0: u32, a1: u32, a2: u32, a3: u32) -> u32;
 	pub fn SetBkMode(a0: u32, a1: u32) -> u32;
 	pub fn TextOut(a0: u32, a1: u32, a2: u32, a3: u32, a4: u32) -> u32;

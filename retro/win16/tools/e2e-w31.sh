@@ -12,7 +12,13 @@
 # controls and writes the page text, then `SETUP.EXE /U` removes the install. A run passes when both exit 0, the pages equal the host's golden,
 # the files are the receipt's sizes and the folder is gone. DOSBox-X comes from the `dosbox-x` on the path or the Docker image named by
 # DOSBOX_IMAGE (default liminal-installer-retro:local, from retro/build.sh). It needs an X server (xvfb-run is used when DISPLAY is unset).
-# With SHOTS set, the first run of each example saves a screenshot of every page the script waits on (`/PAUSE=2500`).
+# With SHOTS set, the first run of each example saves a screenshot of every page the script waits on (`/PAUSE=2500`), one of Program
+# Manager with the new group open (4 s after SETUP exits) and one of Program Manager after the uninstall, with the group gone.
+# A run also needs the Program Manager conversation to have worked: the log says `progman: added` and, on removal, `progman: removed;
+# group gone`, the group's .GRP file exists in C:\WINDOWS after the install and is gone after the uninstall, and PROGMAN.INI names it
+# only in between. KEPT=1 removes the install with the uninstaller it keeps (`C:\\FOLDER\\UNINST.EXE /U C:\\FOLDER`, which copies itself to the
+# temporary folder) in place of `SETUP /U` from the disk, and also checks that UNINST.EXE and UNINST.DAT are in the folder after the install
+# and that the group holds the uninstall item next to the program's. PROGMAN_OPTIONAL=1 turns the Program Manager checks off, for a tree whose shell is not Program Manager.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../../.."
 : "${W31_TREE:?set W31_TREE to a Windows 3.11 tree}"
@@ -41,6 +47,17 @@ OUT_DIR="$work/exe" bash retro/win16/build.sh > /dev/null
 cargo build -q --locked -p li-cli
 liminst="${CARGO_TARGET_DIR:-$PWD/target}/debug/liminst"
 
+# restore_pm: brings Program Manager up through the Task List (Ctrl+Esc, then Down twice to "Program Manager" in this tree, then Return),
+# because this tree starts it minimized and a screenshot should show its groups.
+restore_pm() {
+	xdotool key ctrl+Escape 2> /dev/null || true
+	sleep 1
+	xdotool key Down 2> /dev/null || true
+	xdotool key Down 2> /dev/null || true
+	xdotool key Return 2> /dev/null || true
+	sleep 3
+}
+
 # session <WIN command line> <log in C:> <seconds>: one Windows session; true when its log reaches an `exit` line.
 session() {
 	{
@@ -49,6 +66,8 @@ session() {
 output=surface
 fullscreen=false
 windowresolution=800x600
+autolock=false
+mouse_emulation=always
 [dosbox]
 machine=svga_s3
 memsize=32
@@ -109,6 +128,11 @@ for ex in "${examples[@]}"; do
 			done
 		fi
 		wait_exit S.LOG 240 || { ok=0; why+=' install-no-exit'; }
+		if [ -n "$pause" ]; then
+			sleep 4
+			restore_pm
+			import -window root -crop 800x600+320+280 +repage "$SHOTS/w31-$ex-group.png" 2> /dev/null || true
+		fi
 		stop
 		[ "$(tail -n1 "$work/c/S.LOG" 2> /dev/null | tr -d '\r')" = "exit 0" ] || { ok=0; why+=" install-exit:$(tail -n1 "$work/c/S.LOG" 2> /dev/null | tr -d '\r')"; }
 		diff <(norm "$work/c/S.TXT") <(norm "crates/li-retro-build/tests/golden/win16/$ex.pages.txt") > "$work/diff" 2>&1 || { ok=0; why+=' pages'; head -8 "$work/diff" >&2; }
@@ -122,13 +146,45 @@ for ex in "${examples[@]}"; do
 		else
 			ok=0
 		fi
-		session "D:\\SETUP.EXE /U $dir /LOG=C:\\U.LOG /PLAY=D:\\PLAY2.TXT" U.LOG 240 || true
+		grp=''
+		if [ -f "$host/INSTALL.LIR" ]; then
+			grp="$(tr -d '\r' < "$host/INSTALL.LIR" | sed -n 's/^P //p' | head -n1 | LC_ALL=C tr -cd '[:alnum:]' | cut -c1-8 | tr a-z A-Z)"
+			[ -z "$grp" ] || grp="$grp.GRP"
+		fi
+		if [ -z "${PROGMAN_OPTIONAL:-}" ]; then
+			grep -q '^progman: added' "$work/c/S.LOG" 2> /dev/null || { ok=0; why+=' progman-not-added'; }
+			[ -n "$grp" ] || { ok=0; why+=' no-P-record'; }
+			[ -z "$grp" ] || [ -f "$work/c/WINDOWS/$grp" ] || { ok=0; why+=" no-$grp"; }
+			[ -z "$grp" ] || grep -qi "$grp" "$work/c/WINDOWS/PROGMAN.INI" || { ok=0; why+=' ini-has-no-group'; }
+		fi
+		if [ -n "${KEPT:-}" ]; then
+			[ -f "$host/UNINST.EXE" ] && [ -f "$host/UNINST.DAT" ] || { ok=0; why+=' no-kept-uninstaller'; }
+			grep -q '^progman: group: .*,2,' "$work/c/S.LOG" 2> /dev/null || { ok=0; why+=' no-uninstall-item'; }
+			uninstall="$dir\\UNINST.EXE /U $dir"
+		else
+			uninstall="D:\\SETUP.EXE /U $dir"
+		fi
+		session "$uninstall /LOG=C:\\U.LOG /PLAY=D:\\PLAY2.TXT" U.LOG 240 || true
 		wait_exit U.LOG 240 || { ok=0; why+=' uninstall-no-exit'; }
+		if [ -n "$pause" ]; then
+			sleep 4
+			restore_pm
+			import -window root -crop 800x600+320+280 +repage "$SHOTS/w31-$ex-removed.png" 2> /dev/null || true
+		fi
 		stop
+		if [ -z "${PROGMAN_OPTIONAL:-}" ]; then
+			grep -q '^progman: removed; group gone' "$work/c/U.LOG" 2> /dev/null || { ok=0; why+=' progman-not-removed'; }
+			[ -z "$grp" ] || [ ! -f "$work/c/WINDOWS/$grp" ] || { ok=0; why+=" $grp-left"; }
+			[ -z "$grp" ] || ! grep -qi "$grp" "$work/c/WINDOWS/PROGMAN.INI" || { ok=0; why+=' ini-still-has-group'; }
+		fi
 		[ "$(tail -n1 "$work/c/U.LOG" 2> /dev/null | tr -d '\r')" = "exit 0" ] || { ok=0; why+=" uninstall-exit:$(tail -n1 "$work/c/U.LOG" 2> /dev/null | tr -d '\r')"; }
-		[ ! -e "$host" ] || { ok=0; why+=' folder-left'; }
+		[ ! -e "$host" ] || { ok=0; why+=" folder-left($(ls "$host" 2> /dev/null | tr '\n' ' '))"; }
 		pass=$((pass + ok))
-		echo "e2e-w31: $ex run $run: $([ "$ok" = 1 ] && echo pass || echo "FAIL$why") ($n files; $(grep -h 'heap peak' "$work/c/S.LOG" 2> /dev/null | tr -d '\r'))"
+		echo "e2e-w31: $ex run $run: $([ "$ok" = 1 ] && echo pass || echo "FAIL$why") ($n files; $(grep -h 'heap peak' "$work/c/S.LOG" 2> /dev/null | tr -d '\r'); $(grep -h '^progman:' "$work/c/S.LOG" 2> /dev/null | tr -d '\r' | tr '\n' ';'))"
+		if [ -n "$pause" ]; then
+			grep -h '^progman:' "$work/c/S.LOG" "$work/c/U.LOG" 2> /dev/null | tr -d '\r' > "$SHOTS/w31-$ex-progman.log" || true
+			cp "$work/c/WINDOWS/PROGMAN.INI" "$SHOTS/w31-$ex-PROGMAN.INI.after-uninstall" 2> /dev/null || true
+		fi
 	done
 done
 echo "e2e-w31: $pass of $total runs passed"

@@ -4,7 +4,9 @@
 # (c) Copyright 2026 Liminal HQ, Scott Morris
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 #
-# usage: retro/win16/tools/e2e-wine.sh
+# usage: [KEPT=1] retro/win16/tools/e2e-wine.sh
+#
+# With KEPT=1 the uninstall is the kept `UNINST.EXE /U` of the install folder instead of `SETUP.EXE /U`.
 #
 # Builds SETUP.EXE and the two packs (`liminst build -t win16-x86`), then for each example runs `SETUP.EXE /PLAY=PLAY.TXT /DUMP=...`: the
 # script presses the real controls (the licence choice, then every default button) and `/DUMP` writes the text of each page, which is
@@ -52,6 +54,13 @@ for ex in lt-fizz planboard; do
 		fail=1
 		continue
 	fi
+	# Program Manager: Wine may or may not answer the DDE conversation; either is logged and either passes, with a note.
+	pm="$(tr -d '\r' < "$WINEPREFIX/drive_c/$ex.LOG" | grep '^progman:' | tr '\n' ';' || true)"
+	case "$pm" in
+		*"progman: added"*) echo "e2e-wine: $ex: Program Manager accepted the conversation ($pm)" ;;
+		*"progman: unavailable"*) echo "e2e-wine: $ex: no Program Manager under Wine; the batch launcher was written ($pm)" ;;
+		*) echo "e2e-wine: $ex: unexpected Program Manager result: ${pm:-none}" >&2; fail=1 ;;
+	esac
 	if diff <(norm "$WINEPREFIX/drive_c/$ex.TXT") <(norm "crates/li-retro-build/tests/golden/win16/$ex.pages.txt") > "$dir/diff"; then
 		echo "e2e-wine: $ex: every page the controls show equals the host's golden"
 	else
@@ -66,7 +75,17 @@ for ex in lt-fizz planboard; do
 		n=$((n + 1))
 	done < <(tr -d '\r' < "$host/INSTALL.LIR")
 	echo "e2e-wine: $ex installed $n files, receipt checked"
-	(cd "$dir" && wine SETUP.EXE /U "C:\\$name" "/LOG=C:\\$ex-u.LOG" /PLAY=PLAY2.TXT > /dev/null 2>&1) || true
+	echo "e2e-wine: $ex: the receipt has $(grep -c '^G ' "$host/INSTALL.LIR") group item(s) and $(grep -c '^P ' "$host/INSTALL.LIR") made group(s)"
+	if [ -n "${KEPT:-}" ]; then
+		# The kept uninstaller: it copies itself to the temporary folder and runs from there.
+		[ -f "$host/UNINST.EXE" ] && [ -f "$host/UNINST.DAT" ] || { echo "e2e-wine: $ex: no kept uninstaller" >&2; fail=1; }
+		# The copy runs from the temporary folder, so its script is given by an absolute path.
+		cp "$dir/PLAY2.TXT" "$WINEPREFIX/drive_c/PLAY2.TXT"
+		(cd "$dir" && wine "C:\\$name\\UNINST.EXE" /U "C:\\$name" "/LOG=C:\\$ex-u.LOG" /PLAY=C:\\PLAY2.TXT > /dev/null 2>&1) || true
+		for _ in $(seq 1 60); do grep -q '^exit' "$WINEPREFIX/drive_c/$ex-u.LOG" 2> /dev/null && break; sleep 1; done
+	else
+		(cd "$dir" && wine SETUP.EXE /U "C:\\$name" "/LOG=C:\\$ex-u.LOG" /PLAY=PLAY2.TXT > /dev/null 2>&1) || true
+	fi
 	if [ -e "$host" ]; then
 		echo "e2e-wine: $ex uninstall left $host behind" >&2
 		fail=1

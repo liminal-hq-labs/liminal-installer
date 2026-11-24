@@ -17,6 +17,7 @@
 //! | [`install`] | Install, uninstall and the `INSTALL.LIR` receipt |
 //! | [`app`] | The flow VM that ties them together (`run`) |
 //! | [`platform`] | What the runtime needs from the machine |
+//! | [`progman`] | The Program Manager commands a Windows 3.1 install sends, built and quoted |
 //! | [`sound`] | The `detect-sound` built-in |
 //! | [`pack`] | `SETUP.LPK`: the Liminal Pack that holds the project and the files, read through `li-lpk` |
 //! | [`cp437`], [`text`] | The PC character set, wrapping, `{placeholders}` and sizes |
@@ -38,6 +39,7 @@ pub mod install;
 pub mod model;
 pub mod pack;
 pub mod platform;
+pub mod progman;
 #[cfg(feature = "std")]
 pub mod sim;
 pub mod sound;

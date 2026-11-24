@@ -56,12 +56,14 @@ fn other(m: impl Into<String>) -> BuildError {
 	BuildError::Other(m.into())
 }
 
-/// Finds the repository's `dos/` folder by walking up from `start`.
+/// Finds the runtime's folder (`dos/` or `win32/`) by walking up from `start`. A folder counts
+/// only when it has this repository's layout, a `build.sh` and a `setup/Cargo.toml`, so a
+/// product repository's own `dos/build.sh` is never run.
 fn find_dos_dir(start: &Path, flavour: Flavour) -> Option<PathBuf> {
 	start
 		.ancestors()
 		.map(|d| d.join(flavour.folder()))
-		.find(|d| d.join("build.sh").is_file())
+		.find(|d| d.join("build.sh").is_file() && d.join("setup/Cargo.toml").is_file())
 }
 
 /// The runtime, `SETUP.EXE`: the named file, or one found or built.
@@ -107,7 +109,7 @@ fn runtime(req: &BuildRequest, flavour: Flavour) -> Result<Vec<u8>, BuildError> 
 		}
 	}
 	Err(other(format!(
-		"no {label} runtime: pass --{0}-runtime PATH to a prebuilt SETUP.EXE, set {var}, or run from a checkout that has {0}/build.sh",
+		"no {label} runtime: pass --{0}-runtime PATH to a prebuilt SETUP.EXE, set {var}, or run from a checkout that has {0}/build.sh and {0}/setup",
 		flavour.folder()
 	)))
 }
@@ -194,6 +196,11 @@ pub fn build_for(
 	} else {
 		Some(runtime(req, flavour)?)
 	};
+	if flavour == Flavour::Win16 && exe.is_none() && outputs.iter().any(|o| o == "floppy-1440") {
+		return Err(other(
+			"the floppy-1440 output needs the Windows 3.1 runtime, and none was found: build it with retro/win16/build.sh and pass --win16-runtime PATH (or set LIMINST_WIN16_RUNTIME)",
+		));
+	}
 	let readme = readme(&req.project.installer.product.name, &req.version, flavour).into_bytes();
 	let mut files = Vec::new();
 	if let Some(exe) = exe {
