@@ -16,8 +16,11 @@ use crate::Error;
 pub const COLS: usize = 80;
 /// The rows of the text screen.
 pub const ROWS: usize = 25;
-/// The version of the compiled format.
-pub const FORMAT: u16 = 2;
+/// The version of the compiled format the compiler writes.
+pub const FORMAT: u16 = 3;
+/// The oldest version the runtime still reads. Version 3 added [`Op::FileType`]; a version 2 project has
+/// no such operation, and a runtime that predates version 3 refuses a version 3 project.
+pub const FORMAT_MIN: u16 = 2;
 
 /// The attributes of the retro look.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -308,6 +311,16 @@ pub enum Op {
 		target: String,
 		batch: String,
 	},
+	/// Makes the product the owner of a file type (format 3). `ext` has no dot and is lower case;
+	/// `prog_id` names the type for the registry; `target` is the program, below the install
+	/// directory, that opens it. The runtime records what owned the extension before and puts it
+	/// back on uninstall.
+	FileType {
+		ext: String,
+		prog_id: String,
+		name: String,
+		target: String,
+	},
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -353,8 +366,11 @@ impl Project {
 	/// Checks every index and every run, so the VM can index without checking again.
 	pub fn validate(&self) -> Result<(), Error> {
 		let bad = |m: &str| Err(Error::Format(m.to_string()));
-		if self.format != FORMAT {
+		if !(FORMAT_MIN..=FORMAT).contains(&self.format) {
 			return bad("unsupported format version");
+		}
+		if self.format < 3 && self.ops.iter().any(|o| matches!(o, Op::FileType { .. })) {
+			return bad("a file type needs format version 3");
 		}
 		for s in &self.screens {
 			let mut n = 0usize;

@@ -5,6 +5,8 @@
 #
 # GlobalAddAtom and GlobalDeleteAtom are USER's (268, 269); KERNEL 70 and 71 are the local AddAtom and DeleteAtom. All three checked against
 # Windows 3.11's own USER.EXE with tools/ne_dump.py.
+# GetProfileString (58) and WriteProfileString (59) are named by that KERNEL's own export table (ne_dump.py on Windows 3.11's KRNL386.EXE).
+# WriteProfileString_delete is the same export with a far NULL for the value, which deletes the key.
 # Ordinals and Pascal signatures come from Wine's krnl386.exe16.spec, user.exe16.spec and gdi.exe16.spec.
 # ARGS has one letter per Rust argument, in Pascal (left to right) order:
 #   w  a 16-bit word (the low 16 bits of the argument)
@@ -22,6 +24,9 @@ KERNEL 29 Yield - v
 KERNEL 30 WaitEvent w w
 KERNEL 37 GetCurrentPDB - w
 KERNEL 49 GetModuleFileName wpw w
+KERNEL 58 GetProfileString ppppw w
+KERNEL 59 WriteProfileString ppp w
+KERNEL 59 WriteProfileString_delete ppl w
 KERNEL 60 FindResource wll w
 KERNEL 61 LoadResource ww w
 KERNEL 62 LockResource w l

@@ -13,7 +13,8 @@
 # compared with the host test's golden (crates/li-retro-build/tests/golden/win16). The receipt's sizes and the files are checked, then
 # `SETUP.EXE /U` removes it again and the folder must be gone. Wine runs Win16 programs through its own krnl386, which keeps the
 # register halves Windows itself would not, so this proves the flow and the file handling, not the register handling: that is the
-# Windows 3.11 run (e2e-w31.sh). Skips with a note when Wine is missing.
+# Windows 3.11 run (e2e-w31.sh). Planboard also declares a file type: a `pbd=` line in WIN.INI's `[Extensions]` replaces one seeded
+# first (Notepad's), and after the uninstall the seeded line is back (Wine keeps the section in its registry). Skips with a note when Wine is missing.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../../.."
 root="$PWD"
@@ -38,6 +39,12 @@ wine wineboot -i > /dev/null 2>&1 || true
 # The host's pages and the controls' pages differ only in the free space and in what the machine's sound hardware is.
 norm() { tr -d '\r' < "$1" | sed -e 's/^text: Space available: .*/text: Space available: N/' -e 's/Free: [0-9.]* [KMG]B/Free: N/' -e 's/^text: Setup found: .*/text: Setup found: N/' -e 's/^field: \(Port\|IRQ\|DMA\) = .*/field: \1 = N/' -e '/^radio: Sound card/,/^[^ ]/ s/^  (o)/  ( )/'; }
 
+# The `pbd` line of WIN.INI's [Extensions] section. Wine maps that section of WIN.INI to the registry, as Windows NT does, so it is read and
+# seeded there; the Windows 3.11 run (e2e-w31.sh) reads the real WIN.INI.
+extkey='HKCU\Software\Microsoft\Windows NT\CurrentVersion\Extensions'
+pbd_line() { wine reg query "$extkey" /v pbd 2> /dev/null | tr -d '\r' | sed -n 's/^ *pbd *REG_SZ *\(.*\)$/pbd=\1/p'; }
+seed_pbd() { wine reg add "$extkey" /v pbd /t REG_SZ /d 'C:\WINDOWS\NOTEPAD.EXE ^.pbd' /f > /dev/null 2>&1; }
+
 fail=0
 for ex in lt-fizz planboard; do
 	dir="$work/$ex"
@@ -48,6 +55,8 @@ for ex in lt-fizz planboard; do
 	: > "$dir/PLAY2.TXT"
 	name="$([ "$ex" = lt-fizz ] && echo LTFIZZ || echo PLANBOAR)"
 	host="$WINEPREFIX/drive_c/$name"
+	[ "$ex" != planboard ] || seed_pbd
+	[ "$ex" != planboard ] || [ "$(pbd_line)" = 'pbd=C:\WINDOWS\NOTEPAD.EXE ^.pbd' ] || { echo "e2e-wine: could not seed WIN.INI: $(pbd_line)" >&2; fail=1; }
 	(cd "$dir" && wine SETUP.EXE "/LOG=C:\\$ex.LOG" /PLAY=PLAY.TXT "/DUMP=C:\\$ex.TXT" > /dev/null 2>&1) || true
 	if [ "$(tail -n1 "$WINEPREFIX/drive_c/$ex.LOG" 2> /dev/null | tr -d '\r')" != "exit 0" ]; then
 		echo "e2e-wine: $ex install did not exit 0" >&2
@@ -76,6 +85,14 @@ for ex in lt-fizz planboard; do
 	done < <(tr -d '\r' < "$host/INSTALL.LIR")
 	echo "e2e-wine: $ex installed $n files, receipt checked"
 	echo "e2e-wine: $ex: the receipt has $(grep -c '^G ' "$host/INSTALL.LIR") group item(s) and $(grep -c '^P ' "$host/INSTALL.LIR") made group(s)"
+	if [ "$ex" = planboard ]; then
+		if [ "$(pbd_line)" = "pbd=C:\\$name\\PLANBRD.EXE ^.pbd" ] && tr -d '\r' < "$host/INSTALL.LIR" | grep -qxF "A pbd|hq.liminal.planboard.pbd|C:\\$name\\PLANBRD.EXE|C:\\WINDOWS\\NOTEPAD.EXE ^.pbd"; then
+			echo "e2e-wine: $ex: WIN.INI's [Extensions] names Planboard, and the receipt keeps Notepad's line"
+		else
+			echo "e2e-wine: $ex: WIN.INI has '$(pbd_line)' and the receipt '$(grep '^A ' "$host/INSTALL.LIR")'" >&2
+			fail=1
+		fi
+	fi
 	if [ -n "${KEPT:-}" ]; then
 		# The kept uninstaller: it copies itself to the temporary folder and runs from there.
 		[ -f "$host/UNINST.EXE" ] && [ -f "$host/UNINST.DAT" ] || { echo "e2e-wine: $ex: no kept uninstaller" >&2; fail=1; }
@@ -91,6 +108,14 @@ for ex in lt-fizz planboard; do
 		fail=1
 	else
 		echo "e2e-wine: $ex uninstalled"
+	fi
+	if [ "$ex" = planboard ]; then
+		if [ "$(pbd_line)" = 'pbd=C:\WINDOWS\NOTEPAD.EXE ^.pbd' ]; then
+			echo "e2e-wine: $ex: WIN.INI [Extensions] has Notepad's line back"
+		else
+			echo "e2e-wine: $ex: WIN.INI has '$(pbd_line)' after the uninstall" >&2
+			fail=1
+		fi
 	fi
 done
 exit "$fail"

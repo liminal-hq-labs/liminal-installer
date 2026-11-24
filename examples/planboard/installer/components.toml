@@ -26,7 +26,7 @@ name    = "Documentation"
 targets = ["linux-x86_64", "windows-x86_64", "windows-x86", "macos-aarch64"]
 files = [{ from = "dist/docs/*.md", to = "{install}/docs/" }]
 
-# The Windows 3.1 build has its own components: 8.3 names, one folder, no file types or URL schemes.
+# The Windows 3.1 build has its own components: 8.3 names, one folder, no URL schemes, and a three-letter file type.
 [[component]]
 id       = "app16"
 name     = "Planboard"
@@ -34,6 +34,7 @@ required = true
 targets  = ["win16-x86"]
 files    = [{ from = "dist/{target}/PLANBRD.EXE", to = "{install}/" }]
 shortcut = [{ name = "Planboard", target = "{install}/PLANBRD.EXE", in = "start_menu" }]
+file_types = [{ extension = ".pbd", name = "Planboard board", open_with = "{install}/PLANBRD.EXE" }]
 
 [[component]]
 id      = "docs16"

@@ -34,6 +34,11 @@ struct R<'a> {
 	b: &'a [u8],
 	at: usize,
 	bad: bool,
+	/// A variant index this runtime does not know, as a newer compiler writes. Kept apart from
+	/// `bad` so the error can say the project is newer, not damaged.
+	unknown: bool,
+	/// The project's format version, read first, which says how many variants an enum has.
+	format: u16,
 }
 
 impl R<'_> {
@@ -83,10 +88,19 @@ impl R<'_> {
 	fn tag(&mut self, n: u32) -> u32 {
 		let v = self.var();
 		if v >= n {
+			self.unknown = true;
 			self.bad = true;
 			return 0;
 		}
 		v
+	}
+
+	/// A variant index this format does not define. The value is a stand-in the caller returns; the
+	/// decode fails once it is done.
+	fn unknown<T>(&mut self, stand_in: T) -> T {
+		self.unknown = true;
+		self.bad = true;
+		stand_in
 	}
 
 	/// A length that cannot exceed what is left to read, so a bad one cannot ask for gigabytes.
@@ -180,7 +194,8 @@ impl R<'_> {
 				align: match self.tag(3) {
 					0 => Align::Left,
 					1 => Align::Centre,
-					_ => Align::Right,
+					2 => Align::Right,
+					_ => self.unknown(Align::Left),
 				},
 				template: self.string(),
 			},
@@ -218,7 +233,8 @@ impl R<'_> {
 				source: match self.tag(3) {
 					0 => Source::File,
 					1 => Source::Total,
-					_ => Source::FreeSpace,
+					2 => Source::FreeSpace,
+					_ => self.unknown(Source::File),
 				},
 				low_below: self.u8(),
 			},
@@ -228,11 +244,16 @@ impl R<'_> {
 				slides: self.seq(Self::string),
 				interval: self.u8(),
 			},
-			_ => Widget::Doc {
+			6 => Widget::Doc {
 				rect,
 				attr: self.u8(),
 				text: self.string(),
 			},
+			_ => self.unknown(Widget::Doc {
+				rect,
+				attr: 0,
+				text: String::new(),
+			}),
 		}
 	}
 
@@ -244,14 +265,16 @@ impl R<'_> {
 				1 => Kind::Action,
 				2 => Kind::Branch,
 				3 => Kind::Commit,
-				_ => Kind::Finish,
+				4 => Kind::Finish,
+				_ => self.unknown(Kind::Finish),
 			},
 			screen: self.opt(),
 			when: self.bytes(),
 			builtin: match self.tag(3) {
 				0 => Builtin::None,
 				1 => Builtin::DetectSound,
-				_ => Builtin::CheckDiskSpace,
+				2 => Builtin::CheckDiskSpace,
+				_ => self.unknown(Builtin::None),
 			},
 			next: self.opt(),
 			branches: self.seq(Self::branch),
@@ -276,7 +299,9 @@ impl R<'_> {
 	}
 
 	fn op(&mut self) -> Op {
-		match self.tag(3) {
+		// Format 3 added the file type; under format 2 its tag is not an operation at all.
+		let known = if self.format >= 3 { 4 } else { 3 };
+		match self.tag(known) {
 			0 => Op::Mkdir {
 				path: self.string(),
 			},
@@ -287,11 +312,20 @@ impl R<'_> {
 				value: self.string(),
 				when_set: self.string(),
 			},
-			_ => Op::Shortcut {
+			2 => Op::Shortcut {
 				name: self.string(),
 				target: self.string(),
 				batch: self.string(),
 			},
+			3 => Op::FileType {
+				ext: self.string(),
+				prog_id: self.string(),
+				name: self.string(),
+				target: self.string(),
+			},
+			_ => self.unknown(Op::Mkdir {
+				path: String::new(),
+			}),
 		}
 	}
 
@@ -319,9 +353,19 @@ pub(crate) fn project(bytes: &[u8]) -> Result<Project, Error> {
 		b: bytes,
 		at: 0,
 		bad: false,
+		unknown: false,
+		format: 0,
 	};
+	let format = r.u16();
+	if format > FORMAT {
+		// Written by a newer compiler: its layout may differ anywhere, so nothing is read.
+		return Err(Error::Format(String::from(
+			"the compiled project is newer than this setup program",
+		)));
+	}
+	r.format = format;
 	let p = Project {
-		format: r.u16(),
+		format,
 		id: r.string(),
 		name: r.string(),
 		publisher: r.string(),
@@ -336,6 +380,11 @@ pub(crate) fn project(bytes: &[u8]) -> Result<Project, Error> {
 		files: r.seq(R::file),
 		ops: r.seq(R::op),
 	};
+	if r.unknown {
+		return Err(Error::Format(String::from(
+			"the compiled project uses something this setup program does not know; it is newer",
+		)));
+	}
 	if r.bad || r.at != bytes.len() {
 		return Err(Error::Format(String::from(
 			"the compiled project is cut short or damaged",

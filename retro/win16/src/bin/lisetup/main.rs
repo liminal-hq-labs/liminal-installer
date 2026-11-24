@@ -20,6 +20,7 @@ mod dde;
 mod dosio;
 mod heap;
 mod plat;
+mod profile;
 mod ui;
 
 use alloc::format;

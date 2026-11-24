@@ -102,11 +102,12 @@ The banner colour and the controls are the system's, not the theme's: `win32-cla
 - **Shortcuts** are `.lnk` files written through `IShellLink` and `IPersistFile` (COM from `ole32`, which Windows 95 has) into `Programs\<product name>\<shortcut name>.lnk` of the current user's Start menu (D65). The calls go through hand-written vtables. Program Manager DDE was rejected because later shells half support it, and writing the `.lnk` format by hand because it has to be right for every shell version.
 - **Add/Remove Programs.** `HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall\<product id>` gets `DisplayName`, `DisplayVersion`, `Publisher`, `InstallLocation` and `UninstallString`, which is `"<folder>\UNINST.EXE" /U "<folder>"`. When the machine key is closed to the account (Windows NT family, no administrator) the entry is written under the current user instead. A 32-bit program on 64-bit Windows writes below `Wow6432Node`, where Add/Remove Programs reads it.
 - **The uninstaller** (D66). The install copies the running program to `UNINST.EXE` and the compiled project to `UNINST.DAT`. `UNINST.EXE /U` copies itself to the temporary folder, starts that copy with `/X /DAT` and exits, because a running executable cannot be deleted; the copy reads `UNINST.DAT`, runs the project's `uninstall` flow (the confirm page, a copying page, the done page) and removes what the receipt lists, retrying a file for a few seconds while Windows lets go of it. It then asks Windows NT to delete itself at the next restart (Windows 9x ignores that and leaves the copy in the temporary folder). `SETUP /U [folder]` from the install media works too, reading `SETUP.LPK`.
-- **The receipt** is the DOS runtime's `INSTALL.LIR`, with three added record letters: `X name` (an uninstaller file below the install folder), `S path` (a shortcut file, by full path) and `R key` (the registry key). `D` records of a folder outside the install folder (the Start menu folder) are written by full path. `F` records have the same sizes and CRC-32 as the DOS receipt gives the same files.
+- **File types** (D87). A component's `file_types` become `FileType` operations. The install reads what `HKCR\.<ext>` names (nothing, or an empty default, or a ProgID), then writes `HKCR\<product id>.<ext>` with the type's name, `DefaultIcon` (`<exe>,0`) and `shell\open\command` (`"<exe>" "%1"`), points `.<ext>` at it and calls `SHChangeNotify(SHCNE_ASSOCCHANGED)`. `Content Type` and the old type's own keys stay as they were. The keys go to `HKEY_CLASSES_ROOT`, or to `HKCU\Software\Classes` when the account cannot write there. The uninstall puts the old owner back only while `.<ext>` still names our ProgID (a choice made since is left), deletes the extension's key when nothing owned it, and deletes the type's keys deepest first, because Windows NT's `RegDeleteKey` does not remove a key that has subkeys. A reinstall keeps what the first install replaced. The `A` record is described in SPEC §9.
+- **The receipt** is the DOS runtime's `INSTALL.LIR`, with four added record letters: `A ext|prog_id|exe|previous` (a file type), `X name` (an uninstaller file below the install folder), `S path` (a shortcut file, by full path) and `R key` (the registry key). `D` records of a folder outside the install folder (the Start menu folder) are written by full path. `F` records have the same sizes and CRC-32 as the DOS receipt gives the same files.
 
 ## The compiled project
 
-The compiled project is `li-retro`'s `Project`, format version 2. Version 2 adds `Screen.title` (the dialog title, which the text runtime has in the border cells) and `FileEntry.stored`. The Win32 flavour differs from DOS in what `compile_win32` does:
+The compiled project is `li-retro`'s `Project`, format version 3 (2 is still read). Version 3 adds `Op::FileType`. Version 2 added `Screen.title` (the dialog title, which the text runtime has in the border cells) and `FileEntry.stored`. The Win32 flavour differs from DOS in what `compile_win32` does:
 
 - A target must use the `win32-classic` renderer and the id `windows-x86` for `liminst build`.
 - Destinations keep their case and length and may have spaces. The pack stores each file under a generated 8.3 name (`F0000001` and on) with the real path as its long name (D64); `liminst lpk list` shows both.
@@ -120,7 +121,7 @@ The compiled project is `li-retro`'s `Project`, format version 2. Version 2 adds
 ## What the Win32 runtime does not do
 
 - **No Lua.** Scripts are out of scope, as for DOS (D41): a step may name only a `builtin:` action, and `check-disk-space` works. `check-feed` and `launch-app` are skipped.
-- **One folder.** Every file goes below `{install}`. File types, URL schemes and `PATH` entries are reported at build time and skipped.
+- **One folder.** Every file goes below `{install}`. URL schemes and `PATH` entries are reported at build time and skipped.
 - **No update, modify, repair or launch.** Only install and uninstall. The receipt has the CRCs repair needs.
 - **"Launch after setup"** on the last page is a check box that does nothing yet.
 - **No disk spanning**, as for DOS: the runtime reads volume 1 of `SETUP.LPK`.
@@ -141,7 +142,7 @@ The compiled project is `li-retro`'s `Project`, format version 2. Version 2 adds
 ## Follow-ups
 
 - Run it on the Windows Me machine, on Windows 95 and 98 if a machine or image is available, and on 64-bit Windows 11.
-- The launch-after-setup box, a repair command and `launch`, file types and URL schemes (registry writes the `ShellExecute` verbs need), and a per-machine install with an administrator prompt.
+- The launch-after-setup box, a repair command and `launch`, URL schemes and the shell verbs beyond `open`, and a per-machine install with an administrator prompt.
 - A `.res` with an icon and version information, and an optional manifest for visual styles that keeps the 95 look off.
 - A Unicode path for Windows NT: `...W` imports behind a runtime check, so a name outside the ANSI code page survives.
 - Draw the theme's art in the banner from the compiled layout.

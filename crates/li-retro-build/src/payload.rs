@@ -171,9 +171,27 @@ pub fn build(
 				batch,
 			});
 		}
-		if !c.file_types.is_empty() || !c.url_schemes.is_empty() || !c.path.is_empty() {
+		for ft in &c.file_types {
+			if flavour == Flavour::Dos {
+				warnings.push(format!(
+					"component `{}`: the file type `{}` has no {} equivalent and is skipped",
+					c.id,
+					ft.extension,
+					flavour.name()
+				));
+				continue;
+			}
+			match file_type_op(project, c, ft, flavour, &rel_of, &files) {
+				Ok(op) => ops.push(op),
+				Err(why) => warnings.push(format!(
+					"component `{}`: the file type `{}` is skipped: {why}",
+					c.id, ft.extension
+				)),
+			}
+		}
+		if !c.url_schemes.is_empty() || !c.path.is_empty() {
 			warnings.push(format!(
-				"component `{}`: file types, URL schemes and PATH entries have no {} equivalent and are skipped",
+				"component `{}`: URL schemes and PATH entries have no {} equivalent and are skipped",
 				c.id,
 				flavour.name()
 			));
@@ -190,6 +208,62 @@ pub fn build(
 	}
 	let (entries, data) = files.into_iter().unzip();
 	Ok((entries, data, ops))
+}
+
+/// The registered name of a file type: the product id and the extension, so two products never
+/// share one.
+fn prog_id(product: &str, ext: &str) -> String {
+	format!("{product}.{ext}")
+}
+
+/// The operation that registers a component's file type, or why the runtime cannot. The program
+/// that opens it is `open_with`, else the component's first shortcut.
+fn file_type_op(
+	project: &Project,
+	c: &Component,
+	ft: &li_model::project::FileTypeRule,
+	flavour: Flavour,
+	rel_of: &dyn Fn(&str) -> Result<String, CompileError>,
+	files: &[(FileEntry, Vec<u8>)],
+) -> Result<Op, String> {
+	let ext = ft.extension.trim_start_matches('.').to_ascii_lowercase();
+	// Windows 3.x associates three-character extensions only.
+	let longest = if flavour == Flavour::Win16 { 3 } else { 64 };
+	if ext.is_empty()
+		|| ext.len() > longest
+		|| !ext
+			.chars()
+			.all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-')
+	{
+		return Err(if flavour == Flavour::Win16 {
+			"Windows 3.1 takes one to three letters or digits".to_string()
+		} else {
+			"it is not a plain extension".to_string()
+		});
+	}
+	let open = ft
+		.open_with
+		.as_deref()
+		.or_else(|| c.shortcut.first().map(|s| s.target.as_str()))
+		.ok_or_else(|| "no `open_with` and no shortcut names the program".to_string())?;
+	let mut target = rel_of(open).map_err(|e| e.to_string())?;
+	// A component shared with other systems names its program without `.exe`; Windows needs it.
+	let bare = !target.rsplit('\\').next().unwrap_or("").contains('.');
+	if flavour == Flavour::Win32 && bare {
+		let exe = format!("{target}.exe");
+		if let Some((f, _)) = files
+			.iter()
+			.find(|(f, _)| f.dest.eq_ignore_ascii_case(&exe))
+		{
+			target = f.dest.clone();
+		}
+	}
+	Ok(Op::FileType {
+		prog_id: prog_id(&project.installer.product.id, &ext),
+		ext,
+		name: ft.name.clone(),
+		target,
+	})
 }
 
 #[cfg(test)]

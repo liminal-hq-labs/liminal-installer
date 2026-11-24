@@ -124,8 +124,11 @@ pub const MB_ICONINFORMATION: u32 = 0x40;
 
 // The shell, the registry and COM.
 pub const CSIDL_PROGRAMS: i32 = 2;
+pub const SHCNE_ASSOCCHANGED: i32 = 0x0800_0000;
+pub const SHCNF_IDLIST: u32 = 0;
 pub const BIF_RETURNONLYFSDIRS: u32 = 1;
 pub const BIF_STATUSTEXT: u32 = 4;
+pub const HKEY_CLASSES_ROOT: usize = 0x8000_0000;
 pub const HKEY_CURRENT_USER: usize = 0x8000_0001;
 pub const HKEY_LOCAL_MACHINE: usize = 0x8000_0002;
 pub const KEY_ALL_ACCESS: u32 = 0xF003F;
@@ -418,6 +421,7 @@ unsafe extern "system" {
 	pub fn SHBrowseForFolderA(info: *mut BrowseInfoA) -> *mut c_void;
 	pub fn SHGetPathFromIDListA(pidl: *const c_void, path: *mut u8) -> i32;
 	pub fn SHGetSpecialFolderLocation(owner: Handle, csidl: i32, pidl: *mut *mut c_void) -> i32;
+	pub fn SHChangeNotify(event: i32, flags: u32, item1: *const c_void, item2: *const c_void);
 }
 
 #[link(name = "advapi32", kind = "raw-dylib", import_name_type = "undecorated")]
