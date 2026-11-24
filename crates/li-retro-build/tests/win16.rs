@@ -210,6 +210,7 @@ fn planboard_compiles_for_windows_3_1_with_8_3_names() {
 }
 
 const GROUP: &str = "Lieutenant Fizz \u{2014} Episode One";
+const UNINSTALL_ITEM: &str = "Uninstall Lieutenant Fizz \u{2014} Episode One";
 
 fn program_manager(c: &li_retro_build::Compiled, root: &Path) -> HostPlatform {
 	let mut p = win16(c, root);
@@ -225,17 +226,32 @@ fn a_program_manager_shell_gets_group_items_and_a_receipt_line() {
 	assert_eq!(app::run(&mut p, ""), 0);
 	assert_eq!(
 		p.groups,
-		[(
-			GROUP.to_string(),
-			"Lieutenant Fizz".to_string(),
-			"C:\\LTFIZZ\\FIZZ.EXE".to_string()
-		)]
+		[
+			(
+				GROUP.to_string(),
+				"Lieutenant Fizz".to_string(),
+				"C:\\LTFIZZ\\FIZZ.EXE".to_string()
+			),
+			(
+				GROUP.to_string(),
+				UNINSTALL_ITEM.to_string(),
+				"C:\\LTFIZZ\\UNINST.EXE /U C:\\LTFIZZ".to_string()
+			)
+		]
 	);
 	let lir = receipt(tmp.path());
 	assert!(
-		lir.contains(&format!("\r\nG {GROUP}|Lieutenant Fizz\r\nP {GROUP}\r\n")),
+		lir.contains(&format!(
+			"\r\nG {GROUP}|Lieutenant Fizz\r\nG {GROUP}|{UNINSTALL_ITEM}\r\nP {GROUP}\r\n"
+		)),
 		"{lir}"
 	);
+	// The kept uninstaller and the project it runs from are in the folder and the receipt.
+	assert!(
+		lir.contains("\r\nX UNINST.EXE\r\nX UNINST.DAT\r\n"),
+		"{lir}"
+	);
+	assert!(tmp.path().join("LTFIZZ/UNINST.EXE").is_file());
 	// A group item replaces the batch launcher.
 	assert!(!tmp.path().join("LTFIZZ/FIZZ.BAT").exists());
 	let install_log = p.progman_log.join("\n") + "\n";
@@ -243,11 +259,10 @@ fn a_program_manager_shell_gets_group_items_and_a_receipt_line() {
 	// The uninstall sends one conversation: the items, then the group the install made.
 	let mut p = program_manager(&c, tmp.path());
 	p.group_names = vec![GROUP.to_string()];
-	p.groups = vec![(
-		GROUP.to_string(),
-		"Lieutenant Fizz".to_string(),
-		String::new(),
-	)];
+	p.groups = ["Lieutenant Fizz", UNINSTALL_ITEM]
+		.iter()
+		.map(|n| (GROUP.to_string(), n.to_string(), String::new()))
+		.collect();
 	assert_eq!(app::run(&mut p, "/U"), 0);
 	assert!(p.groups.is_empty());
 	assert!(p.group_names.is_empty());
@@ -276,7 +291,7 @@ fn a_group_that_was_there_is_left_and_only_our_items_go() {
 	let lir = receipt(tmp.path());
 	assert!(lir.contains("\r\nG "), "{lir}");
 	assert!(!lir.contains("\r\nP "), "{lir}");
-	assert_eq!(p.groups.len(), 2);
+	assert_eq!(p.groups.len(), 3);
 
 	let mut p2 = program_manager(&c, tmp.path());
 	p2.group_names = p.group_names.clone();
@@ -305,7 +320,7 @@ fn installing_twice_replaces_the_item_and_the_second_install_made_no_group() {
 	again.group_names = names;
 	again.groups = items;
 	assert_eq!(app::run(&mut again, ""), 0);
-	assert_eq!(again.groups.len(), 1);
+	assert_eq!(again.groups.len(), 2);
 	// The group was there, so the second receipt has no `P`; its install made none.
 	assert!(!receipt(tmp.path()).contains("\r\nP "));
 }
@@ -333,7 +348,8 @@ fn a_failed_install_removes_the_items_and_the_group_it_made() {
 	let total: u64 = ok
 		.tree()
 		.iter()
-		.filter(|f| !f.ends_with('\\'))
+		// The simulated shell writes the stand-in `UNINST.EXE` itself, not through `Platform::write`.
+		.filter(|f| !f.ends_with('\\') && !f.ends_with("UNINST.EXE"))
 		.map(|f| {
 			std::fs::metadata(tmp.path().join(f.replace('\\', "/")))
 				.unwrap()

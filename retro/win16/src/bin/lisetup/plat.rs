@@ -29,6 +29,8 @@ pub struct Win16Platform {
 	log_path: Option<String>,
 	log: String,
 	dump_path: Option<String>,
+	/// `/DAT=path`: the kept project an uninstall started from `UNINST.EXE` reads, in place of `UNINST.DAT` beside the program.
+	kept: Option<String>,
 }
 
 fn io(path: &str, what: &str) -> Error {
@@ -55,6 +57,7 @@ impl Win16Platform {
 			log_path,
 			log: String::new(),
 			dump_path: None,
+			kept: None,
 		}
 	}
 
@@ -65,6 +68,10 @@ impl Win16Platform {
 			self.ui.play(text);
 		}
 		self.dump_path = dump;
+	}
+
+	pub fn set_kept(&mut self, path: Option<String>) {
+		self.kept = path;
 	}
 
 	/// Writes the log file and takes the window down.
@@ -228,6 +235,30 @@ impl Shell for Win16Platform {
 
 	fn registers_uninstall(&self) -> bool {
 		false
+	}
+
+	fn keeps_uninstaller(&self) -> bool {
+		true
+	}
+
+	fn streams_project(&self) -> bool {
+		true
+	}
+
+	/// Copies the running program to `UNINST.EXE`; the install streams `UNINST.DAT` from the pack.
+	fn install_uninstaller(&mut self, dir: &str, _project: &[u8]) -> Result<Vec<String>, Error> {
+		if !dosio::copy_file(&dosio::exe_path(), &format!("{dir}\\UNINST.EXE")) {
+			return Err(io(dir, "cannot copy the uninstaller"));
+		}
+		Ok(alloc::vec!["UNINST.EXE".to_string()])
+	}
+
+	fn uninstall_project(&mut self) -> Option<Vec<u8>> {
+		let path = self
+			.kept
+			.clone()
+			.unwrap_or_else(|| format!("{}UNINST.DAT", dosio::exe_dir()));
+		dosio::read_file(&path)
 	}
 
 	fn add_group_item(

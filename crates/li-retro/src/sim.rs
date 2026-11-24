@@ -492,6 +492,10 @@ impl Shell for HostPlatform {
 		self.native
 	}
 
+	fn keeps_uninstaller(&self) -> bool {
+		self.native || self.program_manager
+	}
+
 	fn add_group_item(
 		&mut self,
 		group: &str,
@@ -576,9 +580,19 @@ impl Shell for HostPlatform {
 		self.registry.remove(key);
 	}
 
+	/// A Windows 3.1 machine streams the project, as the real runtime does, so its host test
+	/// exercises `Pack::write_project` too.
+	fn streams_project(&self) -> bool {
+		self.program_manager
+	}
+
 	fn install_uninstaller(&mut self, dir: &str, project: &[u8]) -> Result<Vec<String>, Error> {
 		fs::write(self.host(&alloc::format!("{dir}\\UNINST.EXE")), b"MZ stub")
-			.and_then(|()| fs::write(self.host(&alloc::format!("{dir}\\UNINST.DAT")), project))
+			.map_err(|e| Self::io(dir, e))?;
+		if self.streams_project() {
+			return Ok(alloc::vec!["UNINST.EXE".to_string()]);
+		}
+		fs::write(self.host(&alloc::format!("{dir}\\UNINST.DAT")), project)
 			.map_err(|e| Self::io(dir, e))?;
 		Ok(alloc::vec![
 			"UNINST.EXE".to_string(),

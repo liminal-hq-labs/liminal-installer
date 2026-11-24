@@ -275,22 +275,7 @@ fn shell_shortcut<P: Platform>(
 		return Ok(false);
 	};
 	if kind == ShortcutKind::GroupItem {
-		let command = join(dir, target);
-		let added = match p.shell() {
-			Some(s) => s.add_group_item(&project.name, name, &command, dir)?,
-			None => GroupAdd::Unavailable,
-		};
-		return Ok(match added {
-			GroupAdd::Unavailable => false,
-			GroupAdd::Added { made_group } => {
-				made.groups.push(format!("{}|{name}", project.name));
-				// Only the call that made the group sees it missing; later items find it there.
-				if made_group && !made.made_groups.contains(&project.name) {
-					made.made_groups.push(project.name.clone());
-				}
-				true
-			}
-		});
+		return group_item(p, project, name, &join(dir, target), dir, made);
 	}
 	let Some(programs) = p.shell().and_then(|s| s.start_menu_programs()) else {
 		return Ok(true);
@@ -309,6 +294,33 @@ fn shell_shortcut<P: Platform>(
 	}
 	made.shortcuts.push(lnk);
 	Ok(true)
+}
+
+/// An item in the product's Program Manager group. False when there is no Program Manager to
+/// make it, and the caller falls back to a batch launcher.
+fn group_item<P: Platform>(
+	p: &mut P,
+	project: &Project,
+	name: &str,
+	command: &str,
+	dir: &str,
+	made: &mut Made,
+) -> Result<bool, Error> {
+	let added = match p.shell() {
+		Some(s) => s.add_group_item(&project.name, name, command, dir)?,
+		None => GroupAdd::Unavailable,
+	};
+	Ok(match added {
+		GroupAdd::Unavailable => false,
+		GroupAdd::Added { made_group } => {
+			made.groups.push(format!("{}|{name}", project.name));
+			// Only the call that made the group sees it missing; later items find it there.
+			if made_group && !made.made_groups.contains(&project.name) {
+				made.made_groups.push(project.name.clone());
+			}
+			true
+		}
+	})
 }
 
 /// A name with the characters a file name cannot hold taken out.
@@ -497,8 +509,13 @@ fn do_install<P: Platform>(
 			}
 		}
 	}
-	if p.shell().is_some_and(|s| s.registers_uninstall()) {
-		let bytes = pack.project_bytes(p)?;
+	if p.shell().is_some_and(|s| s.keeps_uninstaller()) {
+		let streamed = p.shell().is_some_and(|s| s.streams_project());
+		let bytes = if streamed {
+			Vec::new()
+		} else {
+			pack.project_bytes(p)?
+		};
 		let names = match p.shell() {
 			Some(s) => s.install_uninstaller(dir, &bytes)?,
 			None => Vec::new(),
@@ -507,6 +524,20 @@ fn do_install<P: Platform>(
 			j.files.push(join(dir, &name));
 			made.extras.push(name);
 		}
+		if streamed {
+			let dat = join(dir, "UNINST.DAT");
+			j.files.push(dat.clone());
+			pack.write_project(p, &dat)?;
+			made.extras.push("UNINST.DAT".to_string());
+		}
+		// Where the shell has groups, the uninstaller is an item in the product's group.
+		if p.shell().map(|s| s.shortcut_kind()) == Some(ShortcutKind::GroupItem) {
+			let item = format!("Uninstall {}", project.name);
+			let command = format!("{} /U {dir}", join(dir, "UNINST.EXE"));
+			group_item(p, project, &item, &command, dir, made)?;
+		}
+	}
+	if p.shell().is_some_and(|s| s.registers_uninstall()) {
 		let uninstall = format!("\"{}\" /U \"{dir}\"", join(dir, "UNINST.EXE"));
 		let key = project.id.clone();
 		if let Some(s) = p.shell() {

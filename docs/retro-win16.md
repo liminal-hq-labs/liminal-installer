@@ -2,7 +2,7 @@
 
 `liminst build -t win16-x86` turns an installer project into `SETUP.LPK`, the Liminal Pack the Windows 3.1 runtime reads ([lpk-format.md](lpk-format.md)), and carries `SETUP.EXE`, the runtime, when `--win16-runtime`, `LIMINST_WIN16_RUNTIME` or `retro/win16/out/SETUP.EXE` names one; the `floppy-1440` output fails without it, naming `--win16-runtime` (D75). The runtime is Rust built for a 16-bit code segment and packed into an NE executable (D46, [win16-spike.md](win16-spike.md)), on the same portable core as the DOS and Windows 95 runtimes: the flow VM and installer engine of `li-retro`, a `Gui` for the pages (shared with Win32) and a `Shell` for what the machine's shell does (D69, D73).
 
-**Status.** The whole `SETUP.EXE` links and runs. Its code is 154 524 bytes, which no single 16-bit code segment can hold, so the packer places it in four (the packer is vendored from rust-win16, see [`retro/win16/PROVENANCE.md`](../retro/win16/PROVENANCE.md)). Under Wine and on Windows for Workgroups 3.11 in DOSBox-X it installs and uninstalls Lt. Fizz and Planboard through its real controls: 40 of 40 runs passed on 3.11, 20 of each example. What is unproven is real hardware (see [What is not done](#what-is-not-done)).
+**Status.** The whole `SETUP.EXE` links and runs. Its code is 157 961 bytes, which no single 16-bit code segment can hold, so the packer places it in four (the packer is vendored from rust-win16, see [`retro/win16/PROVENANCE.md`](../retro/win16/PROVENANCE.md)). Under Wine and on Windows for Workgroups 3.11 in DOSBox-X it installs and uninstalls Lt. Fizz and Planboard through its real controls: 40 of 40 runs passed on 3.11, 20 of each example. What is unproven is real hardware (see [What is not done](#what-is-not-done)).
 
 ## Table of contents
 
@@ -12,6 +12,7 @@
 - [Pages become Windows controls](#pages-become-windows-controls)
 - [The runtime](#the-runtime)
 - [The Program Manager group](#the-program-manager-group)
+- [The kept uninstaller](#the-kept-uninstaller)
 - [Sizes and segments](#sizes-and-segments)
 - [The ESP finding and how it was fixed](#the-esp-finding-and-how-it-was-fixed)
 - [Where each test ran](#where-each-test-ran)
@@ -93,7 +94,7 @@ Text roles (`heading`, `caption`, `summary`) ride in `Widget::Text.attr`, which 
 - **Receipt.** `INSTALL.LIR`, the DOS receipt unchanged apart from `target=win16-x86:win16`. The same `FIZZ.BAT` launcher is written and recorded as a `B` line.
 - **Shell.** Windows 3.1's `Shell` says `ShortcutKind::GroupItem` and has no uninstall list; `add_group_item` returns `GroupAdd::Unavailable` or `Added { made_group }`, and `remove_group(group, items, made_group)` takes the items and the group out in one conversation. The commands are built by `li_retro::progman` (quoting, the `IconPath` rule, the `.GRP` name) and recorded by the host's simulated shell, which the goldens in `tests/golden/win16/lt-fizz.progman.txt` read. The conversation with `PROGMAN` is `lisetup/dde.rs` (D77, below); when there is no Program Manager to talk to, the install falls back to the batch launcher.
 - **Built-ins.** `detect-sound` reads `BLASTER` through `GetDOSEnvironment` and probes the ports with `in` and `out` (DOSBox-X's emulated Sound Blaster answers it); `check-disk-space` is the engine's.
-- **Memory.** A 40 KiB heap in the data segment under a first-fit allocator, an 8 KiB stack, an 8 KiB local heap for the edit controls' text and a 64-entry shadow return stack; the data segment holds all of it in 64 KB. The heap's peak was 33 680 bytes for Lt. Fizz and 30 392 for Planboard.
+- **Memory.** A 40 KiB heap in the data segment under a first-fit allocator, an 8 KiB stack, an 8 KiB local heap for the edit controls' text and a 64-entry shadow return stack; the data segment holds all of it in 64 KB. The heap's peak was 35 552 bytes for Lt. Fizz and 31 952 for Planboard with the kept uninstaller (34 640 and 30 728 with the group alone).
 
 ## The Program Manager group
 
@@ -105,21 +106,29 @@ Windows 3.1 has no function that makes a group or an item, so `lisetup/dde.rs` t
 4. After an add, the group's own listing is requested (item = the group name) and its start is written to `/LOG`: `progman: group: "Planboard",C:\WINDOWS\PLANBOAR.GRP,1,1|"Planboard","C:\PLANBOAR\PLANBRD.EXE",...`. That line, and `progman: removed; group gone` after an uninstall, are the in-guest proof; they do not depend on Program Manager having written its files.
 5. `WM_DDE_TERMINATE`, a wait of a second for the server's own, and the window is destroyed.
 
-The window procedure never allocates (the heap is not reentrant) and the state is about 1 KB of statics, because the data segment has little room left (48 364 bytes of data, an 8 KiB stack and an 8 KiB local heap leave 788 bytes of 64 KB): the group list is searched as it is read.
+The window procedure never allocates (the heap is not reentrant) and the state is about 1 KB of statics, because the data segment has little room left (48 524 bytes of data, an 8 KiB stack and an 8 KiB local heap leave 628 bytes of 64 KB): the group list is searched as it is read.
 
 The new imports are `GlobalAddAtom` (USER 268), `GlobalDeleteAtom` (USER 269) and `IsWindow` (USER 47). The atom functions are **USER**'s, not KERNEL's: KERNEL 70 and 71 are the local `AddAtom` and `DeleteAtom`. All three ordinals were read from Windows 3.11's own `USER.EXE` with `tools/ne_dump.py` and agree with Wine's `user.exe16.spec`.
 
 Group names go through the same ANSI mapping as the pages, so an em dash in a product name is a hyphen in Program Manager (`Lieutenant Fizz - Episode One`); the `.GRP` file name is the first eight letters and digits of the name (`LIEUTENA.GRP`).
 
+## The kept uninstaller
+
+The install keeps an uninstaller in the install folder, as the Win32 runtime does (D66, D78): `UNINST.EXE`, a copy of the running `SETUP.EXE` made 1 KiB at a time (a 229 KB program does not fit the 40 KiB heap), and `UNINST.DAT`, the compiled project, which the install streams from the pack a chunk at a time (`Pack::write_project`, `Shell::streams_project`): reading it whole into a `Vec` at that point of an install ended in a "Rust panic" box on Windows 3.11 (the heap is at about 35 KB there, so an allocation failure is the likely cause; the cause was not isolated, only the streaming shown to remove it). Both are `X` records in the receipt, and the group gets an item, `Uninstall <product>`, whose command line is `C:\FOLDER\UNINST.EXE /U C:\FOLDER`. Windows 3.1 has no Add/Remove Programs, so the item is the way in; the Windows 95 key is not written.
+
+Windows will not delete a program that is running, so `UNINST.EXE /U` does not do the work itself. When `UNINST.DAT` is beside the running program and the command line has no `/X`, it copies itself to `LIUNINST.EXE` in the folder `TEMP` (or `TMP`) names, else the Windows folder, starts that copy with `WinExec` (`/U folder /X /DAT=folder\UNINST.DAT`, and the test flags `/LOG`, `/PLAY`, `/DUMP` and `/PAUSE` as they were) and exits at once, before it creates a window or a log. The copy reads the project from `/DAT`, runs the project's `uninstall` flow (the confirm page, the copying page, the done page), asks Program Manager to delete the items and, when the receipt has `P`, the group, removes the files the receipt lists including `UNINST.EXE` and `UNINST.DAT`, and then the folder. The copy cannot delete itself: `LIUNINST.EXE` stays in the temporary folder (the Win32 runtime leaves its copy on Windows 9x for the same reason), and the next uninstall overwrites it. `SETUP /U [folder]` from the install media works as before and reads `SETUP.LPK`. When the copy or the `WinExec` fails, the uninstall runs in place, and removes everything but `UNINST.EXE`.
+
+One more fix came out of it: DOS refuses to remove the current directory, and an uninstall started with the install folder as its working folder (from the group item) is in it, so `rmdir` moves to the drive's root and tries again. The new imports are `WinExec` (KERNEL 166) and `GetWindowsDirectory` (KERNEL 134), both read from Windows 3.11's `KRNL386.EXE`.
+
 ## Sizes and segments
 
 | | Bytes |
 |---|---|
-| Code, in four segments | 154 524 (35 906, 44 580, 46 310 and 27 728) |
-| Call veneers, jump stubs and pointer slots | 1 368, 14 and 24 |
-| Data (static data and the 40 KiB heap) | 48 364 |
+| Code, in four segments | 157 961 (27 632, 45 393, 46 862 and 38 074) |
+| Call veneers, jump stubs and pointer slots | 1 353, 15 and 24 |
+| Data (static data and the 40 KiB heap) | 48 524 |
 | Stack, local heap | 8 192, 8 192 |
-| `SETUP.EXE` | 226 194 |
+| `SETUP.EXE` | 229 580 |
 
 Table 2. What the packer reports for `SETUP.EXE`.
 
@@ -145,6 +154,9 @@ With it, 40 of 40 install-and-uninstall runs of the whole `SETUP.EXE` passed on 
 | Windows for Workgroups 3.11 in DOSBox-X 2025.02.01 (`win /3`, Pentium, S3, a fresh session for each) | `e2e-w31.sh --runs 5` in four parallel workers: 20 install-and-uninstall runs of each example | 40 of 40 pass: exit 0, pages equal the goldens, receipt sizes match, folder gone. Screenshots of the [sound](images/win16-w31-setup-sound.png), [copying](images/win16-w31-setup-copying.png) and [done](images/win16-w31-setup-done.png) pages |
 | Wine 11.21, Program Manager | The same run: `progman: group missing`, `progman: added` in `/LOG` for both examples, one `G` and one `P` record each, and the groups gone after `/U` | Wine's `PROGMAN` accepted the DDE conversation |
 | Windows for Workgroups 3.11 in DOSBox-X, Program Manager | `e2e-w31.sh --runs 20` for each example, in two parallel workers: the group is made and the item added (`progman: added`, then Program Manager's own listing of the group in `/LOG`), `LIEUTENA.GRP` or `PLANBOAR.GRP` is in `C:\WINDOWS` and named in `PROGMAN.INI`, then after `/U` the log says `progman: removed; group gone`, the file and the `.INI` line are gone | 20 of 20 for Lt. Fizz and 20 of 20 for Planboard, each also passing the page, receipt and folder checks as before. Screenshots: [Lt. Fizz group open](images/win16-w31-progman-group-lt-fizz.png), [Planboard group open](images/win16-w31-progman-group-planboard.png), [after the uninstall](images/win16-w31-progman-removed-lt-fizz.png) |
+| Wine 11.21, kept uninstaller | `KEPT=1 e2e-wine.sh`: after the install the group has two items and the folder has `UNINST.EXE` and `UNINST.DAT`; `C:\FOLDER\UNINST.EXE /U` removes it all through its copy | Pass for both examples |
+| Windows for Workgroups 3.11 in DOSBox-X, kept uninstaller | `KEPT=1 e2e-w31.sh --runs 20` for each example, in two parallel workers: the install keeps `UNINST.EXE` and `UNINST.DAT` and the group lists two items; the uninstall is `C:\FOLDER\UNINST.EXE /U C:\FOLDER`, which starts its copy from the temporary folder; the group, the files and the folder go | 20 of 20 for Lt. Fizz and 20 of 20 for Planboard. Screenshots: [Planboard group with its Uninstall item](images/win16-w31-kept-group-planboard.png), [Lt. Fizz](images/win16-w31-kept-group-lt-fizz.png), [after the uninstall](images/win16-w31-kept-removed-planboard.png) |
+| Windows for Workgroups 3.11 in DOSBox-X, kept uninstaller installed, `SETUP /U` from the disk | `e2e-w31.sh --runs 10` for each example | 10 of 10 for each |
 | Windows ME in VirtualBox | Not run: the VM was in use and then being debugged, and the rules say to leave it alone | Pending |
 | Windows 3.1 Standard mode, a 286, real hardware | Not run | Untested |
 
@@ -155,7 +167,7 @@ Table 3. Where it ran.
 - **Real hardware.** Everything on Windows 3.11 ran under DOSBox-X. The ESP fix is the same code rust-win16 verified there; whether a real 386, 486 or Pentium behaves as the emulator does is not shown, nor another emulator or a Windows 3.1 retail install, nor Windows ME.
 - **A Program Manager group on another shell.** Norton Desktop or another replacement shell that does not answer `PROGMAN` gets the batch launcher; that path is tested only by the host's simulated shell and by a hand-made refusal, not on such a shell. A group the person added items to is deleted with its items when this install made it.
 - **Launch after setup, repair and update**, as on DOS.
-- **Uninstall from the install folder.** `SETUP /U` runs from the media, as on DOS; a Windows 3.1 install keeps no uninstaller.
+- **A temporary copy that stays.** The uninstaller's copy, `LIUNINST.EXE`, is left in the temporary folder, as on Windows 9x.
 - **Browse for a folder**, icons, bold headings and any colour: the pages use the system font and the system colours.
 - **Standard mode and a 286**: the code needs a 386.
 - **A smaller file.** The heap's zeros are in `SETUP.EXE`; trimming them needs the program to clear its `.bss`, which the packer does not mark yet.

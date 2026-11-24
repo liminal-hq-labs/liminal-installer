@@ -16,7 +16,9 @@
 # Manager with the new group open (4 s after SETUP exits) and one of Program Manager after the uninstall, with the group gone.
 # A run also needs the Program Manager conversation to have worked: the log says `progman: added` and, on removal, `progman: removed;
 # group gone`, the group's .GRP file exists in C:\WINDOWS after the install and is gone after the uninstall, and PROGMAN.INI names it
-# only in between. PROGMAN_OPTIONAL=1 turns those checks off, for a tree whose shell is not Program Manager.
+# only in between. KEPT=1 removes the install with the uninstaller it keeps (`C:\\FOLDER\\UNINST.EXE /U C:\\FOLDER`, which copies itself to the
+# temporary folder) in place of `SETUP /U` from the disk, and also checks that UNINST.EXE and UNINST.DAT are in the folder after the install
+# and that the group holds the uninstall item next to the program's. PROGMAN_OPTIONAL=1 turns the Program Manager checks off, for a tree whose shell is not Program Manager.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../../.."
 : "${W31_TREE:?set W31_TREE to a Windows 3.11 tree}"
@@ -155,7 +157,14 @@ for ex in "${examples[@]}"; do
 			[ -z "$grp" ] || [ -f "$work/c/WINDOWS/$grp" ] || { ok=0; why+=" no-$grp"; }
 			[ -z "$grp" ] || grep -qi "$grp" "$work/c/WINDOWS/PROGMAN.INI" || { ok=0; why+=' ini-has-no-group'; }
 		fi
-		session "D:\\SETUP.EXE /U $dir /LOG=C:\\U.LOG /PLAY=D:\\PLAY2.TXT" U.LOG 240 || true
+		if [ -n "${KEPT:-}" ]; then
+			[ -f "$host/UNINST.EXE" ] && [ -f "$host/UNINST.DAT" ] || { ok=0; why+=' no-kept-uninstaller'; }
+			grep -q '^progman: group: .*,2,' "$work/c/S.LOG" 2> /dev/null || { ok=0; why+=' no-uninstall-item'; }
+			uninstall="$dir\\UNINST.EXE /U $dir"
+		else
+			uninstall="D:\\SETUP.EXE /U $dir"
+		fi
+		session "$uninstall /LOG=C:\\U.LOG /PLAY=D:\\PLAY2.TXT" U.LOG 240 || true
 		wait_exit U.LOG 240 || { ok=0; why+=' uninstall-no-exit'; }
 		if [ -n "$pause" ]; then
 			sleep 4
@@ -169,7 +178,7 @@ for ex in "${examples[@]}"; do
 			[ -z "$grp" ] || ! grep -qi "$grp" "$work/c/WINDOWS/PROGMAN.INI" || { ok=0; why+=' ini-still-has-group'; }
 		fi
 		[ "$(tail -n1 "$work/c/U.LOG" 2> /dev/null | tr -d '\r')" = "exit 0" ] || { ok=0; why+=" uninstall-exit:$(tail -n1 "$work/c/U.LOG" 2> /dev/null | tr -d '\r')"; }
-		[ ! -e "$host" ] || { ok=0; why+=' folder-left'; }
+		[ ! -e "$host" ] || { ok=0; why+=" folder-left($(ls "$host" 2> /dev/null | tr '\n' ' '))"; }
 		pass=$((pass + ok))
 		echo "e2e-w31: $ex run $run: $([ "$ok" = 1 ] && echo pass || echo "FAIL$why") ($n files; $(grep -h 'heap peak' "$work/c/S.LOG" 2> /dev/null | tr -d '\r'); $(grep -h '^progman:' "$work/c/S.LOG" 2> /dev/null | tr -d '\r' | tr '\n' ';'))"
 		if [ -n "$pause" ]; then
