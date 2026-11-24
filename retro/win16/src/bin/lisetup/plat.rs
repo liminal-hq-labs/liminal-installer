@@ -19,6 +19,7 @@ use w16::*;
 
 use crate::dde;
 use crate::dosio;
+use crate::profile;
 use crate::ui::{Ui, ansi};
 
 pub struct Win16Platform {
@@ -261,6 +262,47 @@ impl Shell for Win16Platform {
 		dosio::read_file(&path)
 	}
 
+	fn file_types(&self) -> bool {
+		true
+	}
+
+	/// An association is a line in WIN.INI's `[Extensions]` section: `ext=PROGRAM ^.ext`. The line
+	/// that was there is returned, and a change is announced with `WM_WININICHANGE` so File Manager
+	/// reads the section again.
+	fn register_file_type(
+		&mut self,
+		ext: &str,
+		_prog_id: &str,
+		_name: &str,
+		exe: &str,
+	) -> Result<Option<String>, Error> {
+		let previous = profile::get(EXTENSIONS, ext);
+		if !profile::set(EXTENSIONS, ext, Some(&owner(exe, ext))) {
+			return Err(Error::Io(format!(
+				"cannot write the .{ext} line in WIN.INI"
+			)));
+		}
+		profile::changed(EXTENSIONS);
+		Ok(previous)
+	}
+
+	/// Puts `previous` back, or deletes the line when there was none, only while the line is still
+	/// ours.
+	fn unregister_file_type(
+		&mut self,
+		ext: &str,
+		_prog_id: &str,
+		exe: &str,
+		previous: Option<&str>,
+	) {
+		let ours = profile::get(EXTENSIONS, ext)
+			.is_some_and(|now| now.eq_ignore_ascii_case(&owner(exe, ext)));
+		if ours {
+			profile::set(EXTENSIONS, ext, previous);
+			profile::changed(EXTENSIONS);
+		}
+	}
+
 	fn add_group_item(
 		&mut self,
 		group: &str,
@@ -334,6 +376,14 @@ impl Shell for Win16Platform {
 		self.note(line);
 		dde::close();
 	}
+}
+
+/// WIN.INI's section of file associations.
+const EXTENSIONS: &str = "Extensions";
+
+/// What names this program as the owner of `ext` in `[Extensions]`.
+fn owner(exe: &str, ext: &str) -> String {
+	format!("{exe} ^.{ext}")
 }
 
 impl Win16Platform {

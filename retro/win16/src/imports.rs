@@ -334,6 +334,120 @@ global_asm!(
 	".byte 0x66, 0xc3",
 );
 
+// KERNEL.58 GetProfileString
+global_asm!(
+	".code16",
+	".section .text.imp_GetProfileString,\"ax\"",
+	".globl GetProfileString",
+	"GetProfileString:",
+	"push ebp",
+	"mov bp, sp",
+	"push ebx",
+	"push esi",
+	"push edi",
+	"push ds",
+	"push word ptr [bp+8]",
+	"push ds",
+	"push word ptr [bp+12]",
+	"push ds",
+	"push word ptr [bp+16]",
+	"push ds",
+	"push word ptr [bp+20]",
+	"push word ptr [bp+24]",
+	"mov ss, word ptr [__w16_ss16]",
+	"movzx esp, sp",
+	".byte 0x9a",
+	".globl __w16imp_KERNEL_58_GetProfileString",
+	"__w16imp_KERNEL_58_GetProfileString:",
+	".word 0, 0",
+	".byte 0x66, 0xe8",
+	".long w16_sync_alias - . - 4",
+	"mov ss, word ptr [__w16_ss32]",
+	"movzx esp, sp",
+	"push ds",
+	"pop es",
+	"movzx eax, ax",
+	"pop edi",
+	"pop esi",
+	"pop ebx",
+	"pop ebp",
+	".byte 0x66, 0xc3",
+);
+
+// KERNEL.59 WriteProfileString
+global_asm!(
+	".code16",
+	".section .text.imp_WriteProfileString,\"ax\"",
+	".globl WriteProfileString",
+	"WriteProfileString:",
+	"push ebp",
+	"mov bp, sp",
+	"push ebx",
+	"push esi",
+	"push edi",
+	"push ds",
+	"push word ptr [bp+8]",
+	"push ds",
+	"push word ptr [bp+12]",
+	"push ds",
+	"push word ptr [bp+16]",
+	"mov ss, word ptr [__w16_ss16]",
+	"movzx esp, sp",
+	".byte 0x9a",
+	".globl __w16imp_KERNEL_59_WriteProfileString",
+	"__w16imp_KERNEL_59_WriteProfileString:",
+	".word 0, 0",
+	".byte 0x66, 0xe8",
+	".long w16_sync_alias - . - 4",
+	"mov ss, word ptr [__w16_ss32]",
+	"movzx esp, sp",
+	"push ds",
+	"pop es",
+	"movzx eax, ax",
+	"pop edi",
+	"pop esi",
+	"pop ebx",
+	"pop ebp",
+	".byte 0x66, 0xc3",
+);
+
+// KERNEL.59 WriteProfileString_delete
+global_asm!(
+	".code16",
+	".section .text.imp_WriteProfileString_delete,\"ax\"",
+	".globl WriteProfileString_delete",
+	"WriteProfileString_delete:",
+	"push ebp",
+	"mov bp, sp",
+	"push ebx",
+	"push esi",
+	"push edi",
+	"push ds",
+	"push word ptr [bp+8]",
+	"push ds",
+	"push word ptr [bp+12]",
+	"push word ptr [bp+18]",
+	"push word ptr [bp+16]",
+	"mov ss, word ptr [__w16_ss16]",
+	"movzx esp, sp",
+	".byte 0x9a",
+	".globl __w16imp_KERNEL_59_WriteProfileString_delete",
+	"__w16imp_KERNEL_59_WriteProfileString_delete:",
+	".word 0, 0",
+	".byte 0x66, 0xe8",
+	".long w16_sync_alias - . - 4",
+	"mov ss, word ptr [__w16_ss32]",
+	"movzx esp, sp",
+	"push ds",
+	"pop es",
+	"movzx eax, ax",
+	"pop edi",
+	"pop esi",
+	"pop ebx",
+	"pop ebp",
+	".byte 0x66, 0xc3",
+);
+
 // KERNEL.60 FindResource
 global_asm!(
 	".code16",
@@ -2779,6 +2893,9 @@ unsafe extern "C" {
 	pub fn WaitEvent(a0: u32) -> u32;
 	pub fn GetCurrentPDB() -> u32;
 	pub fn GetModuleFileName(a0: u32, a1: u32, a2: u32) -> u32;
+	pub fn GetProfileString(a0: u32, a1: u32, a2: u32, a3: u32, a4: u32) -> u32;
+	pub fn WriteProfileString(a0: u32, a1: u32, a2: u32) -> u32;
+	pub fn WriteProfileString_delete(a0: u32, a1: u32, a2: u32) -> u32;
 	pub fn FindResource(a0: u32, a1: u32, a2: u32) -> u32;
 	pub fn LoadResource(a0: u32, a1: u32) -> u32;
 	pub fn LockResource(a0: u32) -> u32;

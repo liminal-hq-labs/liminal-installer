@@ -112,6 +112,16 @@ The new imports are `GlobalAddAtom` (USER 268), `GlobalDeleteAtom` (USER 269) an
 
 Group names go through the same ANSI mapping as the pages, so an em dash in a product name is a hyphen in Program Manager (`Lieutenant Fizz - Episode One`); the `.GRP` file name is the first eight letters and digits of the name (`LIEUTENA.GRP`).
 
+## File types
+
+A component's `file_types` become `FileType` operations (D86). Windows 3.x associates a program with an extension in the `[Extensions]` section of `WIN.INI`, one line each, `ext=PROGRAM ^.ext`, and only for three-letter extensions: the compiler skips a longer one with a warning, which is why Planboard's Windows 3.1 component declares `.pbd` beside the `.planboard` of the others (D88).
+
+- **Install.** `GetProfileString("Extensions", ext)` reads the line that is there (a default no value can be, `\x01`, tells a missing line from an empty one), `WriteProfileString` writes `ext=<install folder>\PROGRAM.EXE ^.ext`, and `SendMessage(HWND_BROADCAST, WM_WININICHANGE, 0, "Extensions")` tells File Manager to read the section again. The receipt's `A` record keeps what the line said (SPEC §9).
+- **Uninstall.** The old line goes back, or the line is deleted (`WriteProfileString` with a NULL value) when there was none, but only while the line still names this program; a line changed since is left. A second install over the first keeps what the first one replaced.
+- **Not `WriteIni`.** `WriteIni` edits an INI file below the install folder; `WIN.INI` is the system's, so the section is written through the profile functions, which are also what tell the system the file changed.
+- **Imports.** `GetProfileString` (KERNEL 58) and `WriteProfileString` (KERNEL 59) are in `tools/imports.tbl`, with the ordinals read from Windows 3.11's own `KRNL386.EXE` with `tools/ne_dump.py`. `WriteProfileString_delete` is the same export called with a far NULL for the value.
+- **Wine.** Wine, like Windows NT, maps WIN.INI's `[Extensions]` to `HKCU\Software\Microsoft\Windows NT\CurrentVersion\Extensions`, so `e2e-wine.sh` reads and seeds it there; `e2e-w31.sh` reads the real `WIN.INI`.
+
 ## The kept uninstaller
 
 The install keeps an uninstaller in the install folder, as the Win32 runtime does (D66, D78): `UNINST.EXE`, a copy of the running `SETUP.EXE` made 1 KiB at a time (a 229 KB program does not fit the 40 KiB heap), and `UNINST.DAT`, the compiled project, which the install streams from the pack a chunk at a time (`Pack::write_project`, `Shell::streams_project`): reading it whole into a `Vec` at that point of an install ended in a "Rust panic" box on Windows 3.11 (the heap is at about 35 KB there, so an allocation failure is the likely cause; the cause was not isolated, only the streaming shown to remove it). Both are `X` records in the receipt, and the group gets an item, `Uninstall <product>`, whose command line is `C:\FOLDER\UNINST.EXE /U C:\FOLDER`. Windows 3.1 has no Add/Remove Programs, so the item is the way in; the Windows 95 key is not written.
@@ -157,6 +167,8 @@ With it, 40 of 40 install-and-uninstall runs of the whole `SETUP.EXE` passed on 
 | Wine 11.21, kept uninstaller | `KEPT=1 e2e-wine.sh`: after the install the group has two items and the folder has `UNINST.EXE` and `UNINST.DAT`; `C:\FOLDER\UNINST.EXE /U` removes it all through its copy | Pass for both examples |
 | Windows for Workgroups 3.11 in DOSBox-X, kept uninstaller | `KEPT=1 e2e-w31.sh --runs 20` for each example, in two parallel workers: the install keeps `UNINST.EXE` and `UNINST.DAT` and the group lists two items; the uninstall is `C:\FOLDER\UNINST.EXE /U C:\FOLDER`, which starts its copy from the temporary folder; the group, the files and the folder go | 20 of 20 for Lt. Fizz and 20 of 20 for Planboard. Screenshots: [Planboard group with its Uninstall item](images/win16-w31-kept-group-planboard.png), [Lt. Fizz](images/win16-w31-kept-group-lt-fizz.png), [after the uninstall](images/win16-w31-kept-removed-planboard.png) |
 | Windows for Workgroups 3.11 in DOSBox-X, kept uninstaller installed, `SETUP /U` from the disk | `e2e-w31.sh --runs 10` for each example | 10 of 10 for each |
+| Wine 11.21, file type | `e2e-wine.sh`: Planboard's `pbd` line in `[Extensions]` (Wine keeps the section in its registry) is seeded with Notepad's, replaced by Planboard's on install with the receipt's `A` record keeping Notepad's, and Notepad's is back after `/U` | Pass |
+| Windows for Workgroups 3.11 in DOSBox-X, file type | `e2e-w31.sh --runs 3 planboard`: `WIN.INI`'s `pbd=notepad.exe ^.pbd` becomes `pbd=C:\PLANBOAR\PLANBRD.EXE ^.pbd`, the receipt's `A` record keeps Notepad's line, and after `/U` the `WIN.INI` line is Notepad's again, with the group, files and folder checks as before | 3 of 3 pass; Lt. Fizz, which has no file type, 2 of 2 |
 | Windows ME in VirtualBox | Not run: the VM was in use and then being debugged, and the rules say to leave it alone | Pending |
 | Windows 3.1 Standard mode, a 286, real hardware | Not run | Untested |
 

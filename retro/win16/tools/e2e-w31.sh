@@ -18,7 +18,9 @@
 # group gone`, the group's .GRP file exists in C:\WINDOWS after the install and is gone after the uninstall, and PROGMAN.INI names it
 # only in between. KEPT=1 removes the install with the uninstaller it keeps (`C:\\FOLDER\\UNINST.EXE /U C:\\FOLDER`, which copies itself to the
 # temporary folder) in place of `SETUP /U` from the disk, and also checks that UNINST.EXE and UNINST.DAT are in the folder after the install
-# and that the group holds the uninstall item next to the program's. PROGMAN_OPTIONAL=1 turns the Program Manager checks off, for a tree whose shell is not Program Manager.
+# and that the group holds the uninstall item next to the program's. Planboard declares a file type: before each run WIN.INI's [Extensions]
+# is given a `pbd=notepad.exe ^.pbd` line, and a run needs the install to replace it with Planboard's (`pbd=C:\PLANBOAR\PLANBRD.EXE ^.pbd`),
+# the receipt to keep Notepad's, and the uninstall to put `pbd=notepad.exe ^.pbd` back. PROGMAN_OPTIONAL=1 turns the Program Manager checks off, for a tree whose shell is not Program Manager.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../../.."
 : "${W31_TREE:?set W31_TREE to a Windows 3.11 tree}"
@@ -103,6 +105,14 @@ wait_exit() { # wait_exit <log in C:> <seconds>
 stop() { docker rm -f "$name" > /dev/null 2>&1 || true; }
 norm() { tr -d '\r' < "$1" | sed -e 's/^text: Space available: .*/text: Space available: N/' -e 's/Free: [0-9.]* [KMG]B/Free: N/' -e 's/^text: Setup found: .*/text: Setup found: N/' -e 's/^field: \(Port\|IRQ\|DMA\) = .*/field: \1 = N/' -e '/^radio: Sound card/,/^[^ ]/ s/^  (o)/  ( )/'; }
 
+# The `pbd` line of the tree's WIN.INI, and the one Notepad owns before a run.
+winini="$work/c/WINDOWS/WIN.INI"
+pbd_line() { tr -d '\r' < "$winini" | grep -i '^pbd=' || true; }
+seed_pbd() {
+	sed -i '/^pbd=/Id' "$winini"
+	sed -i 's/^\[Extensions\]\r\?$/&\npbd=notepad.exe ^.pbd\r/I' "$winini"
+}
+
 pass=0 total=0
 for ex in "${examples[@]}"; do
 	"$liminst" build -C "examples/$ex" -t win16-x86 --version 1.0.0 -o "$work/out-$ex" --output files --win16-runtime "$work/exe/SETUP.EXE" > /dev/null 2>&1
@@ -112,6 +122,7 @@ for ex in "${examples[@]}"; do
 		total=$((total + 1))
 		ok=1
 		why=''
+		[ "$ex" != planboard ] || seed_pbd
 		cp "$work/out-$ex/win16/SETUP.EXE" "$work/out-$ex/win16/SETUP.LPK" "$work/d/"
 		printf 'licence choose licence.accepted yes\n' > "$work/d/PLAY.TXT"
 		: > "$work/d/PLAY2.TXT"
@@ -157,6 +168,10 @@ for ex in "${examples[@]}"; do
 			[ -z "$grp" ] || [ -f "$work/c/WINDOWS/$grp" ] || { ok=0; why+=" no-$grp"; }
 			[ -z "$grp" ] || grep -qi "$grp" "$work/c/WINDOWS/PROGMAN.INI" || { ok=0; why+=' ini-has-no-group'; }
 		fi
+		if [ "$ex" = planboard ]; then
+			[ "$(pbd_line)" = 'pbd=C:\PLANBOAR\PLANBRD.EXE ^.pbd' ] || { ok=0; why+=" winini-after-install:$(pbd_line)"; }
+			tr -d '\r' < "$host/INSTALL.LIR" | grep -qxF 'A pbd|hq.liminal.planboard.pbd|C:\PLANBOAR\PLANBRD.EXE|notepad.exe ^.pbd' || { ok=0; why+=' no-A-record'; }
+		fi
 		if [ -n "${KEPT:-}" ]; then
 			[ -f "$host/UNINST.EXE" ] && [ -f "$host/UNINST.DAT" ] || { ok=0; why+=' no-kept-uninstaller'; }
 			grep -q '^progman: group: .*,2,' "$work/c/S.LOG" 2> /dev/null || { ok=0; why+=' no-uninstall-item'; }
@@ -177,6 +192,7 @@ for ex in "${examples[@]}"; do
 			[ -z "$grp" ] || [ ! -f "$work/c/WINDOWS/$grp" ] || { ok=0; why+=" $grp-left"; }
 			[ -z "$grp" ] || ! grep -qi "$grp" "$work/c/WINDOWS/PROGMAN.INI" || { ok=0; why+=' ini-still-has-group'; }
 		fi
+		[ "$ex" != planboard ] || [ "$(pbd_line)" = 'pbd=notepad.exe ^.pbd' ] || { ok=0; why+=" winini-after-uninstall:$(pbd_line)"; }
 		[ "$(tail -n1 "$work/c/U.LOG" 2> /dev/null | tr -d '\r')" = "exit 0" ] || { ok=0; why+=" uninstall-exit:$(tail -n1 "$work/c/U.LOG" 2> /dev/null | tr -d '\r')"; }
 		[ ! -e "$host" ] || { ok=0; why+=" folder-left($(ls "$host" 2> /dev/null | tr '\n' ' '))"; }
 		pass=$((pass + ok))
