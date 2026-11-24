@@ -64,6 +64,9 @@ pub enum Error {
 	BadEntry,
 	/// A file name is unsafe or not 8.3 where it must be.
 	BadName,
+	/// An entry's target mask leaves out the target that asked for it (see
+	/// [`crate::Reader::begin_for`]).
+	WrongTarget,
 	/// A chunk header is malformed or points outside its volume.
 	BadChunk,
 	/// A chunk's checksum does not match.
@@ -99,6 +102,7 @@ impl Error {
 			Error::DirectoryChecksum => "the file list does not match its checksum",
 			Error::BadEntry => "a file list entry is damaged",
 			Error::BadName => "a file name in the pack is not allowed",
+			Error::WrongTarget => "that file is not for this system",
 			Error::BadChunk => "a block of the pack is damaged",
 			Error::ChunkChecksum => "a block of the pack does not match its checksum",
 			Error::UnsupportedMethod => "the pack uses a compression this program lacks",

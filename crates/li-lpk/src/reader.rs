@@ -164,6 +164,21 @@ impl Reader {
 		Ok(Directory::new(bytes, &self.first))
 	}
 
+	/// [`Reader::begin`] for a program that knows which target it is (one bit of
+	/// [`crate::targets`]): an entry whose mask leaves that bit out is refused with
+	/// [`Error::WrongTarget`] before anything is read. A mask of 0 is every target.
+	pub fn begin_for(
+		&mut self,
+		src: &mut dyn Source,
+		e: &Entry,
+		target: u8,
+	) -> Result<Extract, Error> {
+		if !e.for_target(target) {
+			return Err(Error::WrongTarget);
+		}
+		self.begin(src, e)
+	}
+
 	/// Starts unpacking `e`: asks the source for the volume it begins in. Call
 	/// [`Reader::step`] until it returns `None`.
 	pub fn begin(&mut self, src: &mut dyn Source, e: &Entry) -> Result<Extract, Error> {
