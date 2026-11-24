@@ -44,9 +44,10 @@ pub fn arg(text: &str) -> Result<String, Error> {
 	})
 }
 
-/// Whether `command` names a program, which has an icon of its own.
+/// Whether `command` names a program, which has an icon of its own. Arguments after the first
+/// space (`C:\Q\UNINST.EXE /U C:\Q`) are not part of the name.
 pub fn is_program(command: &str) -> bool {
-	let upper = command.to_ascii_uppercase();
+	let upper = command.split(' ').next().unwrap_or("").to_ascii_uppercase();
 	[".EXE", ".COM", ".BAT", ".PIF"]
 		.iter()
 		.any(|e| upper.ends_with(e))
@@ -102,7 +103,7 @@ pub fn replace_item(name: &str) -> Result<String, Error> {
 /// document. The position `-1,-1` lets Program Manager place the icon.
 pub fn add_item(command: &str, name: &str, work_dir: &str) -> Result<String, Error> {
 	let icon = if is_program(command) {
-		arg(command)?
+		arg(command.split(' ').next().unwrap_or(""))?
 	} else {
 		String::new()
 	};
@@ -118,7 +119,7 @@ pub fn add_item(command: &str, name: &str, work_dir: &str) -> Result<String, Err
 /// long one. It leaves the working folder to Program Manager, which uses the program's own.
 pub fn add_item_short(command: &str, name: &str) -> Result<String, Error> {
 	let icon = if is_program(command) {
-		arg(command)?
+		arg(command.split(' ').next().unwrap_or(""))?
 	} else {
 		String::new()
 	};
@@ -169,6 +170,8 @@ mod tests {
 		assert!(is_program("C:\\Q\\GAME.PIF"));
 		assert!(!is_program("C:\\Q\\QUILL.HLP"));
 		assert!(!is_program("C:\\Q\\README.TXT"));
+		assert!(is_program("C:\\Q\\UNINST.EXE /U C:\\Q"));
+		assert!(!is_program("C:\\Q\\README.TXT /P.EXE"));
 	}
 
 	#[test]
@@ -190,6 +193,15 @@ mod tests {
 		assert_eq!(
 			add_item_short("C:\\QUILL\\QUILL.EXE", "Quill").unwrap(),
 			"[AddItem(C:\\QUILL\\QUILL.EXE,Quill,C:\\QUILL\\QUILL.EXE,0)]"
+		);
+		assert_eq!(
+			add_item(
+				"C:\\QUILL\\UNINST.EXE /U C:\\QUILL",
+				"Uninstall Quill",
+				"C:\\QUILL"
+			)
+			.unwrap(),
+			"[AddItem(C:\\QUILL\\UNINST.EXE /U C:\\QUILL,Uninstall Quill,C:\\QUILL\\UNINST.EXE,0,-1,-1,C:\\QUILL)]"
 		);
 		assert_eq!(delete_item("Quill").unwrap(), "[DeleteItem(Quill)]");
 		assert_eq!(delete_group("Quill").unwrap(), "[DeleteGroup(Quill)]");

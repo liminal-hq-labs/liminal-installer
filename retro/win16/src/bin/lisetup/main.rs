@@ -22,6 +22,7 @@ mod heap;
 mod plat;
 mod ui;
 
+use alloc::format;
 use alloc::string::String;
 use w16::*;
 
@@ -34,15 +35,26 @@ pub extern "C" fn w16_main(_hinst: u32, _hprev: u32, _show: u32) -> u32 {
 	let mut play = None;
 	let mut dump = None;
 	let mut pause = 0u32;
+	let mut kept = None;
+	let mut relaunched = false;
+	let mut passed = String::new();
 	for w in tail.split_whitespace() {
 		if let Some(p) = w.strip_prefix("/LOG=").or_else(|| w.strip_prefix("/log=")) {
 			log = Some(String::from(p));
+			passed.push_str(&format!(" {w}"));
 		} else if let Some(p) = w.strip_prefix("/PLAY=") {
 			play = dosio::read_file(p).map(|b| String::from_utf8_lossy(&b).into_owned());
+			passed.push_str(&format!(" {w}"));
 		} else if let Some(p) = w.strip_prefix("/PAUSE=") {
 			pause = p.parse().unwrap_or(0);
+			passed.push_str(&format!(" {w}"));
 		} else if let Some(p) = w.strip_prefix("/DUMP=") {
 			dump = Some(String::from(p));
+			passed.push_str(&format!(" {w}"));
+		} else if let Some(p) = w.strip_prefix("/DAT=") {
+			kept = Some(String::from(p));
+		} else if w.eq_ignore_ascii_case("/X") {
+			relaunched = true;
 		} else {
 			if !args.is_empty() {
 				args.push(' ');
@@ -50,7 +62,23 @@ pub extern "C" fn w16_main(_hinst: u32, _hprev: u32, _show: u32) -> u32 {
 			args.push_str(w);
 		}
 	}
+	// An uninstall started from the install folder runs from a copy in the temporary folder: Windows will not
+	// delete a program that is running, and `UNINST.EXE` is one of the files to remove.
+	if !relaunched
+		&& let Ok(li_retro::app::Mode::Uninstall(dir)) = li_retro::app::Mode::from_args(&args)
+		&& dosio::exists(&format!("{}UNINST.DAT", dosio::exe_dir()))
+	{
+		let here = dosio::exe_dir();
+		let dir = dir.unwrap_or_else(|| String::from(here.trim_end_matches('\\')));
+		let copy = format!("{}\\LIUNINST.EXE", dosio::temp_dir());
+		if dosio::copy_file(&dosio::exe_path(), &copy)
+			&& dosio::win_exec(&format!("{copy} /U {dir} /X /DAT={here}UNINST.DAT{passed}"))
+		{
+			return 0;
+		}
+	}
 	let mut p = plat::Win16Platform::new(log);
+	p.set_kept(kept);
 	p.testing(play.as_deref(), dump, pause);
 	let code = li_retro::app::run(&mut p, &args);
 	p.finish(code);

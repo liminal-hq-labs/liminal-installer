@@ -139,6 +139,12 @@ pub trait Shell {
 	fn registers_uninstall(&self) -> bool {
 		true
 	}
+	/// Whether an uninstaller is kept in the install folder (`UNINST.EXE` and `UNINST.DAT`), with an
+	/// item for it where the shell has groups. Windows 3.1 keeps one though it has no Add/Remove
+	/// Programs; the default follows [`Shell::registers_uninstall`].
+	fn keeps_uninstaller(&self) -> bool {
+		self.registers_uninstall()
+	}
 	/// The folder that holds the programs on the Start menu, without a trailing backslash.
 	fn start_menu_programs(&mut self) -> Option<String> {
 		None
@@ -180,6 +186,12 @@ pub trait Shell {
 	}
 	/// Removes the entry [`Shell::register_uninstall`] made.
 	fn unregister_uninstall(&mut self, _key: &str) {}
+	/// Whether the install writes `UNINST.DAT` itself, a chunk at a time from the pack, and
+	/// [`Shell::install_uninstaller`] gets no project and copies the program only. For a runtime
+	/// whose heap cannot hold the project beside the rest of an install.
+	fn streams_project(&self) -> bool {
+		false
+	}
 	/// Keeps a copy of the runtime and the compiled project in `dir` so the product can be
 	/// removed later; returns the names (below `dir`) of the files it wrote.
 	fn install_uninstaller(&mut self, _dir: &str, _project: &[u8]) -> Result<Vec<String>, Error> {

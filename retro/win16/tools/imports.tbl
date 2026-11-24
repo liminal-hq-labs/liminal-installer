@@ -37,10 +37,12 @@ KERNEL 86 _lwrite wpw w
 KERNEL 86 _lwrite_far wlw w
 KERNEL 107 SetErrorMode w w
 KERNEL 115 OutputDebugString p v
+KERNEL 134 GetWindowsDirectory pw w
 KERNEL 128 GetPrivateProfileString ppppwp w
 KERNEL 129 WritePrivateProfileString pppp w
 KERNEL 131 GetDOSEnvironment - l
 KERNEL 132 GetWinFlags - l
+KERNEL 166 WinExec pw w
 USER 1 MessageBox wppw w
 USER 5 InitApp w w
 USER 6 PostQuitMessage w v

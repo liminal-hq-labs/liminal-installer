@@ -96,9 +96,26 @@ pub fn mkdir(path: &str) -> Result<bool, u16> {
 	if is_dir(path) { Ok(false) } else { Err(o.ax) }
 }
 
+/// Removes an empty directory. DOS refuses (error 16) when it is the current directory, which a
+/// folder is when the program that removes it was started from it (an uninstall run from a
+/// program item whose working folder is the install folder); the current directory then moves to
+/// the root of the drive and the removal is tried once more.
 pub fn rmdir(path: &str) -> Result<(), u16> {
 	let o = call_path(0x3A00, path, 0);
-	if o.carry { Err(o.ax) } else { Ok(()) }
+	if !o.carry {
+		return Ok(());
+	}
+	if o.ax == 16
+		&& let Some(drive) = path.get(..2).filter(|d| d.ends_with(':'))
+	{
+		let mut root = String::from(drive);
+		root.push('\\');
+		call_path(0x3B00, &root, 0);
+		if !call_path(0x3A00, path, 0).carry {
+			return Ok(());
+		}
+	}
+	Err(o.ax)
 }
 
 pub fn delete(path: &str) -> Result<(), u16> {
@@ -235,4 +252,79 @@ pub fn getenv(name: &str) -> Option<String> {
 			return Some(v.into());
 		}
 	}
+}
+
+/// Copies a file in 1 KiB pieces, so a program of 200 KB does not need the heap for it. Replaces `to`.
+pub fn copy_file(from: &str, to: &str) -> bool {
+	let Some(src) = open(from) else {
+		return false;
+	};
+	let Some(dst) = create(to) else {
+		close(src);
+		return false;
+	};
+	let mut buf = alloc::vec![0u8; 1024];
+	let (mut at, mut ok) = (0u32, true);
+	loop {
+		match read_at(src, at, &mut buf) {
+			Some(0) => break,
+			Some(n) => {
+				if !write(dst, &buf[..n]) {
+					ok = false;
+					break;
+				}
+				at += n as u32;
+			}
+			None => {
+				ok = false;
+				break;
+			}
+		}
+	}
+	close(src);
+	close(dst);
+	ok
+}
+
+/// The path of the running program.
+pub fn exe_path() -> String {
+	let mut buf = [0u8; 144];
+	let n = unsafe { GetModuleFileName(HINST, addr_of_mut!(buf) as u32, 143) } as usize;
+	String::from_utf8_lossy(&buf[..n.min(143)]).into_owned()
+}
+
+/// The folder of the running program, with its trailing backslash.
+pub fn exe_dir() -> String {
+	let p = exe_path();
+	match p.rfind('\\') {
+		Some(i) => String::from(&p[..=i]),
+		None => String::new(),
+	}
+}
+
+/// The Windows folder, without a trailing backslash.
+pub fn windows_dir() -> String {
+	let mut buf = [0u8; 144];
+	let n = unsafe { GetWindowsDirectory(addr_of_mut!(buf) as u32, 143) } as usize;
+	String::from_utf8_lossy(&buf[..n.min(143)]).into_owned()
+}
+
+/// The folder for temporary files: `TEMP` or `TMP` when it names a folder, else the Windows folder.
+pub fn temp_dir() -> String {
+	for var in ["TEMP", "TMP"] {
+		if let Some(d) = getenv(var) {
+			let d = d.trim_end_matches('\\');
+			if !d.is_empty() && is_dir(d) {
+				return String::from(d);
+			}
+		}
+	}
+	windows_dir()
+}
+
+/// Starts `cmd` (a program and its arguments) as a new task. True when Windows started it.
+pub fn win_exec(cmd: &str) -> bool {
+	// A command line is longer than the 144 bytes of the path buffer.
+	let text = crate::ui::ansi(cmd);
+	unsafe { WinExec(text.as_ptr() as u32, 1) > 31 }
 }

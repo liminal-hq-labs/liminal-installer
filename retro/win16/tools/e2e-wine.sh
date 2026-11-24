@@ -4,7 +4,9 @@
 # (c) Copyright 2026 Liminal HQ, Scott Morris
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 #
-# usage: retro/win16/tools/e2e-wine.sh
+# usage: [KEPT=1] retro/win16/tools/e2e-wine.sh
+#
+# With KEPT=1 the uninstall is the kept `UNINST.EXE /U` of the install folder instead of `SETUP.EXE /U`.
 #
 # Builds SETUP.EXE and the two packs (`liminst build -t win16-x86`), then for each example runs `SETUP.EXE /PLAY=PLAY.TXT /DUMP=...`: the
 # script presses the real controls (the licence choice, then every default button) and `/DUMP` writes the text of each page, which is
@@ -74,7 +76,16 @@ for ex in lt-fizz planboard; do
 	done < <(tr -d '\r' < "$host/INSTALL.LIR")
 	echo "e2e-wine: $ex installed $n files, receipt checked"
 	echo "e2e-wine: $ex: the receipt has $(grep -c '^G ' "$host/INSTALL.LIR") group item(s) and $(grep -c '^P ' "$host/INSTALL.LIR") made group(s)"
-	(cd "$dir" && wine SETUP.EXE /U "C:\\$name" "/LOG=C:\\$ex-u.LOG" /PLAY=PLAY2.TXT > /dev/null 2>&1) || true
+	if [ -n "${KEPT:-}" ]; then
+		# The kept uninstaller: it copies itself to the temporary folder and runs from there.
+		[ -f "$host/UNINST.EXE" ] && [ -f "$host/UNINST.DAT" ] || { echo "e2e-wine: $ex: no kept uninstaller" >&2; fail=1; }
+		# The copy runs from the temporary folder, so its script is given by an absolute path.
+		cp "$dir/PLAY2.TXT" "$WINEPREFIX/drive_c/PLAY2.TXT"
+		(cd "$dir" && wine "C:\\$name\\UNINST.EXE" /U "C:\\$name" "/LOG=C:\\$ex-u.LOG" /PLAY=C:\\PLAY2.TXT > /dev/null 2>&1) || true
+		for _ in $(seq 1 60); do grep -q '^exit' "$WINEPREFIX/drive_c/$ex-u.LOG" 2> /dev/null && break; sleep 1; done
+	else
+		(cd "$dir" && wine SETUP.EXE /U "C:\\$name" "/LOG=C:\\$ex-u.LOG" /PLAY=PLAY2.TXT > /dev/null 2>&1) || true
+	fi
 	if [ -e "$host" ]; then
 		echo "e2e-wine: $ex uninstall left $host behind" >&2
 		fail=1

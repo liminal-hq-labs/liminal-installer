@@ -254,14 +254,14 @@ Example 1. A receipt, shortened.
 
 A receipt also records `updates`, the product's `[updates]` section at install time (absent on older receipts, which the installer updates), and a wrapped install's `external` entry inside its `tauri.wrap` operation (§15).
 
-Receipts are kept in `{install}/.liminal/receipt.json` and indexed per user and per machine, so the Hub can find every installed product. The retro runtime writes the same data as `INSTALL.LIR`: a text file of `LIR 1`, `product=`, `version=`, `target=`, `dir=`, `components=` lines and one `D` (directory made), `F name size crc` (file, with a CRC-32), `I` (INI) or `B` (launcher batch) record per line; the Win32 runtime adds `X` (a file of the uninstaller, below the install directory), `S` (a Start menu shortcut, by full path) and `R` (the Add/Remove Programs registry key), and writes `D` records of directories outside the install directory by full path, as the DOS runtime does for a parent it made. The Windows 3.1 runtime adds `G group|item` (a Program Manager item) and `P group` (the group was made by this install, so the uninstall deletes it; a group that was already there is left, with the items that are not ours). A reader that does not know a letter ignores the line. It records CRC-32, not SHA-256; uninstall removes the files, then the directories it made when they are empty. See [docs/retro-dos.md](docs/retro-dos.md).
+Receipts are kept in `{install}/.liminal/receipt.json` and indexed per user and per machine, so the Hub can find every installed product. The retro runtime writes the same data as `INSTALL.LIR`: a text file of `LIR 1`, `product=`, `version=`, `target=`, `dir=`, `components=` lines and one `D` (directory made), `F name size crc` (file, with a CRC-32), `I` (INI) or `B` (launcher batch) record per line; the Win32 runtime adds `X` (a file of the uninstaller, below the install directory), `S` (a Start menu shortcut, by full path) and `R` (the Add/Remove Programs registry key), and writes `D` records of directories outside the install directory by full path, as the DOS runtime does for a parent it made. The Windows 3.1 runtime adds `X` records for its kept uninstaller (`UNINST.EXE` and `UNINST.DAT`), `G group|item` (a Program Manager item) and `P group` (the group was made by this install, so the uninstall deletes it; a group that was already there is left, with the items that are not ours). A reader that does not know a letter ignores the line. It records CRC-32, not SHA-256; uninstall removes the files, then the directories it made when they are empty. See [docs/retro-dos.md](docs/retro-dos.md).
 
 ## 10 · Platform integration
 
 | Platform | Apps list | Shortcuts and file types |
 |---|---|---|
 | Windows 95–11 | Uninstall registry key (`UninstallString`, kept `UNINST.EXE`) | Start Menu .lnk (`IShellLink`), ProgIDs |
-| Windows 3.1 | None; uninstall via setup | Program Manager group (DDE) |
+| Windows 3.1 | A kept `UNINST.EXE` and an "Uninstall" item in the group; `SETUP /U` from the media too | Program Manager group (DDE) |
 | Linux, FreeBSD | Package database for native packages | XDG desktop entries, shared MIME info, icon theme |
 | macOS | `pkgutil` receipt for .pkg | /Applications, Launch Services |
 | DOS | None | Optional batch launcher |

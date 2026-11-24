@@ -9,7 +9,7 @@ set -euo pipefail
 # Usage: build.sh [--regen] [--spike]
 #
 # Writes out/SETUP.EXE, the Windows 3.1 installer (code in several segments, see PROVENANCE.md and tools/ne_pack.py), and its
-# out/SETUP.MAP. `--spike` also builds the spike's MSGBOX, HELLO and SETUP proof as out/SPIKE*.EXE names. `--regen` rebuilds
+# out/SETUP.MAP (W16_FEATURES=panic-location names the file and line of a panic in its box). `--spike` also builds the spike's MSGBOX, HELLO and SETUP proof as out/SPIKE*.EXE names. `--regen` rebuilds
 # src/imports.rs from tools/imports.tbl first. Set CARGO_TARGET_DIR to keep the build output outside the tree, OUT_DIR to move out/.
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
@@ -34,7 +34,7 @@ progs=("lisetup:SETUP:0x2000:0x2000")
 
 bins=()
 for p in "${progs[@]}"; do bins+=(--bin "${p%%:*}"); done
-if ! cargo build --release "${bins[@]}" 2>"$CARGO_TARGET_DIR/build.log"; then
+if ! cargo build --release ${W16_FEATURES:+--features "$W16_FEATURES"} "${bins[@]}" 2>"$CARGO_TARGET_DIR/build.log"; then
 	cat "$CARGO_TARGET_DIR/build.log" >&2
 	exit 1
 fi
