@@ -63,6 +63,8 @@ pub struct ComponentInfo {
 	pub id: String,
 	pub name: String,
 	pub required: bool,
+	/// Whether the component starts ticked; `false` for an optional component the person ticks.
+	pub default: bool,
 	pub targets: Vec<String>,
 	pub files: usize,
 }
@@ -193,6 +195,7 @@ impl Studio {
 						id: c.id.clone(),
 						name: c.name.clone(),
 						required: c.required,
+						default: c.default,
 						targets: c.targets.clone(),
 						files: c.files.len(),
 					})

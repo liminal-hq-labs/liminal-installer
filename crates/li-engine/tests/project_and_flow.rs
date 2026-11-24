@@ -310,3 +310,46 @@ fn a_screen_is_the_page_inside_the_themes_stage() {
 		.unwrap();
 	assert_eq!(screen.root.children.len(), 2);
 }
+
+#[test]
+fn an_unticked_component_is_left_out_unless_it_is_asked_for() {
+	let mut p = project();
+	let optional = p
+		.components
+		.components
+		.iter()
+		.position(|c| !c.required)
+		.expect("an optional component");
+	p.components.components[optional].default = false;
+	let id = p.components.components[optional].id.clone();
+	let target = p.installer.targets[0].id.clone();
+
+	let by_default = li_engine::select_components(&p, &target, None).unwrap();
+	assert!(!by_default.contains(&id), "{by_default:?}");
+	let asked = li_engine::select_components(&p, &target, Some(std::slice::from_ref(&id))).unwrap();
+	assert!(asked.contains(&id), "{asked:?}");
+	assert!(check(&p).is_empty());
+}
+
+#[test]
+fn a_required_component_that_starts_unticked_is_an_error() {
+	let mut p = project();
+	let required = p
+		.components
+		.components
+		.iter()
+		.position(|c| c.required)
+		.expect("a required component");
+	p.components.components[required].default = false;
+	assert!(codes(&p).contains(&"required-default-off"));
+}
+
+#[test]
+fn a_component_starts_ticked_unless_its_file_says_otherwise() {
+	let file: li_model::ComponentsFile = toml::from_str(
+		"[[component]]\nid = \"a\"\nname = \"A\"\n[[component]]\nid = \"b\"\nname = \"B\"\ndefault = false\n",
+	)
+	.unwrap();
+	assert!(file.components[0].default && file.components[0].on_by_default());
+	assert!(!file.components[1].default && !file.components[1].on_by_default());
+}

@@ -131,7 +131,7 @@ impl Base {
 			});
 		self.components
 			.iter()
-			.filter(|c| c.required || chosen.as_ref().is_none_or(|ids| ids.contains(&c.id)))
+			.filter(|c| c.required || chosen.as_ref().map_or(c.default, |ids| ids.contains(&c.id)))
 			.map(|c| c.id.clone())
 			.collect()
 	}
