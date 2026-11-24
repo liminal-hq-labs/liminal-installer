@@ -52,6 +52,13 @@ for ex in lt-fizz planboard; do
 		fail=1
 		continue
 	fi
+	# Program Manager: Wine may or may not answer the DDE conversation; either is logged and either passes, with a note.
+	pm="$(tr -d '\r' < "$WINEPREFIX/drive_c/$ex.LOG" | grep '^progman:' | tr '\n' ';' || true)"
+	case "$pm" in
+		*"progman: added"*) echo "e2e-wine: $ex: Program Manager accepted the conversation ($pm)" ;;
+		*"progman: unavailable"*) echo "e2e-wine: $ex: no Program Manager under Wine; the batch launcher was written ($pm)" ;;
+		*) echo "e2e-wine: $ex: unexpected Program Manager result: ${pm:-none}" >&2; fail=1 ;;
+	esac
 	if diff <(norm "$WINEPREFIX/drive_c/$ex.TXT") <(norm "crates/li-retro-build/tests/golden/win16/$ex.pages.txt") > "$dir/diff"; then
 		echo "e2e-wine: $ex: every page the controls show equals the host's golden"
 	else
@@ -66,6 +73,7 @@ for ex in lt-fizz planboard; do
 		n=$((n + 1))
 	done < <(tr -d '\r' < "$host/INSTALL.LIR")
 	echo "e2e-wine: $ex installed $n files, receipt checked"
+	echo "e2e-wine: $ex: the receipt has $(grep -c '^G ' "$host/INSTALL.LIR") group item(s) and $(grep -c '^P ' "$host/INSTALL.LIR") made group(s)"
 	(cd "$dir" && wine SETUP.EXE /U "C:\\$name" "/LOG=C:\\$ex-u.LOG" /PLAY=PLAY2.TXT > /dev/null 2>&1) || true
 	if [ -e "$host" ]; then
 		echo "e2e-wine: $ex uninstall left $host behind" >&2

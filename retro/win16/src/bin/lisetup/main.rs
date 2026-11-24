@@ -16,6 +16,7 @@
 
 extern crate alloc;
 
+mod dde;
 mod dosio;
 mod heap;
 mod plat;

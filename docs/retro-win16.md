@@ -2,7 +2,7 @@
 
 `liminst build -t win16-x86` turns an installer project into `SETUP.LPK`, the Liminal Pack the Windows 3.1 runtime reads ([lpk-format.md](lpk-format.md)), and carries `SETUP.EXE`, the runtime, when `--win16-runtime`, `LIMINST_WIN16_RUNTIME` or `retro/win16/out/SETUP.EXE` names one; the `floppy-1440` output fails without it, naming `--win16-runtime` (D75). The runtime is Rust built for a 16-bit code segment and packed into an NE executable (D46, [win16-spike.md](win16-spike.md)), on the same portable core as the DOS and Windows 95 runtimes: the flow VM and installer engine of `li-retro`, a `Gui` for the pages (shared with Win32) and a `Shell` for what the machine's shell does (D69, D73).
 
-**Status.** The whole `SETUP.EXE` links and runs. Its code is 138 827 bytes, which no single 16-bit code segment can hold, so the packer places it in four (the packer is vendored from rust-win16, see [`retro/win16/PROVENANCE.md`](../retro/win16/PROVENANCE.md)). Under Wine and on Windows for Workgroups 3.11 in DOSBox-X it installs and uninstalls Lt. Fizz and Planboard through its real controls: 40 of 40 runs passed on 3.11, 20 of each example. What is unproven is real hardware (see [What is not done](#what-is-not-done)).
+**Status.** The whole `SETUP.EXE` links and runs. Its code is 154 524 bytes, which no single 16-bit code segment can hold, so the packer places it in four (the packer is vendored from rust-win16, see [`retro/win16/PROVENANCE.md`](../retro/win16/PROVENANCE.md)). Under Wine and on Windows for Workgroups 3.11 in DOSBox-X it installs and uninstalls Lt. Fizz and Planboard through its real controls: 40 of 40 runs passed on 3.11, 20 of each example. What is unproven is real hardware (see [What is not done](#what-is-not-done)).
 
 ## Table of contents
 
@@ -11,6 +11,7 @@
 - [The target](#the-target)
 - [Pages become Windows controls](#pages-become-windows-controls)
 - [The runtime](#the-runtime)
+- [The Program Manager group](#the-program-manager-group)
 - [Sizes and segments](#sizes-and-segments)
 - [The ESP finding and how it was fixed](#the-esp-finding-and-how-it-was-fixed)
 - [Where each test ran](#where-each-test-ran)
@@ -90,19 +91,35 @@ Text roles (`heading`, `caption`, `summary`) ride in `Widget::Text.attr`, which 
 - **Pack.** `SETUP.LPK` beside `SETUP.EXE`, found through `GetModuleFileName`, read with `_lopen`, `_llseek` and `_lread`. The compiler packs for Windows with 4 KiB chunks (`WIN16_CHUNK_LOG2`, 12) instead of DOS's 32 KiB, so the decoder's window, which the heap holds for the whole run, is an eighth the size. Every chunk's CRC-32 is checked before the bytes are written.
 - **Files.** Created with `_lcreat` and `_lwrite`; directories, delete, attributes and free space by INT 21h (39h, 3Ah, 41h, 43h, 36h), each on the real 16-bit stack (see the ESP finding below). Free space stops at 2 GiB, as on DOS.
 - **Receipt.** `INSTALL.LIR`, the DOS receipt unchanged apart from `target=win16-x86:win16`. The same `FIZZ.BAT` launcher is written and recorded as a `B` line.
-- **Shell.** Windows 3.1's `Shell` says `ShortcutKind::GroupItem` and has no uninstall list; `add_group_item` returns `GroupAdd::Unavailable` or `Added { made_group }`, and `remove_group(group, items, made_group)` takes the items and the group out in one conversation. The commands are built by `li_retro::progman` (quoting, the `IconPath` rule, the `.GRP` name) and recorded by the host's simulated shell, which the goldens in `tests/golden/win16/lt-fizz.progman.txt` read. The DDE conversation with `PROGMAN` behind it is not written yet, so on Windows the install still falls back to the batch launcher (D76).
+- **Shell.** Windows 3.1's `Shell` says `ShortcutKind::GroupItem` and has no uninstall list; `add_group_item` returns `GroupAdd::Unavailable` or `Added { made_group }`, and `remove_group(group, items, made_group)` takes the items and the group out in one conversation. The commands are built by `li_retro::progman` (quoting, the `IconPath` rule, the `.GRP` name) and recorded by the host's simulated shell, which the goldens in `tests/golden/win16/lt-fizz.progman.txt` read. The conversation with `PROGMAN` is `lisetup/dde.rs` (D77, below); when there is no Program Manager to talk to, the install falls back to the batch launcher.
 - **Built-ins.** `detect-sound` reads `BLASTER` through `GetDOSEnvironment` and probes the ports with `in` and `out` (DOSBox-X's emulated Sound Blaster answers it); `check-disk-space` is the engine's.
 - **Memory.** A 40 KiB heap in the data segment under a first-fit allocator, an 8 KiB stack, an 8 KiB local heap for the edit controls' text and a 64-entry shadow return stack; the data segment holds all of it in 64 KB. The heap's peak was 33 680 bytes for Lt. Fizz and 30 392 for Planboard.
+
+## The Program Manager group
+
+Windows 3.1 has no function that makes a group or an item, so `lisetup/dde.rs` talks to Program Manager over DDE with the raw `WM_DDE_*` messages (D77). DDEML was not used: it needs a callback made with `MakeProcInstance`, string handles and a fourth imported module, where the raw messages need a hidden window and its procedure (`export_proc!`, as the wizard has).
+
+1. A hidden window of class `LiminalDde`; `SendMessage(-1, WM_DDE_INITIATE, hwnd, MAKELONG(atom, atom))` with the global atom `PROGMAN` for the application and the topic. The first `WM_DDE_ACK` names the server window; the atoms in every ACK are deleted. No ACK in a quarter of a second means no Program Manager (another shell), and `add_group_item` returns `Unavailable`, so the batch launcher is written.
+2. `WM_DDE_REQUEST` for the item `PROGMAN` brings the group names as `WM_DDE_DATA`; the group exists when one line equals its name, ignoring case. A list that cannot be had counts as "exists", so a group is never deleted by mistake.
+3. Each command is a `WM_DDE_EXECUTE` with a `GMEM_MOVEABLE | GMEM_DDESHARE` block, waited for with the message pump for at most five seconds. Install: `[CreateGroup(name,FILE.GRP)]`, `[ShowGroup(name,1)]`, `[ReplaceItem(item)]` (refused when there is no item yet, which is fine), `[AddItem(command,item,iconpath,0,-1,-1,workdir)]`, and the four-argument `AddItem` if that is refused. If the item cannot be added the group is deleted again when this call made it, and the install falls back to the batch launcher. Uninstall: `[ShowGroup]`, a `[DeleteItem]` for each `G` record, and `[DeleteGroup]` only when the receipt has `P`.
+4. After an add, the group's own listing is requested (item = the group name) and its start is written to `/LOG`: `progman: group: "Planboard",C:\WINDOWS\PLANBOAR.GRP,1,1|"Planboard","C:\PLANBOAR\PLANBRD.EXE",...`. That line, and `progman: removed; group gone` after an uninstall, are the in-guest proof; they do not depend on Program Manager having written its files.
+5. `WM_DDE_TERMINATE`, a wait of a second for the server's own, and the window is destroyed.
+
+The window procedure never allocates (the heap is not reentrant) and the state is about 1 KB of statics, because the data segment has little room left (48 364 bytes of data, an 8 KiB stack and an 8 KiB local heap leave 788 bytes of 64 KB): the group list is searched as it is read.
+
+The new imports are `GlobalAddAtom` (USER 268), `GlobalDeleteAtom` (USER 269) and `IsWindow` (USER 47). The atom functions are **USER**'s, not KERNEL's: KERNEL 70 and 71 are the local `AddAtom` and `DeleteAtom`. All three ordinals were read from Windows 3.11's own `USER.EXE` with `tools/ne_dump.py` and agree with Wine's `user.exe16.spec`.
+
+Group names go through the same ANSI mapping as the pages, so an em dash in a product name is a hyphen in Program Manager (`Lieutenant Fizz - Episode One`); the `.GRP` file name is the first eight letters and digits of the name (`LIEUTENA.GRP`).
 
 ## Sizes and segments
 
 | | Bytes |
 |---|---|
-| Code, in four segments | 138 827 (34 842, 46 861, 45 355 and 11 769) |
-| Call veneers, jump stubs and pointer slots | 1 169, 12 and 20 |
-| Data (static data and the 40 KiB heap) | 47 396 |
+| Code, in four segments | 154 524 (35 906, 44 580, 46 310 and 27 728) |
+| Call veneers, jump stubs and pointer slots | 1 368, 14 and 24 |
+| Data (static data and the 40 KiB heap) | 48 364 |
 | Stack, local heap | 8 192, 8 192 |
-| `SETUP.EXE` | 206 179 |
+| `SETUP.EXE` | 226 194 |
 
 Table 2. What the packer reports for `SETUP.EXE`.
 
@@ -134,7 +151,7 @@ Table 3. Where it ran.
 ## What is not done
 
 - **Real hardware.** Everything on Windows 3.11 ran under DOSBox-X. The ESP fix is the same code rust-win16 verified there; whether a real 386, 486 or Pentium behaves as the emulator does is not shown, nor another emulator or a Windows 3.1 retail install, nor Windows ME.
-- **A Program Manager group.** The `shortcut` operation still writes the DOS batch launcher. The seam and the command builder are in place and tested on the host; the DDE conversation with `PROGMAN` (`[CreateGroup]`, `[AddItem]`) behind `add_group_item` is not written, and the atom functions' ordinals have not been checked against Windows 3.1.
+- **A Program Manager group on another shell.** Norton Desktop or another replacement shell that does not answer `PROGMAN` gets the batch launcher; that path is tested only by the host's simulated shell and by a hand-made refusal, not on such a shell. A group the person added items to is deleted with its items when this install made it.
 - **Launch after setup, repair and update**, as on DOS.
 - **Uninstall from the install folder.** `SETUP /U` runs from the media, as on DOS; a Windows 3.1 install keeps no uninstaller.
 - **Browse for a folder**, icons, bold headings and any colour: the pages use the system font and the system colours.

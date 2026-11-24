@@ -11,11 +11,13 @@ use alloc::vec::Vec;
 use core::arch::asm;
 use core::ptr::addr_of_mut;
 use li_retro::gui::Gui;
-use li_retro::platform::{Shell, ShortcutKind};
+use li_retro::platform::{GroupAdd, Shell, ShortcutKind};
+use li_retro::progman;
 use li_retro::ui::Cells;
 use li_retro::{Error, Key, Platform};
 use w16::*;
 
+use crate::dde;
 use crate::dosio;
 use crate::ui::{Ui, ansi};
 
@@ -212,8 +214,9 @@ impl Platform for Win16Platform {
 }
 
 /// Windows 3.1's shell is Program Manager: 8.3 names, shortcuts as items in a group, no uninstall list.
-/// Making the items is a DDE conversation with `PROGMAN` that is not written yet, so `add_group_item`
-/// keeps its default (`false`) and the install writes the batch launcher as DOS does.
+/// Items are made by a DDE conversation with `PROGMAN` (`dde.rs`) in the commands `li_retro::progman`
+/// builds; when there is no Program Manager to talk to, `add_group_item` says so and the install
+/// writes the batch launcher as DOS does.
 impl Shell for Win16Platform {
 	fn long_names(&self) -> bool {
 		false
@@ -225,6 +228,80 @@ impl Shell for Win16Platform {
 
 	fn registers_uninstall(&self) -> bool {
 		false
+	}
+
+	fn add_group_item(
+		&mut self,
+		group: &str,
+		name: &str,
+		command: &str,
+		work_dir: &str,
+	) -> Result<GroupAdd, Error> {
+		// Every command is built first: a name Program Manager cannot take stops the install here.
+		let create = progman::create_group(group)?;
+		let show = progman::show_group(group)?;
+		let replace = progman::replace_item(name)?;
+		let add = progman::add_item(command, name, work_dir)?;
+		let short = progman::add_item_short(command, name)?;
+		if !dde::open(group) {
+			self.note("progman: unavailable");
+			return Ok(GroupAdd::Unavailable);
+		}
+		// A group that cannot be listed is taken to exist, so it is never deleted by mistake.
+		let listed = dde::group_listed();
+		self.note(match listed {
+			Some(true) => "progman: group exists",
+			Some(false) => "progman: group missing",
+			None => "progman: group list unavailable",
+		});
+		let made_group = listed == Some(false);
+		let mut added = dde::execute(&create);
+		if added {
+			dde::execute(&show);
+			// Refused when there is no such item yet, which is fine.
+			dde::execute(&replace);
+			added = dde::execute(&add) || dde::execute(&short);
+		}
+		if !added {
+			self.note("progman: add refused");
+			if made_group && let Ok(delete) = progman::delete_group(group) {
+				dde::execute(&delete);
+			}
+			dde::close();
+			return Ok(GroupAdd::Unavailable);
+		}
+		self.note("progman: added");
+		if let Some(info) = dde::group_info() {
+			let line = format!("progman: group: {info}");
+			self.note(&line);
+		}
+		dde::close();
+		Ok(GroupAdd::Added { made_group })
+	}
+
+	fn remove_group(&mut self, group: &str, items: &[&str], made_group: bool) {
+		if !dde::open(group) {
+			self.note("progman: unavailable on removal");
+			return;
+		}
+		if let Ok(show) = progman::show_group(group) {
+			dde::execute(&show);
+		}
+		for item in items {
+			if let Ok(c) = progman::delete_item(item) {
+				dde::execute(&c);
+			}
+		}
+		if made_group && let Ok(c) = progman::delete_group(group) {
+			dde::execute(&c);
+		}
+		let line = match dde::group_listed() {
+			Some(true) => "progman: removed; group still listed",
+			Some(false) => "progman: removed; group gone",
+			None => "progman: removed",
+		};
+		self.note(line);
+		dde::close();
 	}
 }
 
