@@ -13,6 +13,7 @@ A real Windows 95 OSR2.5 under DOSBox-X, built from the owner's CD image, for ch
 - [How it works](#how-it-works)
 - [What this Windows 95 is](#what-this-windows-95-is)
 - [What was hit on the way](#what-was-hit-on-the-way)
+- [Playing by hand](#playing-by-hand)
 - [Limits](#limits)
 - [VirtualBox as a second option](#virtualbox-as-a-second-option)
 
@@ -135,6 +136,10 @@ The CD is OSR2.5 (4.00.950 C). What matters for what we test:
 - Typing the key with `xdotool type --file -` typed nothing; `--file /dev/stdin` works.
 - The installer's illustrations contain the same teal as the desktop, so a one-third threshold ended the install at 49 per cent of the file copy. The detector now wants 55 per cent.
 - A `PRODUCTKEY` line in the answer file is ignored for an OEM key, so the key is typed.
+
+## Playing by hand
+
+`scripts/win95/play-win95.sh` starts the same bases in a real window on your desktop, with a working mouse and Quill on `D:`; see [play.md](play.md).
 
 ## Limits
 
