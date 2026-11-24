@@ -28,6 +28,11 @@
 //! B FIZZ.BAT
 //! ```
 //!
+//! A file type the install registered is one more record, `A ext|prog_id|exe|previous`: the
+//! extension, the type's name, the program that opens it and what owned the extension before. The
+//! last field is left out when nothing did. `%`, `|`, CR and LF in a field are written `%25`,
+//! `%7C`, `%0D` and `%0A`.
+//!
 //! `D` is a directory the install created (`.` is the install directory itself), `F` a file with
 //! its size and CRC-32 in hexadecimal, `I` an INI file the install wrote and `B` a launcher batch
 //! file. Uninstall removes `F`, `I` and `B` files, then the `D` directories that are empty, in
@@ -323,6 +328,46 @@ fn group_item<P: Platform>(
 	})
 }
 
+/// Registers a file type through the shell, when it has any, noting what it replaced.
+#[allow(clippy::too_many_arguments)]
+fn file_type<P: Platform>(
+	p: &mut P,
+	dir: &str,
+	ext: &str,
+	prog_id: &str,
+	name: &str,
+	target: &str,
+	before: &[FileTypeRecord],
+	made: &mut Made,
+) -> Result<(), Error> {
+	if !p.shell().is_some_and(|s| s.file_types()) {
+		return Ok(());
+	}
+	let exe = join(dir, target);
+	let mut previous = match p.shell() {
+		Some(s) => s.register_file_type(ext, prog_id, name, &exe)?,
+		None => None,
+	};
+	// What was there is what the last install put there: keep what that one replaced.
+	let ours = |v: &str| {
+		let v = v.to_ascii_uppercase();
+		let own = |e: &str| v.starts_with(&e.to_ascii_uppercase());
+		v == prog_id.to_ascii_uppercase() || own(&exe) || before.iter().any(|b| own(&b.exe))
+	};
+	if let Some(old) = before.iter().find(|b| b.ext == ext)
+		&& previous.as_deref().is_some_and(ours)
+	{
+		previous = old.previous.clone();
+	}
+	made.file_types.push(FileTypeRecord {
+		ext: ext.to_string(),
+		prog_id: prog_id.to_string(),
+		exe,
+		previous,
+	});
+	Ok(())
+}
+
 /// A name with the characters a file name cannot hold taken out.
 fn file_safe(name: &str) -> String {
 	let s: String = name
@@ -353,6 +398,78 @@ struct Made {
 	groups: Vec<String>,
 	/// The Program Manager groups this install made, so the uninstall may delete them.
 	made_groups: Vec<String>,
+	/// The file types registered, in the order made.
+	file_types: Vec<FileTypeRecord>,
+}
+
+/// A file type an install registered and what it replaced: the receipt's `A` record.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileTypeRecord {
+	/// The extension, without a dot, in lower case.
+	pub ext: String,
+	/// The type's name for the registry.
+	pub prog_id: String,
+	/// The full path of the program that opens the type.
+	pub exe: String,
+	/// What owned the extension before this install, if anything.
+	pub previous: Option<String>,
+}
+
+const ESCAPED: [(char, &str); 4] = [('%', "%25"), ('|', "%7C"), ('\r', "%0D"), ('\n', "%0A")];
+
+fn escape(s: &str) -> String {
+	let mut out = String::new();
+	for c in s.chars() {
+		match ESCAPED.iter().find(|(e, _)| *e == c) {
+			Some((_, code)) => out.push_str(code),
+			None => out.push(c),
+		}
+	}
+	out
+}
+
+fn unescape(s: &str) -> String {
+	let mut out = s.to_string();
+	// `%25` last, so the text it produces is not read as another escape.
+	for (c, code) in ESCAPED.iter().rev() {
+		out = out.replace(code, c.encode_utf8(&mut [0u8; 4]));
+	}
+	out
+}
+
+impl FileTypeRecord {
+	fn line(&self) -> String {
+		let mut l = format!(
+			"A {}|{}|{}",
+			escape(&self.ext),
+			escape(&self.prog_id),
+			escape(&self.exe)
+		);
+		if let Some(prev) = &self.previous {
+			l.push('|');
+			l.push_str(&escape(prev));
+		}
+		l
+	}
+
+	fn parse(rest: &str) -> Option<FileTypeRecord> {
+		let mut it = rest.splitn(4, '|');
+		Some(FileTypeRecord {
+			ext: unescape(it.next()?),
+			prog_id: unescape(it.next()?),
+			exe: unescape(it.next()?),
+			previous: it.next().map(unescape),
+		})
+	}
+}
+
+/// Takes back the file types in `types`, last made first.
+fn unregister_file_types<P: Platform>(p: &mut P, types: &[FileTypeRecord]) {
+	for t in types.iter().rev() {
+		if let Some(s) = p.shell() {
+			s.unregister_file_type(&t.ext, &t.prog_id, &t.exe, t.previous.as_deref());
+		}
+	}
 }
 
 /// Installs the selected components (and the required ones) into `dir`.
@@ -389,14 +506,21 @@ pub fn install<P: Platform>(
 		keys: Vec::new(),
 		groups: Vec::new(),
 		made_groups: Vec::new(),
+		file_types: Vec::new(),
 	};
+	// A reinstall finds its own type where the last install put it; what that install replaced is
+	// still the owner to restore.
+	let before = Receipt::read(p, &dir)
+		.map(|r| r.file_types)
+		.unwrap_or_default();
 	let result = do_install(
-		p, project, pack, &dir, selected, v, &files, free, &mut j, &mut made, progress,
+		p, project, pack, &dir, selected, v, &files, free, &before, &mut j, &mut made, progress,
 	);
 	if result.is_err() {
 		rollback(p, &j);
 		// The items go before the group, and the files they start are already gone.
 		remove_groups(p, &made.groups, &made.made_groups);
+		unregister_file_types(p, &made.file_types);
 	}
 	result
 }
@@ -411,6 +535,7 @@ fn do_install<P: Platform>(
 	v: &Values,
 	files: &[&FileEntry],
 	free: u64,
+	before: &[FileTypeRecord],
 	j: &mut Journal,
 	made: &mut Made,
 	progress: &mut dyn FnMut(&mut P, &Progress) -> bool,
@@ -507,6 +632,12 @@ fn do_install<P: Platform>(
 				}
 				made.batches.push(batch.clone());
 			}
+			Op::FileType {
+				ext,
+				prog_id,
+				name,
+				target,
+			} => file_type(p, dir, ext, prog_id, name, target, before, made)?,
 		}
 	}
 	if p.shell().is_some_and(|s| s.keeps_uninstaller()) {
@@ -598,6 +729,10 @@ fn do_install<P: Platform>(
 	for g in &made.made_groups {
 		lir.push_str(&format!("P {g}\r\n"));
 	}
+	for t in &made.file_types {
+		lir.push_str(&t.line());
+		lir.push_str("\r\n");
+	}
 	let receipt = join(dir, RECEIPT);
 	// Noted first, so a receipt that fails half way through is rolled back with the rest.
 	j.files.push(receipt.clone());
@@ -628,6 +763,8 @@ pub struct Receipt {
 	pub made_groups: Vec<String>,
 	/// The uninstaller's own files, below the install folder.
 	pub extras: Vec<String>,
+	/// The file types the install registered (`A`).
+	pub file_types: Vec<FileTypeRecord>,
 }
 
 impl Receipt {
@@ -680,6 +817,10 @@ impl Receipt {
 				r.groups.push(rest.to_string());
 			} else if let Some(rest) = line.strip_prefix("P ") {
 				r.made_groups.push(rest.to_string());
+			} else if let Some(rest) = line.strip_prefix("A ")
+				&& let Some(t) = FileTypeRecord::parse(rest)
+			{
+				r.file_types.push(t);
 			}
 		}
 		if r.dir.is_empty() {
@@ -757,6 +898,7 @@ pub fn uninstall<P: Platform>(
 		}
 	}
 	remove_groups(p, &r.groups, &r.made_groups);
+	unregister_file_types(p, &r.file_types);
 	for x in &r.extras {
 		let path = join(&dir, x);
 		if p.exists(&path) {

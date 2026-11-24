@@ -179,6 +179,33 @@ pub trait Shell {
 	/// shell, and then the group itself when `made_group` says the install made it. A group that
 	/// was there before is left, with whatever else it holds.
 	fn remove_group(&mut self, _group: &str, _items: &[&str], _made_group: bool) {}
+	/// Whether this shell has file associations the install can make. DOS has none.
+	fn file_types(&self) -> bool {
+		false
+	}
+	/// Makes the program `exe` the owner of the extension `ext` (no dot, lower case) and returns
+	/// what owned it before, if anything: a ProgID on Windows 95, a command line on Windows 3.1.
+	/// `prog_id` names the type and `name` describes it.
+	fn register_file_type(
+		&mut self,
+		_ext: &str,
+		_prog_id: &str,
+		_name: &str,
+		_exe: &str,
+	) -> Result<Option<String>, Error> {
+		Ok(None)
+	}
+	/// Takes back what [`Shell::register_file_type`] made. `previous` goes back as the owner only
+	/// while the extension still names this program; when the person has pointed it somewhere
+	/// else since, that choice is left alone. The type's own keys go either way.
+	fn unregister_file_type(
+		&mut self,
+		_ext: &str,
+		_prog_id: &str,
+		_exe: &str,
+		_previous: Option<&str>,
+	) {
+	}
 	/// Adds the product to Add/Remove Programs: the key's name, its values and the command that
 	/// removes it.
 	fn register_uninstall(&mut self, _key: &str, _values: &[(&str, &str)]) -> Result<(), Error> {

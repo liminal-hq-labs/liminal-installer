@@ -64,6 +64,12 @@ pub struct HostPlatform {
 	pub steps: Vec<String>,
 	/// The Add/Remove Programs entries: key to values.
 	pub registry: BTreeMap<String, Vec<(String, String)>>,
+	/// The file types the machine knows, extension (no dot) to owner: a ProgID on a Windows 95
+	/// machine, a command line (`PROGRAM ^.ext`) on a Windows 3.1 one. A test seeds it with what
+	/// owned an extension before the install.
+	pub associations: BTreeMap<String, String>,
+	/// The ProgID names registered (Windows 95): ProgID to its description.
+	pub prog_ids: BTreeMap<String, String>,
 	/// What `uninstall_project` returns, once: the compiled project kept in the install folder.
 	pub kept_project: Option<Vec<u8>>,
 	clock: u32,
@@ -98,6 +104,8 @@ impl HostPlatform {
 			gui: None,
 			steps: Vec::new(),
 			registry: BTreeMap::new(),
+			associations: BTreeMap::new(),
+			prog_ids: BTreeMap::new(),
 			kept_project: None,
 			clock: 0,
 			idle: 0,
@@ -475,6 +483,17 @@ impl Gui for ScriptGui {
 	}
 }
 
+impl HostPlatform {
+	/// What names this program as the owner of `ext` here.
+	fn owner(&self, prog_id: &str, exe: &str, ext: &str) -> String {
+		if self.program_manager {
+			alloc::format!("{exe} ^.{ext}")
+		} else {
+			prog_id.to_string()
+		}
+	}
+}
+
 impl Shell for HostPlatform {
 	fn long_names(&self) -> bool {
 		self.native
@@ -563,6 +582,45 @@ impl Shell for HostPlatform {
 			"target={target}\r\nstart_in={work_dir}\r\ndescription={description}\r\n"
 		);
 		fs::write(self.host(lnk), body).map_err(|e| Self::io(lnk, e))
+	}
+
+	fn file_types(&self) -> bool {
+		self.native || self.program_manager
+	}
+
+	fn register_file_type(
+		&mut self,
+		ext: &str,
+		prog_id: &str,
+		name: &str,
+		exe: &str,
+	) -> Result<Option<String>, Error> {
+		let own = self.owner(prog_id, exe, ext);
+		if self.program_manager {
+			self.progman_log
+				.push(alloc::format!("[Extensions] {ext}={own}"));
+		} else {
+			self.prog_ids.insert(prog_id.to_string(), name.to_string());
+		}
+		Ok(self.associations.insert(ext.to_string(), own))
+	}
+
+	fn unregister_file_type(
+		&mut self,
+		ext: &str,
+		prog_id: &str,
+		exe: &str,
+		previous: Option<&str>,
+	) {
+		let own = self.owner(prog_id, exe, ext);
+		// Only an extension that still names this program goes back; one changed since stays.
+		if self.associations.get(ext) == Some(&own) {
+			match previous {
+				Some(p) => self.associations.insert(ext.to_string(), p.to_string()),
+				None => self.associations.remove(ext),
+			};
+		}
+		self.prog_ids.remove(prog_id);
 	}
 
 	fn register_uninstall(&mut self, key: &str, values: &[(&str, &str)]) -> Result<(), Error> {
