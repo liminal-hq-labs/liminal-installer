@@ -112,3 +112,194 @@
 	font: 600 18px var(--lis-font-heading);
 	color: var(--lis-text-bright);
 }
+
+/* The capacity meter: block cells in VT323, one for each 16 KiB of a floppy. */
+.meter {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+.bar {
+	font-family: 'VT323', var(--lis-font-mono);
+	font-size: 22px;
+	line-height: 1;
+	letter-spacing: 0;
+	overflow-wrap: anywhere;
+}
+.cells {
+	display: flex;
+	flex-wrap: wrap;
+	max-width: 100%;
+	white-space: pre;
+}
+.cellsOver {
+	outline: 1px solid var(--lis-colour-error);
+}
+.cellOwn {
+	color: var(--lis-accent);
+}
+.cellCommon {
+	color: var(--lis-brand-purple);
+}
+.cellReserve {
+	color: var(--lis-colour-warning);
+}
+.cellFree {
+	color: var(--lis-text-muted);
+}
+.key {
+	font-family: 'VT323', var(--lis-font-mono);
+	margin-inline-end: 6px;
+}
+.without {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+.thin {
+	font-family: 'VT323', var(--lis-font-mono);
+	font-size: 12px;
+	line-height: 1;
+}
+.without p {
+	margin: 0;
+}
+.totals dt {
+	display: flex;
+	align-items: center;
+}
+
+/* The disk map: a tree for each disk and a details pane. */
+.map {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+.disks {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 12px;
+}
+@media (min-width: 900px) {
+	.map {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+		align-items: start;
+	}
+	.map > p {
+		grid-column: 1 / -1;
+	}
+}
+.disksSpan {
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+.tree {
+	list-style: none;
+	margin: 8px 0 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+}
+.node {
+	display: grid;
+	grid-template-columns: 14px minmax(0, 1fr) auto auto;
+	gap: 8px;
+	align-items: baseline;
+	padding-block: 3px;
+	padding-inline-end: 8px;
+	border-radius: var(--lis-radius-sm);
+	cursor: pointer;
+}
+.node:hover {
+	background: var(--lis-bg-hover);
+}
+.node:focus-visible {
+	outline: 2px solid var(--lis-border-focus);
+	outline-offset: -2px;
+}
+.nodeOn {
+	background: var(--lis-accent-soft);
+}
+.twisty {
+	color: var(--lis-text-muted);
+}
+.nodeName {
+	overflow-wrap: anywhere;
+}
+.nodeRole {
+	white-space: nowrap;
+}
+.nodeSize {
+	text-align: end;
+}
+.details {
+	min-width: 0;
+}
+.details h3 {
+	margin-top: 0;
+	overflow-wrap: anywhere;
+}
+.facts {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: 4px 12px;
+	margin: 0;
+}
+.facts dt {
+	color: var(--lis-text-secondary);
+	font-size: 12px;
+}
+.facts dd {
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+/* The sizes tables. */
+.sizes {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+.scroll {
+	overflow-x: auto;
+}
+.table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+.table th,
+.table td {
+	padding: 4px 10px;
+	text-align: start;
+	border-bottom: 1px solid var(--lis-border-subtle);
+	vertical-align: baseline;
+}
+.table thead th {
+	color: var(--lis-text-secondary);
+	font-weight: 500;
+	white-space: nowrap;
+}
+.table tbody th {
+	font-weight: 500;
+	color: var(--lis-text-bright);
+}
+.table .num {
+	text-align: end;
+	font-variant-numeric: tabular-nums;
+}
+.sortBtn {
+	background: none;
+	border: 0;
+	padding: 0;
+	font: inherit;
+	color: inherit;
+	cursor: pointer;
+}
+.sortBtn:focus-visible {
+	outline: 2px solid var(--lis-border-focus);
+	outline-offset: 2px;
+}
+.sortMark {
+	font-size: 10px;
+}
