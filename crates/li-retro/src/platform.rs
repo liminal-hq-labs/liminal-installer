@@ -112,6 +112,15 @@ pub enum ShortcutKind {
 	GroupItem,
 }
 
+/// What [`Shell::add_group_item`] did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GroupAdd {
+	/// There is no shell to talk to (Program Manager is not running, or another shell replaced it).
+	Unavailable,
+	/// The item was added; `made_group` is true when the group did not exist and this call made it.
+	Added { made_group: bool },
+}
+
 /// The parts of an install that depend on the machine's shell. It is separate from [`Gui`]: a page
 /// presenter is the same on Windows 3.1 and Windows 95, a shell is not. The defaults are the
 /// Windows 95 behaviour except where a method says otherwise.
@@ -149,19 +158,21 @@ pub trait Shell {
 		Ok(())
 	}
 	/// Adds an item to the group `group` (made when it is missing) that starts `command` in
-	/// `work_dir`. `Ok(false)` says the shell could not, and the install falls back to the batch
-	/// launcher.
+	/// `work_dir`. [`GroupAdd::Unavailable`] says the shell could not, and the install falls back
+	/// to the batch launcher.
 	fn add_group_item(
 		&mut self,
 		_group: &str,
 		_name: &str,
 		_command: &str,
 		_work_dir: &str,
-	) -> Result<bool, Error> {
-		Ok(false)
+	) -> Result<GroupAdd, Error> {
+		Ok(GroupAdd::Unavailable)
 	}
-	/// Removes the item [`Shell::add_group_item`] made, and the group when it is empty.
-	fn remove_group_item(&mut self, _group: &str, _name: &str) {}
+	/// Removes the items `items` that [`Shell::add_group_item`] made, in one conversation with the
+	/// shell, and then the group itself when `made_group` says the install made it. A group that
+	/// was there before is left, with whatever else it holds.
+	fn remove_group(&mut self, _group: &str, _items: &[&str], _made_group: bool) {}
 	/// Adds the product to Add/Remove Programs: the key's name, its values and the command that
 	/// removes it.
 	fn register_uninstall(&mut self, _key: &str, _values: &[(&str, &str)]) -> Result<(), Error> {

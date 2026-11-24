@@ -15,7 +15,8 @@ use crate::Error;
 use crate::gui::{Gui, GuiEvent, GuiPage};
 use crate::install::Progress;
 use crate::model::Widget;
-use crate::platform::{Key, Platform, Shell, ShortcutKind};
+use crate::platform::{GroupAdd, Key, Platform, Shell, ShortcutKind};
+use crate::progman;
 use crate::ui::Cells;
 
 /// DOS paths below `root`: `C:\FIZZ\SOUND` is `root/FIZZ/SOUND`, whatever the drive.
@@ -50,6 +51,13 @@ pub struct HostPlatform {
 	pub program_manager: bool,
 	/// The Program Manager items made: group, name and command.
 	pub groups: Vec<(String, String, String)>,
+	/// The Program Manager groups that exist. A group an install makes is added; one a test puts
+	/// here first is a group the install finds and must leave.
+	pub group_names: Vec<String>,
+	/// The commands the Windows 3.1 runtime would send to Program Manager, in order.
+	pub progman_log: Vec<String>,
+	/// Program Manager is not there (another shell): `add_group_item` says so.
+	pub progman_absent: bool,
 	/// The answers a person gives a native window.
 	pub gui: Option<ScriptGui>,
 	/// The ids of the steps entered, in order.
@@ -84,6 +92,9 @@ impl HostPlatform {
 			native: false,
 			program_manager: false,
 			groups: Vec::new(),
+			group_names: Vec::new(),
+			progman_log: Vec::new(),
+			progman_absent: false,
 			gui: None,
 			steps: Vec::new(),
 			registry: BTreeMap::new(),
@@ -486,15 +497,45 @@ impl Shell for HostPlatform {
 		group: &str,
 		name: &str,
 		command: &str,
-		_work_dir: &str,
-	) -> Result<bool, Error> {
+		work_dir: &str,
+	) -> Result<GroupAdd, Error> {
+		if self.progman_absent {
+			return Ok(GroupAdd::Unavailable);
+		}
+		let made_group = !self.group_names.iter().any(|g| g == group);
+		let log = &mut self.progman_log;
+		log.push(progman::create_group(group)?);
+		log.push(progman::show_group(group)?);
+		log.push(progman::replace_item(name)?);
+		log.push(progman::add_item(command, name, work_dir)?);
+		if made_group {
+			self.group_names.push(group.to_string());
+		}
+		// ReplaceItem: an item of that name is replaced, not doubled.
+		self.groups.retain(|(g, n, _)| !(g == group && n == name));
 		self.groups
 			.push((group.to_string(), name.to_string(), command.to_string()));
-		Ok(true)
+		Ok(GroupAdd::Added { made_group })
 	}
 
-	fn remove_group_item(&mut self, group: &str, name: &str) {
-		self.groups.retain(|(g, n, _)| !(g == group && n == name));
+	fn remove_group(&mut self, group: &str, items: &[&str], made_group: bool) {
+		let Ok(show) = progman::show_group(group) else {
+			return;
+		};
+		self.progman_log.push(show);
+		for name in items {
+			if let Ok(c) = progman::delete_item(name) {
+				self.progman_log.push(c);
+			}
+			self.groups.retain(|(g, n, _)| !(g == group && n == name));
+		}
+		if made_group {
+			if let Ok(c) = progman::delete_group(group) {
+				self.progman_log.push(c);
+			}
+			self.group_names.retain(|g| g != group);
+			self.groups.retain(|(g, _, _)| g != group);
+		}
 	}
 
 	fn start_menu_programs(&mut self) -> Option<String> {

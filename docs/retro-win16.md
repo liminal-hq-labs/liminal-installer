@@ -90,7 +90,7 @@ Text roles (`heading`, `caption`, `summary`) ride in `Widget::Text.attr`, which 
 - **Pack.** `SETUP.LPK` beside `SETUP.EXE`, found through `GetModuleFileName`, read with `_lopen`, `_llseek` and `_lread`. The compiler packs for Windows with 4 KiB chunks (`WIN16_CHUNK_LOG2`, 12) instead of DOS's 32 KiB, so the decoder's window, which the heap holds for the whole run, is an eighth the size. Every chunk's CRC-32 is checked before the bytes are written.
 - **Files.** Created with `_lcreat` and `_lwrite`; directories, delete, attributes and free space by INT 21h (39h, 3Ah, 41h, 43h, 36h), each on the real 16-bit stack (see the ESP finding below). Free space stops at 2 GiB, as on DOS.
 - **Receipt.** `INSTALL.LIR`, the DOS receipt unchanged apart from `target=win16-x86:win16`. The same `FIZZ.BAT` launcher is written and recorded as a `B` line.
-- **Shell.** Windows 3.1's `Shell` says `ShortcutKind::GroupItem` and has no uninstall list; `add_group_item` (a DDE conversation with `PROGMAN`) is not written, so the install falls back to the batch launcher. The `G` receipt line and the uninstall call exist and are tested on the host.
+- **Shell.** Windows 3.1's `Shell` says `ShortcutKind::GroupItem` and has no uninstall list; `add_group_item` returns `GroupAdd::Unavailable` or `Added { made_group }`, and `remove_group(group, items, made_group)` takes the items and the group out in one conversation. The commands are built by `li_retro::progman` (quoting, the `IconPath` rule, the `.GRP` name) and recorded by the host's simulated shell, which the goldens in `tests/golden/win16/lt-fizz.progman.txt` read. The DDE conversation with `PROGMAN` behind it is not written yet, so on Windows the install still falls back to the batch launcher (D76).
 - **Built-ins.** `detect-sound` reads `BLASTER` through `GetDOSEnvironment` and probes the ports with `in` and `out` (DOSBox-X's emulated Sound Blaster answers it); `check-disk-space` is the engine's.
 - **Memory.** A 40 KiB heap in the data segment under a first-fit allocator, an 8 KiB stack, an 8 KiB local heap for the edit controls' text and a 64-entry shadow return stack; the data segment holds all of it in 64 KB. The heap's peak was 33 680 bytes for Lt. Fizz and 30 392 for Planboard.
 
@@ -134,7 +134,7 @@ Table 3. Where it ran.
 ## What is not done
 
 - **Real hardware.** Everything on Windows 3.11 ran under DOSBox-X. The ESP fix is the same code rust-win16 verified there; whether a real 386, 486 or Pentium behaves as the emulator does is not shown, nor another emulator or a Windows 3.1 retail install, nor Windows ME.
-- **A Program Manager group.** The `shortcut` operation still writes the DOS batch launcher. The seam is in place and tested on the host; the DDE conversation with `PROGMAN` (`[CreateGroup]`, `[AddItem]`) behind `add_group_item` is not written, and the atom functions' ordinals have not been checked against Windows 3.1.
+- **A Program Manager group.** The `shortcut` operation still writes the DOS batch launcher. The seam and the command builder are in place and tested on the host; the DDE conversation with `PROGMAN` (`[CreateGroup]`, `[AddItem]`) behind `add_group_item` is not written, and the atom functions' ordinals have not been checked against Windows 3.1.
 - **Launch after setup, repair and update**, as on DOS.
 - **Uninstall from the install folder.** `SETUP /U` runs from the media, as on DOS; a Windows 3.1 install keeps no uninstaller.
 - **Browse for a folder**, icons, bold headings and any colour: the pages use the system font and the system colours.
