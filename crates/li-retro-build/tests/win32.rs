@@ -408,3 +408,21 @@ fn the_uninstall_pages_match_their_golden() {
 		&u.gui.as_ref().unwrap().described.concat(),
 	);
 }
+
+#[test]
+fn the_step_caption_counts_up_and_the_last_page_is_the_last_step() {
+	let c = compile("lt-fizz", "windows-x86");
+	let tmp = tempfile::tempdir().unwrap();
+	let mut g = ScriptGui::new();
+	accept_licence(&mut g);
+	let mut p = win(&c, tmp.path(), g);
+	assert_eq!(app::run(&mut p, ""), 0);
+	let n = &p.gui.as_ref().unwrap().numbers;
+	let numbered: Vec<_> = n.iter().filter(|(_, _, t)| *t > 0).collect();
+	let total = numbered[0].2;
+	assert!(numbered.iter().all(|(_, _, t)| *t == total));
+	let done = numbered.iter().find(|(s, _, _)| s == "done").unwrap();
+	assert_eq!(done.1, total, "{numbered:?}");
+	let welcome = numbered.iter().find(|(s, _, _)| s == "welcome").unwrap();
+	assert_eq!(welcome.1, 1);
+}

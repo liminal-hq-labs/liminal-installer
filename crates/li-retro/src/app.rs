@@ -633,7 +633,12 @@ impl<P: Platform> Session<'_, P> {
 		let project = self.project;
 		let scr = &project.screens[screen];
 		let total = self.page_count(step);
-		let number = project_position(project, step).min(total);
+		// The last page is the last step of the count, not the first.
+		let number = if step.kind == Kind::Finish {
+			total
+		} else {
+			project_position(project, step).min(total)
+		};
 		let mut fresh = true;
 		loop {
 			self.refresh();
