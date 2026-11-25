@@ -20,7 +20,7 @@
 # temporary folder) in place of `SETUP /U` from the disk, and also checks that UNINST.EXE and UNINST.DAT are in the folder after the install
 # and that the group holds the uninstall item next to the program's. Planboard declares a file type: before each run WIN.INI's [Extensions]
 # is given a `pbd=notepad.exe ^.pbd` line, and a run needs the install to replace it with Planboard's (`pbd=C:\PLANBOAR\PLANBRD.EXE ^.pbd`),
-# the receipt to keep Notepad's, and the uninstall to put `pbd=notepad.exe ^.pbd` back. PROGMAN_OPTIONAL=1 turns the Program Manager checks off, for a tree whose shell is not Program Manager.
+# the receipt to keep Notepad's, and the uninstall to put `pbd=notepad.exe ^.pbd` back. OPTIONAL=1 adds the sessions for Lt. Fizz's optional components (below). PROGMAN_OPTIONAL=1 turns the Program Manager checks off, for a tree whose shell is not Program Manager.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../../.."
 : "${W31_TREE:?set W31_TREE to a Windows 3.11 tree}"
@@ -203,5 +203,76 @@ for ex in "${examples[@]}"; do
 		fi
 	done
 done
+
+# Lt. Fizz's "Bonus levels" and "Open saved games (.FZS) with Fizz" start unticked: the runs above left them so (the pages equal the golden, which shows the
+# empty boxes). With OPTIONAL=1 one more set of sessions ticks them through the real check boxes, then installs silently (`/S`, `/S /COMPONENTS=`), each
+# time with a `fzs=notepad.exe ^.fzs` line in WIN.INI to be taken over and given back (or left alone, when the box stays empty).
+optional() {
+	local dir='C:\LTFIZZ' host="$work/c/LTFIZZ" old='fzs=notepad.exe ^.fzs' ok=1 why=''
+	fzs_line() { tr -d '\r' < "$winini" | grep -i '^fzs=' || true; }
+	seed_fzs() {
+		sed -i '/^fzs=/Id' "$winini"
+		sed -i 's/^\[Extensions\]\r\?$/&\nfzs=notepad.exe ^.fzs\r/I' "$winini"
+	}
+	comps() { tr -d '\r' < "$host/INSTALL.LIR" 2> /dev/null | grep '^components=' || true; }
+	want() { [ "$2" = "$3" ] || { ok=0; why+=" $1:[$2]"; }; }
+	exit0() { [ "$(tail -n1 "$work/c/$1" 2> /dev/null | tr -d '\r')" = "exit 0" ] || { ok=0; why+=" $2-exit:$(tail -n1 "$work/c/$1" 2> /dev/null | tr -d '\r')"; }; }
+	"$liminst" build -C examples/lt-fizz -t win16-x86 --version 1.0.0 -o "$work/out-opt" --output files --win16-runtime "$work/exe/SETUP.EXE" > /dev/null 2>&1
+	cp "$work/out-opt/win16/SETUP.EXE" "$work/out-opt/win16/SETUP.LPK" "$work/d/"
+	printf 'licence choose licence.accepted yes\ncomponents toggle bonus\ncomponents toggle savegames\n' > "$work/d/PLAY3.TXT"
+	: > "$work/d/PLAY2.TXT"
+
+	seed_fzs
+	session "D:\\SETUP.EXE /LOG=C:\\S.LOG /PLAY=D:\\PLAY3.TXT /DUMP=C:\\S.TXT" S.LOG 240 || true
+	wait_exit S.LOG 240 || { ok=0; why+=' ticked-no-exit'; }
+	stop
+	exit0 S.LOG ticked-install
+	# The dump is each page as it first appears: the boxes are empty, and clicking them is what installs the files below.
+	grep -q '\[ \] Open saved games' "$work/c/S.TXT" 2> /dev/null || { ok=0; why+=' boxes-not-unticked'; }
+	[ -f "$host/BONUS/BONUS1.LVL" ] || { ok=0; why+=' no-bonus-file'; }
+	want ticked-components "$(comps)" 'components=game,sound,levels,bonus,savegames'
+	want ticked-winini "$(fzs_line)" 'fzs=C:\LTFIZZ\FIZZ.EXE ^.fzs'
+	tr -d '\r' < "$host/INSTALL.LIR" | grep -qxF 'A fzs|hq.liminal.lt-fizz.fzs|C:\LTFIZZ\FIZZ.EXE|notepad.exe ^.fzs' || { ok=0; why+=' no-A-record'; }
+	session "D:\\SETUP.EXE /U $dir /LOG=C:\\U.LOG /PLAY=D:\\PLAY2.TXT" U.LOG 240 || true
+	wait_exit U.LOG 240 || { ok=0; why+=' ticked-uninstall-no-exit'; }
+	stop
+	exit0 U.LOG ticked-uninstall
+	[ ! -e "$host" ] || { ok=0; why+=' ticked-folder-left'; }
+	want ticked-winini-after "$(fzs_line)" "$old"
+
+	seed_fzs
+	session "D:\\SETUP.EXE /S /LOG=C:\\S.LOG" S.LOG 240 || true
+	wait_exit S.LOG 240 || { ok=0; why+=' silent-no-exit'; }
+	stop
+	exit0 S.LOG silent-install
+	want silent-components "$(comps)" 'components=game,sound,levels'
+	[ ! -e "$host/BONUS" ] || { ok=0; why+=' silent-bonus-installed'; }
+	want silent-winini "$(fzs_line)" "$old"
+	session "D:\\SETUP.EXE /U $dir /S /LOG=C:\\U.LOG" U.LOG 240 || true
+	wait_exit U.LOG 240 || { ok=0; why+=' silent-uninstall-no-exit'; }
+	stop
+	exit0 U.LOG silent-uninstall
+	[ ! -e "$host" ] || { ok=0; why+=' silent-folder-left'; }
+
+	seed_fzs
+	session "D:\\SETUP.EXE /S /COMPONENTS=bonus,savegames /LOG=C:\\S.LOG" S.LOG 240 || true
+	wait_exit S.LOG 240 || { ok=0; why+=' named-no-exit'; }
+	stop
+	exit0 S.LOG named-install
+	want named-components "$(comps)" 'components=game,bonus,savegames'
+	[ -f "$host/BONUS/BONUS1.LVL" ] && [ ! -e "$host/LEVELS" ] || { ok=0; why+=' named-wrong-files'; }
+	want named-winini "$(fzs_line)" 'fzs=C:\LTFIZZ\FIZZ.EXE ^.fzs'
+	session "D:\\SETUP.EXE /U $dir /S /LOG=C:\\U.LOG" U.LOG 240 || true
+	wait_exit U.LOG 240 || { ok=0; why+=' named-uninstall-no-exit'; }
+	stop
+	exit0 U.LOG named-uninstall
+	[ ! -e "$host" ] || { ok=0; why+=' named-folder-left'; }
+	want named-winini-after "$(fzs_line)" "$old"
+	echo "e2e-w31: optional components: $([ "$ok" = 1 ] && echo pass || echo "FAIL$why")"
+	total=$((total + 1))
+	pass=$((pass + ok))
+}
+[ -z "${OPTIONAL:-}" ] || optional
+
 echo "e2e-w31: $pass of $total runs passed"
 [ "$pass" = "$total" ]
