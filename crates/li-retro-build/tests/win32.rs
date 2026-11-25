@@ -247,7 +247,10 @@ fn uninstall_leaves(precreate: bool, own_file: bool) -> (bool, bool) {
 	u.kept_project = Some(kept);
 	u.registry = p.registry.clone();
 	assert_eq!(app::run(&mut u, &format!("/U \"{dir}\"")), 0);
-	(p.host(dir).exists(), p.host(&format!("{dir}\\SAVE.DAT")).exists())
+	(
+		p.host(dir).exists(),
+		p.host(&format!("{dir}\\SAVE.DAT")).exists(),
+	)
 }
 
 #[test]

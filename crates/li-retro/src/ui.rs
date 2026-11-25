@@ -845,7 +845,11 @@ fn draw_meter(
 		format!("{pct:>3}%")
 	};
 	let w = usize::from(r.w);
-	let label_w = caption.chars().count().min(w / 3);
+	// The whole label, as long as six columns are left for the bar.
+	let label_w = caption
+		.chars()
+		.count()
+		.min(w.saturating_sub(tail.chars().count() + 4 + 6).max(w / 3));
 	let caption: String = caption.chars().take(label_w).collect();
 	let bar_w = w
 		.saturating_sub(label_w + 1 + 2 + 1 + tail.chars().count())
