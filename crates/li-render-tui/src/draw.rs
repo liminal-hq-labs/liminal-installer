@@ -231,27 +231,82 @@ fn billboard_lines(node: &Node) -> Vec<String> {
 	}
 }
 
+/// Where the children of a row go. A row that fits in `width` is laid left to right on one line.
+/// One that does not keeps its buttons whole: the other children (the hint beside them) wrap onto
+/// lines of their own above, and the buttons close the row on the right, `gap` apart.
+fn row_places(children: &[Node], gap: u16, width: u16, cx: &Ctx) -> (Vec<(u16, u16, Size)>, u16) {
+	let kids: Vec<&Node> = children.iter().map(visible).collect();
+	let sizes: Vec<Size> = kids
+		.iter()
+		.map(|k| {
+			if is_custom(k) {
+				Size::default()
+			} else {
+				measure(k, width, cx)
+			}
+		})
+		.collect();
+	let shown: Vec<usize> = (0..kids.len()).filter(|&i| !is_custom(kids[i])).collect();
+	let total: u16 =
+		shown.iter().map(|&i| sizes[i].w).sum::<u16>() + gap * shown.len().saturating_sub(1) as u16;
+	let mut places = vec![(0u16, 0u16, Size::default()); kids.len()];
+	if total <= width || !shown.iter().any(|&i| kids[i].kind == "button") {
+		let mut x = 0u16;
+		let mut h = 0u16;
+		for &i in &shown {
+			places[i] = (x, 0, sizes[i]);
+			x = x.saturating_add(sizes[i].w).saturating_add(gap);
+			h = h.max(sizes[i].h);
+		}
+		return (places, h);
+	}
+	let mut y = 0u16;
+	let mut x = 0u16;
+	let mut line_h = 0u16;
+	for &i in shown.iter().filter(|&&i| kids[i].kind != "button") {
+		if x > 0 && x + sizes[i].w > width {
+			y += line_h;
+			x = 0;
+			line_h = 0;
+		}
+		places[i] = (x, y, sizes[i]);
+		x = x.saturating_add(sizes[i].w).saturating_add(gap);
+		line_h = line_h.max(sizes[i].h);
+	}
+	if x > 0 {
+		y += line_h;
+	}
+	let buttons: Vec<usize> = shown
+		.iter()
+		.copied()
+		.filter(|&i| kids[i].kind == "button")
+		.collect();
+	let span: u16 = buttons.iter().map(|&i| sizes[i].w).sum::<u16>()
+		+ gap * buttons.len().saturating_sub(1) as u16;
+	let mut bx = width.saturating_sub(span);
+	for &i in &buttons {
+		places[i] = (bx, y, sizes[i]);
+		bx += sizes[i].w + gap;
+	}
+	(places, y + 1)
+}
+
 fn stack_size(children: &[Node], horizontal: bool, gap: u16, max_w: u16, cx: &Ctx) -> Size {
+	if horizontal {
+		let (places, h) = row_places(children, gap, max_w, cx);
+		let w = places.iter().map(|(x, _, s)| x + s.w).max().unwrap_or(0);
+		return Size { w, h };
+	}
 	let mut size = Size::default();
 	let mut count = 0u16;
 	for child in children.iter().map(visible).filter(|c| !is_custom(c)) {
 		let s = measure(child, max_w, cx);
-		if horizontal {
-			size.w += s.w;
-			size.h = size.h.max(s.h);
-		} else {
-			size.w = size.w.max(s.w);
-			size.h += s.h;
-		}
+		size.w = size.w.max(s.w);
+		size.h += s.h;
 		count += 1;
 	}
 	if count > 1 {
-		let total = gap * (count - 1);
-		if horizontal {
-			size.w += total;
-		} else {
-			size.h += total;
-		}
+		size.h += gap * (count - 1);
 	}
 	size
 }
@@ -393,7 +448,13 @@ fn measure(node: &Node, max_w: u16, cx: &Ctx) -> Size {
 			}
 		}
 		"window" | "backdrop" => {
-			let inner = stack_size(&node.children, false, prop_gap(node, 1), max_w, cx);
+			let inner = stack_size(
+				&node.children,
+				false,
+				prop_gap(node, 1),
+				max_w.saturating_sub(4),
+				cx,
+			);
 			Size {
 				w: max_w,
 				h: inner.h + 2,
@@ -621,13 +682,9 @@ fn draw(node: &Node, r: Rect, surface: Style, cx: &Ctx, pt: &mut Painter) {
 			let horizontal = is_horizontal(node);
 			let gap = prop_gap(node, 0);
 			if horizontal {
-				let mut x = 0u16;
-				for child in node.children.iter().map(visible) {
-					let s = measure(child, r.width, cx);
-					draw(child, sub(r, x, 0, s.w, s.h), surface, cx, pt);
-					if !is_custom(child) {
-						x = x.saturating_add(s.w).saturating_add(gap);
-					}
+				let (places, _) = row_places(&node.children, gap, r.width, cx);
+				for (child, (x, y, s)) in node.children.iter().map(visible).zip(places) {
+					draw(child, sub(r, x, y, s.w, s.h), surface, cx, pt);
 				}
 			} else {
 				let centre = matches!(prop_str(node, "align"), Some("centre" | "center"));
