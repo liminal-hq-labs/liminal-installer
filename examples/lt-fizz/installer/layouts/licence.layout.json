@@ -6,7 +6,7 @@
 		"kind": "window",
 		"props": {
 			"title": "Lieutenant Fizz — Episode One",
-			"label": "Software License Agreement"
+			"label": "Software Licence Agreement"
 		},
 		"children": [
 			{
@@ -19,14 +19,14 @@
 					{
 						"kind": "text",
 						"props": {
-							"text": "Software License Agreement",
+							"text": "Software Licence Agreement",
 							"role": "heading"
 						}
 					},
 					{
 						"kind": "text",
 						"props": {
-							"text": "Please read the following license agreement. Press the PAGE DOWN key to see the rest of the agreement.",
+							"text": "Please read the following licence agreement. Press the PAGE DOWN key to see the rest of the agreement.",
 							"role": "body"
 						}
 					},

@@ -5,8 +5,8 @@ text: Click Cancel to quit Setup and close any programs you have running. Click 
 text: Version 1.0.0 · windows-x86
 button: Next
 button: Cancel
-== licence | Software License Agreement
-text: Please read the following license agreement. Press the PAGE DOWN key to see the rest of the agreement.
+== licence | Software Licence Agreement
+text: Please read the following licence agreement. Press the PAGE DOWN key to see the rest of the agreement.
 doc: 160 chars
 radio: Licence acceptance
   ( ) I accept the agreement
@@ -35,11 +35,11 @@ button: Back
 button: Next
 button: Cancel
 == ready | Start Copying Files
-text: Setup has enough information to start copying the program files. If you want to review or change any settings, click Back. If you are satisfied with the settings, click Next to begin copying files.
+text: Setup has enough information to start copying the program files. If you want to review or change any settings, click Back. If you are satisfied with the settings, click Install to begin copying files.
 text: 3 files, 2 KB in 2 components
 text: Destination: C:\Program Files\Lieutenant Fizz — Episode One
 button: Back
-button: Next
+button: Install
 button: Cancel
 == copying | Setup Status
 meter: Current file

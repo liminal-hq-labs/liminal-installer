@@ -5,8 +5,8 @@
 	"root": {
 		"kind": "dialog",
 		"props": {
-			"title": "Software License Agreement",
-			"label": "Software License Agreement",
+			"title": "Software Licence Agreement",
+			"label": "Software Licence Agreement",
 			"style": "win32-classic",
 			"width": 64
 		},
@@ -96,7 +96,7 @@
 					{
 						"kind": "text",
 						"props": {
-							"text": "Please read the following license agreement. Press the PAGE DOWN key to see the rest of the agreement.",
+							"text": "Please read the following licence agreement. Press the PAGE DOWN key to see the rest of the agreement.",
 							"role": "body"
 						}
 					},

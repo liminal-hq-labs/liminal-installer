@@ -105,6 +105,15 @@
 						"props": {
 							"text": "To install to this folder, click Next. To install to a different folder, click Browse and choose another folder.",
 							"role": "body"
+						},
+						"overrides": {
+							"win16": {
+								"kind": "text",
+								"props": {
+									"text": "To install to this folder, click Next. To install to a different folder, type its name in the box.",
+									"role": "body"
+								}
+							}
 						}
 					},
 					{
