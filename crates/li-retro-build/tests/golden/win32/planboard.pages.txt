@@ -1,15 +1,24 @@
 == welcome | Planboard Setup
+text: Welcome to Planboard
+text: This takes a minute or two. Setup puts everything back as it was if you cancel.
+text: Version 1.0.0 · windows-x86
+text: Installs for you only · no administrator needed
 button: Next
 button: Cancel
 == licence | Planboard Setup
+text: Licence agreement
+text: Please read and accept the licence to continue.
 doc: 140 chars
 radio: Licence acceptance
   ( ) I accept the agreement
   ( ) I do not accept the agreement
+text: You can read this again from the installed app
 button: Back
 button: Next [disabled]
 button: Cancel
 == folder | Planboard Setup
+text: Where should Planboard go?
+text: Setup installs into this folder. You can change it.
 field: Destination folder = C:\Program Files\Planboard
 radio: Install for
   ( ) Only me
@@ -19,6 +28,8 @@ button: Back
 button: Next
 button: Cancel
 == components | Planboard Setup
+text: Choose what to install
+text: Planboard works on its own. The rest is optional, and you can add or remove it later.
 check: Components
   [x] Planboard
   [x] Command-line tool
@@ -28,18 +39,31 @@ button: Back
 button: Next
 button: Cancel
 == ready | Planboard Setup
+text: Ready to install
 text: Setup will copy the files below to C:\Program Files\Planboard.
 text: 4 files, 3 KB in 3 components
+text: Cancel puts everything back as it was.
 button: Back
 button: Install
 button: Cancel
 == copying | Planboard Setup
+text: Installing Planboard
+text: This takes a minute or two. You can keep working.
 meter: Current file
 meter: Overall progress
 meter: Free space after install
 billboard: Boards that keep up with you — Stickies, frames and pages that stay in step across your devices and your agents.
+text: Checked the download’s signature
+text: Made room in your apps folder
+text: Copying files
+text: Adding shortcuts and file types
+text: Registering with the system, so you can update or remove it later
+text: Cancel puts everything back as it was.
 button: Cancel
 == done | Planboard Setup
+text: Planboard is ready
+text: Setup is complete. Thank you for installing it.
 check: After setup
   [ ] Start Planboard
+text: Planboard 1.0.0 is installed.
 button: Finish

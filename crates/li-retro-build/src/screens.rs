@@ -406,8 +406,10 @@ fn collect(
 	Ok(())
 }
 
-/// Compiles the layout `id` for Windows 3.1: widgets in reading order and no text cells.
-fn compile_win16(
+/// Compiles the layout `id` for a native window (Windows 3.1 or Windows 95 and later): widgets in
+/// reading order and no text cells. The window draws its own text, so a static paragraph is a
+/// widget like any other; only the recorder behind the DOS cells drops it.
+fn compile_native(
 	cx: &Context,
 	key: &ScreenKey,
 	id: &str,
@@ -432,8 +434,8 @@ pub fn compile(
 	strings: &mut Strings,
 	warnings: &mut Vec<String>,
 ) -> Result<model::Screen, CompileError> {
-	if cx.target.renderer == "win16" {
-		return compile_win16(cx, key, id, strings);
+	if matches!(cx.target.renderer.as_str(), "win16" | "win32-classic") {
+		return compile_native(cx, key, id, strings);
 	}
 	let flat_layout = tui_layout(cx, &key.layout, &key.step, &key.kind)?;
 	let screen = TuiScreen::new(&flat_layout, Look::Retro);
