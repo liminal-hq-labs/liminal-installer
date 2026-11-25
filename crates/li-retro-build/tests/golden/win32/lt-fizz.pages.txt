@@ -1,7 +1,12 @@
 == welcome | Welcome
+text: Welcome to the Lieutenant Fizz — Episode One Setup program. This program will install the game on your computer.
+text: It is strongly recommended that you exit all other programs before running this Setup program.
+text: Click Cancel to quit Setup and close any programs you have running. Click Next to continue with the Setup program.
+text: Version 1.0.0 · windows-x86
 button: Next
 button: Cancel
 == licence | Software License Agreement
+text: Please read the following license agreement. Press the PAGE DOWN key to see the rest of the agreement.
 doc: 160 chars
 radio: Licence acceptance
   ( ) I accept the agreement
@@ -10,11 +15,15 @@ button: Back
 button: Next [disabled]
 button: Cancel
 == folder | Choose Destination Location
+text: Setup will install Lieutenant Fizz in the following folder.
+text: To install to this folder, click Next. To install to a different folder, click Browse and choose another folder.
+text: You can choose not to install Lieutenant Fizz by clicking Cancel to exit Setup.
 field: Destination Folder = C:\Program Files\Lieutenant Fizz — Episode One
 button: Back
 button: Next
 button: Cancel
 == components | Select Components
+text: Select the components you want to install, and clear the components you do not want to install.
 check: Components
   [x] Game program
   [x] Episode one levels
@@ -26,18 +35,21 @@ button: Back
 button: Next
 button: Cancel
 == ready | Start Copying Files
+text: Setup has enough information to start copying the program files. If you want to review or change any settings, click Back. If you are satisfied with the settings, click Next to begin copying files.
 text: 3 files, 2 KB in 2 components
 text: Destination: C:\Program Files\Lieutenant Fizz — Episode One
 button: Back
 button: Next
 button: Cancel
 == copying | Setup Status
+meter: Current file
+meter: Overall progress
+meter: Free space after install
 text: Lieutenant Fizz — Episode One Setup is performing the requested operations. Copying 
 billboard: Meet Ben — Ten years old, bike helmet on, red sneakers laced. His Fizz Stunner fires soda pop: it stuns, it never hurts.
 button: Cancel
-meter: Current file
-meter: Overall progress
 == done | Setup Complete
+text: Setup has finished installing Lieutenant Fizz — Episode One on your computer.
 check: After setup
   [ ] Launch Lieutenant Fizz
 button: Finish
