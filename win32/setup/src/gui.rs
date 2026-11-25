@@ -35,7 +35,11 @@ const PAD: i32 = 14;
 const BAR_H: i32 = 52;
 const BTN_W: i32 = 78;
 const BTN_H: i32 = 23;
-const MIN_CONTENT_H: i32 = 250;
+/// The height of the page area, the same on every page so the window never changes size: tall
+/// enough for the page with the most on it (the copying page of a product with a billboard and a
+/// list of steps), or the most a 640 by 480 screen holds.
+const CONTENT_H: i32 = 450;
+const CONTENT_H_SMALL: i32 = 340;
 const BAR_ID: i32 = 1000;
 const TIMER: usize = 1;
 /// The widget index of the meters a page gets that its layout did not name.
@@ -118,6 +122,8 @@ pub struct Wizard {
 	banner: String,
 	step_caption: String,
 	client_h: i32,
+	/// The height the page's own controls asked for, for the geometry log.
+	need_h: i32,
 	/// The person (or the script) cancelled while the work ran.
 	cancelled: bool,
 	started: u32,
@@ -148,6 +154,7 @@ impl Wizard {
 			banner: String::new(),
 			step_caption: String::new(),
 			client_h: 0,
+			need_h: 0,
 			cancelled: false,
 			started: 0,
 			script: None,
@@ -190,6 +197,27 @@ impl Wizard {
 			}
 		}
 		self.script = Some(map);
+	}
+
+	/// The window's rectangle and the height its page asked for, one `geometry:` line per page, so
+	/// a run can check that the window stays put and keeps its size.
+	fn log_geometry(&self) {
+		let mut r = Rect {
+			left: 0,
+			top: 0,
+			right: 0,
+			bottom: 0,
+		};
+		// SAFETY: reads the window's rectangle into a local.
+		unsafe { GetWindowRect(self.hwnd, &mut r) };
+		self.log(&format!(
+			"geometry: {},{} {}x{} need {}\n",
+			r.left,
+			r.top,
+			r.right - r.left,
+			r.bottom - r.top,
+			self.need_h
+		));
 	}
 
 	pub fn log(&self, text: &str) {
@@ -507,7 +535,14 @@ impl Wizard {
 			self.meter(x0, w, &mut y, label, *src, EXTRA);
 		}
 		let _ = tab_first;
-		let content_h = (y + PAD).max(MIN_CONTENT_H);
+		self.need_h = y + PAD;
+		// SAFETY: reads the screen's height.
+		let floor = if unsafe { GetSystemMetrics(SM_CYSCREEN) } >= 600 {
+			CONTENT_H
+		} else {
+			CONTENT_H_SMALL
+		};
+		let content_h = floor.max(y + PAD);
 		self.client_h = content_h + BAR_H;
 		// The separator above the bar and the bar's buttons: Back and Next together, Cancel after a gap.
 		let (sep, sid) = self.make("STATIC", "", SS_ETCHEDHORZ, 0, (0, content_h, WIN_W - 6, 2));
@@ -808,12 +843,52 @@ impl Wizard {
 			} else if PeekMessageA(msg.as_mut_ptr(), NULL, 0, 0, PM_REMOVE) == 0 {
 				return false;
 			}
+			if self.key(&*msg.as_ptr()) {
+				return true;
+			}
 			if IsDialogMessageA(self.hwnd, msg.as_ptr()) == 0 {
 				TranslateMessage(msg.as_ptr());
 				DispatchMessageA(msg.as_ptr());
 			}
 		}
 		true
+	}
+
+	/// Tab moves the focus to the next control (Shift+Tab to the one before) and Space presses
+	/// the focused button or box, whatever `IsDialogMessage` makes of the key. Any other key,
+	/// and Space in a text field, is left to it.
+	///
+	/// # Safety
+	///
+	/// `msg` is a message just taken from the queue.
+	unsafe fn key(&self, msg: &Msg) -> bool {
+		if msg.message != WM_KEYDOWN || (msg.wparam != VK_TAB && msg.wparam != VK_SPACE) {
+			return false;
+		}
+		// SAFETY: asks Windows which window has the focus and which control follows it.
+		unsafe {
+			let focus = GetFocus();
+			let ours = |h: Handle| self.bar.iter().any(|b| b.hwnd == h) || self.ctls.iter().any(|c| c.hwnd == h);
+			if focus.is_null() || !ours(focus) {
+				return false;
+			}
+			if msg.wparam == VK_TAB {
+				let back = i32::from(GetKeyState(VK_SHIFT) < 0);
+				let next = GetNextDlgTabItem(self.hwnd, focus, back);
+				if !next.is_null() {
+					SetFocus(next);
+				}
+				return true;
+			}
+			let pressable = self.bar.iter().any(|b| b.hwnd == focus)
+				|| self.ctls.iter().any(|c| {
+					c.hwnd == focus && matches!(c.role, Role::CheckItem { .. } | Role::RadioItem { .. } | Role::Browse(_))
+				});
+			if pressable {
+				SendMessageA(focus, BM_CLICK, 0, 0);
+			}
+			pressable
+		}
 	}
 
 	fn click(&self, h: Handle) {
@@ -1137,6 +1212,7 @@ impl Gui for Wizard {
 			self.build(page);
 			let d = self.describe(page);
 			self.log(&d);
+			self.log_geometry();
 			self.shot();
 		} else {
 			self.update_states(page);
@@ -1161,6 +1237,7 @@ impl Gui for Wizard {
 			self.build(page);
 			let d = self.describe(page);
 			self.log(&d);
+			self.log_geometry();
 			self.shot();
 		}
 		page.values.set_var("progress.file", &progress.file);

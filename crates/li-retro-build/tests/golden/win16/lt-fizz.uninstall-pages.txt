@@ -13,7 +13,5 @@ text: Lieutenant Fizz — Episode One Setup is performing the requested operatio
 billboard: Meet Ben — Ten years old, bike helmet on, red sneakers laced. His Fizz Stunner fires soda pop: it stuns, it never hurts.
 button: Cancel
 == done | Setup Complete
-text: Setup has finished installing Lieutenant Fizz — Episode One on your computer.
-check: After setup
-  [ ] Launch Lieutenant Fizz
+text: Lieutenant Fizz — Episode One has been removed from your computer.
 button: Finish

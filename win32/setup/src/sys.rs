@@ -22,7 +22,11 @@ pub const WM_PAINT: u32 = 0x000F;
 pub const WM_ERASEBKGND: u32 = 0x0014;
 pub const WM_CTLCOLORSTATIC: u32 = 0x0138;
 pub const WM_SETFONT: u32 = 0x0030;
+pub const WM_KEYDOWN: u32 = 0x0100;
 pub const WM_COMMAND: u32 = 0x0111;
+pub const VK_TAB: usize = 0x09;
+pub const VK_SHIFT: i32 = 0x10;
+pub const VK_SPACE: usize = 0x20;
 pub const WM_TIMER: u32 = 0x0113;
 pub const WM_USER: u32 = 0x0400;
 pub const DM_GETDEFID: u32 = WM_USER;
@@ -350,6 +354,7 @@ unsafe extern "system" {
 	pub fn UpdateWindow(hwnd: Handle) -> i32;
 	pub fn SetWindowPos(hwnd: Handle, after: Handle, x: i32, y: i32, cx: i32, cy: i32, flags: u32) -> i32;
 	pub fn GetClientRect(hwnd: Handle, rect: *mut Rect) -> i32;
+	pub fn GetWindowRect(hwnd: Handle, rect: *mut Rect) -> i32;
 	pub fn AdjustWindowRect(rect: *mut Rect, style: u32, menu: i32) -> i32;
 	pub fn GetSystemMetrics(index: i32) -> i32;
 	pub fn LoadCursorA(instance: Handle, name: *const u8) -> Handle;
@@ -369,6 +374,9 @@ unsafe extern "system" {
 	pub fn GetDlgItem(hwnd: Handle, id: i32) -> Handle;
 	pub fn SetWindowLongA(hwnd: Handle, index: i32, value: i32) -> i32;
 	pub fn GetWindowLongA(hwnd: Handle, index: i32) -> i32;
+	pub fn GetFocus() -> Handle;
+	pub fn GetNextDlgTabItem(dialog: Handle, control: Handle, previous: i32) -> Handle;
+	pub fn GetKeyState(key: i32) -> i16;
 }
 
 #[link(name = "gdi32", kind = "raw-dylib", import_name_type = "undecorated")]

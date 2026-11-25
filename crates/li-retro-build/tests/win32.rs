@@ -224,6 +224,49 @@ fn uninstalls_from_the_kept_project() {
 	assert_eq!(u.steps, ["confirm", "done"]);
 }
 
+/// Installs, then uninstalls from the kept project. Returns whether the install folder and the
+/// person's own file are still there.
+fn uninstall_leaves(precreate: bool, own_file: bool) -> (bool, bool) {
+	let c = compile("lt-fizz", "windows-x86");
+	let tmp = tempfile::tempdir().unwrap();
+	let dir = "C:\\Program Files\\Lieutenant Fizz — Episode One";
+	let mut g = ScriptGui::new();
+	accept_licence(&mut g);
+	let mut p = win(&c, tmp.path(), g);
+	if precreate {
+		std::fs::create_dir_all(p.host(dir)).unwrap();
+	}
+	assert_eq!(app::run(&mut p, ""), 0);
+	if own_file {
+		std::fs::write(p.host(&format!("{dir}\\SAVE.DAT")), b"mine").unwrap();
+	}
+	let kept = std::fs::read(p.host(&format!("{dir}\\UNINST.DAT"))).unwrap();
+	let mut u = HostPlatform::new(tmp.path(), Vec::new());
+	u.native = true;
+	u.gui = Some(ScriptGui::new());
+	u.kept_project = Some(kept);
+	u.registry = p.registry.clone();
+	assert_eq!(app::run(&mut u, &format!("/U \"{dir}\"")), 0);
+	(
+		p.host(dir).exists(),
+		p.host(&format!("{dir}\\SAVE.DAT")).exists(),
+	)
+}
+
+#[test]
+fn an_uninstall_removes_the_install_folder_it_left_empty() {
+	// A folder that was there before the install is not in the receipt, and is still removed
+	// once the uninstall has emptied it.
+	assert_eq!(uninstall_leaves(true, false), (false, false));
+	assert_eq!(uninstall_leaves(false, false), (false, false));
+}
+
+#[test]
+fn an_uninstall_never_removes_a_folder_that_holds_the_persons_files() {
+	assert_eq!(uninstall_leaves(true, true), (true, true));
+	assert_eq!(uninstall_leaves(false, true), (true, true));
+}
+
 #[test]
 fn a_deselected_component_is_not_installed() {
 	let c = compile("lt-fizz", "windows-x86");
@@ -367,4 +410,22 @@ fn the_uninstall_pages_match_their_golden() {
 		"lt-fizz.uninstall-pages",
 		&u.gui.as_ref().unwrap().described.concat(),
 	);
+}
+
+#[test]
+fn the_step_caption_counts_up_and_the_last_page_is_the_last_step() {
+	let c = compile("lt-fizz", "windows-x86");
+	let tmp = tempfile::tempdir().unwrap();
+	let mut g = ScriptGui::new();
+	accept_licence(&mut g);
+	let mut p = win(&c, tmp.path(), g);
+	assert_eq!(app::run(&mut p, ""), 0);
+	let n = &p.gui.as_ref().unwrap().numbers;
+	let numbered: Vec<_> = n.iter().filter(|(_, _, t)| *t > 0).collect();
+	let total = numbered[0].2;
+	assert!(numbered.iter().all(|(_, _, t)| *t == total));
+	let done = numbered.iter().find(|(s, _, _)| s == "done").unwrap();
+	assert_eq!(done.1, total, "{numbered:?}");
+	let welcome = numbered.iter().find(|(s, _, _)| s == "welcome").unwrap();
+	assert_eq!(welcome.1, 1);
 }

@@ -190,3 +190,33 @@ fn the_welcome_page_lights_next_and_enter_goes_on() {
 	page.draw(&c.project.strings, &v, &mut cells);
 	assert_eq!(cells.at[row("Next")], lit);
 }
+
+#[test]
+fn a_meter_shows_its_whole_label() {
+	for dir in projects() {
+		let project = Project::load(&dir).expect("load");
+		for t in project
+			.installer
+			.targets
+			.iter()
+			.filter(|t| t.renderer == "tui-retro")
+		{
+			let c = li_retro_build::compile(&project, &t.id, "1.2.3").expect("compile");
+			for (si, screen) in c.project.screens.iter().enumerate() {
+				let mut v = values(&c.project);
+				let page = Page::new(&c.project, si, &mut v, 0);
+				let mut cells = Cells::default();
+				page.draw(&c.project.strings, &v, &mut cells);
+				for w in &screen.widgets {
+					if let Widget::Meter { rect, label, .. } = w {
+						let row = usize::from(rect.y) * COLS + usize::from(rect.x);
+						let shown: String = (0..label.chars().count())
+							.map(|i| cells.ch[row + i] as char)
+							.collect();
+						assert_eq!(&shown, label, "{dir:?} {} {}", t.id, screen.id);
+					}
+				}
+			}
+		}
+	}
+}

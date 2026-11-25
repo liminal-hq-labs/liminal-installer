@@ -361,6 +361,8 @@ pub struct ScriptGui {
 	pub pages: Vec<(String, String, Vec<String>)>,
 	/// `GuiPage::describe` of every page first shown, in order.
 	pub described: Vec<String>,
+	/// `(step, number, total)`: the "Step n of m" a page was given.
+	pub numbers: Vec<(String, usize, usize)>,
 	/// The buttons seen on each page with whether they were enabled.
 	pub buttons: Vec<(String, Vec<(String, bool)>)>,
 	/// The file names seen while working, and the total percentage of the last update.
@@ -388,6 +390,8 @@ impl Gui for ScriptGui {
 	fn page(&mut self, page: &mut GuiPage<'_>) -> GuiEvent {
 		if page.fresh {
 			self.described.push(page.describe());
+			self.numbers
+				.push((page.step.to_string(), page.number, page.total));
 			let mut text = Vec::new();
 			let mut buttons = Vec::new();
 			for w in &page.screen.widgets {

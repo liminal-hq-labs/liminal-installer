@@ -96,7 +96,7 @@
 					{
 						"kind": "text",
 						"props": {
-							"text": "Setup has enough information to start copying the program files. If you want to review or change any settings, click Back. If you are satisfied with the settings, click Next to begin copying files.",
+							"text": "Setup has enough information to start copying the program files. If you want to review or change any settings, click Back. If you are satisfied with the settings, click Install to begin copying files.",
 							"role": "body"
 						}
 					},
@@ -137,10 +137,10 @@
 					{
 						"kind": "button",
 						"props": {
-							"label": "Next",
+							"label": "Install",
 							"action": "commit",
 							"default": true,
-							"hotkey": "N"
+							"hotkey": "I"
 						}
 					},
 					{

@@ -25,7 +25,7 @@ export WINEPREFIX="${WINEPREFIX:-$WORK/prefix}" WINEDEBUG=-all
 unset WINEARCH
 fail() { echo "wine-e2e: FAIL: $*" >&2; exit 1; }
 # The host's pages and the controls' pages differ only in the machine's own numbers.
-norm() { sed -e 's/Program Files (x86)/Program Files/g' -e 's/^text: Space available: .*/text: Space available: N/' -e 's/Free: [0-9.]* [KMG]B/Free: N/' -e '/^file:/d' -e '/^report:/d' -e 's/\r$//' "$1"; }
+norm() { sed -e 's/Program Files (x86)/Program Files/g' -e 's/^text: Space available: .*/text: Space available: N/' -e 's/Free: [0-9.]* [KMG]B/Free: N/' -e '/^file:/d' -e '/^report:/d' -e '/^geometry:/d' -e 's/\r$//' "$1"; }
 # A 32-bit program on 64-bit Windows (or Wine) writes below Wow6432Node, which /reg:32 reads.
 reg() { wine reg query "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\$1" /reg:32 "${@:2}" 2>&1 | tr -d '\r' | grep REG_ || true; }
 # The default value of a HKEY_CLASSES_ROOT key, read in both registry views (a 32-bit program's classes are redirected on 64-bit Windows).
@@ -47,6 +47,12 @@ run_project() {
 	diff <(norm "$WORK/$project.dump") <(norm "$ROOT/crates/li-retro-build/tests/golden/win32/$project.pages.txt" | grep -v '^$') \
 		> "$WORK/$project.diff" || { cat "$WORK/$project.diff"; fail "$project: the pages the controls show differ from the host's"; }
 	echo "wine-e2e: $project: every page the controls show equals the host's golden"
+	# The window keeps one rectangle from the first page to the last, and no page needs more than it has.
+	[ "$(grep -c '^geometry:' "$WORK/$project.dump")" -ge 5 ] || fail "$project: the run logged no window geometry"
+	[ "$(grep '^geometry:' "$WORK/$project.dump" | sed 's/ need .*//' | sort -u | wc -l)" = 1 ] \
+		|| { grep '^geometry:' "$WORK/$project.dump"; fail "$project: the window moved or changed size between pages"; }
+	grep '^geometry:' "$WORK/$project.dump" | awk '{ split($3, s, "x"); n=$5; print n }' | sort -n | tail -1 > "$WORK/$project.need"
+	echo "wine-e2e: $project: one window rectangle on every page ($(grep -m1 '^geometry:' "$WORK/$project.dump" | sed 's/ need.*//'); tallest page asks for $(cat "$WORK/$project.need"))"
 	local pf="$WINEPREFIX/drive_c/Program Files (x86)"
 	[ -d "$pf/$name" ] || pf="$WINEPREFIX/drive_c/Program Files"
 	local dir="$pf/$name"
