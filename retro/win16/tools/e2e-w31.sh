@@ -20,7 +20,7 @@
 # temporary folder) in place of `SETUP /U` from the disk, and also checks that UNINST.EXE and UNINST.DAT are in the folder after the install
 # and that the group holds the uninstall item next to the program's. Planboard declares a file type: before each run WIN.INI's [Extensions]
 # is given a `pbd=notepad.exe ^.pbd` line, and a run needs the install to replace it with Planboard's (`pbd=C:\PLANBOAR\PLANBRD.EXE ^.pbd`),
-# the receipt to keep Notepad's, and the uninstall to put `pbd=notepad.exe ^.pbd` back. PROGMAN_OPTIONAL=1 turns the Program Manager checks off, for a tree whose shell is not Program Manager.
+# the receipt to keep Notepad's, and the uninstall to put `pbd=notepad.exe ^.pbd` back. With NO_OWNER=1 nothing owns `pbd` first, and the uninstall must leave no `pbd=` line at all, empty or not. PROGMAN_OPTIONAL=1 turns the Program Manager checks off, for a tree whose shell is not Program Manager.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../../.."
 : "${W31_TREE:?set W31_TREE to a Windows 3.11 tree}"
@@ -110,6 +110,7 @@ winini="$work/c/WINDOWS/WIN.INI"
 pbd_line() { tr -d '\r' < "$winini" | grep -i '^pbd=' || true; }
 seed_pbd() {
 	sed -i '/^pbd=/Id' "$winini"
+	[ -z "${NO_OWNER:-}" ] || return 0
 	sed -i 's/^\[Extensions\]\r\?$/&\npbd=notepad.exe ^.pbd\r/I' "$winini"
 }
 
@@ -170,7 +171,9 @@ for ex in "${examples[@]}"; do
 		fi
 		if [ "$ex" = planboard ]; then
 			[ "$(pbd_line)" = 'pbd=C:\PLANBOAR\PLANBRD.EXE ^.pbd' ] || { ok=0; why+=" winini-after-install:$(pbd_line)"; }
-			tr -d '\r' < "$host/INSTALL.LIR" | grep -qxF 'A pbd|hq.liminal.planboard.pbd|C:\PLANBOAR\PLANBRD.EXE|notepad.exe ^.pbd' || { ok=0; why+=' no-A-record'; }
+			record='A pbd|hq.liminal.planboard.pbd|C:\PLANBOAR\PLANBRD.EXE|notepad.exe ^.pbd'
+			[ -z "${NO_OWNER:-}" ] || record='A pbd|hq.liminal.planboard.pbd|C:\PLANBOAR\PLANBRD.EXE'
+			tr -d '\r' < "$host/INSTALL.LIR" | grep -qxF "$record" || { ok=0; why+=' no-A-record'; }
 		fi
 		if [ -n "${KEPT:-}" ]; then
 			[ -f "$host/UNINST.EXE" ] && [ -f "$host/UNINST.DAT" ] || { ok=0; why+=' no-kept-uninstaller'; }
@@ -192,7 +195,9 @@ for ex in "${examples[@]}"; do
 			[ -z "$grp" ] || [ ! -f "$work/c/WINDOWS/$grp" ] || { ok=0; why+=" $grp-left"; }
 			[ -z "$grp" ] || ! grep -qi "$grp" "$work/c/WINDOWS/PROGMAN.INI" || { ok=0; why+=' ini-still-has-group'; }
 		fi
-		[ "$ex" != planboard ] || [ "$(pbd_line)" = 'pbd=notepad.exe ^.pbd' ] || { ok=0; why+=" winini-after-uninstall:$(pbd_line)"; }
+		after_uninstall='pbd=notepad.exe ^.pbd'
+		[ -z "${NO_OWNER:-}" ] || after_uninstall=''
+		[ "$ex" != planboard ] || [ "$(pbd_line)" = "$after_uninstall" ] || { ok=0; why+=" winini-after-uninstall:$(pbd_line)"; }
 		[ "$(tail -n1 "$work/c/U.LOG" 2> /dev/null | tr -d '\r')" = "exit 0" ] || { ok=0; why+=" uninstall-exit:$(tail -n1 "$work/c/U.LOG" 2> /dev/null | tr -d '\r')"; }
 		[ ! -e "$host" ] || { ok=0; why+=" folder-left($(ls "$host" 2> /dev/null | tr '\n' ' '))"; }
 		pass=$((pass + ok))
