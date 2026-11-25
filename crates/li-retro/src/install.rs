@@ -924,6 +924,9 @@ pub fn uninstall<P: Platform>(
 	for d in r.dirs.iter().rev() {
 		let _ = p.remove_dir(&join(&dir, d));
 	}
+	// The install folder may have been there before the install, so the receipt does not list it.
+	// Removing a folder fails while it holds anything, so the person's own files are never touched.
+	let _ = p.remove_dir(&dir);
 	Ok(removed)
 }
 

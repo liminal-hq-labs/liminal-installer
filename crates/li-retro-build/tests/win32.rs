@@ -224,6 +224,46 @@ fn uninstalls_from_the_kept_project() {
 	assert_eq!(u.steps, ["confirm", "done"]);
 }
 
+/// Installs, then uninstalls from the kept project. Returns whether the install folder and the
+/// person's own file are still there.
+fn uninstall_leaves(precreate: bool, own_file: bool) -> (bool, bool) {
+	let c = compile("lt-fizz", "windows-x86");
+	let tmp = tempfile::tempdir().unwrap();
+	let dir = "C:\\Program Files\\Lieutenant Fizz — Episode One";
+	let mut g = ScriptGui::new();
+	accept_licence(&mut g);
+	let mut p = win(&c, tmp.path(), g);
+	if precreate {
+		std::fs::create_dir_all(p.host(dir)).unwrap();
+	}
+	assert_eq!(app::run(&mut p, ""), 0);
+	if own_file {
+		std::fs::write(p.host(&format!("{dir}\\SAVE.DAT")), b"mine").unwrap();
+	}
+	let kept = std::fs::read(p.host(&format!("{dir}\\UNINST.DAT"))).unwrap();
+	let mut u = HostPlatform::new(tmp.path(), Vec::new());
+	u.native = true;
+	u.gui = Some(ScriptGui::new());
+	u.kept_project = Some(kept);
+	u.registry = p.registry.clone();
+	assert_eq!(app::run(&mut u, &format!("/U \"{dir}\"")), 0);
+	(p.host(dir).exists(), p.host(&format!("{dir}\\SAVE.DAT")).exists())
+}
+
+#[test]
+fn an_uninstall_removes_the_install_folder_it_left_empty() {
+	// A folder that was there before the install is not in the receipt, and is still removed
+	// once the uninstall has emptied it.
+	assert_eq!(uninstall_leaves(true, false), (false, false));
+	assert_eq!(uninstall_leaves(false, false), (false, false));
+}
+
+#[test]
+fn an_uninstall_never_removes_a_folder_that_holds_the_persons_files() {
+	assert_eq!(uninstall_leaves(true, true), (true, true));
+	assert_eq!(uninstall_leaves(false, true), (true, true));
+}
+
 #[test]
 fn a_deselected_component_is_not_installed() {
 	let c = compile("lt-fizz", "windows-x86");

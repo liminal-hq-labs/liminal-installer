@@ -162,7 +162,9 @@ fn relaunch_from_temp(dir: &str, flags: &Flags) -> bool {
 			0,
 			0,
 			null(),
-			null(),
+			// The copy works from the temporary folder, so the install folder is not its current
+			// directory (a process's current directory cannot be removed).
+			tmp.as_ptr(),
 			&si,
 			&mut pi,
 		) != 0;
