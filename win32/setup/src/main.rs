@@ -140,6 +140,10 @@ fn relaunch_from_temp(dir: &str, flags: &Flags) -> bool {
 			return false;
 		}
 		let mut cmd = format!("\"{copy}\" /U \"{dir}\" /X /DAT \"{}UNINST.DAT\"", exe_dir());
+		// A silent uninstall stays silent in the copy.
+		if app::Switches::of(&flags.rest).silent {
+			cmd.push_str(" /S");
+		}
 		// The testing flags go along, so a scripted run is scripted in the copy too.
 		if let Some(p) = &flags.play {
 			cmd.push_str(&format!(" /PLAY \"{p}\""));

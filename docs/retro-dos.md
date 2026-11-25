@@ -51,7 +51,7 @@ The tests, in the order they cost:
 - **Host installs** (`li-retro-build/tests/e2e.rs`): the whole Lt. Fizz install, uninstall, rollback on cancel, rollback on a write failure, a damaged payload, a full drive, a typed folder and a deselected component, run on `HostPlatform` into a temporary directory, with the tree and the receipt checked.
 - **Goldens** (`li-retro-build/tests/golden/`): the welcome, components, copying and done screens. `LI_UPDATE_GOLDEN=1` rewrites them.
 - **Artboard structure** (`li-retro-build/tests/parity.rs`): cell-level checks that a screen has the title bar, the side column, the shadowed dialog, `< Button >` buttons and the hint bar, with the right attributes.
-- **DOSBox** (`dos/tools/e2e.sh`): the same install under real DOS code, with the welcome, components and copying screens compared with the host goldens character for character.
+- **DOSBox** (`dos/tools/e2e.sh`): the same install under real DOS code, with the welcome, components and copying screens compared with the host goldens character for character. Lt. Fizz's unticked "Bonus levels" is left alone in the first install (no file, no receipt entry), ticked with Space in a second, and installed with `/S /COMPONENTS=bonus` in a third; `/S` alone takes the defaults, `/U /S` removes without pages and an unknown component name stops with exit code 2.
 
 ## The compiled project
 

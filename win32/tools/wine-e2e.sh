@@ -113,6 +113,63 @@ PY
 	fi
 }
 
+# Lt. Fizz's "Bonus levels" and "Open saved games (.FZS) with Fizz" start unticked. The run above left them so (its pages show the empty boxes
+# and no file of theirs is installed); these runs tick them through the real check boxes, and install without pages (`/S`, `/COMPONENTS=`).
+run_optional() {
+	local name="Lieutenant Fizz — Episode One" id=hq.liminal.lt-fizz prog=hq.liminal.lt-fizz.fzs
+	local out="$WORK/optional" d dir pf
+	"$LIMINST" build -C "$ROOT/examples/lt-fizz" -t windows-x86 --version 1.0.0 -o "$out" --win32-runtime "$HERE/dist/SETUP.EXE" > /dev/null
+	d="$out/win32"
+	pf="$WINEPREFIX/drive_c/Program Files (x86)"
+	[ -d "$pf" ] || pf="$WINEPREFIX/drive_c/Program Files"
+	dir="$pf/$name"
+	local wdir="C:\\${pf#$WINEPREFIX/drive_c/}\\$name"
+	local lir="$dir/INSTALL.LIR"
+	seed() { wine reg add "HKCR\\.fzs" /ve /d txtfile /f /reg:32 > /dev/null 2>&1; }
+	components() { tr -d '\r' < "$lir" | grep '^components='; }
+	gone() { [ ! -d "$dir" ] || fail "optional: $1: the uninstall left the folder: $(ls "$dir")"; [ "$(cls .fzs)" = txtfile ] || fail "optional: $1: .fzs names '$(cls .fzs)' after the uninstall, not txtfile"; [ -z "$(cls "$prog")" ] || fail "optional: $1: $prog is still registered"; }
+
+	# Ticked through the pages: the check boxes are clicked, so the file type is taken and the previous owner kept.
+	printf 'licence choose licence.accepted yes\ncomponents toggle bonus\ncomponents toggle savegames\n' > "$WORK/optional.play"
+	seed
+	win "$d" SETUP.EXE /PLAY "$WORK/optional.play" /DUMP "$WORK/optional.dump" || fail "optional: ticked: SETUP.EXE did not finish ok"
+	# The dump is each page as it first appears: the boxes are empty, and clicking them is what installs the files below.
+	grep -q '\[ \] Bonus levels' "$WORK/optional.dump" && grep -q '\[ \] Open saved games' "$WORK/optional.dump" || fail "optional: ticked: the check boxes did not start unticked"
+	[ -f "$dir/BONUS/BONUS1.LVL" ] || fail "optional: ticked: BONUS1.LVL was not installed"
+	[ "$(components)" = "components=game,levels,bonus,savegames" ] || fail "optional: ticked: the receipt says $(components)"
+	grep -q "^A fzs|$prog|.*FIZZ.EXE|txtfile" "$lir" || fail "optional: ticked: the receipt has no A record that keeps txtfile"
+	[ "$(cls .fzs)" = "$prog" ] && [ "$(cls "$prog")" = "Lt. Fizz saved game" ] || fail "optional: ticked: .fzs names '$(cls .fzs)'"
+	echo "wine-e2e: optional: ticked through the pages: the bonus files are installed, .fzs is Fizz's and the receipt keeps txtfile"
+	printf '' > "$WORK/empty.play"
+	win "$WORK" "$wdir\\UNINST.EXE" /U "$wdir" /PLAY "$WORK/empty.play" /DUMP "$WORK/optional.undump" || true
+	gone ticked
+	echo "wine-e2e: optional: uninstalled: the bonus files and the folder are gone and .fzs names txtfile again"
+
+	# Silent with the defaults: nothing optional is installed, and the extension is left alone.
+	seed
+	win "$d" SETUP.EXE /S || fail "optional: /S: SETUP.EXE did not finish ok"
+	[ "$(components)" = "components=game,levels" ] && [ ! -e "$dir/BONUS" ] && [ "$(cls .fzs)" = txtfile ] || fail "optional: /S: took $(components)"
+	! grep -q '^A ' "$lir" || fail "optional: /S: the receipt records a file type"
+	win "$WORK" "$wdir\\UNINST.EXE" /U "$wdir" /S || true
+	gone "/S"
+	echo "wine-e2e: optional: /S installs the defaults and /U /S removes them; .fzs was never touched"
+
+	# Silent with the optional ones named: exactly these, besides the required component.
+	seed
+	win "$d" SETUP.EXE /S /COMPONENTS=bonus,savegames || fail "optional: /COMPONENTS=: SETUP.EXE did not finish ok"
+	[ "$(components)" = "components=game,bonus,savegames" ] && [ -f "$dir/BONUS/BONUS1.LVL" ] && [ ! -e "$dir/LEVELS" ] || fail "optional: /COMPONENTS=: took $(components)"
+	[ "$(cls .fzs)" = "$prog" ] || fail "optional: /COMPONENTS=: .fzs names '$(cls .fzs)'"
+	win "$WORK" "$wdir\\UNINST.EXE" /U "$wdir" /S || true
+	gone "/COMPONENTS="
+	echo "wine-e2e: optional: /S /COMPONENTS=bonus,savegames installs exactly those, and /U /S gives .fzs back"
+
+	# A name that is no component stops the run before anything is written.
+	if win "$d" SETUP.EXE /S /COMPONENTS=nothing; then fail "optional: /COMPONENTS=nothing should fail"; fi
+	[ ! -d "$dir" ] || fail "optional: /COMPONENTS=nothing installed something"
+	echo "wine-e2e: optional: /COMPONENTS=nothing stops and installs nothing"
+}
+
 run_project lt-fizz hq.liminal.lt-fizz "Lieutenant Fizz — Episode One" "FIZZ.EXE INSTALL.LIR LEVELS/EP1.LVL LEVELS/EP1.PAL UNINST.DAT UNINST.EXE"
 run_project planboard hq.liminal.planboard "Planboard" "INSTALL.LIR UNINST.DAT UNINST.EXE bin/pbcli.exe docs/GETTING-STARTED.md docs/SHORTCUTS.md planboard.exe" planboard hq.liminal.planboard.planboard
+run_optional
 echo "wine-e2e: ok"
