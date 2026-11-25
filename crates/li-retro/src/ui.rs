@@ -374,18 +374,20 @@ impl Page {
 				}
 				Widget::Button {
 					rect,
-					attr,
 					label,
 					hotkey,
 					..
 				} => {
 					let on = self.enabled(w, strings, v);
+					// A button looks like the page it sits on, and only the focused one is lit, so
+					// the lit button is the one Enter presses.
+					let under = cells.at[usize::from(rect.y) * COLS + usize::from(rect.x)];
 					let style = if focused {
 						t.button_focus
 					} else if !on {
 						t.disabled
 					} else {
-						*attr
+						under
 					};
 					let label = v.interpolate(label);
 					let (x, y) = (usize::from(rect.x), usize::from(rect.y));
@@ -429,7 +431,7 @@ impl Page {
 						let glyph = match (*check, on.contains(&item.id)) {
 							(true, true) => "[x]",
 							(true, false) => "[ ]",
-							(false, true) => "(\u{2022})",
+							(false, true) => "(*)",
 							(false, false) => "( )",
 						};
 						let here = focused && cursor == i;
