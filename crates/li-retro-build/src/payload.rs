@@ -72,8 +72,8 @@ pub fn win_rel(to: &str) -> Result<String, CompileError> {
 	Ok(parts.join("\\"))
 }
 
-/// The files, their contents in the same order, and the launcher operations.
-pub type Built = (Vec<FileEntry>, Vec<Vec<u8>>, Vec<Op>);
+/// The files, their contents in the same order, the operations and the component each belongs to.
+pub type Built = (Vec<FileEntry>, Vec<Vec<u8>>, Vec<Op>, Vec<u16>);
 
 /// Builds the file list, the files' contents and the launcher operations. The pack compresses
 /// them, a chunk at a time, when it is written.
@@ -90,7 +90,8 @@ pub fn build(
 	};
 	let source = DirPayload::new(&project.dir).map_err(|e| CompileError::Message(e.to_string()))?;
 	let mut files: Vec<(FileEntry, Vec<u8>)> = Vec::new();
-	let mut ops = Vec::new();
+	let mut ops: Vec<Op> = Vec::new();
+	let mut owners: Vec<u16> = Vec::new();
 	let mut batches: Vec<String> = Vec::new();
 	for (ci, c) in components.iter().enumerate() {
 		for rule in &c.files {
@@ -196,6 +197,8 @@ pub fn build(
 				flavour.name()
 			));
 		}
+		// Every operation this component added belongs to it.
+		owners.resize(ops.len(), ci as u16);
 	}
 	files.sort_by(|a, b| a.0.dest.cmp(&b.0.dest));
 	// The names the pack stores them under: the destination itself on DOS, `F0000001` and on for a
@@ -207,7 +210,7 @@ pub fn build(
 		};
 	}
 	let (entries, data) = files.into_iter().unzip();
-	Ok((entries, data, ops))
+	Ok((entries, data, ops, owners))
 }
 
 /// The registered name of a file type: the product id and the extension, so two products never

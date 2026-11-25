@@ -112,6 +112,17 @@ pub fn selected_files<'p>(project: &'p Project, selected: &[String]) -> Vec<&'p 
 	files
 }
 
+/// Whether operation `i` of the project runs: nothing owns it, or its component is installed.
+fn runs(project: &Project, selected: &[String], i: usize) -> bool {
+	match project.owners.get(i) {
+		Some(&o) if o != crate::model::NO_OWNER => {
+			let c = &project.components[usize::from(o)];
+			c.required || selected.contains(&c.id)
+		}
+		_ => true,
+	}
+}
+
 /// The bytes a set of components needs on disk, with a little room for directory entries.
 pub fn bytes_needed(project: &Project, selected: &[String]) -> u64 {
 	let files = selected_files(project, selected);
@@ -582,7 +593,10 @@ fn do_install<P: Platform>(
 			return Err(Error::Cancelled);
 		}
 	}
-	for op in &project.ops {
+	for (i, op) in project.ops.iter().enumerate() {
+		if !runs(project, selected, i) {
+			continue;
+		}
 		match op {
 			Op::Mkdir { path } => make_dirs(p, &join(dir, path), j)?,
 			Op::WriteIni {

@@ -209,16 +209,23 @@ pub fn compile_for(
 		.iter()
 		.filter(|c| c.applies_to(&target.id))
 		.collect();
+	if let Some(c) = components.iter().find(|c| c.required && !c.default) {
+		return err(format!(
+			"component `{}` is required, so it cannot start unticked (`default = false`)",
+			c.id
+		));
+	}
 	let rcomps: Vec<model::Component> = components
 		.iter()
 		.map(|c| model::Component {
 			id: c.id.clone(),
 			name: c.name.clone(),
 			required: c.required,
+			default: c.default,
 		})
 		.collect();
 
-	let (files, data, mut ops) =
+	let (files, data, mut ops, mut owners) =
 		payload::build(project, target, &components, flavour, &mut warnings)?;
 
 	// Flows and the screens their steps show.
@@ -280,6 +287,7 @@ pub fn compile_for(
 				value: format!("{{sound.{key}}}"),
 				when_set: "sound.card".into(),
 			});
+			owners.push(model::NO_OWNER);
 		}
 	}
 
@@ -327,6 +335,7 @@ pub fn compile_for(
 		screens: rscreens,
 		files,
 		ops,
+		owners,
 	};
 	out.validate()
 		.map_err(|e| CompileError::Message(e.to_string()))?;

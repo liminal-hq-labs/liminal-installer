@@ -87,6 +87,7 @@ fn project() -> Project {
 		}],
 		files: vec![],
 		ops: vec![],
+		owners: vec![],
 	}
 }
 

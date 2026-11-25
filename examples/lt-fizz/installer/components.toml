@@ -20,3 +20,18 @@ files   = [{ from = "dist/sound/*.DRV", to = "{install}/SOUND/" }]
 id    = "levels"
 name  = "Episode one levels"
 files = [{ from = "dist/levels/*", to = "{install}/LEVELS/" }]
+
+# Optional and unticked: the person ticks it on the components page.
+[[component]]
+id      = "bonus"
+name    = "Bonus levels"
+default = false
+files   = [{ from = "dist/bonus/*", to = "{install}/BONUS/" }]
+
+# Optional and unticked, and it owns no files: ticking it makes Fizz the owner of `.fzs`, and the uninstall gives the extension back to whatever had it.
+[[component]]
+id      = "savegames"
+name    = "Open saved games (.FZS) with Fizz"
+default = false
+targets = ["win16-x86", "windows-x86"]
+file_types = [{ extension = ".fzs", name = "Lt. Fizz saved game", open_with = "{install}/FIZZ.EXE" }]

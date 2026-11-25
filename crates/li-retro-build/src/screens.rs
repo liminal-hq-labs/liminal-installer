@@ -54,7 +54,7 @@ fn expand_lists(n: &mut Node, components: &[&Component]) {
 		let items: Vec<Value> = components
 			.iter()
 			.map(
-				|c| json!({ "id": c.id, "label": c.name, "checked": true, "required": c.required }),
+				|c| json!({ "id": c.id, "label": c.name, "checked": c.on_by_default(), "required": c.required }),
 			)
 			.collect();
 		n.props.insert("items".into(), Value::Array(items));

@@ -82,6 +82,11 @@ pub trait Platform {
 	fn beep(&mut self, _hz: u32, _ms: u32) {}
 	/// Prints a line to the console after the screen is given back: usage errors and `/V`.
 	fn report(&mut self, _text: &str) {}
+	/// Says why a silent run (`/S`) stopped. The default is [`Platform::report`]; a runtime whose
+	/// `report` opens a box that nobody is there to answer writes its log instead.
+	fn fail(&mut self, text: &str) {
+		self.report(text);
+	}
 	/// What the focused control is, for a screen reader or a test. Not drawn on the screen.
 	fn announce(&mut self, _text: &str) {}
 	/// A hook for tests: called with the step's id each time a page is entered.
