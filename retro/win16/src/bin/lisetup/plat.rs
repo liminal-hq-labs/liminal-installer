@@ -197,6 +197,10 @@ impl Platform for Win16Platform {
 	fn beep(&mut self, _hz: u32, _ms: u32) {
 		unsafe { MessageBeep(0) };
 	}
+	fn fail(&mut self, text: &str) {
+		self.note(text.trim_end());
+	}
+
 	fn report(&mut self, text: &str) {
 		unsafe {
 			MessageBox(

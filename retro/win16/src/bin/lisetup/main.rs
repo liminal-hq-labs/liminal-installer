@@ -57,6 +57,10 @@ pub extern "C" fn w16_main(_hinst: u32, _hprev: u32, _show: u32) -> u32 {
 		} else if w.eq_ignore_ascii_case("/X") {
 			relaunched = true;
 		} else {
+			// A silent uninstall stays silent in the copy that does the work.
+			if w.eq_ignore_ascii_case("/S") {
+				passed.push_str(" /S");
+			}
 			if !args.is_empty() {
 				args.push(' ');
 			}
