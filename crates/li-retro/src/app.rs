@@ -203,7 +203,11 @@ pub fn run<P: Platform>(p: &mut P, args: &str) -> i32 {
 	if let Some(ids) = &switches.components
 		&& let Err(m) = s.choose(ids)
 	{
-		s.p.report(&format!("{m}\n"));
+		if switches.silent {
+			s.p.fail(&format!("{m}\n"));
+		} else {
+			s.p.report(&format!("{m}\n"));
+		}
 		return 2;
 	}
 	let flow_id = if matches!(mode, Mode::Uninstall(_)) {
@@ -220,7 +224,7 @@ pub fn run<P: Platform>(p: &mut P, args: &str) -> i32 {
 		Outcome2::Finished => 0,
 		Outcome2::Cancelled => 3,
 		Outcome2::Failed(m) if s.silent => {
-			s.p.report(&format!("{m}\n"));
+			s.p.fail(&format!("{m}\n"));
 			1
 		}
 		Outcome2::Failed(m) => {
