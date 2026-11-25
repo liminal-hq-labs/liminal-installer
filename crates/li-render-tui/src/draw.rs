@@ -868,7 +868,12 @@ fn draw_meter(node: &Node, r: Rect, surface: Style, cx: &Ctx, pt: &mut Painter) 
 				.unwrap_or(0.1);
 	let pct = format!("{:>3}%", (value * 100.0).round() as u32);
 	let tail = if low { format!("{pct} LOW") } else { pct };
-	let label_w = width_of(&caption).min(r.width / 3);
+	// The whole label, as long as six columns are left for the bar.
+	let label_w = width_of(&caption).min(
+		r.width
+			.saturating_sub(width_of(&tail) + 4 + 6)
+			.max(r.width / 3),
+	);
 	let caption: String = caption.chars().take(usize::from(label_w)).collect();
 	let bar_w = r
 		.width
