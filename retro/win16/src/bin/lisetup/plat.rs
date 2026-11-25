@@ -298,7 +298,12 @@ impl Shell for Win16Platform {
 		let ours = profile::get(EXTENSIONS, ext)
 			.is_some_and(|now| now.eq_ignore_ascii_case(&owner(exe, ext)));
 		if ours {
-			profile::set(EXTENSIONS, ext, previous);
+			profile::set(EXTENSIONS, ext, previous.filter(|p| !p.trim().is_empty()));
+			// A line that is still there, even with nothing after the `=`, is deleted when there
+			// was no owner before.
+			if previous.is_none() && profile::get(EXTENSIONS, ext).is_some() {
+				profile::set(EXTENSIONS, ext, None);
+			}
 			profile::changed(EXTENSIONS);
 		}
 	}

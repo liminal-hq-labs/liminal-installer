@@ -355,8 +355,11 @@ fn file_type<P: Platform>(
 		return Ok(());
 	}
 	let exe = join(dir, target);
+	// A line that was there but empty is no owner: there is nothing to give back.
 	let mut previous = match p.shell() {
-		Some(s) => s.register_file_type(ext, prog_id, name, &exe)?,
+		Some(s) => s
+			.register_file_type(ext, prog_id, name, &exe)?
+			.filter(|v| !v.trim().is_empty()),
 		None => None,
 	};
 	// What was there is what the last install put there: keep what that one replaced.
