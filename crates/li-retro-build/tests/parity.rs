@@ -98,8 +98,12 @@ fn the_welcome_screen_has_the_artboard_structure() {
 		.map(|l| l.split("< Next >").next().unwrap().chars().count())
 		.unwrap();
 	let by = text.lines().position(|l| l.contains("< Next >")).unwrap();
-	assert_eq!(attr(&s, bx + 2, by), 0x1f, "the focused default button");
-	assert_eq!(attr(&s, bx + 12, by), 0x31, "Cancel is blue on cyan");
+	assert_eq!(
+		attr(&s, bx + 2, by),
+		0x30,
+		"the focused default button is lit"
+	);
+	assert_eq!(attr(&s, bx + 12, by), 0x70, "Cancel looks like the dialog");
 	// Row 24: the hint bar, with the key names in red.
 	assert_eq!(
 		row(&s, 24).trim_end(),

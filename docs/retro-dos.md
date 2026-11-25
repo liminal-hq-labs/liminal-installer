@@ -98,7 +98,7 @@ Each layout a flow uses is drawn once at build time into 80 by 25 cells (a CP437
 | Side column | The child with `region = "side"`: `text` nodes (`role = "title"` bright white, others cyan), `image` nodes with `art`, and `progress` nodes |
 | Art | `art = { width, height, rects: [[x, y, w, h, "#rrggbb"]] }`: each pixel becomes the nearest of the 16 VGA colours, and two pixel rows make one text row with half and full blocks (`▀ ▄ █`). Vector art (`viewBox`, `shapes`) is not drawn |
 | Step bar | `progress` with `text`, `value` and `max`: the text, then a block bar 14 cells wide |
-| Dialog | The `dialog` child, drawn by `Screen::flatten`: double border (`border`), the title in the border, shadow, a `width`, and the controls inside it. `button` nodes are `< Label >` in blue on cyan, the focused one white on blue, a disabled one grey, and the `hotkey` letter red |
+| Dialog | The `dialog` child, drawn by `Screen::flatten`: double border (`border`), the title in the border, shadow, a `width`, and the controls inside it. `button` nodes are `< Label >` in the dialog's own colours, the focused one black on cyan (the one Enter presses), a disabled one grey, and the `hotkey` letter red. A row of children that does not fit the dialog puts its text above and closes with the buttons on the right |
 | Hint bar | The child with `region = "hints"`: its `text` children, each with an optional `key` (red) before the text |
 
 Table 3. The artboard.

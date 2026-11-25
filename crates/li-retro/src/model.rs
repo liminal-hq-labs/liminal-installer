@@ -39,9 +39,9 @@ pub struct Theme {
 	pub status: u8,
 	/// A disabled button.
 	pub disabled: u8,
-	/// A button: blue on cyan, drawn `< Next >`.
+	/// A button's own colours, kept for the compiled format; it is drawn in the page's colours.
 	pub button: u8,
-	/// The button that has the focus.
+	/// The button that has the focus: black on cyan.
 	pub button_focus: u8,
 	/// The access key of a button.
 	pub hotkey: u8,
@@ -62,7 +62,7 @@ impl Default for Theme {
 			status: 0x30,
 			disabled: 0x78,
 			button: 0x31,
-			button_focus: 0x1f,
+			button_focus: 0x30,
 			hotkey: 0x74,
 			field: 0xf0,
 		}
