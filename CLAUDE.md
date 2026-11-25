@@ -21,7 +21,7 @@ Liminal Installer is a Liminal HQ Labs experiment: Themeable installers, updater
 - **Win16.** `retro/win16` is the same core for Windows 3.1, built for 16-bit code segments by the vendored rust-win16 packer (its own workspace; each segment has a budget in `res/lisetup.segments.json`). `make win16` runs the checks.
 - **Win32.** `win32/` builds `SETUP.EXE` for Windows 95 and later: Rust `no_std`, no C runtime, `core` built from source for a Pentium, ANSI imports on `win32/tools/imports.allow`, subsystem 4.0, over `li-retro`'s flow VM and `Gui` trait. `make win32` runs the checks and the Wine install.
 - **Wire types.** Rust types the UI or MCP clients receive derive `ts_rs::TS`; their TypeScript is generated into `packages/protocol` and committed, never hand-edited. Failures are `{ kind, message }` (`StudioError`).
-- **CI.** One job per check. Shared images come from `liminal-hq/.github`. Dependabot is off unless the project opts in.
+- **CI.** One job per check. Test results reach the PR through the pr-results publisher (`publish-test-results.yml`, pinned by SHA) from the `*-test-results` and `event-file` artefacts. Shared images come from `liminal-hq/.github`. Dependabot is off unless the project opts in.
 - **Docs.** Update `SPEC.md` and `docs/decisions.md` in the same change as the behaviour.
 
 ## Commands
