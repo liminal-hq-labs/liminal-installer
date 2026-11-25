@@ -27,7 +27,7 @@ pub fn meter_sample(source: &str) -> f64 {
 	}
 }
 
-fn selected(state: &Map<String, Value>) -> Vec<String> {
+fn selected(state: &Map<String, Value>, components: &[&Component]) -> Vec<String> {
 	state
 		.get("components.selected")
 		.or_else(|| state.get("components"))
@@ -37,14 +37,21 @@ fn selected(state: &Map<String, Value>) -> Vec<String> {
 				.filter_map(|v| v.as_str().map(str::to_owned))
 				.collect()
 		})
-		.unwrap_or_default()
+		// Nothing chosen yet: the components that start ticked.
+		.unwrap_or_else(|| {
+			components
+				.iter()
+				.filter(|c| c.on_by_default())
+				.map(|c| c.id.clone())
+				.collect()
+		})
 }
 
 /// The list a string `items` or `options` names: the project's components, or a state field a
 /// script filled in such as `sound.cards`.
 fn expand_list(name: &str, cx: &TreeCtx) -> Option<Value> {
 	if name == "components" {
-		let on = selected(cx.state);
+		let on = selected(cx.state, cx.components);
 		return Some(Value::Array(
 			cx.components
 				.iter()
@@ -139,6 +146,7 @@ mod tests {
 			id: id.into(),
 			name: name.into(),
 			required,
+			default: true,
 			targets: vec![],
 			files: vec![],
 			shortcut: vec![],

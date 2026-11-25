@@ -177,6 +177,7 @@ export function demoApi(): Api {
 			id: unquote(c.id),
 			name: unquote(c.name),
 			required: c.required === 'true',
+			default: c.default !== 'false',
 			targets: list(c.targets),
 			files: 1,
 		})),

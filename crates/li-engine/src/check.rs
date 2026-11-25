@@ -148,6 +148,16 @@ pub fn check(project: &Project) -> Vec<Diagnostic> {
 				format!("component `{}` is declared twice", c.id),
 			));
 		}
+		if c.required && !c.default {
+			out.push(error(
+				"required-default-off",
+				format!("component {}", c.id),
+				format!(
+					"component `{}` is required, so it cannot start unticked (`default = false`)",
+					c.id
+				),
+			));
+		}
 		for t in &c.targets {
 			if !target_ids.contains(t.as_str()) {
 				out.push(error(

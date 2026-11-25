@@ -147,6 +147,8 @@ export function ProjectScreen() {
 								<strong>{c.name}</strong>
 								<span className={text.dim}>
 									{` ${c.id}${c.required ? ` · ${t('project.required')}` : ''}${
+										c.default ? '' : ` · ${t('project.startsUnticked')}`
+									}${
 										c.targets.length
 											? ` · ${t('project.onlyOn', { targets: c.targets.join(', ') })}`
 											: ''

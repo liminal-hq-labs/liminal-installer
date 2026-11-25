@@ -101,6 +101,8 @@ targets = ["dos-x86", "win16-x86"]
 files   = [{ from = "dist/sound/*.DRV", to = "{install}/SOUND/" }]
 ```
 
+A component starts ticked unless it says `default = false`, which makes it optional and unticked: the components page draws its box empty, the person ticks it to get it, and an install that names no components (`liminst install` with no `--component`, the web runner's first page) leaves it out. It is also left out of the plan, so none of its files, shortcuts or registrations are made. A `required` component is always installed, so it cannot say `default = false`: `check` reports `required-default-off` and `build` refuses. A component that owns no files, only a `file_types` entry, is how a product offers to take over an extension as a choice: ticked, the file type is registered and the previous owner kept for the uninstall (§8); unticked, the extension is not touched.
+
 A component may also declare `file_types`, `url_schemes`, `services` (systemd user units, launchd agents, Windows services), `path` additions and `registrations` (such as an agent plugin folder). Each turns into plan operations (§8). `origin = "tauri"` marks a component that `liminst import tauri` generated between marker comments in `components.toml`; the next import replaces it (§15).
 
 ## 5 · Flows

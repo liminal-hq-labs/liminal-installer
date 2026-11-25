@@ -25,7 +25,8 @@ pub struct InstallRequest {
 	pub target: String,
 	pub install_dir: PathBuf,
 	pub scope: Scope,
-	/// `None` selects every component that applies; required components are always included.
+	/// `None` selects the components that start ticked (`default`); required components are always
+	/// included.
 	pub components: Option<Vec<String>>,
 	/// The version being installed; falls back to the project's literal version.
 	pub version: Option<String>,

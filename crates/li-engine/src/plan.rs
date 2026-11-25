@@ -22,7 +22,8 @@ pub fn receipt_path() -> String {
 }
 
 /// Validates a component selection against a target and returns it in `components.toml` order
-/// with every required component included. `None` selects everything that applies.
+/// with every required component included. `None` selects the components that start ticked: the
+/// required ones and every optional one whose `default` is not `false`.
 pub fn select_components(
 	project: &Project,
 	target: &str,
@@ -46,7 +47,10 @@ pub fn select_components(
 		.components
 		.iter()
 		.filter(|c| c.applies_to(target))
-		.filter(|c| c.required || requested.is_none_or(|r| r.contains(&c.id)))
+		.filter(|c| match requested {
+			Some(r) => c.required || r.contains(&c.id),
+			None => c.on_by_default(),
+		})
 		.map(|c| c.id.clone())
 		.collect())
 }

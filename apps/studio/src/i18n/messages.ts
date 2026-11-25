@@ -127,6 +127,7 @@ export const enMessages = {
 	'project.col.components': 'Components',
 	'project.col.status': 'Status',
 	'project.required': 'required',
+	'project.startsUnticked': 'unticked by default',
 	// translator: {targets} lists the targets a component is limited to.
 	'project.onlyOn': '{targets} only',
 	'project.steps.one': '{count} step',

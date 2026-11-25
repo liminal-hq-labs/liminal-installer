@@ -95,6 +95,11 @@ pub struct Component {
 	pub name: String,
 	#[serde(default)]
 	pub required: bool,
+	/// Whether the component starts ticked on the components page, and is installed by a
+	/// silent install that names no components. `false` makes an optional component that
+	/// the person ticks to get; a required component cannot start unticked.
+	#[serde(default = "ticked")]
+	pub default: bool,
 	/// Targets this component applies to; empty means all.
 	#[serde(default)]
 	pub targets: Vec<String>,
@@ -113,7 +118,17 @@ pub struct Component {
 	pub origin: Option<String>,
 }
 
+fn ticked() -> bool {
+	true
+}
+
 impl Component {
+	/// Whether the install includes the component when the person chooses nothing: required
+	/// components, and optional ones that start ticked.
+	pub fn on_by_default(&self) -> bool {
+		self.required || self.default
+	}
+
 	pub fn applies_to(&self, target_id: &str) -> bool {
 		self.targets.is_empty() || self.targets.iter().any(|t| t == target_id)
 	}
