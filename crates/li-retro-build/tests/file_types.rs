@@ -253,6 +253,24 @@ fn an_extension_nobody_owned_is_deleted_again() {
 }
 
 #[test]
+fn an_empty_previous_owner_is_no_owner() {
+	// An extension whose line was there but empty has nothing to give back: the uninstall deletes
+	// the line and does not write `ext=` again.
+	let tmp = tempfile::tempdir().unwrap();
+	let c = compile32();
+	let mut p = win32(&c, tmp.path());
+	p.associations.insert("planboard".into(), String::new());
+	assert_eq!(app::run(&mut p, ""), 0);
+	let lir = receipt_text(&p);
+	assert!(!lir.contains("planboard.exe|"), "{lir}");
+	let mut u = win32(&c, tmp.path());
+	u.associations = p.associations.clone();
+	u.prog_ids = p.prog_ids.clone();
+	assert_eq!(app::run(&mut u, "/U"), 0);
+	assert!(u.associations.is_empty(), "{:?}", u.associations);
+}
+
+#[test]
 fn a_choice_made_since_the_install_is_left_alone() {
 	let tmp = tempfile::tempdir().unwrap();
 	let c = compile32();
