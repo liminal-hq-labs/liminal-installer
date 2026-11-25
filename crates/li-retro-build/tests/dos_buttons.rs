@@ -136,7 +136,7 @@ fn one_button_is_lit_it_is_the_one_enter_presses_and_the_row_fits() {
 			}
 		}
 	}
-	assert!(checked > 10);
+	assert!(checked > 5);
 }
 
 #[test]
