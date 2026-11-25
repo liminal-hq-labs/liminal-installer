@@ -75,8 +75,12 @@ user32.dll!EndPaint
 user32.dll!FillRect
 user32.dll!GetClientRect
 user32.dll!GetDC
+user32.dll!GetFocus
+user32.dll!GetKeyState
 user32.dll!GetMessageA
+user32.dll!GetNextDlgTabItem
 user32.dll!GetSystemMetrics
+user32.dll!GetWindowRect
 user32.dll!GetWindowLongA
 user32.dll!GetWindowTextA
 user32.dll!GetWindowTextLengthA
