@@ -383,9 +383,6 @@ impl Ui {
 		let btn_h = by * 3 / 2 + 6;
 		let has_buttons = ws.iter().any(|w| matches!(w, Widget::Button { .. }));
 		let client_h = margin + heights + margin + if has_buttons { btn_h + margin } else { 0 };
-		// Every page has the same window: this is tall enough for the licence and for a page of
-		// seven components, and a page that needs more grows it.
-		let client_h = client_h.max(22 * line);
 		let (fx, fy, fc) = unsafe {
 			(
 				GetSystemMetrics(SM_CXDLGFRAME),
