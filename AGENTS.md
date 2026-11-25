@@ -70,6 +70,7 @@ Liminal Installer is a [Liminal HQ Labs](https://github.com/liminal-hq-labs) exp
 - **Editor settings:** `.editorconfig` is authoritative: tabs everywhere except YAML, which uses spaces.
 - **Rust**, if the project uses it, is formatted with rustfmt using hard tabs (`rustfmt.toml`). Strictness comes from CI: `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings` and the test suite.
 - **Shared CI images** come from [`liminal-hq/.github`](https://github.com/liminal-hq/.github) (`ci-rust`, `ci-web`, `tauri-ci-desktop` and others). Pick the leanest tier that fits and pin it by digest. A project image belongs here only when no shared tier covers it.
+- **Test results** reach pull requests through `.github/workflows/publish-test-results.yml`, which runs the [pr-results](https://github.com/liminal-hq-labs/pr-results) publisher (pinned by full commit SHA) after `CI` or `Studio` finishes. A job that produces results uploads them as artefacts with `if: always()`: `rust-test-results` (nextest's JUnit), `js-test-results` (vitest's) and `event-file`. Each PR gets one sticky comment and a check run per suite. The publisher runs only from `main`, so a change to it shows its effect after merge.
 - **Dependabot** is off. Add `.github/dependabot.yml` only when the project opts in (see `docs/new-project.md`).
 
 - **Toolchain:** `rust-toolchain.toml` pins Rust 1.98.0 with `rustfmt` and `clippy`. Use `cargo nextest` for tests.
@@ -115,7 +116,7 @@ Use `#` comments for shell, YAML, TOML and Dockerfiles, and an XML comment for S
 - `bun run typecheck && bun run test:js` — the Studio UI, the shared renderer and the web runner's page
 - `bun run check:i18n` — no literal strings in JSX, the pseudo-locales match English, every message is used
 - `bash scripts/check-bindings-drift.sh` (or `make bindings`) — regenerates the ts-rs bindings in `packages/protocol/src/generated/` and fails on a difference; fix with `bash scripts/generate-protocol-bindings.sh` and commit the result
-- `cargo nextest run --workspace --locked --profile ci` — what CI runs (`.config/nextest.toml`: one retry, no fail-fast, JUnit at `target/nextest/ci/junit.xml`)
+- `cargo nextest run --workspace --locked --profile ci` — what CI runs (`.config/nextest.toml`: one retry, no fail-fast, JUnit at `target/nextest/ci/junit.xml`, which the results comment reads)
 - `cd apps/studio/src-tauri && cargo check && cargo clippy -- -D warnings` — the Tauri shell
 - `cd apps/runner/src-tauri && cargo check && cargo clippy -- -D warnings` — the web runner's Tauri shell
 - `bash scripts/e2e-linux.sh` (or `make e2e-linux`) — install, update, repair and uninstall in a Debian container
