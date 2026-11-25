@@ -99,6 +99,8 @@ The banner colour and the controls are the system's, not the theme's: `win32-cla
 
 A page keeps all of its layout's text: each paragraph, with the values it names filled in when the page is shown, is a control in the window, in reading order, as on Windows 3.1.
 
+Every page has the same window: the page area is 450 pixels tall (340 on a screen under 600 pixels high), so the sidebar, the page and the button row stay where they are from Welcome to Done, and a page that needs more grows the window. Tab and Shift+Tab move the focus, Space presses the focused button, check box or radio button, and Return presses the default button. `wine-e2e.sh` reads the `geometry:` lines the `/DUMP` log carries and fails when the window's rectangle changes.
+
 ## Shortcuts, Add/Remove Programs and the uninstaller
 
 - **Shortcuts** are `.lnk` files written through `IShellLink` and `IPersistFile` (COM from `ole32`, which Windows 95 has) into `Programs\<product name>\<shortcut name>.lnk` of the current user's Start menu (D65). The calls go through hand-written vtables. Program Manager DDE was rejected because later shells half support it, and writing the `.lnk` format by hand because it has to be right for every shell version.
