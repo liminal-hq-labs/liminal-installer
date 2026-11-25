@@ -5,8 +5,8 @@ text: Click Cancel to quit Setup and close any programs you have running. Click 
 text: Version 1.0.0 · win16-x86
 button: Next
 button: Cancel
-== licence | Software License Agreement
-text: Please read the following license agreement. Press the PAGE DOWN key to see the rest of the agreement.
+== licence | Software Licence Agreement
+text: Please read the following licence agreement. Press the PAGE DOWN key to see the rest of the agreement.
 doc: 160 chars
 radio: Licence acceptance
   ( ) I accept the agreement
@@ -16,7 +16,7 @@ button: Next [disabled]
 button: Cancel
 == folder | Choose Destination Location
 text: Setup will install Lieutenant Fizz in the following folder.
-text: To install to this folder, click Next. To install to a different folder, click Browse and choose another folder.
+text: To install to this folder, click Next. To install to a different folder, type its name in the box.
 text: You can choose not to install Lieutenant Fizz by clicking Cancel to exit Setup.
 field: Destination Folder = C:\LTFIZZ
 button: Back
@@ -52,11 +52,11 @@ button: Back
 button: Next
 button: Cancel
 == ready | Start Copying Files
-text: Setup has enough information to start copying the program files. If you want to review or change any settings, click Back. If you are satisfied with the settings, click Next to begin copying files.
+text: Setup has enough information to start copying the program files. If you want to review or change any settings, click Back. If you are satisfied with the settings, click Install to begin copying files.
 text: 5 files, 3 KB in 3 components
 text: Destination: C:\LTFIZZ
 button: Back
-button: Next
+button: Install
 button: Cancel
 == copying | Setup Status
 meter: Current file
