@@ -74,6 +74,8 @@ impl SimMachine {
 			start_menu: "/sim/home/.local/share/applications".into(),
 			desktop: "/sim/home/Desktop".into(),
 			temp: "/sim/tmp".into(),
+			windows: Some("/sim/windows".into()),
+			system: Some("/sim/windows/system".into()),
 		};
 		let m = SimMachine {
 			state: Arc::default(),
@@ -87,6 +89,9 @@ impl SimMachine {
 			&m.dirs.desktop,
 			&m.dirs.temp,
 		] {
+			m.mkdir_all(d);
+		}
+		for d in m.dirs.windows.iter().chain(&m.dirs.system) {
 			m.mkdir_all(d);
 		}
 		m

@@ -25,6 +25,10 @@ pub struct Dirs {
 	pub start_menu: PathBuf,
 	pub desktop: PathBuf,
 	pub temp: PathBuf,
+	/// The Windows folder, on a machine that has one (`{windows}`).
+	pub windows: Option<PathBuf>,
+	/// The Windows system folder, on a machine that has one (`{system}`).
+	pub system: Option<PathBuf>,
 }
 
 impl Dirs {
@@ -35,6 +39,8 @@ impl Dirs {
 			"start_menu" => Some(&self.start_menu),
 			"desktop" => Some(&self.desktop),
 			"temp" => Some(&self.temp),
+			"windows" => self.windows.as_deref(),
+			"system" => self.system.as_deref(),
 			_ => None,
 		}
 	}
@@ -142,6 +148,8 @@ const NAMES: &[&str] = &[
 	"user_data",
 	"system_data",
 	"temp",
+	"windows",
+	"system",
 ];
 
 impl Resolver {
@@ -213,8 +221,20 @@ mod tests {
 			start_menu: "/h/.local/share/applications".into(),
 			desktop: "/h/Desktop".into(),
 			temp: "/tmp".into(),
+			windows: Some("/w".into()),
+			system: Some("/w/system".into()),
 		};
 		Resolver::new(Path::new("/opt/app"), &dirs)
+	}
+
+	#[test]
+	fn a_machine_without_a_windows_folder_cannot_resolve_one() {
+		let mut dirs = resolver().dirs;
+		dirs.windows = None;
+		dirs.system = None;
+		let r = Resolver::new(Path::new("/opt/app"), &dirs);
+		assert!(r.resolve("{windows}/A.SCR").is_err());
+		assert!(r.resolve("{system}/A.DRV").is_err());
 	}
 
 	#[test]
@@ -229,6 +249,12 @@ mod tests {
 		);
 		assert_eq!(r.unresolve(Path::new("/opt/app")), "{install}");
 		assert_eq!(r.unresolve(Path::new("/opt")), "/opt");
+		let saver = r.resolve("{windows}/AGQUILL.SCR").unwrap();
+		assert_eq!(saver, Path::new("/w/AGQUILL.SCR"));
+		assert_eq!(r.unresolve(&saver), "{windows}/AGQUILL.SCR");
+		let driver = r.resolve("{system}/VGA.DRV").unwrap();
+		assert_eq!(driver, Path::new("/w/system/VGA.DRV"));
+		assert_eq!(r.unresolve(&driver), "{system}/VGA.DRV");
 		assert!(r.resolve("{nope}/x").is_err());
 		assert!(r.resolve("{install").is_err());
 	}
