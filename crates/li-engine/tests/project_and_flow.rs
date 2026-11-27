@@ -353,3 +353,72 @@ fn a_component_starts_ticked_unless_its_file_says_otherwise() {
 	assert!(file.components[0].default && file.components[0].on_by_default());
 	assert!(!file.components[1].default && !file.components[1].on_by_default());
 }
+
+/// The fixture with a first component that writes `to`, applying to `targets` (all when empty).
+fn project_writing(to: &str, targets: &[&str]) -> li_engine::Project {
+	let mut p = project();
+	let c = &mut p.components.components[0];
+	c.files = vec![li_model::project::FileRule {
+		from: "dist/shared/a.dat".into(),
+		to: to.into(),
+	}];
+	c.targets = targets.iter().map(|t| (*t).to_owned()).collect();
+	p
+}
+
+#[test]
+fn a_windows_folder_file_is_refused_on_a_target_without_one() {
+	let p = project_writing("{windows}/FIZZ.SCR", &[]);
+	let d = check(&p);
+	let found = d
+		.iter()
+		.find(|d| d.code == "system-folder-unsupported")
+		.unwrap_or_else(|| panic!("{d:?}"));
+	assert_eq!(found.severity, Severity::Error);
+	assert!(found.message.contains("does not have"), "{}", found.message);
+	// The same for the system folder, and when a component names only a target that has none.
+	assert!(
+		codes(&project_writing("{system}/VGA.DRV", &[])).contains(&"system-folder-unsupported")
+	);
+	let only = p.installer.targets[0].id.clone();
+	assert!(
+		codes(&project_writing("{windows}/A.SCR", &[&only])).contains(&"system-folder-unsupported")
+	);
+}
+
+#[test]
+fn a_windows_folder_file_is_fine_on_a_windows_target() {
+	let mut p = project_writing("{windows}/FIZZ.SCR", &[]);
+	for t in &mut p.installer.targets {
+		t.renderer = "win16".into();
+	}
+	assert!(
+		!codes(&p).iter().any(|c| c.starts_with("system-folder-")),
+		"{:?}",
+		check(&p)
+	);
+	p.installer.targets[0].renderer = "win32-classic".into();
+	assert!(!codes(&p).contains(&"system-folder-unsupported"));
+}
+
+#[test]
+fn a_file_below_a_windows_folder_subfolder_is_refused() {
+	for to in [
+		"{windows}/SUB/",
+		"{windows}/SUB/A.SCR",
+		"{system}/SUB/A.DRV",
+	] {
+		let mut p = project_writing(to, &[]);
+		for t in &mut p.installer.targets {
+			t.renderer = "win32-classic".into();
+		}
+		assert!(codes(&p).contains(&"system-folder-subfolder"), "{to}");
+	}
+	for to in ["{windows}/", "{windows}/A.SCR", "{system}"] {
+		let mut p = project_writing(to, &[]);
+		for t in &mut p.installer.targets {
+			t.renderer = "win32-classic".into();
+		}
+		assert!(!codes(&p).contains(&"system-folder-subfolder"), "{to}");
+	}
+}

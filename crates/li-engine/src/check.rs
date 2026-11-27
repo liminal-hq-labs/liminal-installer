@@ -99,6 +99,55 @@ pub const BUILTIN_ACTIONS: &[&str] = &[
 /// only name a built-in.
 pub const NO_SCRIPT_RENDERERS: &[&str] = &["tui-retro", "win16"];
 
+/// The renderers whose runtimes have a Windows folder and a system folder: Windows 3.x and
+/// Windows 95 and later.
+pub const SYSTEM_FOLDER_RENDERERS: &[&str] = &["win16", "win32-classic"];
+
+/// A `to` that starts with `{windows}` or `{system}`: the placeholder and what follows it.
+fn system_folder_of(to: &str) -> Option<(&'static str, &str)> {
+	["{windows}", "{system}"].into_iter().find_map(|name| {
+		let rest = to.strip_prefix(name)?;
+		(rest.is_empty() || rest.starts_with('/')).then_some((name, rest))
+	})
+}
+
+/// `{windows}` and `{system}` take a file directly in the folder, and only where there is one.
+fn check_system_folders(project: &Project, out: &mut Vec<Diagnostic>) {
+	for c in &project.components.components {
+		for rule in &c.files {
+			let Some((name, rest)) = system_folder_of(&rule.to) else {
+				continue;
+			};
+			let loc = format!("component {}", c.id);
+			if let Some(t) = project.installer.targets.iter().find(|t| {
+				c.applies_to(&t.id) && !SYSTEM_FOLDER_RENDERERS.contains(&t.renderer.as_str())
+			}) {
+				out.push(error(
+					"system-folder-unsupported",
+					&loc,
+					format!(
+						"component `{}` installs `{}` into the Windows folder, which target `{}` (`{}`) does not have; limit the component's `targets` to the Windows 3.x and Windows 95 targets",
+						c.id, rule.to, t.id, t.renderer
+					),
+				));
+			}
+			// `{windows}/` and `{windows}/NAME` are fine; any further `/`, even a trailing
+			// one, names a folder below the placeholder.
+			let below = rest.strip_prefix('/').unwrap_or(rest);
+			if below.contains('/') {
+				out.push(error(
+					"system-folder-subfolder",
+					&loc,
+					format!(
+						"component `{}`: only a file directly in `{name}` can be installed, not one in a folder below it",
+						c.id
+					),
+				));
+			}
+		}
+	}
+}
+
 /// Validates a project for every target.
 pub fn check(project: &Project) -> Vec<Diagnostic> {
 	let mut out = Vec::new();
@@ -195,6 +244,8 @@ pub fn check(project: &Project) -> Vec<Diagnostic> {
 		}
 		Err(e) => out.push(error("unreadable-project", "installer/", e.to_string())),
 	}
+
+	check_system_folders(project, &mut out);
 
 	crate::tauri::check::check(project, &mut out);
 

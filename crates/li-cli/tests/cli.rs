@@ -819,3 +819,33 @@ fn preview_shows_the_tauri_setup_for_wrap() {
 	);
 	assert!(!text.contains("registry.set"), "{text}");
 }
+
+#[test]
+fn preview_names_a_windows_folder_file_by_its_placeholder() {
+	let dir = project();
+	let installer = dir.path().join("installer");
+	std::fs::write(
+		installer.join("installer.toml"),
+		std::fs::read_to_string(installer.join("installer.toml"))
+			.unwrap()
+			.replace(
+				"id       = \"linux-x86_64\"\nrenderer = \"tui\"",
+				"id       = \"win16-x86\"\nrenderer = \"win16\"",
+			),
+	)
+	.unwrap();
+	std::fs::write(
+		installer.join("components.toml"),
+		"[[component]]\nid = \"saver\"\nname = \"Saver\"\nrequired = true\nfiles = [{ from = \"payload/FIZZ.SCR\", to = \"{windows}/FIZZ.SCR\" }]\n",
+	)
+	.unwrap();
+	std::fs::create_dir_all(installer.join("payload")).unwrap();
+	std::fs::write(installer.join("payload/FIZZ.SCR"), "saver\r\n").unwrap();
+	liminst(dir.path())
+		.args(["preview", "-t", "win16-x86", "--only", "plan"])
+		.assert()
+		.success()
+		.stdout(predicate::str::contains(
+			"payload/FIZZ.SCR -> {windows}/FIZZ.SCR",
+		));
+}

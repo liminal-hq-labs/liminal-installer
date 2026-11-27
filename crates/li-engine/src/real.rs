@@ -39,6 +39,8 @@ impl RealMachine {
 			desktop: home.join("Desktop"),
 			system_data: PathBuf::from("/usr/share"),
 			temp: std::env::temp_dir(),
+			windows: None,
+			system: None,
 			user_data,
 		})
 	}
@@ -53,6 +55,8 @@ impl RealMachine {
 			start_menu: root.join("data/applications"),
 			desktop: root.join("Desktop"),
 			temp: root.join("tmp"),
+			windows: Some(root.join("windows")),
+			system: Some(root.join("windows/system")),
 		};
 		for d in [
 			&dirs.user_data,
@@ -60,6 +64,9 @@ impl RealMachine {
 			&dirs.desktop,
 			&dirs.temp,
 		] {
+			std::fs::create_dir_all(d)?;
+		}
+		for d in dirs.windows.iter().chain(&dirs.system) {
 			std::fs::create_dir_all(d)?;
 		}
 		Ok(RealMachine::new(dirs))
