@@ -148,6 +148,8 @@ export function ProjectScreen() {
 								<span className={text.dim}>
 									{` ${c.id}${c.required ? ` · ${t('project.required')}` : ''}${
 										c.default ? '' : ` · ${t('project.startsUnticked')}`
+									}${c.system_folders.includes('windows') ? ` · ${t('project.writesWindows')}` : ''}${
+										c.system_folders.includes('system') ? ` · ${t('project.writesSystem')}` : ''
 									}${
 										c.targets.length
 											? ` · ${t('project.onlyOn', { targets: c.targets.join(', ') })}`

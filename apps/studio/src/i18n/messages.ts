@@ -127,6 +127,8 @@ export const enMessages = {
 	'project.col.components': 'Components',
 	'project.col.status': 'Status',
 	'project.required': 'required',
+	'project.writesWindows': 'installs into the Windows folder',
+	'project.writesSystem': 'installs into the Windows system folder',
 	'project.startsUnticked': 'unticked by default',
 	// translator: {targets} lists the targets a component is limited to.
 	'project.onlyOn': '{targets} only',
