@@ -6,6 +6,7 @@
 # GlobalAddAtom and GlobalDeleteAtom are USER's (268, 269); KERNEL 70 and 71 are the local AddAtom and DeleteAtom. All three checked against
 # Windows 3.11's own USER.EXE with tools/ne_dump.py.
 # GetProfileString (58) and WriteProfileString (59) are named by that KERNEL's own export table (ne_dump.py on Windows 3.11's KRNL386.EXE).
+# GetSystemDirectory (135) is named by the same export table (GETSYSTEMDIRECTORY, 135; ne_dump.py on Windows 3.11's KRNL386.EXE).
 # WriteProfileString_delete is the same export with a far NULL for the value, which deletes the key.
 # Ordinals and Pascal signatures come from Wine's krnl386.exe16.spec, user.exe16.spec and gdi.exe16.spec.
 # ARGS has one letter per Rust argument, in Pascal (left to right) order:
@@ -43,6 +44,7 @@ KERNEL 86 _lwrite_far wlw w
 KERNEL 107 SetErrorMode w w
 KERNEL 115 OutputDebugString p v
 KERNEL 134 GetWindowsDirectory pw w
+KERNEL 135 GetSystemDirectory pw w
 KERNEL 128 GetPrivateProfileString ppppwp w
 KERNEL 129 WritePrivateProfileString pppp w
 KERNEL 131 GetDOSEnvironment - l

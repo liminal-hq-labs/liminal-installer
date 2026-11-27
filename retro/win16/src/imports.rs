@@ -994,6 +994,40 @@ global_asm!(
 	".byte 0x66, 0xc3",
 );
 
+// KERNEL.135 GetSystemDirectory
+global_asm!(
+	".code16",
+	".section .text.imp_GetSystemDirectory,\"ax\"",
+	".globl GetSystemDirectory",
+	"GetSystemDirectory:",
+	"push ebp",
+	"mov bp, sp",
+	"push ebx",
+	"push esi",
+	"push edi",
+	"push ds",
+	"push word ptr [bp+8]",
+	"push word ptr [bp+12]",
+	"mov ss, word ptr [__w16_ss16]",
+	"movzx esp, sp",
+	".byte 0x9a",
+	".globl __w16imp_KERNEL_135_GetSystemDirectory",
+	"__w16imp_KERNEL_135_GetSystemDirectory:",
+	".word 0, 0",
+	".byte 0x66, 0xe8",
+	".long w16_sync_alias - . - 4",
+	"mov ss, word ptr [__w16_ss32]",
+	"movzx esp, sp",
+	"push ds",
+	"pop es",
+	"movzx eax, ax",
+	"pop edi",
+	"pop esi",
+	"pop ebx",
+	"pop ebp",
+	".byte 0x66, 0xc3",
+);
+
 // KERNEL.128 GetPrivateProfileString
 global_asm!(
 	".code16",
@@ -2912,6 +2946,7 @@ unsafe extern "C" {
 	pub fn SetErrorMode(a0: u32) -> u32;
 	pub fn OutputDebugString(a0: u32) -> u32;
 	pub fn GetWindowsDirectory(a0: u32, a1: u32) -> u32;
+	pub fn GetSystemDirectory(a0: u32, a1: u32) -> u32;
 	pub fn GetPrivateProfileString(a0: u32, a1: u32, a2: u32, a3: u32, a4: u32, a5: u32) -> u32;
 	pub fn WritePrivateProfileString(a0: u32, a1: u32, a2: u32, a3: u32) -> u32;
 	pub fn GetDOSEnvironment() -> u32;

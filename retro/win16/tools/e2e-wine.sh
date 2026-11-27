@@ -14,7 +14,12 @@
 # `SETUP.EXE /U` removes it again and the folder must be gone. Wine runs Win16 programs through its own krnl386, which keeps the
 # register halves Windows itself would not, so this proves the flow and the file handling, not the register handling: that is the
 # Windows 3.11 run (e2e-w31.sh). Planboard also declares a file type: a `pbd=` line in WIN.INI's `[Extensions]` replaces one seeded
-# first (Notepad's), and after the uninstall the seeded line is back (Wine keeps the section in its registry). Skips with a note when Wine is missing.
+# first (Notepad's), and after the uninstall the seeded line is back (Wine keeps the section in its registry). A third run, `lt-fizz-saver`,
+# is Lt. Fizz with its Screen saver component ticked (`components toggle screensaver` in the script) over a `FIZZ.SCR` seeded in the Windows
+# folder (Wine's `C:\windows`): the install must put the new file there (its receipt record is a full path, matched without regard to case),
+# copy the seeded one to `BACKUP\WIN\FIZZ.SCR` in the install folder, keep an `O` record and log a `backup:` line, and the uninstall must
+# put the seeded bytes back and leave no `BACKUP`; the plain Lt. Fizz run must leave no `FIZZ.SCR` in the Windows folder. Skips with a note
+# when Wine is missing.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../../.."
 root="$PWD"
@@ -46,14 +51,33 @@ pbd_line() { wine reg query "$extkey" /v pbd 2> /dev/null | tr -d '\r' | sed -n 
 seed_pbd() { wine reg add "$extkey" /v pbd /t REG_SZ /d 'C:\WINDOWS\NOTEPAD.EXE ^.pbd' /f > /dev/null 2>&1; }
 
 fail=0
-for ex in lt-fizz planboard; do
+# resolve: a receipt name to a path under the prefix. A name with a drive (`C:\windows\FIZZ.SCR`) is found under drive_c without regard
+# to case, because Wine's Windows folder is `windows`; any other name is below the install folder.
+resolve() {
+	case "$2" in
+		[A-Za-z]:\\*)
+			local rel="${2:3}"
+			find "$WINEPREFIX/drive_c" -ipath "$WINEPREFIX/drive_c/$(echo "$rel" | tr '\\' '/')" 2> /dev/null | head -n1
+			;;
+		*) echo "$1/$(echo "$2" | tr '\\' '/')" ;;
+	esac
+}
+winfiles="$WINEPREFIX/drive_c/windows"
+
+for ex in lt-fizz planboard lt-fizz-saver; do
+	base="${ex%-saver}"
 	dir="$work/$ex"
 	mkdir -p "$dir"
-	"$liminst" build -C "examples/$ex" -t win16-x86 --version 1.0.0 -o "$dir/out" --output files --win16-runtime "$work/exe/SETUP.EXE" > /dev/null 2>&1
+	"$liminst" build -C "examples/$base" -t win16-x86 --version 1.0.0 -o "$dir/out" --output files --win16-runtime "$work/exe/SETUP.EXE" > /dev/null 2>&1
 	cp "$dir/out/win16/SETUP.EXE" "$dir/out/win16/SETUP.LPK" "$dir/"
 	printf 'licence choose licence.accepted yes\n' > "$dir/PLAY.TXT"
+	if [ "$ex" = lt-fizz-saver ]; then
+		printf 'components toggle screensaver\n' >> "$dir/PLAY.TXT"
+		printf 'seeded by e2e-wine\r\nthe saver that was here first\r\n' > "$winfiles/FIZZ.SCR"
+		cp "$winfiles/FIZZ.SCR" "$dir/seeded.scr"
+	fi
 	: > "$dir/PLAY2.TXT"
-	name="$([ "$ex" = lt-fizz ] && echo LTFIZZ || echo PLANBOAR)"
+	name="$([ "$base" = lt-fizz ] && echo LTFIZZ || echo PLANBOAR)"
 	host="$WINEPREFIX/drive_c/$name"
 	[ "$ex" != planboard ] || seed_pbd
 	[ "$ex" != planboard ] || [ "$(pbd_line)" = 'pbd=C:\WINDOWS\NOTEPAD.EXE ^.pbd' ] || { echo "e2e-wine: could not seed WIN.INI: $(pbd_line)" >&2; fail=1; }
@@ -70,7 +94,9 @@ for ex in lt-fizz planboard; do
 		*"progman: unavailable"*) echo "e2e-wine: $ex: no Program Manager under Wine; the batch launcher was written ($pm)" ;;
 		*) echo "e2e-wine: $ex: unexpected Program Manager result: ${pm:-none}" >&2; fail=1 ;;
 	esac
-	if diff <(norm "$WINEPREFIX/drive_c/$ex.TXT") <(norm "crates/li-retro-build/tests/golden/win16/$ex.pages.txt") > "$dir/diff"; then
+	if [ "$ex" = lt-fizz-saver ]; then
+		echo "e2e-wine: $ex: the components page differs from the golden by the ticked saver, so its pages are not compared"
+	elif diff <(norm "$WINEPREFIX/drive_c/$ex.TXT") <(norm "crates/li-retro-build/tests/golden/win16/$ex.pages.txt") > "$dir/diff"; then
 		echo "e2e-wine: $ex: every page the controls show equals the host's golden"
 	else
 		cat "$dir/diff" >&2
@@ -79,12 +105,30 @@ for ex in lt-fizz planboard; do
 	n=0
 	while read -r kind fname size _crc; do
 		[ "$kind" = F ] || continue
-		path="$host/$(echo "$fname" | tr '\\' '/')"
-		[ "$(stat -c %s "$path")" = "$size" ] || { echo "e2e-wine: $ex: $fname is not $size bytes" >&2; fail=1; }
+		path="$(resolve "$host" "$fname")"
+		[ -n "$path" ] && [ "$(stat -c %s "$path")" = "$size" ] || { echo "e2e-wine: $ex: $fname is not $size bytes" >&2; fail=1; }
 		n=$((n + 1))
 	done < <(tr -d '\r' < "$host/INSTALL.LIR")
 	echo "e2e-wine: $ex installed $n files, receipt checked"
 	echo "e2e-wine: $ex: the receipt has $(grep -c '^G ' "$host/INSTALL.LIR") group item(s) and $(grep -c '^P ' "$host/INSTALL.LIR") made group(s)"
+	receipt="$(tr -d '\r' < "$host/INSTALL.LIR")"
+	if [ "$ex" = lt-fizz-saver ]; then
+		if grep -qix 'F C:\\windows\\FIZZ.SCR [0-9]* [0-9A-F]*' <<< "$receipt" \
+			&& grep -qix 'O C:\\windows\\FIZZ.SCR|BACKUP\\WIN\\FIZZ.SCR' <<< "$receipt" \
+			&& cmp -s "$host/BACKUP/WIN/FIZZ.SCR" "$dir/seeded.scr" \
+			&& ! cmp -s "$winfiles/FIZZ.SCR" "$dir/seeded.scr" \
+			&& grep -q '^backup: C:\\windows\\FIZZ.SCR -> BACKUP\\WIN\\FIZZ.SCR' <<< "$(tr -d '\r' < "$WINEPREFIX/drive_c/$ex.LOG")"; then
+			echo "e2e-wine: $ex: FIZZ.SCR is in the Windows folder, the seeded one is in BACKUP\\WIN, the receipt has its F and O records and the log says so"
+		else
+			echo "e2e-wine: $ex: the saver, its backup, the receipt or the log is wrong" >&2
+			echo "$receipt" | grep -i 'FIZZ.SCR\|^O ' >&2 || true
+			ls -R "$host" >&2 || true
+			fail=1
+		fi
+	elif [ "$ex" = lt-fizz ] && [ -e "$winfiles/FIZZ.SCR" ]; then
+		echo "e2e-wine: $ex: the unticked saver was installed" >&2
+		fail=1
+	fi
 	if [ "$ex" = planboard ]; then
 		if [ "$(pbd_line)" = "pbd=C:\\$name\\PLANBRD.EXE ^.pbd" ] && tr -d '\r' < "$host/INSTALL.LIR" | grep -qxF "A pbd|hq.liminal.planboard.pbd|C:\\$name\\PLANBRD.EXE|C:\\WINDOWS\\NOTEPAD.EXE ^.pbd"; then
 			echo "e2e-wine: $ex: WIN.INI's [Extensions] names Planboard, and the receipt keeps Notepad's line"
@@ -108,6 +152,15 @@ for ex in lt-fizz planboard; do
 		fail=1
 	else
 		echo "e2e-wine: $ex uninstalled"
+	fi
+	if [ "$ex" = lt-fizz-saver ]; then
+		if cmp -s "$winfiles/FIZZ.SCR" "$dir/seeded.scr"; then
+			echo "e2e-wine: $ex: the seeded FIZZ.SCR is back after the uninstall and BACKUP is gone"
+		else
+			echo "e2e-wine: $ex: the seeded FIZZ.SCR was not put back" >&2
+			fail=1
+		fi
+		rm -f "$winfiles/FIZZ.SCR"
 	fi
 	if [ "$ex" = planboard ]; then
 		if [ "$(pbd_line)" = 'pbd=C:\WINDOWS\NOTEPAD.EXE ^.pbd' ]; then

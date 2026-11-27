@@ -4,7 +4,7 @@
 # (c) Copyright 2026 Liminal HQ, Scott Morris
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 #
-# usage: W31_TREE=DIR [SHOTS=DIR] retro/win16/tools/e2e-w31.sh [--runs N] [lt-fizz|planboard]...
+# usage: W31_TREE=DIR [SHOTS=DIR] retro/win16/tools/e2e-w31.sh [--runs N] [lt-fizz|planboard|lt-fizz-saver]...
 #
 # W31_TREE is a Windows 3.11 installation as a DOS drive (a folder with WINDOWS/ and WIN.BAT). The repository cannot carry one, so this
 # is a manual run. It copies the tree, mounts the copy as C: and a scratch folder (SETUP.EXE, SETUP.LPK, the play script) as D: in
@@ -21,6 +21,11 @@
 # and that the group holds the uninstall item next to the program's. Planboard declares a file type: before each run WIN.INI's [Extensions]
 # is given a `pbd=notepad.exe ^.pbd` line, and a run needs the install to replace it with Planboard's (`pbd=C:\PLANBOAR\PLANBRD.EXE ^.pbd`),
 # the receipt to keep Notepad's, and the uninstall to put `pbd=notepad.exe ^.pbd` back. With NO_OWNER=1 nothing owns `pbd` first, and the uninstall must leave no `pbd=` line at all, empty or not. PROGMAN_OPTIONAL=1 turns the Program Manager checks off, for a tree whose shell is not Program Manager.
+# `lt-fizz-saver` is Lt. Fizz with its Screen saver component ticked (`components toggle screensaver` in the script) over a `FIZZ.SCR` seeded in
+# C:\WINDOWS: a run needs the install to put the new file there (an `F C:\WINDOWS\FIZZ.SCR` record, a full path), copy the seeded file to
+# `BACKUP\WIN\FIZZ.SCR` in the install folder, keep an `O` record and log a `backup:` line, and the uninstall to put the seeded bytes back and leave
+# no folder (so no `BACKUP`). The other runs of Lt. Fizz must leave no `FIZZ.SCR` in the Windows folder. Its pages are not compared with the golden,
+# which has the saver unticked.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../../.."
 : "${W31_TREE:?set W31_TREE to a Windows 3.11 tree}"
@@ -32,7 +37,7 @@ while [ $# -gt 0 ]; do
 		*) examples+=("$1"); shift ;;
 	esac
 done
-[ ${#examples[@]} -gt 0 ] || examples=(lt-fizz planboard)
+[ ${#examples[@]} -gt 0 ] || examples=(lt-fizz planboard lt-fizz-saver)
 
 if [ -z "${DISPLAY:-}" ] && [ -z "${E2E_W31_XVFB:-}" ] && command -v xvfb-run > /dev/null; then
 	E2E_W31_XVFB=1 exec xvfb-run -a -s "-screen 0 1280x960x24" "$0" --runs "$runs" "${examples[@]}"
@@ -115,17 +120,35 @@ seed_pbd() {
 }
 
 pass=0 total=0
+# resolve <install folder on the host> <receipt name>: a name with a drive (`C:\WINDOWS\FIZZ.SCR`) is found under C: without regard to case,
+# any other name is below the install folder.
+resolve() {
+	case "$2" in
+		[A-Za-z]:\\*) find "$work/c" -ipath "$work/c/$(echo "${2:3}" | tr '\\' '/')" 2> /dev/null | head -n1 ;;
+		*) echo "$1/$(echo "$2" | tr '\\' '/')" ;;
+	esac
+}
+winfiles="$work/c/WINDOWS"
+
 for ex in "${examples[@]}"; do
-	"$liminst" build -C "examples/$ex" -t win16-x86 --version 1.0.0 -o "$work/out-$ex" --output files --win16-runtime "$work/exe/SETUP.EXE" > /dev/null 2>&1
-	dir="C:\\$([ "$ex" = lt-fizz ] && echo LTFIZZ || echo PLANBOAR)"
+	base="${ex%-saver}"
+	"$liminst" build -C "examples/$base" -t win16-x86 --version 1.0.0 -o "$work/out-$base" --output files --win16-runtime "$work/exe/SETUP.EXE" > /dev/null 2>&1
+	dir="C:\\$([ "$base" = lt-fizz ] && echo LTFIZZ || echo PLANBOAR)"
 	host="$work/c/$(basename "${dir//\\//}")"
 	for run in $(seq 1 "$runs"); do
 		total=$((total + 1))
 		ok=1
 		why=''
 		[ "$ex" != planboard ] || seed_pbd
-		cp "$work/out-$ex/win16/SETUP.EXE" "$work/out-$ex/win16/SETUP.LPK" "$work/d/"
+		cp "$work/out-$base/win16/SETUP.EXE" "$work/out-$base/win16/SETUP.LPK" "$work/d/"
 		printf 'licence choose licence.accepted yes\n' > "$work/d/PLAY.TXT"
+		if [ "$ex" = lt-fizz-saver ]; then
+			printf 'components toggle screensaver\n' >> "$work/d/PLAY.TXT"
+			printf 'seeded by e2e-w31\r\nthe saver that was here first\r\n' > "$winfiles/FIZZ.SCR"
+			cp "$winfiles/FIZZ.SCR" "$work/seeded.scr"
+		else
+			rm -f "$winfiles/FIZZ.SCR"
+		fi
 		: > "$work/d/PLAY2.TXT"
 		pause=""
 		[ -n "${SHOTS:-}" ] && [ "$run" = 1 ] && pause=" /PAUSE=2500"
@@ -147,12 +170,15 @@ for ex in "${examples[@]}"; do
 		fi
 		stop
 		[ "$(tail -n1 "$work/c/S.LOG" 2> /dev/null | tr -d '\r')" = "exit 0" ] || { ok=0; why+=" install-exit:$(tail -n1 "$work/c/S.LOG" 2> /dev/null | tr -d '\r')"; }
-		diff <(norm "$work/c/S.TXT") <(norm "crates/li-retro-build/tests/golden/win16/$ex.pages.txt") > "$work/diff" 2>&1 || { ok=0; why+=' pages'; head -8 "$work/diff" >&2; }
+		if [ "$ex" != lt-fizz-saver ]; then
+			diff <(norm "$work/c/S.TXT") <(norm "crates/li-retro-build/tests/golden/win16/$ex.pages.txt") > "$work/diff" 2>&1 || { ok=0; why+=' pages'; head -8 "$work/diff" >&2; }
+		fi
 		n=0
 		if [ -f "$host/INSTALL.LIR" ]; then
 			while read -r kind fname size _crc; do
 				[ "$kind" = F ] || continue
-				[ "$(stat -c %s "$host/$(echo "$fname" | tr '\\' '/')" 2> /dev/null || echo -1)" = "$size" ] || ok=0
+				path="$(resolve "$host" "$fname")"
+				[ -n "$path" ] && [ "$(stat -c %s "$path" 2> /dev/null || echo -1)" = "$size" ] || ok=0
 				n=$((n + 1))
 			done < <(tr -d '\r' < "$host/INSTALL.LIR")
 		else
@@ -168,6 +194,16 @@ for ex in "${examples[@]}"; do
 			[ -n "$grp" ] || { ok=0; why+=' no-P-record'; }
 			[ -z "$grp" ] || [ -f "$work/c/WINDOWS/$grp" ] || { ok=0; why+=" no-$grp"; }
 			[ -z "$grp" ] || grep -qi "$grp" "$work/c/WINDOWS/PROGMAN.INI" || { ok=0; why+=' ini-has-no-group'; }
+		fi
+		if [ "$ex" = lt-fizz-saver ]; then
+			receipt="$(tr -d '\r' < "$host/INSTALL.LIR" 2> /dev/null || true)"
+			grep -qix 'F C:\\WINDOWS\\FIZZ.SCR [0-9]* [0-9A-F]*' <<< "$receipt" || { ok=0; why+=' no-F-record'; }
+			grep -qix 'O C:\\WINDOWS\\FIZZ.SCR|BACKUP\\WIN\\FIZZ.SCR' <<< "$receipt" || { ok=0; why+=' no-O-record'; }
+			cmp -s "$(resolve "$host" 'BACKUP\WIN\FIZZ.SCR')" "$work/seeded.scr" || { ok=0; why+=' backup-differs'; }
+			! cmp -s "$winfiles/FIZZ.SCR" "$work/seeded.scr" || { ok=0; why+=' saver-not-installed'; }
+			grep -qi '^backup: C:\\WINDOWS\\FIZZ.SCR -> BACKUP\\WIN\\FIZZ.SCR' <<< "$(tr -d '\r' < "$work/c/S.LOG" 2> /dev/null)" || { ok=0; why+=' no-backup-log'; }
+		elif [ "$base" = lt-fizz ] && [ -e "$winfiles/FIZZ.SCR" ]; then
+			ok=0; why+=' unticked-saver-installed'
 		fi
 		if [ "$ex" = planboard ]; then
 			[ "$(pbd_line)" = 'pbd=C:\PLANBOAR\PLANBRD.EXE ^.pbd' ] || { ok=0; why+=" winini-after-install:$(pbd_line)"; }
@@ -199,6 +235,7 @@ for ex in "${examples[@]}"; do
 		[ -z "${NO_OWNER:-}" ] || after_uninstall=''
 		[ "$ex" != planboard ] || [ "$(pbd_line)" = "$after_uninstall" ] || { ok=0; why+=" winini-after-uninstall:$(pbd_line)"; }
 		[ "$(tail -n1 "$work/c/U.LOG" 2> /dev/null | tr -d '\r')" = "exit 0" ] || { ok=0; why+=" uninstall-exit:$(tail -n1 "$work/c/U.LOG" 2> /dev/null | tr -d '\r')"; }
+		[ "$ex" != lt-fizz-saver ] || cmp -s "$winfiles/FIZZ.SCR" "$work/seeded.scr" || { ok=0; why+=' seeded-saver-not-restored'; }
 		[ ! -e "$host" ] || { ok=0; why+=" folder-left($(ls "$host" 2> /dev/null | tr '\n' ' '))"; }
 		pass=$((pass + ok))
 		echo "e2e-w31: $ex run $run: $([ "$ok" = 1 ] && echo pass || echo "FAIL$why") ($n files; $(grep -h 'heap peak' "$work/c/S.LOG" 2> /dev/null | tr -d '\r'); $(grep -h '^progman:' "$work/c/S.LOG" 2> /dev/null | tr -d '\r' | tr '\n' ';'))"

@@ -2,7 +2,7 @@
 
 `liminst build -t win16-x86` turns an installer project into `SETUP.LPK`, the Liminal Pack the Windows 3.1 runtime reads ([lpk-format.md](lpk-format.md)), and carries `SETUP.EXE`, the runtime, when `--win16-runtime`, `LIMINST_WIN16_RUNTIME` or `retro/win16/out/SETUP.EXE` names one; the `floppy-1440` output fails without it, naming `--win16-runtime` (D75). The runtime is Rust built for a 16-bit code segment and packed into an NE executable (D46, [win16-spike.md](win16-spike.md)), on the same portable core as the DOS and Windows 95 runtimes: the flow VM and installer engine of `li-retro`, a `Gui` for the pages (shared with Win32) and a `Shell` for what the machine's shell does (D69, D73).
 
-**Status.** The whole `SETUP.EXE` links and runs. Its code is 157 961 bytes, which no single 16-bit code segment can hold, so the packer places it in four (the packer is vendored from rust-win16, see [`retro/win16/PROVENANCE.md`](../retro/win16/PROVENANCE.md)). Under Wine and on Windows for Workgroups 3.11 in DOSBox-X it installs and uninstalls Lt. Fizz and Planboard through its real controls: 40 of 40 runs passed on 3.11, 20 of each example. What is unproven is real hardware (see [What is not done](#what-is-not-done)).
+**Status.** The whole `SETUP.EXE` links and runs. Its code is 178 851 bytes, which no single 16-bit code segment can hold, so the packer places it in five (the packer is vendored from rust-win16, see [`retro/win16/PROVENANCE.md`](../retro/win16/PROVENANCE.md)). Under Wine and on Windows for Workgroups 3.11 in DOSBox-X it installs and uninstalls Lt. Fizz and Planboard through its real controls: every run passed on 3.11 (see Table 3). What is unproven is real hardware (see [What is not done](#what-is-not-done)).
 
 ## Table of contents
 
@@ -13,6 +13,7 @@
 - [The runtime](#the-runtime)
 - [The Program Manager group](#the-program-manager-group)
 - [The kept uninstaller](#the-kept-uninstaller)
+- [The Windows and system folders](#the-windows-and-system-folders)
 - [Sizes and segments](#sizes-and-segments)
 - [The ESP finding and how it was fixed](#the-esp-finding-and-how-it-was-fixed)
 - [Where each test ran](#where-each-test-ran)
@@ -106,7 +107,7 @@ Windows 3.1 has no function that makes a group or an item, so `lisetup/dde.rs` t
 4. After an add, the group's own listing is requested (item = the group name) and its start is written to `/LOG`: `progman: group: "Planboard",C:\WINDOWS\PLANBOAR.GRP,1,1|"Planboard","C:\PLANBOAR\PLANBRD.EXE",...`. That line, and `progman: removed; group gone` after an uninstall, are the in-guest proof; they do not depend on Program Manager having written its files.
 5. `WM_DDE_TERMINATE`, a wait of a second for the server's own, and the window is destroyed.
 
-The window procedure never allocates (the heap is not reentrant) and the state is about 1 KB of statics, because the data segment has little room left (45 128 bytes of data, an 8 KiB stack and an 8 KiB local heap leave 4 024 bytes of 64 KB): the group list is searched as it is read.
+The window procedure never allocates (the heap is not reentrant) and the state is about 1 KB of statics, because the data segment has little room left (45 144 bytes of data, an 8 KiB stack and an 8 KiB local heap leave 4 008 bytes of 64 KB): the group list is searched as it is read.
 
 The new imports are `GlobalAddAtom` (USER 268), `GlobalDeleteAtom` (USER 269) and `IsWindow` (USER 47). The atom functions are **USER**'s, not KERNEL's: KERNEL 70 and 71 are the local `AddAtom` and `DeleteAtom`. All three ordinals were read from Windows 3.11's own `USER.EXE` with `tools/ne_dump.py` and agree with Wine's `user.exe16.spec`.
 
@@ -130,15 +131,25 @@ Windows will not delete a program that is running, so `UNINST.EXE /U` does not d
 
 One more fix came out of it: DOS refuses to remove the current directory, and an uninstall started with the install folder as its working folder (from the group item) is in it, so `rmdir` moves to the drive's root and tries again. The new imports are `WinExec` (KERNEL 166) and `GetWindowsDirectory` (KERNEL 134), both read from Windows 3.11's `KRNL386.EXE`.
 
+## The Windows and system folders
+
+A component may install a file into the Windows folder or the system folder (`{windows}/` and `{system}/` in the project, `%WINDIR%\NAME` and `%SYSDIR%\NAME` in the compiled file list; D95, D97, D98). Lt. Fizz's unticked `screensaver` component installs `FIZZ.SCR` into the Windows folder, where Control Panel's Desktop lists screen savers.
+
+- **Folders.** `Win16Platform` answers `Shell::windows_dir` with `GetWindowsDirectory` (KERNEL 134) and `Shell::system_dir` with `GetSystemDirectory` (KERNEL 135), each into the same 144-byte stack buffer and without a trailing backslash (`C:\WINDOWS`, `C:\WINDOWS\SYSTEM`). Neither costs a static.
+- **The ordinal.** `GetSystemDirectory` is `GETSYSTEMDIRECTORY`, 135, in the export table of Windows for Workgroups 3.11's own `KRNL386.EXE` (`tools/ne_dump.py` lists it beside `GETWINDOWSDIRECTORY`, 134), which is also what Wine's `krnl386.exe16.spec` says. It is one import more in `tools/imports.tbl`, so `src/imports.rs` was regenerated, never edited.
+- **Copying.** `Shell::copy_file` is `dosio::copy_file`, the same 1 KiB-at-a-time copy the kept uninstaller uses, so a backup costs a 1 KiB buffer for the moment it runs. `Platform::notice` writes a line to `/LOG` through `note`: `backup: C:\WINDOWS\FIZZ.SCR -> BACKUP\WIN\FIZZ.SCR`.
+- **What the install does.** A file of the same name that this product did not put there is copied to `BACKUP\WIN\` (or `BACKUP\SYS\`) in the install folder, then replaced; the receipt has `F C:\WINDOWS\FIZZ.SCR size crc` and `O C:\WINDOWS\FIZZ.SCR|BACKUP\WIN\FIZZ.SCR`. Cancelling or failing puts the backup back; the uninstall removes the file, copies the backup over the original, and removes `BACKUP` when it is empty (SPEC §8 and §9). The core is `li-retro`'s; the runtime only answers the three shell calls and logs.
+- **Budgets.** No static was added: the data segment is 45 144 bytes, 4 008 free (it was 45 128 and 4 024: 16 bytes of read-only text for the copy error and the log). The heap's peak on Windows 3.11 is 30 488 of 36 864 bytes for Lt. Fizz with the saver ticked, against 29 932 without it (the backup's buffer and paths), so the margin is 6 376 bytes. The code grew by 543 bytes (178 308 to 178 851) in the same five segments; the last, which took the new code, has 9 333 bytes of its 40 000.
+
 ## Sizes and segments
 
 | | Bytes |
 |---|---|
-| Code, in five segments | 178 308 (29 636, 47 868, 47 491, 44 467 and 8 846) |
-| Call veneers, jump stubs and pointer slots | 1 551, 18 and 38 |
-| Data (static data and the 36 KiB heap) | 45 128 |
+| Code, in five segments | 178 851 (29 800, 47 876, 47 337, 44 505 and 9 333) |
+| Call veneers, jump stubs and pointer slots | 1 560, 19 and 40 |
+| Data (static data and the 36 KiB heap) | 45 144 |
 | Stack, local heap | 8 192, 8 192 |
-| `SETUP.EXE` | 250 416 |
+| `SETUP.EXE` | 251 223 |
 
 Table 2. What the packer reports for `SETUP.EXE`.
 
@@ -169,6 +180,8 @@ With it, 40 of 40 install-and-uninstall runs of the whole `SETUP.EXE` passed on 
 | Windows for Workgroups 3.11 in DOSBox-X, kept uninstaller installed, `SETUP /U` from the disk | `e2e-w31.sh --runs 10` for each example | 10 of 10 for each |
 | Wine 11.21, file type | `e2e-wine.sh`: Planboard's `pbd` line in `[Extensions]` (Wine keeps the section in its registry) is seeded with Notepad's, replaced by Planboard's on install with the receipt's `A` record keeping Notepad's, and Notepad's is back after `/U` | Pass |
 | Windows for Workgroups 3.11 in DOSBox-X, file type | `e2e-w31.sh --runs 3 planboard`: `WIN.INI`'s `pbd=notepad.exe ^.pbd` becomes `pbd=C:\PLANBOAR\PLANBRD.EXE ^.pbd`, the receipt's `A` record keeps Notepad's line, and after `/U` the `WIN.INI` line is Notepad's again, with the group, files and folder checks as before | 3 of 3 pass; Lt. Fizz, which has no file type, 2 of 2 |
+| Wine 11.21, the Windows folder | `e2e-wine.sh`: the third run, `lt-fizz-saver`, ticks the screen saver over a `FIZZ.SCR` seeded in `C:\windows`: the new file is there, the seeded bytes are in `BACKUP\WIN`, the receipt has the `F` and `O` records and the log a `backup:` line; after `/U` the seeded bytes are back and the folder is gone. Plain Lt. Fizz installs no `FIZZ.SCR` | Pass |
+| Windows for Workgroups 3.11 in DOSBox-X, the Windows folder | `e2e-w31.sh --runs 5` (and `KEPT=1 --runs 2` for the saver): the same checks against `C:\WINDOWS`, with `lt-fizz` and `planboard` as before | 15 of 15 and 2 of 2 pass; the peak was 30 488 bytes with the saver |
 | Windows ME in VirtualBox | Not run: the VM was in use and then being debugged, and the rules say to leave it alone | Pending |
 | Windows 3.1 Standard mode, a 286, real hardware | Not run | Untested |
 

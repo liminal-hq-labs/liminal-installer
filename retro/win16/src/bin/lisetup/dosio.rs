@@ -309,6 +309,13 @@ pub fn windows_dir() -> String {
 	String::from_utf8_lossy(&buf[..n.min(143)]).into_owned()
 }
 
+/// The system folder, without a trailing backslash.
+pub fn system_dir() -> String {
+	let mut buf = [0u8; 144];
+	let n = unsafe { GetSystemDirectory(addr_of_mut!(buf) as u32, 143) } as usize;
+	String::from_utf8_lossy(&buf[..n.min(143)]).into_owned()
+}
+
 /// The folder for temporary files: `TEMP` or `TMP` when it names a folder, else the Windows folder.
 pub fn temp_dir() -> String {
 	for var in ["TEMP", "TMP"] {
