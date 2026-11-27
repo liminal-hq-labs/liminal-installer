@@ -89,6 +89,11 @@ impl Win16Platform {
 		self.log.push_str(" of ");
 		self.log.push_str(&crate::heap::HEAP_SIZE.to_string());
 		self.log.push_str(" bytes\r\n");
+		let (blocks, asked, most) = crate::heap::HEAP.census();
+		self.log.push_str(&format!(
+			"heap blocks {} at the peak, {} bytes asked, {} at most\r\n",
+			blocks, asked, most
+		));
 		self.log.push_str("exit ");
 		self.log.push_str(&code.to_string());
 		self.log.push_str("\r\n");
