@@ -4,4 +4,8 @@ export type ComponentInfo = { id: string, name: string, required: boolean,
 /**
  * Whether the component starts ticked; `false` for an optional component the person ticks.
  */
-default: boolean, targets: Array<string>, files: number, };
+default: boolean, targets: Array<string>, files: number, 
+/**
+ * The system folders the component installs into: `"windows"`, then `"system"`, each once.
+ */
+system_folders: Array<string>, };

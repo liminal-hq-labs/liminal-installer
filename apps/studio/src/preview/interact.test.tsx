@@ -142,8 +142,24 @@ describe('click to select', () => {
 });
 
 const components: ComponentInfo[] = [
-	{ id: 'game', name: 'Game', required: true, default: true, targets: [], files: 2 },
-	{ id: 'music', name: 'Music', required: false, default: false, targets: [], files: 1 },
+	{
+		id: 'game',
+		name: 'Game',
+		required: true,
+		default: true,
+		targets: [],
+		files: 2,
+		system_folders: [],
+	},
+	{
+		id: 'music',
+		name: 'Music',
+		required: false,
+		default: false,
+		targets: [],
+		files: 1,
+		system_folders: [],
+	},
 ];
 const tree: LayoutNode = composeScreen(stage.root, page.root, {
 	id: 'components',

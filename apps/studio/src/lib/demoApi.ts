@@ -180,6 +180,9 @@ export function demoApi(): Api {
 			default: c.default !== 'false',
 			targets: list(c.targets),
 			files: 1,
+			system_folders: (['windows', 'system'] as const).filter((name) =>
+				(c.files ?? '').includes(`"{${name}}`),
+			),
 		})),
 		themes: [
 			{ id: 'fizz-dos', name: 'Fizz DOS', renderers: ['tui-retro'] },

@@ -52,7 +52,26 @@ const summary: ProjectSummary = {
 			components: [],
 		},
 	],
-	components: [],
+	components: [
+		{
+			id: 'screensaver',
+			name: 'Screen saver',
+			required: false,
+			default: false,
+			targets: ['win16-x86'],
+			files: 1,
+			system_folders: ['windows'],
+		},
+		{
+			id: 'driver',
+			name: 'Driver',
+			required: false,
+			default: false,
+			targets: [],
+			files: 1,
+			system_folders: ['windows', 'system'],
+		},
+	],
 	themes: [],
 	flows: [{ id: 'install', steps: 3, errors: 0 }],
 	layouts: ['welcome'],
@@ -129,6 +148,17 @@ afterEach(() => {
 });
 
 describe('the router', () => {
+	it('says when a component installs into the Windows folders', async () => {
+		const { root } = await boot();
+		const lines = [...root.querySelectorAll('main li')].map((li) => li.textContent ?? '');
+		const saver = lines.find((l) => l.includes('Screen saver')) ?? '';
+		expect(saver).toContain('installs into the Windows folder');
+		expect(saver).not.toContain('Windows system folder');
+		const driver = lines.find((l) => l.includes('Driver')) ?? '';
+		expect(driver).toContain('installs into the Windows folder');
+		expect(driver).toContain('installs into the Windows system folder');
+	});
+
 	it('shows each screen for its menu action, marks it in the sidebar and names it in the title', async () => {
 		const { root, go, chrome } = await boot();
 		const heading = () => root.querySelector('main h1')?.textContent;

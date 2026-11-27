@@ -67,6 +67,8 @@ pub struct ComponentInfo {
 	pub default: bool,
 	pub targets: Vec<String>,
 	pub files: usize,
+	/// The system folders the component installs into: `"windows"`, then `"system"`, each once.
+	pub system_folders: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, ts_rs::TS)]
@@ -198,6 +200,7 @@ impl Studio {
 						default: c.default,
 						targets: c.targets.clone(),
 						files: c.files.len(),
+						system_folders: system_folders(c),
 					})
 					.collect(),
 				themes: p
@@ -548,6 +551,18 @@ impl Studio {
 	}
 }
 
+/// The system folders a component's file rules install into, in a fixed order.
+fn system_folders(c: &li_model::Component) -> Vec<String> {
+	["windows", "system"]
+		.into_iter()
+		.filter(|name| {
+			let prefix = format!("{{{name}}}");
+			c.files.iter().any(|f| f.to.starts_with(&prefix))
+		})
+		.map(String::from)
+		.collect()
+}
+
 fn target_infos(p: &Project) -> Vec<TargetInfo> {
 	p.installer
 		.targets
@@ -821,6 +836,20 @@ mod tests {
 			.unwrap();
 		assert!(!win.components.contains(&"sound".to_string()));
 		assert_eq!(sum.flows.len(), 5);
+	}
+
+	#[test]
+	fn a_component_reports_the_system_folders_it_installs_into() {
+		let (_d, s, _r) = open_example("lt-fizz");
+		let sum = s.project_summary().unwrap();
+		let saver = sum
+			.components
+			.iter()
+			.find(|c| c.id == "screensaver")
+			.unwrap();
+		assert_eq!(saver.system_folders, vec!["windows".to_string()]);
+		let game = sum.components.iter().find(|c| c.id == "game").unwrap();
+		assert!(game.system_folders.is_empty());
 	}
 
 	/// A backend that always fails, to reach the errors the mock never raises.
