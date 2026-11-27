@@ -217,6 +217,10 @@ impl Platform for Win16Platform {
 		self.note(&alloc::format!("page {id}"));
 	}
 
+	fn notice(&mut self, text: &str) {
+		self.note(text);
+	}
+
 	fn gui(&mut self) -> Option<&mut dyn Gui> {
 		Some(&mut self.ui)
 	}
@@ -241,6 +245,22 @@ impl Shell for Win16Platform {
 
 	fn registers_uninstall(&self) -> bool {
 		false
+	}
+
+	fn windows_dir(&mut self) -> Option<String> {
+		Some(dosio::windows_dir())
+	}
+
+	fn system_dir(&mut self) -> Option<String> {
+		Some(dosio::system_dir())
+	}
+
+	fn copy_file(&mut self, from: &str, to: &str) -> Result<(), Error> {
+		if dosio::copy_file(from, to) {
+			Ok(())
+		} else {
+			Err(io(to, "cannot copy the file"))
+		}
 	}
 
 	fn keeps_uninstaller(&self) -> bool {
