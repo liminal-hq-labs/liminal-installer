@@ -30,6 +30,7 @@ check: Components
   [x] Episode one levels
   [ ] Bonus levels
   [ ] Open saved games (.FZS) with Fizz
+  [ ] Screen saver
 text: Space required: 3 KB
 text: Space available: 64.0 MB
 button: Back

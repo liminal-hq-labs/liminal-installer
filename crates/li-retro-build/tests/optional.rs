@@ -91,7 +91,8 @@ fn the_compiler_records_the_starting_state_and_which_component_owns_each_operati
 			("game", true),
 			("levels", true),
 			("bonus", false),
-			("savegames", false)
+			("savegames", false),
+			("screensaver", false)
 		]
 	);
 	// One shortcut (the game's) and one file type (the unticked component's).
