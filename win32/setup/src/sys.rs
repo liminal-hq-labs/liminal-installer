@@ -290,6 +290,8 @@ unsafe extern "system" {
 	pub fn Sleep(ms: u32);
 	pub fn GetEnvironmentVariableA(name: *const u8, buf: *mut u8, len: u32) -> u32;
 	pub fn GetTempPathA(len: u32, buf: *mut u8) -> u32;
+	pub fn GetWindowsDirectoryA(buf: *mut u8, len: u32) -> u32;
+	pub fn GetSystemDirectoryA(buf: *mut u8, len: u32) -> u32;
 	pub fn GetDiskFreeSpaceA(root: *const u8, sectors: *mut u32, bytes: *mut u32, free: *mut u32, total: *mut u32) -> i32;
 	pub fn LoadLibraryA(name: *const u8) -> Handle;
 	pub fn GetProcAddress(module: Handle, name: *const u8) -> *const c_void;

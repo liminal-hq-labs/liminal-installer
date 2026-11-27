@@ -59,6 +59,17 @@ pub fn exe_path() -> String {
 	utf8(&buf[..n])
 }
 
+/// A folder Windows names (`GetWindowsDirectoryA` or `GetSystemDirectoryA`), without a trailing backslash.
+fn known_dir(get: unsafe extern "system" fn(*mut u8, u32) -> u32) -> Option<String> {
+	let mut buf = [0u8; 300];
+	// SAFETY: the buffer is as long as the length passed.
+	let n = unsafe { get(buf.as_mut_ptr(), buf.len() as u32) } as usize;
+	if n == 0 || n >= buf.len() {
+		return None;
+	}
+	Some(utf8(&buf[..n]).trim_end_matches('\\').to_string())
+}
+
 fn read_whole(path: &str) -> Result<Vec<u8>, Error> {
 	let p = ansi(path);
 	// SAFETY: plain file calls on a path and buffers owned here.
@@ -363,6 +374,10 @@ impl Platform for Win32 {
 		unsafe { MessageBoxA(NULL, t.as_ptr(), b"Setup\0".as_ptr(), MB_OK | MB_ICONINFORMATION) };
 	}
 
+	fn notice(&mut self, text: &str) {
+		self.wizard.log(&format!("notice: {text}\n"));
+	}
+
 	fn gui(&mut self) -> Option<&mut dyn Gui> {
 		Some(&mut self.wizard)
 	}
@@ -383,6 +398,25 @@ impl Shell for Win32 {
 			"SOFTWARE\\Microsoft\\Windows\\CurrentVersion",
 			"ProgramFilesDir",
 		)
+	}
+
+	fn windows_dir(&mut self) -> Option<String> {
+		known_dir(GetWindowsDirectoryA)
+	}
+
+	fn system_dir(&mut self) -> Option<String> {
+		known_dir(GetSystemDirectoryA)
+	}
+
+	fn copy_file(&mut self, from: &str, to: &str) -> Result<(), Error> {
+		let (a, b) = (ansi(from), ansi(to));
+		// SAFETY: copies one file between NUL-ended paths, replacing the destination.
+		if unsafe { CopyFileA(a.as_ptr(), b.as_ptr(), 0) } == 0 {
+			// SAFETY: reads the thread's last error.
+			let code = unsafe { GetLastError() };
+			return Err(Error::Io(format!("cannot copy {from} to {to} (Windows error {code})")));
+		}
+		Ok(())
 	}
 
 	fn make_shortcut(&mut self, lnk: &str, target: &str, work_dir: &str, description: &str) -> Result<(), Error> {

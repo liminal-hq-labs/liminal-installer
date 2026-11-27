@@ -9,6 +9,7 @@
 # `liminst build -t windows-x86` makes SETUP.EXE and SETUP.LPK; SETUP.EXE runs with /PLAY (a script that presses the real controls:
 # BM_CLICK on buttons, text into the edit controls) and /DUMP (the page text read back from the controls), and the dump is compared with the
 # host test's golden pages (crates/li-retro-build/tests/golden/win32). With --shots, /SHOT saves a bitmap of every page as a PNG in DIR.
+# A last run ticks Lt. Fizz's screen saver over a seeded file in the Windows folder (backup, receipt, restore on uninstall).
 # Needs wine, xvfb-run and python3; exits 0 with a note when they are missing. WINEPREFIX defaults to a scratch directory.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
@@ -32,6 +33,40 @@ reg() { wine reg query "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Unin
 cls() { { wine reg query "HKCR\\$1" /ve /reg:32 2>&1; wine reg query "HKCR\\$1" /ve /reg:64 2>&1; } | tr -d '\r' | grep REG_SZ | head -1 | sed -e 's/^ *[^ ]* *REG_SZ *//' || true; }
 # The X server must outlive every process the program starts (the uninstaller hands over to a copy of itself), so wait for the wineserver.
 win() { (cd "$1" && shift && timeout 240 xvfb-run -a -s "-screen 0 1024x768x24" bash -c 'wine "$@"; rc=$?; wineserver -w; exit $rc' wine "$@" > /dev/null 2>&1); }
+
+# The receipt's sizes and CRC-32s equal the files. A name is below the install folder, or a full path (a file in the Windows folder),
+# which is read through the prefix's drive_c with the case of every part ignored, as Windows does. `$3` is the fewest F records expected.
+check_receipt() {
+	python3 -I - "$1" "$2" "$3" "$WINEPREFIX/drive_c" << 'PY'
+import sys, zlib, os
+d, dist, least, drive_c = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
+
+def find(root, parts):
+    for part in parts:
+        hit = [n for n in os.listdir(root) if n.lower() == part.lower()]
+        assert hit, (root, part)
+        root = os.path.join(root, hit[0])
+    return root
+
+lines = open(os.path.join(d, "INSTALL.LIR"), encoding="utf-8", errors="replace", newline="").read().split("\r\n")
+assert lines[0] == "LIR 1", lines[0]
+n = 0
+for l in lines:
+    if l.startswith("F "):
+        name, size, crc = l[2:].rsplit(" ", 2)
+        if len(name) > 2 and name[1] == ":":
+            assert name[0].upper() == "C", name
+            path = find(drive_c, name[3:].split("\\"))
+        else:
+            path = os.path.join(d, name.replace("\\", "/"))
+        data = open(path, "rb").read()
+        assert len(data) == int(size), name
+        assert zlib.crc32(data) == int(crc, 16), name
+        n += 1
+assert n >= least, n
+assert any(l.startswith("R ") for l in lines) and any(l.startswith("S ") for l in lines)
+PY
+}
 
 run_project() {
 	local project="$1" id="$2" name="$3" want="$4" ext="${5:-}" prog="${6:-}"
@@ -62,22 +97,7 @@ run_project() {
 	[ "$got" = "$want " ] || fail "$project: installed files were: $got (wanted $want)"
 	echo "wine-e2e: $project: installed $got"
 	# The files are the project's, byte for byte, and the receipt's CRC-32s say so.
-	python3 -I - "$dir" "$ROOT/examples/$project/installer/dist" << 'PY'
-import sys, zlib, os
-d, dist = sys.argv[1], sys.argv[2]
-lines = open(os.path.join(d, "INSTALL.LIR"), encoding="utf-8", errors="replace", newline="").read().split("\r\n")
-assert lines[0] == "LIR 1", lines[0]
-n = 0
-for l in lines:
-    if l.startswith("F "):
-        name, size, crc = l[2:].rsplit(" ", 2)
-        data = open(os.path.join(d, name.replace("\\", "/")), "rb").read()
-        assert len(data) == int(size), name
-        assert zlib.crc32(data) == int(crc, 16), name
-        n += 1
-assert n >= 3, n
-assert any(l.startswith("R ") for l in lines) and any(l.startswith("S ") for l in lines)
-PY
+	check_receipt "$dir" "$ROOT/examples/$project/installer/dist" 3
 	echo "wine-e2e: $project: the receipt's sizes and CRC-32s match the files"
 	local lnk
 	lnk="$(find "$WINEPREFIX/drive_c/users" -name '*.lnk' -path "*$name*" | head -1)"
@@ -119,6 +139,41 @@ PY
 	fi
 }
 
+# The screen saver component installs into the Windows folder. A file of the same name is seeded there first, so the install must back it up
+# below the install folder, say so on the log channel, record it in the receipt, and put it back on the uninstall.
+run_screensaver() {
+	local project=lt-fizz id=hq.liminal.lt-fizz name="Lieutenant Fizz — Episode One"
+	local out="$WORK/$project-scr" play="$WORK/$project-scr.play"
+	local seeded="$WINEPREFIX/drive_c/windows/FIZZ.SCR"
+	"$LIMINST" build -C "$ROOT/examples/$project" -t windows-x86 --version 1.0.0 -o "$out" --win32-runtime "$HERE/dist/SETUP.EXE" > /dev/null
+	[ -d "${seeded%/*}" ] || fail "screensaver: the prefix has no Windows folder"
+	printf "someone else's screen saver\r\n" > "$seeded"
+	cp "$seeded" "$WORK/seeded.scr"
+	printf 'licence choose licence.accepted yes\ncomponents toggle screensaver\n' > "$play"
+	win "$out/win32" SETUP.EXE /PLAY "$play" /DUMP "$WORK/scr.dump" || fail "screensaver: SETUP.EXE did not finish ok"
+	local dir="$WINEPREFIX/drive_c/Program Files (x86)/$name"
+	[ -d "$dir" ] || dir="$WINEPREFIX/drive_c/Program Files/$name"
+	[ -d "$dir" ] || fail "screensaver: nothing was installed in $dir"
+	cmp "$seeded" "$ROOT/examples/$project/installer/dist/screensaver/FIZZ.SCR" || fail "screensaver: the Windows folder's FIZZ.SCR is not the product's"
+	[ -f "$dir/BACKUP/WIN/FIZZ.SCR" ] || fail "screensaver: no backup in $dir/BACKUP/WIN"
+	cmp "$dir/BACKUP/WIN/FIZZ.SCR" "$WORK/seeded.scr" || fail "screensaver: the backup is not the seeded file"
+	grep -qi '^notice: backup: C:\\windows\\FIZZ.SCR -> BACKUP\\WIN\\FIZZ.SCR' "$WORK/scr.dump" || { grep '^notice:' "$WORK/scr.dump" || true; fail "screensaver: the log has no backup line"; }
+	tr -d '\r' < "$dir/INSTALL.LIR" | grep -qi '^F C:\\windows\\FIZZ.SCR ' || fail "screensaver: the receipt has no F record for the file"
+	tr -d '\r' < "$dir/INSTALL.LIR" | grep -qi '^O C:\\windows\\FIZZ.SCR|' || fail "screensaver: the receipt has no O record"
+	check_receipt "$dir" "$ROOT/examples/$project/installer/dist" 4
+	echo "wine-e2e: screensaver: FIZZ.SCR is in the Windows folder, the seeded file is in BACKUP/WIN, and the receipt records both"
+	local wdir="C:\\Program Files (x86)\\$name"
+	[ -d "$WINEPREFIX/drive_c/Program Files (x86)/$name" ] || wdir="C:\\Program Files\\$name"
+	printf '' > "$WORK/empty.play"
+	win "$WORK" "$wdir\\UNINST.EXE" /U "$wdir" /PLAY "$WORK/empty.play" /DUMP "$WORK/scr.undump" || true
+	[ ! -d "$dir" ] || fail "screensaver: the uninstall left the install folder: $(ls -R "$dir")"
+	cmp "$seeded" "$WORK/seeded.scr" || fail "screensaver: the uninstall did not put the seeded file back"
+	[ -z "$(reg "$id" /v DisplayName)" ] || fail "screensaver: the registry entry is still there"
+	rm -f "$seeded"
+	echo "wine-e2e: screensaver: uninstalled: the seeded file is back, and BACKUP and the install folder are gone"
+}
+
 run_project lt-fizz hq.liminal.lt-fizz "Lieutenant Fizz — Episode One" "FIZZ.EXE INSTALL.LIR LEVELS/EP1.LVL LEVELS/EP1.PAL UNINST.DAT UNINST.EXE"
 run_project planboard hq.liminal.planboard "Planboard" "INSTALL.LIR UNINST.DAT UNINST.EXE bin/pbcli.exe docs/GETTING-STARTED.md docs/SHORTCUTS.md planboard.exe" planboard hq.liminal.planboard.planboard
+run_screensaver
 echo "wine-e2e: ok"
