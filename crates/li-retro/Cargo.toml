@@ -23,4 +23,5 @@ postcard = { version = "1", default-features = false, features = ["alloc"], opti
 li-lpk = { workspace = true }
 
 [dev-dependencies]
+li-lpk = { workspace = true, features = ["writer"] }
 tempfile.workspace = true

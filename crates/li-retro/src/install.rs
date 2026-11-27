@@ -7,7 +7,11 @@
 //! file straight from `SETUP.LPK` to disk (checking its CRC-32 as it goes), performs the plan
 //! operations and writes the receipt `INSTALL.LIR` last. It keeps no journal: it remembers what
 //! it created in memory, and a cancel or a failure removes exactly that. A file that was already
-//! there is overwritten and, if the install is rolled back, left as the new copy.
+//! there is overwritten and, if the install is rolled back, left as the new copy. The exception is a
+//! file placed in the Windows or the system folder (a destination that starts `%WINDIR%` or
+//! `%SYSDIR%`, format 5): one that is not this product's from an earlier install is copied to
+//! `BACKUP\WIN` or `BACKUP\SYS` below the install directory first, and put back by a rollback and by
+//! the uninstall.
 //!
 //! # `INSTALL.LIR`
 //!
@@ -33,17 +37,21 @@
 //! last field is left out when nothing did. `%`, `|`, CR and LF in a field are written `%25`,
 //! `%7C`, `%0D` and `%0A`.
 //!
+//! A file in the Windows or system folder is an `F` record by full path (`F C:\WINDOWS\X.SCR 12
+//! 0000ABCD`), and one it replaced is `O original|backup`: the full path, then the copy below the
+//! install directory (`BACKUP\WIN\X.SCR`), escaped as the `A` record is.
+//!
 //! `D` is a directory the install created (`.` is the install directory itself), `F` a file with
 //! its size and CRC-32 in hexadecimal, `I` an INI file the install wrote and `B` a launcher batch
-//! file. Uninstall removes `F`, `I` and `B` files, then the `D` directories that are empty, in
-//! reverse order, and last the receipt.
+//! file. Uninstall removes `F`, `I` and `B` files, copies each `O` backup back over its original,
+//! then removes the `D` directories that are empty, in reverse order, and last the receipt.
 
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
 use crate::Error;
-use crate::model::{FileEntry, Op, Project};
+use crate::model::{FileEntry, Op, Project, rooted};
 use crate::pack::{Crc, Pack};
 use crate::platform::{GroupAdd, Platform, ShortcutKind};
 use crate::ui::Values;
@@ -70,7 +78,7 @@ pub struct Progress {
 fn join(dir: &str, rel: &str) -> String {
 	if rel == "." || rel.is_empty() {
 		dir.to_string()
-	} else if rel.contains(':') {
+	} else if rel.contains(':') || rel.starts_with("\\\\") {
 		rel.to_string()
 	} else if dir.ends_with('\\') {
 		format!("{dir}{rel}")
@@ -132,9 +140,17 @@ pub fn bytes_needed(project: &Project, selected: &[String]) -> u64 {
 struct Journal {
 	files: Vec<String>,
 	dirs: Vec<String>,
+	/// A file this install replaced in the Windows or system folder: the backup and the original.
+	restores: Vec<(String, String)>,
 }
 
 fn rollback<P: Platform>(p: &mut P, j: &Journal) {
+	// Back before the backups are removed with the other files this install made.
+	for (backup, original) in j.restores.iter().rev() {
+		if let Some(s) = p.shell() {
+			let _ = s.copy_file(backup, original);
+		}
+	}
 	for f in j.files.iter().rev() {
 		let _ = p.remove_file(f);
 	}
@@ -166,6 +182,100 @@ fn remove_groups<P: Platform>(p: &mut P, items: &[String], made: &[String]) {
 			s.remove_group(group, &names, made_group);
 		}
 	}
+}
+
+/// Where a file replaced in the Windows folder is kept, and the one for the system folder.
+const BACKUP: &str = "BACKUP";
+const WIN: &str = "WIN";
+const SYS: &str = "SYS";
+
+/// `BACKUP\WIN`, `BACKUP\SYS` or, for `None`, `BACKUP`.
+fn backup_folder(sub: Option<&str>) -> String {
+	let mut s = BACKUP.to_string();
+	if let Some(sub) = sub {
+		s.push('\\');
+		s.push_str(sub);
+	}
+	s
+}
+
+pub(crate) fn no_folder() -> Error {
+	Error::Io("no Windows folder here".to_string())
+}
+
+/// Whether `dest` is in the Windows or the system folder rather than below the install directory.
+fn is_rooted(dest: &str) -> bool {
+	rooted(dest).is_some()
+}
+
+/// The full path a file's destination is installed to. A destination in the Windows or system folder
+/// is built by concatenation, never through [`join`], so a folder on a network share works.
+fn target_path<P: Platform>(p: &mut P, dir: &str, dest: &str) -> Result<String, Error> {
+	let Some((windows, name)) = rooted(dest) else {
+		return Ok(join(dir, dest));
+	};
+	let folder = p.shell().and_then(|s| {
+		if windows {
+			s.windows_dir()
+		} else {
+			s.system_dir()
+		}
+	});
+	let mut out = folder.ok_or_else(no_folder)?;
+	out.push('\\');
+	out.push_str(name);
+	Ok(out)
+}
+
+/// Gets a file in the Windows or system folder out of the way of the one about to replace it. A
+/// file that an earlier install of this product put there is simply replaced, and the backup that
+/// install made is carried on; anything else is copied to `BACKUP\WIN` or `BACKUP\SYS` first.
+#[allow(clippy::too_many_arguments)]
+fn place_rooted<P: Platform>(
+	p: &mut P,
+	dir: &str,
+	dest: &str,
+	to: &str,
+	before: &Receipt,
+	j: &mut Journal,
+	made: &mut Made,
+) -> Result<(), Error> {
+	if before.files.iter().any(|f| f.0.eq_ignore_ascii_case(to)) {
+		for o in before
+			.overwritten
+			.iter()
+			.filter(|o| o.0.eq_ignore_ascii_case(to))
+		{
+			made.overwritten.push(o.clone());
+		}
+		return Ok(());
+	}
+	if !p.exists(to) {
+		return Ok(());
+	}
+	let (windows, name) = rooted(dest).unwrap_or((true, dest));
+	let folder = backup_folder(Some(if windows { WIN } else { SYS }));
+	make_dirs(p, &join(dir, &folder), j)?;
+	let mut rel = folder;
+	rel.push('\\');
+	rel.push_str(name);
+	let backup = join(dir, &rel);
+	let had = p.exists(&backup);
+	match p.shell() {
+		Some(s) => s.copy_file(to, &backup)?,
+		None => return Err(no_folder()),
+	}
+	if !had {
+		j.files.push(backup.clone());
+	}
+	j.restores.push((backup, to.to_string()));
+	let mut note = String::from("backup: ");
+	note.push_str(to);
+	note.push_str(" -> ");
+	note.push_str(&rel);
+	p.notice(&note);
+	made.overwritten.push((to.to_string(), rel));
+	Ok(())
 }
 
 /// Makes `dir` and every parent below the drive root, noting what was made.
@@ -414,6 +524,9 @@ struct Made {
 	made_groups: Vec<String>,
 	/// The file types registered, in the order made.
 	file_types: Vec<FileTypeRecord>,
+	/// A file in the Windows or system folder this install replaced: the full path and the backup
+	/// below the install directory (the receipt's `O`).
+	overwritten: Vec<(String, String)>,
 }
 
 /// A file type an install registered and what it replaced: the receipt's `A` record.
@@ -510,6 +623,7 @@ pub fn install<P: Platform>(
 	let mut j = Journal {
 		files: Vec::new(),
 		dirs: Vec::new(),
+		restores: Vec::new(),
 	};
 	let mut made = Made {
 		files: Vec::new(),
@@ -521,12 +635,11 @@ pub fn install<P: Platform>(
 		groups: Vec::new(),
 		made_groups: Vec::new(),
 		file_types: Vec::new(),
+		overwritten: Vec::new(),
 	};
 	// A reinstall finds its own type where the last install put it; what that install replaced is
-	// still the owner to restore.
-	let before = Receipt::read(p, &dir)
-		.map(|r| r.file_types)
-		.unwrap_or_default();
+	// still the owner to restore. Its files in the Windows folders are ours, not another's to back up.
+	let before = Receipt::read(p, &dir).unwrap_or_default();
 	let result = do_install(
 		p, project, pack, &dir, selected, v, &files, free, &before, &mut j, &mut made, progress,
 	);
@@ -549,7 +662,7 @@ fn do_install<P: Platform>(
 	v: &Values,
 	files: &[&FileEntry],
 	free: u64,
-	before: &[FileTypeRecord],
+	before: &Receipt,
 	j: &mut Journal,
 	made: &mut Made,
 	progress: &mut dyn FnMut(&mut P, &Progress) -> bool,
@@ -567,11 +680,14 @@ fn do_install<P: Platform>(
 	}
 	let mut done_bytes = 0u64;
 	for f in files {
-		let to = join(dir, &f.dest);
-		if let Some((parent, _)) = f.dest.rsplit_once('\\') {
+		let to = target_path(p, dir, &f.dest)?;
+		let outside = is_rooted(&f.dest);
+		if outside {
+			place_rooted(p, dir, &f.dest, &to, before, j, made)?;
+		} else if let Some((parent, _)) = f.dest.rsplit_once('\\') {
 			make_dirs(p, &join(dir, parent), j)?;
 		}
-		pr.file = f.dest.clone();
+		pr.file = if outside { to.clone() } else { f.dest.clone() };
 		pr.file_pct = 0;
 		let mut cancelled = false;
 		let size = u64::from(f.size).max(1);
@@ -591,7 +707,8 @@ fn do_install<P: Platform>(
 		pr.bytes_done = done_bytes;
 		pr.file_pct = 100;
 		pr.free = p.free_space(dir).unwrap_or(free);
-		made.files.push((f.dest.clone(), f.size, f.crc));
+		made.files
+			.push((if outside { to } else { f.dest.clone() }, f.size, f.crc));
 		if !progress(p, &pr) {
 			return Err(Error::Cancelled);
 		}
@@ -654,7 +771,7 @@ fn do_install<P: Platform>(
 				prog_id,
 				name,
 				target,
-			} => file_type(p, dir, ext, prog_id, name, target, before, made)?,
+			} => file_type(p, dir, ext, prog_id, name, target, &before.file_types, made)?,
 		}
 	}
 	if p.shell().is_some_and(|s| s.keeps_uninstaller()) {
@@ -725,6 +842,13 @@ fn do_install<P: Platform>(
 	for (dest, size, crc) in &made.files {
 		lir.push_str(&format!("F {dest} {size} {crc:08X}\r\n"));
 	}
+	for (original, backup) in &made.overwritten {
+		lir.push_str("O ");
+		lir.push_str(&escape(original));
+		lir.push('|');
+		lir.push_str(&escape(backup));
+		lir.push_str("\r\n");
+	}
 	for i in &made.inis {
 		lir.push_str(&format!("I {i}\r\n"));
 	}
@@ -782,6 +906,9 @@ pub struct Receipt {
 	pub extras: Vec<String>,
 	/// The file types the install registered (`A`).
 	pub file_types: Vec<FileTypeRecord>,
+	/// The files in the Windows or system folder the install replaced (`O`): the full path of the
+	/// original and its backup below the install directory.
+	pub overwritten: Vec<(String, String)>,
 }
 
 impl Receipt {
@@ -834,6 +961,10 @@ impl Receipt {
 				r.groups.push(rest.to_string());
 			} else if let Some(rest) = line.strip_prefix("P ") {
 				r.made_groups.push(rest.to_string());
+			} else if let Some(rest) = line.strip_prefix("O ")
+				&& let Some((original, backup)) = rest.split_once('|')
+			{
+				r.overwritten.push((unescape(original), unescape(backup)));
 			} else if let Some(rest) = line.strip_prefix("A ")
 				&& let Some(t) = FileTypeRecord::parse(rest)
 			{
@@ -894,6 +1025,23 @@ pub fn uninstall<P: Platform>(
 		pr.free = p.free_space(&dir).unwrap_or(0);
 		if !progress(p, &pr) {
 			return Err(Error::Cancelled);
+		}
+	}
+	// A file the install replaced goes back, last first. The copy is kept when it cannot be put back,
+	// so a second run can finish.
+	for (original, backup) in r.overwritten.iter().rev() {
+		let backup = join(&dir, backup);
+		if p.exists(&backup) {
+			match p.shell() {
+				Some(s) => s.copy_file(&backup, original)?,
+				None => return Err(no_folder()),
+			}
+			p.remove_file(&backup)?;
+		}
+	}
+	if !r.overwritten.is_empty() {
+		for sub in [Some(WIN), Some(SYS), None] {
+			let _ = p.remove_dir(&join(&dir, &backup_folder(sub)));
 		}
 	}
 	// What only a Windows install makes. A shortcut or the uninstaller that cannot be removed is
