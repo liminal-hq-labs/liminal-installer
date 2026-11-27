@@ -94,7 +94,7 @@ Text roles (`heading`, `caption`, `summary`) ride in `Widget::Text.attr`, which 
 - **Receipt.** `INSTALL.LIR`, the DOS receipt unchanged apart from `target=win16-x86:win16`. The same `FIZZ.BAT` launcher is written and recorded as a `B` line.
 - **Shell.** Windows 3.1's `Shell` says `ShortcutKind::GroupItem` and has no uninstall list; `add_group_item` returns `GroupAdd::Unavailable` or `Added { made_group }`, and `remove_group(group, items, made_group)` takes the items and the group out in one conversation. The commands are built by `li_retro::progman` (quoting, the `IconPath` rule, the `.GRP` name) and recorded by the host's simulated shell, which the goldens in `tests/golden/win16/lt-fizz.progman.txt` read. The conversation with `PROGMAN` is `lisetup/dde.rs` (D77, below); when there is no Program Manager to talk to, the install falls back to the batch launcher.
 - **Built-ins.** `detect-sound` reads `BLASTER` through `GetDOSEnvironment` and probes the ports with `in` and `out` (DOSBox-X's emulated Sound Blaster answers it); `check-disk-space` is the engine's.
-- **Memory.** A 40 KiB heap in the data segment under a first-fit allocator, an 8 KiB stack, an 8 KiB local heap for the edit controls' text and a 64-entry shadow return stack; the data segment holds all of it in 64 KB. The heap's peak was 35 552 bytes for Lt. Fizz and 31 952 for Planboard with the kept uninstaller (34 640 and 30 728 with the group alone).
+- **Memory.** A 36 KiB heap in the data segment under a first-fit allocator with a four-byte header and four-byte granularity (a block of 10 bytes takes 16; a block of 1 byte takes 8), an 8 KiB stack, an 8 KiB local heap for the edit controls' text and a 64-entry shadow return stack; the data segment holds all of it in 64 KB. `realloc` shrinks in place and grows into a free neighbour, and an alignment over four costs eight bytes more and a back-pointer. The allocator's host test (`heap.rs` under `rustc --test`, run by `check.sh`) runs 10,000 random allocations, frees and reallocations against a model. The log's `heap peak P of H bytes` line is followed by `heap blocks N at the peak, A bytes asked, M at most`. Measured on Windows 3.11: the install's peak was 29 688 bytes for Lt. Fizz (493 blocks, 27 017 bytes asked) and 26 888 for Planboard (413 blocks), so the margin in the 36 864-byte arena is 7 176 bytes; the kept uninstaller and `SETUP /U` peak at 19 744 to 24 036. Before, with eight-byte headers and sixteen-byte granularity, the peaks were 35 552 and 31 952.
 
 ## The Program Manager group
 
@@ -106,7 +106,7 @@ Windows 3.1 has no function that makes a group or an item, so `lisetup/dde.rs` t
 4. After an add, the group's own listing is requested (item = the group name) and its start is written to `/LOG`: `progman: group: "Planboard",C:\WINDOWS\PLANBOAR.GRP,1,1|"Planboard","C:\PLANBOAR\PLANBRD.EXE",...`. That line, and `progman: removed; group gone` after an uninstall, are the in-guest proof; they do not depend on Program Manager having written its files.
 5. `WM_DDE_TERMINATE`, a wait of a second for the server's own, and the window is destroyed.
 
-The window procedure never allocates (the heap is not reentrant) and the state is about 1 KB of statics, because the data segment has little room left (48 524 bytes of data, an 8 KiB stack and an 8 KiB local heap leave 628 bytes of 64 KB): the group list is searched as it is read.
+The window procedure never allocates (the heap is not reentrant) and the state is about 1 KB of statics, because the data segment has little room left (45 128 bytes of data, an 8 KiB stack and an 8 KiB local heap leave 4 024 bytes of 64 KB): the group list is searched as it is read.
 
 The new imports are `GlobalAddAtom` (USER 268), `GlobalDeleteAtom` (USER 269) and `IsWindow` (USER 47). The atom functions are **USER**'s, not KERNEL's: KERNEL 70 and 71 are the local `AddAtom` and `DeleteAtom`. All three ordinals were read from Windows 3.11's own `USER.EXE` with `tools/ne_dump.py` and agree with Wine's `user.exe16.spec`.
 
@@ -124,7 +124,7 @@ A component's `file_types` become `FileType` operations (D86). Windows 3.x assoc
 
 ## The kept uninstaller
 
-The install keeps an uninstaller in the install folder, as the Win32 runtime does (D66, D78): `UNINST.EXE`, a copy of the running `SETUP.EXE` made 1 KiB at a time (a 229 KB program does not fit the 40 KiB heap), and `UNINST.DAT`, the compiled project, which the install streams from the pack a chunk at a time (`Pack::write_project`, `Shell::streams_project`): reading it whole into a `Vec` at that point of an install ended in a "Rust panic" box on Windows 3.11 (the heap is at about 35 KB there, so an allocation failure is the likely cause; the cause was not isolated, only the streaming shown to remove it). Both are `X` records in the receipt, and the group gets an item, `Uninstall <product>`, whose command line is `C:\FOLDER\UNINST.EXE /U C:\FOLDER`. Windows 3.1 has no Add/Remove Programs, so the item is the way in; the Windows 95 key is not written.
+The install keeps an uninstaller in the install folder, as the Win32 runtime does (D66, D78): `UNINST.EXE`, a copy of the running `SETUP.EXE` made 1 KiB at a time (a 250 KB program does not fit the 36 KiB heap), and `UNINST.DAT`, the compiled project, which the install streams from the pack a chunk at a time (`Pack::write_project`, `Shell::streams_project`): reading it whole into a `Vec` at that point of an install ended in a "Rust panic" box on Windows 3.11 (the heap is at about 35 KB there, so an allocation failure is the likely cause; the cause was not isolated, only the streaming shown to remove it). Both are `X` records in the receipt, and the group gets an item, `Uninstall <product>`, whose command line is `C:\FOLDER\UNINST.EXE /U C:\FOLDER`. Windows 3.1 has no Add/Remove Programs, so the item is the way in; the Windows 95 key is not written.
 
 Windows will not delete a program that is running, so `UNINST.EXE /U` does not do the work itself. When `UNINST.DAT` is beside the running program and the command line has no `/X`, it copies itself to `LIUNINST.EXE` in the folder `TEMP` (or `TMP`) names, else the Windows folder, starts that copy with `WinExec` (`/U folder /X /DAT=folder\UNINST.DAT`, and the test flags `/LOG`, `/PLAY`, `/DUMP` and `/PAUSE` as they were) and exits at once, before it creates a window or a log. The copy reads the project from `/DAT`, runs the project's `uninstall` flow (the confirm page, the copying page, the done page), asks Program Manager to delete the items and, when the receipt has `P`, the group, removes the files the receipt lists including `UNINST.EXE` and `UNINST.DAT`, and then the folder. The copy cannot delete itself: `LIUNINST.EXE` stays in the temporary folder (the Win32 runtime leaves its copy on Windows 9x for the same reason), and the next uninstall overwrites it. `SETUP /U [folder]` from the install media works as before and reads `SETUP.LPK`. When the copy or the `WinExec` fails, the uninstall runs in place, and removes everything but `UNINST.EXE`.
 
@@ -134,15 +134,15 @@ One more fix came out of it: DOS refuses to remove the current directory, and an
 
 | | Bytes |
 |---|---|
-| Code, in four segments | 157 961 (27 632, 45 393, 46 862 and 38 074) |
-| Call veneers, jump stubs and pointer slots | 1 353, 15 and 24 |
-| Data (static data and the 40 KiB heap) | 48 524 |
+| Code, in five segments | 178 308 (29 636, 47 868, 47 491, 44 467 and 8 846) |
+| Call veneers, jump stubs and pointer slots | 1 551, 18 and 38 |
+| Data (static data and the 36 KiB heap) | 45 128 |
 | Stack, local heap | 8 192, 8 192 |
-| `SETUP.EXE` | 229 580 |
+| `SETUP.EXE` | 250 416 |
 
 Table 2. What the packer reports for `SETUP.EXE`.
 
-The file is larger than the code because the packer keeps the data segment, with its 40 KiB of zero heap, in the file (Windows 3.11 does not zero what a file leaves out). The first whole build, before the hand-written decoder and the other cuts, was 121 725 bytes of code; with several segments the limit stopped being a blocker, and `res/lisetup.segments.json` keeps a budget so a segment cannot creep to 64 KB unnoticed.
+The file is larger than the code because the packer keeps the data segment, with its 36 KiB of zero heap, in the file (Windows 3.11 does not zero what a file leaves out). The first whole build, before the hand-written decoder and the other cuts, was 121 725 bytes of code; with several segments the limit stopped being a blocker, and `res/lisetup.segments.json` keeps a budget so a segment cannot creep to 64 KB unnoticed.
 
 The data segment is the limit now: the heap, the stack, the local heap and the shadow stack share 64 KB. Loading the pack is the heap's peak; with 16 KiB chunks it ran out on 3.11, and with 8 KiB it left 3 KB, so the pack uses 4 KiB.
 

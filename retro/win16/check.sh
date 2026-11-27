@@ -20,6 +20,8 @@ python3 -m unittest discover -s tests
 
 out="$(mktemp -d)"
 trap 'rm -rf "$out"' EXIT
+rustc --edition 2024 --test -O src/bin/lisetup/heap.rs -o "$out/heaptest"
+"$out/heaptest"
 OUT_DIR="$out" bash build.sh
 
 for exe in SETUP; do
