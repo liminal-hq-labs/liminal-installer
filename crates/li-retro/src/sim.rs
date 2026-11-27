@@ -70,6 +70,11 @@ pub struct HostPlatform {
 	pub associations: BTreeMap<String, String>,
 	/// The ProgID names registered (Windows 95): ProgID to its description.
 	pub prog_ids: BTreeMap<String, String>,
+	/// Behave as a machine with a Windows folder (`C:\WINDOWS`) and a system folder
+	/// (`C:\WINDOWS\SYSTEM`); see [`HostPlatform::with_windows`].
+	pub windows: bool,
+	/// The lines the runtime sent to its log ([`Platform::notice`]), in order.
+	pub notices: Vec<String>,
 	/// What `uninstall_project` returns, once: the compiled project kept in the install folder.
 	pub kept_project: Option<Vec<u8>>,
 	clock: u32,
@@ -107,12 +112,21 @@ impl HostPlatform {
 			associations: BTreeMap::new(),
 			prog_ids: BTreeMap::new(),
 			kept_project: None,
+			windows: false,
+			notices: Vec::new(),
 			clock: 0,
 			idle: 0,
 			written: 0,
 			handles: BTreeMap::new(),
 			next: 1,
 		}
+	}
+
+	/// Gives the machine a Windows folder and a system folder, made on the host and empty.
+	pub fn with_windows(&mut self) -> &mut Self {
+		self.windows = true;
+		let _ = fs::create_dir_all(self.host("C:\\WINDOWS\\SYSTEM"));
+		self
 	}
 
 	pub fn keys(&mut self, keys: &[Key]) -> &mut Self {
@@ -313,6 +327,10 @@ impl Platform for HostPlatform {
 		self.reports.push(text.to_string());
 	}
 
+	fn notice(&mut self, text: &str) {
+		self.notices.push(text.to_string());
+	}
+
 	fn step(&mut self, id: &str) {
 		self.steps.push(id.to_string());
 	}
@@ -322,7 +340,7 @@ impl Platform for HostPlatform {
 	}
 
 	fn shell(&mut self) -> Option<&mut dyn Shell> {
-		if self.native || self.program_manager {
+		if self.native || self.program_manager || self.windows {
 			Some(self)
 		} else {
 			None
@@ -569,6 +587,20 @@ impl Shell for HostPlatform {
 		let dir = "C:\\WINDOWS\\Start Menu\\Programs";
 		fs::create_dir_all(self.host(dir)).ok()?;
 		Some(dir.to_string())
+	}
+
+	fn windows_dir(&mut self) -> Option<String> {
+		self.windows.then(|| "C:\\WINDOWS".to_string())
+	}
+
+	fn system_dir(&mut self) -> Option<String> {
+		self.windows.then(|| "C:\\WINDOWS\\SYSTEM".to_string())
+	}
+
+	fn copy_file(&mut self, from: &str, to: &str) -> Result<(), Error> {
+		fs::copy(self.host(from), self.host(to))
+			.map(|_| ())
+			.map_err(|e| Self::io(from, e))
 	}
 
 	fn program_files(&mut self) -> Option<String> {

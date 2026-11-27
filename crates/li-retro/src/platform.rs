@@ -91,6 +91,9 @@ pub trait Platform {
 	fn announce(&mut self, _text: &str) {}
 	/// A hook for tests: called with the step's id each time a page is entered.
 	fn step(&mut self, _id: &str) {}
+	/// A line for a log: what the install did that no page shows, such as a file it backed up. A
+	/// runtime may write it to its log file or its dump; it is never drawn.
+	fn notice(&mut self, _text: &str) {}
 	/// A hook for tests: called with the screen's text whenever a screen is shown to a person.
 	fn dump(&mut self, _text: &str) {}
 
@@ -157,6 +160,19 @@ pub trait Shell {
 	/// The folder programs are installed under by default (`C:\Program Files`).
 	fn program_files(&mut self) -> Option<String> {
 		None
+	}
+	/// The machine's Windows folder (`C:\WINDOWS`), without a trailing backslash, or `None` when
+	/// the machine has none or cannot say.
+	fn windows_dir(&mut self) -> Option<String> {
+		None
+	}
+	/// The machine's system folder (`C:\WINDOWS\SYSTEM`), without a trailing backslash.
+	fn system_dir(&mut self) -> Option<String> {
+		None
+	}
+	/// Copies the file `from` over `to`, which is made or replaced.
+	fn copy_file(&mut self, _from: &str, _to: &str) -> Result<(), Error> {
+		Err(crate::install::no_folder())
 	}
 	/// Writes a shortcut file `lnk` that starts `target` in `work_dir`.
 	fn make_shortcut(

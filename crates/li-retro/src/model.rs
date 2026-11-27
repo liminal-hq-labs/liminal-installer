@@ -17,12 +17,33 @@ pub const COLS: usize = 80;
 /// The rows of the text screen.
 pub const ROWS: usize = 25;
 /// The version of the compiled format the compiler writes.
-pub const FORMAT: u16 = 4;
+pub const FORMAT: u16 = 5;
 /// The oldest version the runtime still reads. Version 3 added [`Op::FileType`]; a version 2 project has
 /// no such operation, and a runtime that predates version 3 refuses a version 3 project. Version 4 added
 /// [`Component::default`] and [`Project::owners`]; a project older than 4 has every component ticked and
-/// every operation unconditional.
+/// every operation unconditional. Version 5 added a destination that starts with [`WINDOWS_TOKEN`] or
+/// [`SYSTEM_TOKEN`], a file placed directly in the Windows or the system folder; a project older than 5
+/// has none.
 pub const FORMAT_MIN: u16 = 2;
+/// The start of a destination in the machine's Windows folder: `%WINDIR%\NAME` (format 5).
+pub const WINDOWS_TOKEN: &str = "%WINDIR%";
+/// The start of a destination in the machine's system folder: `%SYSDIR%\NAME` (format 5).
+pub const SYSTEM_TOKEN: &str = "%SYSDIR%";
+
+/// Which machine folder a destination is in, and the file name there; `None` for a destination
+/// below the install directory.
+pub fn rooted(dest: &str) -> Option<(bool, &str)> {
+	if let Some(name) = dest
+		.strip_prefix(WINDOWS_TOKEN)
+		.and_then(|r| r.strip_prefix('\\'))
+	{
+		return Some((true, name));
+	}
+	dest.strip_prefix(SYSTEM_TOKEN)
+		.and_then(|r| r.strip_prefix('\\'))
+		.map(|name| (false, name))
+}
+
 /// The owner of an operation that no component owns, so it always runs.
 pub const NO_OWNER: u16 = u16::MAX;
 
@@ -444,6 +465,14 @@ impl Project {
 		for f in &self.files {
 			if usize::from(f.component) >= self.components.len() {
 				return bad("a file belongs to a component that does not exist");
+			}
+			if f.dest.starts_with('%') {
+				if self.format < 5 {
+					return bad("unsupported format version");
+				}
+				if rooted(&f.dest).is_none_or(|(_, name)| name.is_empty() || name.contains('\\')) {
+					return bad("unsupported format version");
+				}
 			}
 		}
 		if self.files.windows(2).any(|w| w[0].dest >= w[1].dest) {
