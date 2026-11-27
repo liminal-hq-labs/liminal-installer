@@ -3,7 +3,7 @@
 # (c) Copyright 2026 Liminal HQ, Scott Morris
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 #
-# Checked by hand against the Win32 reference's "Windows 95" column, not read from a Windows 95 image. No wide-character (...W) entry points.
+# Checked by hand against the Win32 reference's "Windows 95" column. GetSystemDirectoryA and GetWindowsDirectoryA were also read from the export table of Windows 95 OSR2's KERNEL32.DLL. No wide-character (...W) entry points.
 advapi32.dll!RegCloseKey
 advapi32.dll!RegCreateKeyExA
 advapi32.dll!RegDeleteKeyA
@@ -41,8 +41,10 @@ kernel32.dll!GetModuleFileNameA
 kernel32.dll!GetModuleHandleA
 kernel32.dll!GetProcAddress
 kernel32.dll!GetProcessHeap
+kernel32.dll!GetSystemDirectoryA
 kernel32.dll!GetTempPathA
 kernel32.dll!GetTickCount
+kernel32.dll!GetWindowsDirectoryA
 kernel32.dll!HeapAlloc
 kernel32.dll!HeapFree
 kernel32.dll!MoveFileExA
