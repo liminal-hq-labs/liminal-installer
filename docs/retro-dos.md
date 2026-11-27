@@ -144,7 +144,7 @@ The terminal renderer (`tui`) still draws its own plain look and leaves the `sid
 ## What the DOS runtime does not do
 
 - **No Lua.** Scripts are out of scope for DOS v1 (D41). A step's `on_enter` may name only a `builtin:`. `liminst check` reports a script hook in a project that has a `tui-retro` target as `script-on-retro`, and `build` refuses it. The Lua subset for Windows 3.1 is separate and still a design.
-- **One folder.** Every file goes below `{install}`; other placeholders, file types, URL schemes and `PATH` entries are reported at build time and skipped.
+- **One folder.** Every file goes below `{install}`; `{windows}` and `{system}` are refused (DOS has no Windows folder, and `check` reports it first); other placeholders, file types, URL schemes and `PATH` entries are reported at build time and skipped.
 - **8.3 names.** A longer name is a build error that names the file.
 - **No spanning yet.** The pack format spans a set of disks and `Compiled::lpk_set` writes one, but `SETUP.EXE` reads volume 1 only (a request for another volume is a clear error) and the `floppy-1440` image holds `SETUP.EXE`, `SETUP.LPK` and `README.TXT` on one disk. When they do not fit, the output is reported as not built, with how many bytes it is over; the `zip` still builds.
 - **No update, modify, repair or launch.** Only install and uninstall. Repair could be added: the receipt has the CRCs it needs.

@@ -29,7 +29,7 @@ use li_model::{Flow, StepType};
 use li_retro::model::{self, Builtin, Kind, Op};
 use li_retro::pack::{PROJECT_FILE, Pack};
 
-pub use payload::{dos_rel, win_rel};
+pub use payload::{dos_rel, rooted_rel, win_rel};
 pub use screens::{Context, ScreenKey, tui_layout};
 
 /// Which runtime the project is compiled for.

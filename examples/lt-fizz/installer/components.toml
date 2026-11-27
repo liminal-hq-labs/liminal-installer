@@ -35,3 +35,11 @@ name    = "Open saved games (.FZS) with Fizz"
 default = false
 targets = ["win16-x86", "windows-x86"]
 file_types = [{ extension = ".fzs", name = "Lt. Fizz saved game", open_with = "{install}/FIZZ.EXE" }]
+
+# Optional and unticked: a screen saver goes in the Windows folder, where Display Properties lists it. A file of the same name already there is kept in the install folder's BACKUP and put back on uninstall.
+[[component]]
+id      = "screensaver"
+name    = "Screen saver"
+default = false
+targets = ["win16-x86", "windows-x86"]
+files   = [{ from = "dist/screensaver/FIZZ.SCR", to = "{windows}/" }]

@@ -5,7 +5,7 @@
 
 use li_engine::{DirPayload, Payload, Project, expand_sources};
 use li_model::{Component, Target};
-use li_retro::model::{FileEntry, Op};
+use li_retro::model::{FileEntry, Op, SYSTEM_TOKEN, WINDOWS_TOKEN};
 use li_retro::pack::{PROJECT_FILE, crc32};
 
 use crate::{CompileError, Flavour, err};
@@ -43,6 +43,7 @@ pub fn dos_rel(to: &str) -> Result<String, CompileError> {
 	if parts.is_empty() {
 		return err(format!("`{to}` names no file"));
 	}
+	reserved(&parts[0], to)?;
 	Ok(parts.join("\\"))
 }
 
@@ -69,7 +70,49 @@ pub fn win_rel(to: &str) -> Result<String, CompileError> {
 	if parts.is_empty() {
 		return err(format!("`{to}` names no file"));
 	}
+	reserved(&parts[0], to)?;
 	Ok(parts.join("\\"))
+}
+
+/// Refuses a first part that is one of the two tokens a file outside the install folder is stored
+/// under, so an install-folder file can never be mistaken for one.
+fn reserved(first: &str, to: &str) -> Result<(), CompileError> {
+	if first.eq_ignore_ascii_case(WINDOWS_TOKEN) || first.eq_ignore_ascii_case(SYSTEM_TOKEN) {
+		return err(format!(
+			"`{first}` in `{to}` is reserved for a file in the Windows or system folder"
+		));
+	}
+	Ok(())
+}
+
+/// Turns `{windows}/FIZZ.SCR` into `%WINDIR%\FIZZ.SCR` and `{system}/X.DRV` into `%SYSDIR%\X.DRV`,
+/// or `None` when `to` names neither folder. Only a file directly in the folder, on a Windows
+/// flavour: DOS has no such folder, and the runtime never makes or removes a folder in that tree.
+/// The name follows the flavour's rule (8.3 upper case on Windows 3.x, the case kept on Win32).
+pub fn rooted_rel(to: &str, flavour: Flavour) -> Result<Option<String>, CompileError> {
+	let (token, rest) = if let Some(rest) = to.strip_prefix("{windows}/") {
+		(WINDOWS_TOKEN, rest)
+	} else if let Some(rest) = to.strip_prefix("{system}/") {
+		(SYSTEM_TOKEN, rest)
+	} else {
+		return Ok(None);
+	};
+	if flavour == Flavour::Dos {
+		return err(format!(
+			"`{to}`: `{{windows}}` and `{{system}}` have no meaning on DOS"
+		));
+	}
+	if rest.is_empty() || rest.contains('/') {
+		return err(format!(
+			"`{to}`: only a file directly in `{{windows}}` or `{{system}}` can be installed, not one in a folder below it"
+		));
+	}
+	let name = match flavour {
+		Flavour::Win32 => win_rel(&format!("{{install}}/{rest}")),
+		_ => dos_rel(&format!("{{install}}/{rest}")),
+	}
+	.map_err(|e| CompileError::Message(format!("`{to}`: {e}")))?;
+	Ok(Some(format!("{token}\\{name}")))
 }
 
 /// The files, their contents in the same order, the operations and the component each belongs to.
@@ -108,8 +151,12 @@ pub fn build(
 				} else {
 					rule.to.clone()
 				};
-				let dest = rel_of(&to)
-					.map_err(|e| CompileError::Message(format!("component `{}`: {e}", c.id)))?;
+				let dest = match rooted_rel(&to, flavour) {
+					Ok(Some(rooted)) => Ok(rooted),
+					Ok(None) => rel_of(&to),
+					Err(e) => Err(e),
+				}
+				.map_err(|e| CompileError::Message(format!("component `{}`: {e}", c.id)))?;
 				if dest.eq_ignore_ascii_case(PROJECT_FILE) {
 					return err(format!(
 						"component `{}`: `{dest}` is reserved for the compiled project",
