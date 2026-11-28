@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -29,6 +29,10 @@ struct SimState {
 	launched: Vec<(PathBuf, Vec<String>)>,
 	runs: Vec<(PathBuf, Vec<String>)>,
 	handler: Option<RunHandler>,
+	/// Files a program holds open: removing one fails until it is let go.
+	locked: BTreeSet<PathBuf>,
+	/// What the machine was asked to remove at its next restart, in order.
+	scheduled: Vec<PathBuf>,
 	offline: bool,
 	elevated: bool,
 }
@@ -73,6 +77,7 @@ impl SimMachine {
 			system_data: "/sim/usr/share".into(),
 			start_menu: "/sim/home/.local/share/applications".into(),
 			desktop: "/sim/home/Desktop".into(),
+			startup: "/sim/home/.config/autostart".into(),
 			temp: "/sim/tmp".into(),
 			windows: Some("/sim/windows".into()),
 			system: Some("/sim/windows/system".into()),
@@ -168,6 +173,25 @@ impl SimMachine {
 			.expect("sim lock")
 			.registry
 			.remove(&crate::machine::registry_entry_key(key, name));
+	}
+
+	/// Holds `path` open, as a running program would: removing it fails until [`SimMachine::unlock`].
+	pub fn lock(&self, path: &Path) {
+		self.state
+			.lock()
+			.expect("sim lock")
+			.locked
+			.insert(path.to_owned());
+	}
+
+	/// Lets go of a file [`SimMachine::lock`] held.
+	pub fn unlock(&self, path: &Path) {
+		self.state.lock().expect("sim lock").locked.remove(path);
+	}
+
+	/// What the machine was asked to remove at its next restart, in order.
+	pub fn scheduled_removals(&self) -> Vec<PathBuf> {
+		self.state.lock().expect("sim lock").scheduled.clone()
 	}
 
 	/// Every program the machine was asked to run, in order, with its arguments.
@@ -341,6 +365,12 @@ impl Machine for SimMachine {
 
 	fn remove_file(&mut self, path: &Path) -> io::Result<()> {
 		let mut st = self.state.lock().expect("sim lock");
+		if st.locked.contains(path) {
+			return Err(io::Error::new(
+				io::ErrorKind::PermissionDenied,
+				format!("{} is in use", path.display()),
+			));
+		}
 		match st.nodes.get(path) {
 			Some(SimNode::File { .. }) => {
 				st.nodes.remove(path);
@@ -411,6 +441,15 @@ impl Machine for SimMachine {
 			return Ok(code);
 		}
 		Ok(self.builtin_run(program, args))
+	}
+
+	fn schedule_removal(&mut self, path: &Path) -> io::Result<bool> {
+		self.state
+			.lock()
+			.expect("sim lock")
+			.scheduled
+			.push(path.to_owned());
+		Ok(true)
 	}
 
 	fn script_fs(&self) -> Arc<dyn ScriptFs> {

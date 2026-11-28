@@ -422,3 +422,76 @@ fn a_file_below_a_windows_folder_subfolder_is_refused() {
 		assert!(!codes(&p).contains(&"system-folder-subfolder"), "{to}");
 	}
 }
+
+fn helper() -> li_engine::Project {
+	li_engine::Project::load(
+		&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/helper"),
+	)
+	.expect("helper fixture loads")
+}
+
+#[test]
+fn the_helper_fixture_is_clean() {
+	assert!(check(&helper()).is_empty());
+}
+
+#[test]
+fn a_program_to_run_needs_the_run_capability() {
+	let mut p = helper();
+	p.installer.capabilities.clear();
+	assert_eq!(codes(&p), ["run-undeclared"]);
+	p.installer.capabilities = vec!["run".into(), "teleport".into()];
+	assert_eq!(codes(&p), ["unknown-capability"]);
+}
+
+#[test]
+fn shortcut_places_and_the_retro_runtimes_that_cannot_use_the_new_ones() {
+	let mut p = helper();
+	p.components.components[0].shortcut[0].place = "taskbar".into();
+	assert_eq!(codes(&p), ["unknown-shortcut-place"]);
+	let mut p = helper();
+	// DOS and Windows 3.1 have no startup place, no shortcut arguments and no program to run.
+	for (id, renderer) in [("dos-x86", "tui-retro"), ("win16-x86", "win16")] {
+		p.installer.targets.push(li_model::Target {
+			id: id.into(),
+			renderer: renderer.into(),
+			theme: None,
+			outputs: vec![],
+		});
+	}
+	let found: Vec<_> = codes(&p)
+		.into_iter()
+		.filter(|c| *c != "missing-source")
+		.collect();
+	// One finding per target for the startup shortcut and the program to run, and one for each of
+	// the two shortcuts that carry arguments.
+	for (want, n) in [
+		("startup-unsupported", 2),
+		("shortcut-args-unsupported", 4),
+		("uninstall-pre-unsupported", 2),
+	] {
+		assert_eq!(
+			found.iter().filter(|c| **c == want).count(),
+			n,
+			"{want}: {found:?}"
+		);
+	}
+	assert_eq!(found.len(), 8, "{found:?}");
+}
+
+#[test]
+fn the_windows_95_runtime_runs_only_a_program_of_the_product() {
+	let mut p = helper();
+	p.installer.targets.push(li_model::Target {
+		id: "windows-x86".into(),
+		renderer: "win32-classic".into(),
+		theme: None,
+		outputs: vec![],
+	});
+	p.installer.uninstall.pre[0].run = "{system}/TASKKILL.EXE".into();
+	let found: Vec<_> = codes(&p)
+		.into_iter()
+		.filter(|c| *c != "missing-source")
+		.collect();
+	assert_eq!(found, ["uninstall-pre-outside-install"]);
+}

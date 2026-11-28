@@ -143,6 +143,7 @@ fn build_plan(project: &Project, target_id: &str) -> Plan {
 				name: s.name.clone(),
 				target: s.target.clone(),
 				place: s.place.clone(),
+				args: s.args.clone(),
 			});
 		}
 		for f in &c.file_types {

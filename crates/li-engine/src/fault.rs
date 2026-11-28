@@ -114,6 +114,18 @@ impl<M: Machine> Machine for FaultMachine<M> {
 		self.tick(Path::new("/run"))?;
 		self.inner.run(program, args)
 	}
+	fn run_for(
+		&mut self,
+		program: &Path,
+		args: &[String],
+		wait_ms: u32,
+	) -> io::Result<Option<i32>> {
+		self.tick(Path::new("/run"))?;
+		self.inner.run_for(program, args, wait_ms)
+	}
+	fn schedule_removal(&mut self, path: &Path) -> io::Result<bool> {
+		self.inner.schedule_removal(path)
+	}
 	fn script_fs(&self) -> Arc<dyn ScriptFs> {
 		self.inner.script_fs()
 	}

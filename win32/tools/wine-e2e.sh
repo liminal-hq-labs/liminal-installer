@@ -9,7 +9,9 @@
 # `liminst build -t windows-x86` makes SETUP.EXE and SETUP.LPK; SETUP.EXE runs with /PLAY (a script that presses the real controls:
 # BM_CLICK on buttons, text into the edit controls) and /DUMP (the page text read back from the controls), and the dump is compared with the
 # host test's golden pages (crates/li-retro-build/tests/golden/win32). With --shots, /SHOT saves a bitmap of every page as a PNG in DIR.
-# A last run ticks Lt. Fizz's screen saver over a seeded file in the Windows folder (backup, receipt, restore on uninstall).
+# A run ticks Lt. Fizz's screen saver over a seeded file in the Windows folder (backup, receipt, restore on uninstall).
+# The last run installs examples/startup-helper (a Startup shortcut, a shortcut's command line, a program run before the uninstall), holds one of its
+# files open from another process, uninstalls, and checks that the program ran first and the locked file is left for the next restart.
 # Needs wine, xvfb-run and python3; exits 0 with a note when they are missing. WINEPREFIX defaults to a scratch directory.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
@@ -173,7 +175,86 @@ run_screensaver() {
 	echo "wine-e2e: screensaver: uninstalled: the seeded file is back, and BACKUP and the install folder are gone"
 }
 
-run_project lt-fizz hq.liminal.lt-fizz "Lieutenant Fizz — Episode One" "FIZZ.EXE INSTALL.LIR LEVELS/EP1.LVL LEVELS/EP1.PAL UNINST.DAT UNINST.EXE"
-run_project planboard hq.liminal.planboard "Planboard" "INSTALL.LIR UNINST.DAT UNINST.EXE bin/pbcli.exe docs/GETTING-STARTED.md docs/SHORTCUTS.md planboard.exe" planboard hq.liminal.planboard.planboard
-run_screensaver
+# examples/startup-helper: a shortcut in the Startup folder, a shortcut with a command line, `[[uninstall.pre]]` and a file still in use at the uninstall.
+# STOP.BAT stands in for `HELPER.EXE /quit`; it writes `%TEMP%\li-pre-uninstall-ran.txt` with its argument and whether HELPER.EXE was still there.
+# A second process (a batch file that pings, redirecting into HELPER.LOG) holds HELPER.LOG open without sharing for delete, so Wine refuses to
+# remove it as Windows does, and the uninstall must leave it for the restart: MoveFileEx's delay writes PendingFileRenameOperations.
+run_helper() {
+	local project=startup-helper id=hq.liminal.helper-sample name="Helper Sample"
+	local out="$WORK/$project" play="$WORK/$project.play"
+	"$LIMINST" build -C "$ROOT/examples/$project" -t windows-x86 --version 1.0.0 -o "$out" --win32-runtime "$HERE/dist/SETUP.EXE" > /dev/null
+	printf 'licence choose licence.accepted yes\n' > "$play"
+	win "$out/win32" SETUP.EXE /PLAY "$play" /DUMP "$WORK/$project.dump" || fail "$project: SETUP.EXE did not finish ok"
+	local pf="$WINEPREFIX/drive_c/Program Files (x86)"
+	[ -d "$pf/$name" ] || pf="$WINEPREFIX/drive_c/Program Files"
+	local dir="$pf/$name" wdir="C:\\Program Files (x86)\\$name"
+	[ -d "$pf/$name" ] && [ -d "$WINEPREFIX/drive_c/Program Files (x86)/$name" ] || wdir="C:\\Program Files\\$name"
+	[ -f "$dir/HELPER.LOG" ] || fail "$project: nothing was installed in $dir"
+	# The Startup shortcut is in the Startup folder and not in the product's Start menu folder; the other two items are in the product's folder.
+	local startup stop plain
+	startup="$(find "$WINEPREFIX/drive_c/users" -name 'Helper Sample at login.lnk' -path '*Start Menu/Programs/StartUp/*' | head -1)"
+	[ -n "$startup" ] || fail "$project: no shortcut in the Startup folder"
+	[ -z "$(find "$WINEPREFIX/drive_c/users" -name 'Helper Sample at login.lnk' -path "*Programs/$name/*")" ] || fail "$project: the Startup shortcut is also in the product's folder"
+	stop="$(find "$WINEPREFIX/drive_c/users" -name 'Stop Helper Sample.lnk' -path "*Programs/$name/*" | head -1)"
+	plain="$(find "$WINEPREFIX/drive_c/users" -name 'Helper Sample.lnk' -path "*Programs/$name/*" | head -1)"
+	[ -n "$stop" ] && [ -n "$plain" ] || fail "$project: the Start menu items are missing"
+	# A shell link keeps its command line as a string (UTF-16 when the link says so, else the system code page).
+	has_args() { python3 -I - "$1" "$2" << 'PY'
+import sys
+data = open(sys.argv[1], "rb").read()
+want = sys.argv[2]
+sys.exit(0 if want.encode("utf-16le") in data or want.encode("ascii") in data else 1)
+PY
+	}
+	has_args "$startup" "/background" || fail "$project: the Startup shortcut has no /background"
+	has_args "$stop" "/quit" || fail "$project: Stop Helper Sample has no /quit"
+	! has_args "$plain" "/quit" || fail "$project: the plain item has a command line"
+	echo "wine-e2e: $project: the Startup folder holds the login shortcut with /background; Stop Helper Sample has /quit; the plain item has none"
+	tr -d '\r' < "$dir/INSTALL.LIR" | grep -q '^S .*\\StartUp\\Helper Sample at login.lnk$' || fail "$project: the receipt has no S record for the Startup shortcut"
+	tr -d '\r' < "$dir/INSTALL.LIR" | grep -q '^U .*STOP.BAT|/quit|5000|1$' || fail "$project: the receipt has no U record for the program to run first"
+	echo "wine-e2e: $project: the receipt records the Startup shortcut (S) and the program to run first (U)"
+	cp "$dir/INSTALL.LIR" "$WORK/$project-INSTALL.LIR"
+	# Hold HELPER.LOG open from another process: a second SETUP.EXE whose /DUMP file is HELPER.LOG, which it opens for writing with sharing for
+	# reading only, so Windows (and Wine) answer "sharing violation" to a delete. It waits at its first page until the prefix's server is stopped.
+	( cd "$out/win32" && timeout 150 xvfb-run -a -s "-screen 0 1024x768x24" wine SETUP.EXE /DUMP "$wdir\\HELPER.LOG" > /dev/null 2>&1 ) &
+	local holder=$!
+	sleep 5
+	printf '' > "$WORK/empty.play"
+	# The uninstaller hands over to a copy of itself, which needs the display until its last page, so wait for that page, not for the server.
+	timeout 150 xvfb-run -a -s "-screen 0 1024x768x24" bash -c 'wine "$1\\UNINST.EXE" /U "$1" /PLAY "$2" /DUMP "$3"; for _ in $(seq 90); do grep -q "^== done" "$3" 2> /dev/null && break; sleep 1; done; sleep 1' bash "$wdir" "$WORK/empty.play" "$WORK/$project.undump" > /dev/null 2>&1 || true
+	local marker
+	marker="$(find "$WINEPREFIX/drive_c/users" -name li-pre-uninstall-ran.txt | head -1)"
+	[ -n "$marker" ] || fail "$project: the program to run first did not run"
+	[ "$(tr -d '\r\n' < "$marker")" = "/quit files-present" ] || fail "$project: the program ran as '$(cat "$marker")', not '/quit files-present'"
+	echo "wine-e2e: $project: the program ran first, with /quit, while the product's files were still there"
+	[ -f "$dir/HELPER.LOG" ] || fail "$project: the locked file is gone (it was not locked)"
+	[ ! -e "$dir/HELPER.EXE" ] && [ ! -e "$dir/HELPER.INI" ] && [ ! -e "$dir/INSTALL.LIR" ] && [ ! -e "$dir/UNINST.EXE" ] || fail "$project: the uninstall left files: $(ls "$dir")"
+	[ -z "$(find "$WINEPREFIX/drive_c/users" -name '*Helper Sample*.lnk')" ] || fail "$project: a shortcut is still there"
+	[ -z "$(reg "$id" /v DisplayName)" ] || fail "$project: the registry entry is still there"
+	echo "wine-e2e: $project: every other file, all three shortcuts (the Startup one included) and the registry entry are gone"
+	local pending
+	pending="$(wine reg query 'HKLM\System\CurrentControlSet\Control\Session Manager' /v PendingFileRenameOperations 2>&1 | tr -d '\r' || true)"
+	grep -qi 'Helper Sample.HELPER.LOG' <<< "$pending" || { echo "$pending"; fail "$project: PendingFileRenameOperations does not list HELPER.LOG"; }
+	echo "wine-e2e: $project: PendingFileRenameOperations lists the locked HELPER.LOG, so Windows removes it at the next restart"
+	# With --shots, the receipt the install wrote and the pages the uninstall logged are kept beside the pictures.
+	if [ -n "$SHOTS" ]; then
+		cp "$WORK/$project.dump" "$SHOTS/$project-install-dump.txt"
+		cp "$WORK/$project.undump" "$SHOTS/$project-uninstall-dump.txt"
+		printf '%s\n' "$pending" > "$SHOTS/$project-pending-file-rename-operations.txt"
+		[ ! -f "$WORK/$project-INSTALL.LIR" ] || cp "$WORK/$project-INSTALL.LIR" "$SHOTS/$project-INSTALL.LIR"
+	fi
+	# Stops the holder: every Wine process of this scratch prefix, and no other.
+	wineserver -k || true
+	wait "$holder" || true
+	grep -qi '^notice: removed at restart: .*HELPER.LOG' "$WORK/$project.undump" || { grep '^notice:\|^report:' "$WORK/$project.undump" || true; fail "$project: the log has no restart line"; }
+	grep -q '^report: 1 file is still in use. Windows will remove it the next time it starts.' "$WORK/$project.undump" || fail "$project: the person was not told about the restart"
+	echo "wine-e2e: $project: the uninstall told the person: 1 file is still in use, removed the next time Windows starts"
+}
+
+# LI_WINE_ONLY=helper runs only that part (lt-fizz, planboard, screensaver or helper); the default runs all of them.
+want() { [ -z "${LI_WINE_ONLY:-}" ] || [ "$LI_WINE_ONLY" = "$1" ]; }
+want lt-fizz && run_project lt-fizz hq.liminal.lt-fizz "Lieutenant Fizz — Episode One" "FIZZ.EXE INSTALL.LIR LEVELS/EP1.LVL LEVELS/EP1.PAL UNINST.DAT UNINST.EXE"
+want planboard && run_project planboard hq.liminal.planboard "Planboard" "INSTALL.LIR UNINST.DAT UNINST.EXE bin/pbcli.exe docs/GETTING-STARTED.md docs/SHORTCUTS.md planboard.exe" planboard hq.liminal.planboard.planboard
+want screensaver && run_screensaver
+want helper && run_helper
 echo "wine-e2e: ok"

@@ -56,6 +56,7 @@ impl ProjectScripts {
 		for s in self.scripts.values() {
 			ops.extend(s.on_commit(plan)?);
 		}
+		refuse_program_runs(&ops)?;
 		Ok(ops)
 	}
 
@@ -64,6 +65,7 @@ impl ProjectScripts {
 		for s in self.scripts.values() {
 			ops.extend(s.on_uninstall(plan)?);
 		}
+		refuse_program_runs(&ops)?;
 		Ok(ops)
 	}
 
@@ -71,4 +73,19 @@ impl ProjectScripts {
 	pub fn take_ui(&self) -> Vec<UiItem> {
 		self.scripts.values().flat_map(Script::take_ui).collect()
 	}
+}
+
+/// A script cannot ask for a program to be run: `[[uninstall.pre]]` in `installer.toml`, with the
+/// `run` capability declared there, is the only way, so a reviewer sees it in one place.
+fn refuse_program_runs(ops: &[Operation]) -> Result<()> {
+	if ops
+		.iter()
+		.any(|o| matches!(o, Operation::UninstallPre { .. }))
+	{
+		return Err(crate::error::EngineError::Other(
+			"a script may not add an `uninstall.pre` operation; declare it in installer.toml"
+				.into(),
+		));
+	}
+	Ok(())
 }

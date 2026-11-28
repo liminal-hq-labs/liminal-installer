@@ -681,7 +681,7 @@ fn uninstall(cli: &Cli, ui: &mut dyn UiProvider) -> RunnerResult<()> {
 	let payload = LipPayload(inst.lip.clone());
 	let mut ui = ui.page_ui(&inst.context(Mode::Uninstall, Some(&payload), &m, cli))?;
 	let mut work = |_: &State, opts: &mut RunOptions<'_>| -> Result<(), EngineError> {
-		li_engine::uninstall(&mut m, Some(&inst.project), &inst.dir, opts)
+		li_engine::uninstall(&mut m, Some(&inst.project), &inst.dir, opts).map(|_| ())
 	};
 	drive.run("uninstall", State::new(), &mut *ui, &mut work)?;
 	drop(ui);

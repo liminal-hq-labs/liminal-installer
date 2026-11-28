@@ -16,14 +16,20 @@ use crate::Error;
 pub const COLS: usize = 80;
 /// The rows of the text screen.
 pub const ROWS: usize = 25;
-/// The version of the compiled format the compiler writes.
-pub const FORMAT: u16 = 5;
+/// The version of the compiled format the compiler writes: 6 with the `shell-extras` feature (the
+/// host and the Windows 95 runtime), else 5. Version 6 added [`Op::Link`] and [`Op::PreUninstall`].
+pub const FORMAT: u16 = if cfg!(feature = "shell-extras") { 6 } else { 5 };
+/// The version a project that uses nothing from format 6 is written as, so the DOS and Windows 3.1
+/// runtimes still read it.
+pub const FORMAT_BASE: u16 = 5;
 /// The oldest version the runtime still reads. Version 3 added [`Op::FileType`]; a version 2 project has
 /// no such operation, and a runtime that predates version 3 refuses a version 3 project. Version 4 added
 /// [`Component::default`] and [`Project::owners`]; a project older than 4 has every component ticked and
 /// every operation unconditional. Version 5 added a destination that starts with [`WINDOWS_TOKEN`] or
 /// [`SYSTEM_TOKEN`], a file placed directly in the Windows or the system folder; a project older than 5
-/// has none.
+/// has none. Version 6 added [`Op::Link`] and [`Op::PreUninstall`], which only the Windows 95 runtime
+/// performs; the compiler writes 6 only for a project that uses one, and a runtime that predates it
+/// refuses the project as newer.
 pub const FORMAT_MIN: u16 = 2;
 /// The start of a destination in the machine's Windows folder: `%WINDIR%\NAME` (format 5).
 pub const WINDOWS_TOKEN: &str = "%WINDIR%";
@@ -349,6 +355,35 @@ pub enum Op {
 		name: String,
 		target: String,
 	},
+	/// A shortcut with a command line, or in the Startup folder (format 6, Windows 95 and later).
+	/// `target` is below the install directory; `args` follows it; `startup` puts the `.lnk` in the
+	/// person's Startup folder in place of the product's Start menu folder.
+	#[cfg(feature = "shell-extras")]
+	Link {
+		name: String,
+		target: String,
+		args: String,
+		startup: bool,
+	},
+	/// A program of the product to run before an uninstall, or an install over an earlier one,
+	/// removes or replaces files (format 6, Windows 95 and later). `run` is below the install
+	/// directory. The runtime waits up to `wait_ms` for it (0 starts it and goes on); a failure
+	/// stops the work unless `ignore_failure`.
+	#[cfg(feature = "shell-extras")]
+	PreUninstall {
+		run: String,
+		args: String,
+		wait_ms: u32,
+		ignore_failure: bool,
+	},
+}
+
+#[cfg(feature = "shell-extras")]
+impl Op {
+	/// Whether this operation needs format 6.
+	pub fn needs_format_6(&self) -> bool {
+		matches!(self, Op::Link { .. } | Op::PreUninstall { .. })
+	}
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -402,6 +437,10 @@ impl Project {
 		}
 		if self.format < 3 && self.ops.iter().any(|o| matches!(o, Op::FileType { .. })) {
 			return bad("a file type needs format version 3");
+		}
+		#[cfg(feature = "shell-extras")]
+		if self.format < 6 && self.ops.iter().any(Op::needs_format_6) {
+			return bad("a shortcut with arguments or a program to run needs format version 6");
 		}
 		// Format 4: an owner for every operation that names a component, and no unticked required one.
 		let owners_ok = self.owners.len() == if self.format >= 4 { self.ops.len() } else { 0 }

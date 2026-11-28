@@ -116,7 +116,7 @@ fn the_compiler_records_the_starting_state_and_which_component_owns_each_operati
 		index("savegames")
 	);
 	assert_eq!(c.project.owners.len(), c.project.ops.len());
-	assert_eq!(c.project.format, model::FORMAT);
+	assert_eq!(c.project.format, model::FORMAT_BASE);
 	// The format round-trips through the hand-written decoder.
 	let back = model::Project::decode(&c.project.encode().unwrap()).unwrap();
 	assert_eq!(back, c.project);

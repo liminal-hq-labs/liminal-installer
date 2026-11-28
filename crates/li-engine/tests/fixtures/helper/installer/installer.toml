@@ -1,0 +1,23 @@
+# A product with a helper that runs at login: the startup place, shortcut arguments, a program to run before an uninstall and a file still in use.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+capabilities = ["run"]
+
+[product]
+id        = "hq.liminal.helper"
+name      = "Helper"
+publisher = "Liminal HQ"
+version   = "1.0.0"
+
+[[target]]
+id       = "linux-x86_64"
+renderer = "canvas"
+outputs  = ["lip"]
+
+[[uninstall.pre]]
+run            = "{install}/HELPER"
+args           = "--quit"
+wait_ms        = 3000
+ignore_failure = false

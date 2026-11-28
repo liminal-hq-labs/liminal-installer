@@ -43,6 +43,9 @@ pub enum Operation {
 		name: String,
 		target: String,
 		place: String,
+		/// The command line after the target.
+		#[serde(default, skip_serializing_if = "Option::is_none")]
+		args: Option<String>,
 	},
 	FileType {
 		extension: String,
@@ -120,6 +123,18 @@ pub enum Operation {
 		/// The uninstall entry found after the run (recorded, not planned).
 		#[serde(default)]
 		external: Option<External>,
+	},
+	/// A program to run before the installer removes or replaces files: an uninstall, an update
+	/// or a repair. An install only records it, so the receipt carries it to the later run.
+	#[serde(rename = "uninstall.pre")]
+	UninstallPre {
+		run: String,
+		#[serde(default)]
+		args: String,
+		#[serde(default)]
+		wait_ms: u32,
+		#[serde(default)]
+		ignore_failure: bool,
 	},
 	#[serde(rename = "receipt.write")]
 	ReceiptWrite {

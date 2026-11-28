@@ -6,7 +6,11 @@ import type { JsonValue } from "./serde_json/JsonValue";
 /**
  * One reversible change. Paths hold placeholders until the engine resolves them.
  */
-export type Operation = { "op": "mkdir", path: string, } | { "op": "copy", from: string, to: string, sha256: string | null, } | { "op": "write_file", path: string, contents: string, } | { "op": "write_ini", path: string, section: string, key: string, value: string, } | { "op": "write_json", path: string, pointer: string, value: JsonValue, } | { "op": "shortcut", name: string, target: string, place: string, } | { "op": "file_type", extension: string, name: string, open_with: string | null, } | { "op": "url_scheme", scheme: string, open_with: string, } | { "op": "registry.set", key: string, name: string, value: string, } | { "op": "path.add", entry: string, } | { "op": "service.install", name: string, command: string, } | { "op": "os.register", product: string, version: string, } | { "op": "prereq.webview2", mode: Webview2Mode, silent: boolean, 
+export type Operation = { "op": "mkdir", path: string, } | { "op": "copy", from: string, to: string, sha256: string | null, } | { "op": "write_file", path: string, contents: string, } | { "op": "write_ini", path: string, section: string, key: string, value: string, } | { "op": "write_json", path: string, pointer: string, value: JsonValue, } | { "op": "shortcut", name: string, target: string, place: string, 
+/**
+ * The command line after the target.
+ */
+args?: string | null, } | { "op": "file_type", extension: string, name: string, open_with: string | null, } | { "op": "url_scheme", scheme: string, open_with: string, } | { "op": "registry.set", key: string, name: string, value: string, } | { "op": "path.add", entry: string, } | { "op": "service.install", name: string, command: string, } | { "op": "os.register", product: string, version: string, } | { "op": "prereq.webview2", mode: Webview2Mode, silent: boolean, 
 /**
  * The runtime folder, for `fixedRuntime`.
  */
@@ -50,4 +54,4 @@ args: Array<string>,
 /**
  * The uninstall entry found after the run (recorded, not planned).
  */
-external: External | null, } | { "op": "receipt.write", path: string, };
+external: External | null, } | { "op": "uninstall.pre", run: string, args: string, wait_ms: number, ignore_failure: boolean, } | { "op": "receipt.write", path: string, };

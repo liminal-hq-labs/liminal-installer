@@ -75,6 +75,18 @@ pub struct HostPlatform {
 	pub windows: bool,
 	/// The lines the runtime sent to its log ([`Platform::notice`]), in order.
 	pub notices: Vec<String>,
+	/// Host paths a program holds open: removing one fails until the entry is taken out.
+	pub locked: Vec<String>,
+	/// What the machine was asked to remove at its next restart, in order.
+	pub restart_removals: Vec<String>,
+	/// The programs run, in order: the path, the arguments and the wait.
+	pub programs: Vec<(String, String, u32)>,
+	/// The exit code each program run answers with, by program name (the part after the last
+	/// backslash, upper case); a program not named exits 0. A name in `releases` lets go of the
+	/// file in `locked` it names first.
+	pub exit_codes: BTreeMap<String, u32>,
+	/// A program (by upper-case name) whose run lets go of these locked files.
+	pub releases: BTreeMap<String, Vec<String>>,
 	/// What `uninstall_project` returns, once: the compiled project kept in the install folder.
 	pub kept_project: Option<Vec<u8>>,
 	clock: u32,
@@ -114,6 +126,11 @@ impl HostPlatform {
 			kept_project: None,
 			windows: false,
 			notices: Vec::new(),
+			locked: Vec::new(),
+			restart_removals: Vec::new(),
+			programs: Vec::new(),
+			exit_codes: BTreeMap::new(),
+			releases: BTreeMap::new(),
 			clock: 0,
 			idle: 0,
 			written: 0,
@@ -286,6 +303,9 @@ impl Platform for HostPlatform {
 	}
 
 	fn remove_file(&mut self, path: &str) -> Result<(), Error> {
+		if self.locked.iter().any(|l| l.eq_ignore_ascii_case(path)) {
+			return Err(Error::Io(alloc::format!("{path}: in use")));
+		}
 		fs::remove_file(self.host(path)).map_err(|e| Self::io(path, e))
 	}
 
@@ -618,6 +638,59 @@ impl Shell for HostPlatform {
 			"target={target}\r\nstart_in={work_dir}\r\ndescription={description}\r\n"
 		);
 		fs::write(self.host(lnk), body).map_err(|e| Self::io(lnk, e))
+	}
+
+	fn startup_folder(&mut self) -> Option<String> {
+		let dir = "C:\\WINDOWS\\Start Menu\\Programs\\StartUp";
+		fs::create_dir_all(self.host(dir)).ok()?;
+		Some(dir.to_string())
+	}
+
+	fn make_shortcut_args(
+		&mut self,
+		lnk: &str,
+		target: &str,
+		args: &str,
+		work_dir: &str,
+		description: &str,
+	) -> Result<(), Error> {
+		let body = alloc::format!(
+			"target={target}\r\narguments={args}\r\nstart_in={work_dir}\r\ndescription={description}\r\n"
+		);
+		fs::write(self.host(lnk), body).map_err(|e| Self::io(lnk, e))
+	}
+
+	fn run_program(
+		&mut self,
+		program: &str,
+		args: &str,
+		wait_ms: u32,
+	) -> Result<crate::platform::ProgramExit, Error> {
+		use crate::platform::ProgramExit;
+		self.programs
+			.push((program.to_string(), args.to_string(), wait_ms));
+		let name = program
+			.rsplit('\\')
+			.next()
+			.unwrap_or(program)
+			.to_ascii_uppercase();
+		if let Some(freed) = self.releases.get(&name).cloned() {
+			self.locked
+				.retain(|l| !freed.iter().any(|f| f.eq_ignore_ascii_case(l)));
+		}
+		if wait_ms == 0 {
+			return Ok(ProgramExit::Started);
+		}
+		match self.exit_codes.get(&name) {
+			Some(&u32::MAX) => Ok(ProgramExit::TimedOut),
+			Some(&code) => Ok(ProgramExit::Exited(code)),
+			None => Ok(ProgramExit::Exited(0)),
+		}
+	}
+
+	fn delete_at_restart(&mut self, path: &str) -> bool {
+		self.restart_removals.push(path.to_string());
+		true
 	}
 
 	fn file_types(&self) -> bool {

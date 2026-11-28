@@ -37,6 +37,11 @@ impl RealMachine {
 		RealMachine::new(Dirs {
 			start_menu: user_data.join("applications"),
 			desktop: home.join("Desktop"),
+			startup: std::env::var_os("XDG_CONFIG_HOME")
+				.map(PathBuf::from)
+				.filter(|p| p.is_absolute())
+				.unwrap_or_else(|| home.join(".config"))
+				.join("autostart"),
 			system_data: PathBuf::from("/usr/share"),
 			temp: std::env::temp_dir(),
 			windows: None,
@@ -54,6 +59,7 @@ impl RealMachine {
 			system_data: root.join("sysdata"),
 			start_menu: root.join("data/applications"),
 			desktop: root.join("Desktop"),
+			startup: root.join("config/autostart"),
 			temp: root.join("tmp"),
 			windows: Some(root.join("windows")),
 			system: Some(root.join("windows/system")),
@@ -62,6 +68,7 @@ impl RealMachine {
 			&dirs.user_data,
 			&dirs.system_data,
 			&dirs.desktop,
+			&dirs.startup,
 			&dirs.temp,
 		] {
 			std::fs::create_dir_all(d)?;
@@ -238,6 +245,29 @@ impl Machine for RealMachine {
 			.stdin(std::process::Stdio::null())
 			.status()?;
 		Ok(status.code().unwrap_or(-1))
+	}
+
+	fn run_for(
+		&mut self,
+		program: &Path,
+		args: &[String],
+		wait_ms: u32,
+	) -> io::Result<Option<i32>> {
+		let mut child = std::process::Command::new(program)
+			.args(args)
+			.stdin(std::process::Stdio::null())
+			.spawn()?;
+		let deadline = std::time::Instant::now() + std::time::Duration::from_millis(wait_ms.into());
+		loop {
+			if let Some(status) = child.try_wait()? {
+				return Ok(Some(status.code().unwrap_or(-1)));
+			}
+			if std::time::Instant::now() >= deadline {
+				// Still running: left alone, as the caller asked only to wait this long.
+				return Ok(None);
+			}
+			std::thread::sleep(std::time::Duration::from_millis(20));
+		}
 	}
 
 	fn script_fs(&self) -> Arc<dyn ScriptFs> {

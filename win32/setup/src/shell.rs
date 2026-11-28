@@ -49,8 +49,9 @@ unsafe fn release(obj: *mut c_void) {
 	f(obj);
 }
 
-/// Writes `lnk`, a shortcut to `target` that starts in `work_dir`. Returns the COM error code on failure.
-pub fn make_shortcut(lnk: &str, target: &str, work_dir: &str, description: &str) -> Result<(), u32> {
+/// Writes `lnk`, a shortcut to `target` with the command line `args` that starts in `work_dir`. Returns the
+/// COM error code on failure.
+pub fn make_shortcut(lnk: &str, target: &str, args: &str, work_dir: &str, description: &str) -> Result<(), u32> {
 	// SAFETY: standard IShellLink use. Every interface pointer is checked, used within its vtable's
 	// signatures and released.
 	unsafe {
@@ -79,6 +80,11 @@ pub fn make_shortcut(lnk: &str, target: &str, work_dir: &str, description: &str)
 			}
 			set_dir(link, w.as_ptr());
 			set_desc(link, d.as_ptr());
+			if !args.is_empty() {
+				let a = ansi(args);
+				let set_args: SetStr = core::mem::transmute(method(link, 11));
+				set_args(link, a.as_ptr());
+			}
 			let mut file: *mut c_void = null_mut();
 			let query: unsafe extern "system" fn(*mut c_void, *const Guid, *mut *mut c_void) -> i32 =
 				core::mem::transmute(method(link, 0));

@@ -10,6 +10,7 @@
 - [The wizard](#the-wizard)
 - [Shortcuts, Add/Remove Programs and the uninstaller](#shortcuts-addremove-programs-and-the-uninstaller)
 - [Files in the Windows and system folders](#files-in-the-windows-and-system-folders)
+- [Startup shortcuts, command lines, a program to run first and delete at restart](#startup-shortcuts-command-lines-a-program-to-run-first-and-delete-at-restart)
 - [The compiled project](#the-compiled-project)
 - [What the Win32 runtime does not do](#what-the-win32-runtime-does-not-do)
 - [Verification](#verification)
@@ -120,9 +121,21 @@ A component may install a file into the Windows folder or the system folder (`{w
 
 Writing into the Windows folder needs the rights `C:\Windows` asks for on Windows NT and later, as `C:\Program Files` does; the rest of the placing, the receipt and the uninstall are the core's (SPEC §8 and §9).
 
+## Startup shortcuts, command lines, a program to run first and delete at restart
+
+Four features for a product that leaves a program running (D125 to D129; SPEC sections 4 and 8). They are behind the `shell-extras` feature of `li-retro`, which this runtime enables and the DOS and Windows 3.1 runtimes do not, so those two are unchanged.
+
+- **A shortcut in `startup`** (`Op::Link` with `startup`): a `.lnk` directly in the folder `SHGetSpecialFolderLocation(CSIDL_STARTUP)` names (`Programs\Startup` of the user's Start menu on Windows 95 and later), not in the product's Start menu folder. The receipt's `S` record is its full path, so the uninstall removes it with the others.
+- **A shortcut with a command line** (`Op::Link` with `args`): `IShellLink::SetArguments`, vtable slot 11, called by hand as the other methods are.
+- **`[[uninstall.pre]]`** (`Op::PreUninstall`, `U run|args|wait_ms|ignore` in the receipt): `run_program` is `CreateProcessA` with the command line `"run" args` (no application name, so a batch file goes through the command interpreter), then `WaitForSingleObject(wait_ms)` and `GetExitCodeProcess`. A wait of 0 starts it and goes on. The uninstall runs every `U` record before it removes anything, and an install over an earlier one runs the earlier receipt's before it replaces a file. A failure stops the work with the receipt still in place, so the run can be repeated, unless the record says to ignore it.
+- **Delete at restart.** `remove_file` already retries a sharing violation or access denied for four seconds. When that fails the uninstall asks `MoveFileExA(path, NULL, MOVEFILE_DELAY_UNTIL_REBOOT)`, which Windows NT and later (and Wine and ReactOS) accept; if it fails and `GetVersion` says Windows 95, 98 or Me (high bit set), it adds `NUL=<short path>` to `[Rename]` in `WININIT.INI` of the Windows folder (`GetShortPathNameA`; `li_retro::install::wininit_rename` edits the text and has a host test). The folders that held only such files are asked for too (NT and later). The log gets `notice: removed at restart: <path>` for each, and the person gets one message: "1 file is still in use. Windows will remove it the next time it starts." (`report`, a message box, or a `report:` line in a `/DUMP` run).
+- **Imports.** `GetExitCodeProcess`, `GetShortPathNameA`, `GetVersion` and `WaitForSingleObject` joined `win32/tools/imports.allow`; all four are in the export table of Windows 95's `KERNEL32.DLL`. `MoveFileExA` was already there (the uninstaller's own temporary copy uses the same restart removal).
+- **Compiled format.** `Op::Link` and `Op::PreUninstall` need format 6; the compiler writes 6 only for a project that has one of them, so every other project is byte for byte what it was.
+- **Example and test.** `examples/startup-helper` has all four, and `wine-e2e.sh` installs it, holds `HELPER.LOG` open from a second `SETUP.EXE` (its `/DUMP` file is opened without sharing for delete, so the delete is refused), uninstalls, and checks that `STOP.BAT /quit` ran first with the product's files still there, that `HELPER.LOG` is on `PendingFileRenameOperations`, that every other file, all three shortcuts and the registry entry are gone, and what the person was told.
+
 ## The compiled project
 
-The compiled project is `li-retro`'s `Project`, format version 5 (4, 3 and 2 are still read). Version 5 lets a file's destination start with `%WINDIR%` or `%SYSDIR%`. Version 4 adds `Component.default` and `Project.owners` (see [retro-dos.md](retro-dos.md)). Version 3 adds `Op::FileType`. Version 2 added `Screen.title` (the dialog title, which the text runtime has in the border cells) and `FileEntry.stored`. The Win32 flavour differs from DOS in what `compile_win32` does:
+The compiled project is `li-retro`'s `Project`, format version 5 (4, 3 and 2 are still read; the host and this runtime also read 6, see above). Version 6 adds `Op::Link` and `Op::PreUninstall`. Version 5 lets a file's destination start with `%WINDIR%` or `%SYSDIR%`. Version 4 adds `Component.default` and `Project.owners` (see [retro-dos.md](retro-dos.md)). Version 3 adds `Op::FileType`. Version 2 added `Screen.title` (the dialog title, which the text runtime has in the border cells) and `FileEntry.stored`. The Win32 flavour differs from DOS in what `compile_win32` does:
 
 - A target must use the `win32-classic` renderer and the id `windows-x86` for `liminst build`.
 - Destinations keep their case and length and may have spaces. The pack stores each file under a generated 8.3 name (`F0000001` and on) with the real path as its long name (D64); `liminst lpk list` shows both.

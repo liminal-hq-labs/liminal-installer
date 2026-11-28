@@ -708,3 +708,268 @@ fn a_crash_leaves_a_journal_that_the_next_run_replays() {
 	assert_eq!(tree(root.path()), before);
 	assert!(!li_engine::recover(&mut m, "hq.liminal.fixture").unwrap());
 }
+
+fn helper_project() -> li_engine::Project {
+	li_engine::Project::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/helper"))
+		.expect("helper fixture loads")
+}
+
+fn helper_request() -> li_engine::InstallRequest {
+	request(Path::new("/sim/work/helper"))
+}
+
+fn helper_machine() -> SimMachine {
+	let sim = SimMachine::new();
+	sim.mkdir_all(Path::new("/sim/work"));
+	sim
+}
+
+const STARTUP_FILE: &str = "/sim/home/.config/autostart/helper-at-login.desktop";
+
+#[test]
+fn a_shortcut_in_startup_with_arguments_installs_and_uninstalls() {
+	let project = helper_project();
+	let payload = payload(&project);
+	let mut sim = helper_machine();
+	let before = sim.snapshot();
+
+	let plan = preview(&project, &payload, &helper_request(), &sim).unwrap();
+	assert!(plan.ops.iter().any(|o| matches!(o,
+		Operation::Shortcut { place, args: Some(a), .. } if place == "startup" && a == "--background")));
+	// The program to run is the last thing before the receipt, so an undo reaches it first.
+	let n = plan.ops.len();
+	assert!(
+		matches!(&plan.ops[n - 2], Operation::UninstallPre { run, wait_ms: 3000, .. } if run == "{install}/HELPER")
+	);
+
+	let receipt = install(
+		&mut sim,
+		&project,
+		&payload,
+		&helper_request(),
+		&mut RunOptions::default(),
+	)
+	.unwrap();
+	let startup = String::from_utf8(sim.read(Path::new(STARTUP_FILE)).unwrap()).unwrap();
+	assert!(
+		startup.contains("Exec=\"/sim/work/helper/HELPER\" --background\n"),
+		"{startup}"
+	);
+	let stop = String::from_utf8(
+		sim.read(Path::new(
+			"/sim/home/.local/share/applications/stop-helper.desktop",
+		))
+		.unwrap(),
+	)
+	.unwrap();
+	assert!(
+		stop.contains("Exec=\"/sim/work/helper/HELPER\" --quit\n"),
+		"{stop}"
+	);
+	// The plain shortcut has no arguments after the quoted program.
+	let plain = String::from_utf8(
+		sim.read(Path::new(
+			"/sim/home/.local/share/applications/helper.desktop",
+		))
+		.unwrap(),
+	)
+	.unwrap();
+	assert!(
+		plain.contains("Exec=\"/sim/work/helper/HELPER\"\n"),
+		"{plain}"
+	);
+	// Nothing ran at install, and the receipt keeps the program for later.
+	assert!(sim.runs().is_empty() && sim.launched().is_empty());
+	assert!(
+		receipt
+			.operations
+			.iter()
+			.any(|o| matches!(o, Operation::UninstallPre { args, .. } if args == "--quit"))
+	);
+
+	let report = uninstall(
+		&mut sim,
+		Some(&project),
+		Path::new("/sim/work/helper"),
+		&mut RunOptions::default(),
+	)
+	.unwrap();
+	assert!(report.restart_pending.is_empty());
+	assert_eq!(
+		sim.snapshot(),
+		before,
+		"the startup shortcut goes with the rest"
+	);
+}
+
+#[test]
+fn the_pre_uninstall_program_runs_first_with_its_arguments_and_waits() {
+	let project = helper_project();
+	let payload = payload(&project);
+	let mut sim = helper_machine();
+	install(
+		&mut sim,
+		&project,
+		&payload,
+		&helper_request(),
+		&mut RunOptions::default(),
+	)
+	.unwrap();
+
+	// The program holds HELPER open until it is told to quit, as a running helper does.
+	let held = Path::new("/sim/work/helper/HELPER");
+	sim.lock(held);
+	sim.on_run(move |m, program, args| {
+		if program == held && args == ["--quit"] {
+			m.unlock(held);
+			Some(0)
+		} else {
+			None
+		}
+	});
+	let report = uninstall(
+		&mut sim,
+		Some(&project),
+		Path::new("/sim/work/helper"),
+		&mut RunOptions::default(),
+	)
+	.unwrap();
+	assert_eq!(
+		sim.runs(),
+		vec![(held.to_owned(), vec!["--quit".to_owned()])]
+	);
+	assert!(
+		report.restart_pending.is_empty(),
+		"the file was let go in time"
+	);
+	assert!(!sim.snapshot().contains_key(Path::new("/sim/work/helper")));
+}
+
+#[test]
+fn a_failing_pre_uninstall_program_stops_the_uninstall_unless_failure_is_ignored() {
+	let mut project = helper_project();
+	let payload = payload(&project);
+	let mut sim = helper_machine();
+	install(
+		&mut sim,
+		&project,
+		&payload,
+		&helper_request(),
+		&mut RunOptions::default(),
+	)
+	.unwrap();
+	sim.on_run(|_, _, _| Some(7));
+	let before = sim.snapshot();
+	let err = uninstall(
+		&mut sim,
+		Some(&project),
+		Path::new("/sim/work/helper"),
+		&mut RunOptions::default(),
+	)
+	.unwrap_err();
+	assert!(err.to_string().contains("exited with 7"), "{err}");
+	assert_eq!(sim.snapshot(), before, "nothing was removed");
+
+	// With `ignore_failure` the same exit code lets the uninstall go on.
+	project.installer.uninstall.pre[0].ignore_failure = true;
+	let mut sim2 = helper_machine();
+	install(
+		&mut sim2,
+		&project,
+		&payload,
+		&helper_request(),
+		&mut RunOptions::default(),
+	)
+	.unwrap();
+	sim2.on_run(|_, _, _| Some(7));
+	uninstall(
+		&mut sim2,
+		Some(&project),
+		Path::new("/sim/work/helper"),
+		&mut RunOptions::default(),
+	)
+	.unwrap();
+	assert!(!sim2.snapshot().contains_key(Path::new("/sim/work/helper")));
+}
+
+#[test]
+fn a_file_still_in_use_is_removed_at_the_next_restart_and_reported() {
+	let project = helper_project();
+	let payload = payload(&project);
+	let mut sim = helper_machine();
+	install(
+		&mut sim,
+		&project,
+		&payload,
+		&helper_request(),
+		&mut RunOptions::default(),
+	)
+	.unwrap();
+	let held = Path::new("/sim/work/helper/HELPER");
+	sim.lock(held);
+
+	let report = uninstall(
+		&mut sim,
+		Some(&project),
+		Path::new("/sim/work/helper"),
+		&mut RunOptions::default(),
+	)
+	.unwrap();
+	// The held file and the folder that holds it wait for the restart; the rest is gone.
+	assert_eq!(
+		report.restart_pending,
+		vec![held.to_owned(), Path::new("/sim/work/helper").to_owned()]
+	);
+	assert_eq!(sim.scheduled_removals(), report.restart_pending);
+	let snap = sim.snapshot();
+	assert!(snap.contains_key(held));
+	assert!(!snap.contains_key(Path::new("/sim/work/helper/helper.cfg")));
+	assert!(!snap.contains_key(Path::new(STARTUP_FILE)));
+	assert!(!snap.contains_key(Path::new("/sim/work/helper/.liminal/receipt.json")));
+}
+
+#[test]
+fn an_update_runs_the_pre_uninstall_program_before_it_replaces_files() {
+	let project = helper_project();
+	let payload = payload(&project);
+	let mut sim = helper_machine();
+	install(
+		&mut sim,
+		&project,
+		&payload,
+		&helper_request(),
+		&mut RunOptions::default(),
+	)
+	.unwrap();
+	// Repair of a damaged file replaces it, so the program runs first; a repair that has nothing
+	// to do does not run it.
+	repair(
+		&mut sim,
+		&payload,
+		Path::new("/sim/work/helper"),
+		&mut RunOptions::default(),
+	)
+	.unwrap();
+	assert!(sim.runs().is_empty());
+	sim.remove_file(Path::new("/sim/work/helper/helper.cfg"))
+		.unwrap();
+	repair(
+		&mut sim,
+		&payload,
+		Path::new("/sim/work/helper"),
+		&mut RunOptions::default(),
+	)
+	.unwrap();
+	assert_eq!(sim.runs().len(), 1);
+	assert_eq!(sim.runs()[0].1, vec!["--quit".to_owned()]);
+	// Installing again over the same files changes nothing and runs nothing.
+	install(
+		&mut sim,
+		&project,
+		&payload,
+		&helper_request(),
+		&mut RunOptions::default(),
+	)
+	.unwrap();
+	assert_eq!(sim.runs().len(), 1);
+}

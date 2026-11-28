@@ -1,0 +1,18 @@
+# The helper's components.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[[component]]
+id       = "helper"
+name     = "Helper"
+required = true
+files    = [
+  { from = "dist/{target}/HELPER", to = "{install}/" },
+  { from = "dist/{target}/helper.cfg", to = "{install}/" },
+]
+shortcut = [
+  { name = "Helper", target = "{install}/HELPER", in = "start_menu" },
+  { name = "Stop Helper", target = "{install}/HELPER", in = "start_menu", args = "--quit" },
+  { name = "Helper at login", target = "{install}/HELPER", in = "startup", args = "--background" },
+]

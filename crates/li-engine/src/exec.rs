@@ -25,6 +25,8 @@ pub(crate) enum Step {
 	Apply(Operation),
 	/// Undoes what a recorded operation did.
 	Revert(Operation),
+	/// Runs a recorded `uninstall.pre` program, before the steps that remove or replace files.
+	Hook(Operation),
 	WriteReceipt(Box<Receipt>),
 	RemoveReceipt,
 }
@@ -220,13 +222,16 @@ fn slug(name: &str) -> String {
 	s.trim_matches('-').to_owned()
 }
 
-fn desktop_entry(name: &str, target: &Path) -> String {
+fn desktop_entry(name: &str, target: &Path, args: Option<&str>) -> String {
 	let exec = target
 		.to_string_lossy()
 		.replace('\\', "\\\\")
 		.replace('"', "\\\"");
+	let args = args
+		.filter(|a| !a.is_empty())
+		.map_or(String::new(), |a| format!(" {a}"));
 	format!(
-		"[Desktop Entry]\nType=Application\nVersion=1.0\nName={name}\nExec=\"{exec}\"\nTerminal=false\n"
+		"[Desktop Entry]\nType=Application\nVersion=1.0\nName={name}\nExec=\"{exec}\"{args}\nTerminal=false\n"
 	)
 }
 
@@ -364,6 +369,9 @@ pub(crate) struct Session<'a, 'o> {
 	journal: Journal,
 	opts: &'a mut RunOptions<'o>,
 	progress: Progress,
+	/// Files still in use that the machine will remove when it restarts, and the folders that
+	/// held them.
+	pending: Vec<PathBuf>,
 }
 
 pub(crate) struct Totals {
@@ -389,6 +397,7 @@ impl<'a, 'o> Session<'a, 'o> {
 			payload,
 			journal,
 			opts,
+			pending: Vec::new(),
 			progress: Progress {
 				phase: Phase::Commit,
 				current_file: None,
@@ -430,6 +439,7 @@ impl<'a, 'o> Session<'a, 'o> {
 		match step {
 			Step::Apply(op) => self.apply(op, &mut done)?,
 			Step::Revert(op) => self.revert(op)?,
+			Step::Hook(op) => self.hook(op)?,
 			Step::WriteReceipt(r) => {
 				let path = self.res.resolve(&crate::plan::receipt_path())?;
 				if let Some(dir) = path.parent() {
@@ -460,8 +470,9 @@ impl<'a, 'o> Session<'a, 'o> {
 	}
 
 	/// Keeps the changes and removes the journal.
-	pub(crate) fn finish(self) {
+	pub(crate) fn finish(self) -> Vec<PathBuf> {
 		self.journal.discard(self.m);
+		self.pending
 	}
 
 	/// Rolls everything back and converts the error.
@@ -541,7 +552,14 @@ impl<'a, 'o> Session<'a, 'o> {
 		if self.m.kind(path) != Some(NodeKind::Dir) {
 			return Ok(());
 		}
-		if !self.m.list(path).map_err(io_err(path))?.is_empty() {
+		let kids = self.m.list(path).map_err(io_err(path))?;
+		if !kids.is_empty() {
+			// Everything left in it waits for a restart, so the folder does too.
+			if kids.iter().all(|k| self.pending.contains(k))
+				&& self.m.schedule_removal(path).unwrap_or(false)
+			{
+				self.pending.push(path.to_owned());
+			}
 			return Ok(());
 		}
 		self.journal.record(
@@ -694,6 +712,7 @@ impl<'a, 'o> Session<'a, 'o> {
 				name,
 				target,
 				place,
+				args,
 			} => {
 				let file = self.shortcut_path(name, place)?;
 				if let Some(dir) = file.parent() {
@@ -702,9 +721,16 @@ impl<'a, 'o> Session<'a, 'o> {
 					done.extend(created.into_iter().map(|path| Operation::Mkdir { path }));
 				}
 				let target = self.res.resolve(target)?;
-				self.put(&file, desktop_entry(name, &target).as_bytes(), true)?;
+				self.put(
+					&file,
+					desktop_entry(name, &target, args.as_deref()).as_bytes(),
+					true,
+				)?;
 				done.push(op.clone());
 			}
+			// Nothing happens now: the receipt carries it to the uninstall, update or repair
+			// that runs it before it touches a file.
+			Operation::UninstallPre { .. } => done.push(op.clone()),
 			Operation::PrereqWebview2 { .. } => {
 				let recorded = self.apply_webview2(op)?;
 				done.push(recorded);
@@ -884,6 +910,48 @@ impl<'a, 'o> Session<'a, 'o> {
 		Ok(recorded)
 	}
 
+	/// Runs the program of an `uninstall.pre` operation and waits for it as far as it asks to.
+	fn hook(&mut self, op: &Operation) -> Result<()> {
+		let Operation::UninstallPre {
+			run,
+			args,
+			wait_ms,
+			ignore_failure,
+		} = op
+		else {
+			return Ok(());
+		};
+		let program = self.res.resolve(run)?;
+		let argv: Vec<String> = args.split_whitespace().map(str::to_owned).collect();
+		let failure = match self.m.run_for(&program, &argv, *wait_ms) {
+			Ok(Some(0)) => None,
+			Ok(Some(code)) => Some(format!("{run} exited with {code}")),
+			Ok(None) if *wait_ms > 0 => Some(format!("{run} was still running after {wait_ms} ms")),
+			Ok(None) => None,
+			Err(e) => Some(format!("{run} could not be started: {e}")),
+		};
+		match failure {
+			Some(why) if !ignore_failure => Err(EngineError::Other(why)),
+			_ => Ok(()),
+		}
+	}
+
+	/// Removes a file; one that is still in use is left for the machine to remove when it
+	/// restarts, when it can, and the run goes on.
+	fn delete_or_defer(&mut self, path: &Path) -> Result<()> {
+		match self.delete(path) {
+			Err(e) if self.m.kind(path) == Some(NodeKind::File) => {
+				if self.m.schedule_removal(path).unwrap_or(false) {
+					self.pending.push(path.to_owned());
+					Ok(())
+				} else {
+					Err(e)
+				}
+			}
+			other => other,
+		}
+	}
+
 	fn revert(&mut self, op: &Operation) -> Result<()> {
 		match op {
 			Operation::Mkdir { path } => {
@@ -892,11 +960,11 @@ impl<'a, 'o> Session<'a, 'o> {
 			}
 			Operation::Copy { to, .. } => {
 				let p = self.res.resolve(to)?;
-				self.delete(&p)?;
+				self.delete_or_defer(&p)?;
 			}
 			Operation::WriteFile { path, .. } => {
 				let p = self.res.resolve(path)?;
-				self.delete(&p)?;
+				self.delete_or_defer(&p)?;
 			}
 			Operation::WriteIni {
 				path, section, key, ..
@@ -932,6 +1000,8 @@ impl<'a, 'o> Session<'a, 'o> {
 				self.delete(&p)?;
 			}
 			Operation::ReceiptWrite { .. } => {}
+			// Run by `Step::Hook` ahead of the other steps; reverting it changes nothing.
+			Operation::UninstallPre { .. } => {}
 			// WebView2 is shared by other apps and is never removed.
 			Operation::PrereqWebview2 { .. } => {}
 			Operation::TauriWrap { external, .. } => {
@@ -979,7 +1049,7 @@ pub(crate) fn is_intact(m: &dyn Machine, res: &Resolver, op: &Operation) -> bool
 				m.kind(&res.resolve(&place)?.join(format!("{}.desktop", slug(name))))
 					== Some(NodeKind::File)
 			}
-			Operation::ReceiptWrite { .. } => true,
+			Operation::ReceiptWrite { .. } | Operation::UninstallPre { .. } => true,
 			Operation::PrereqWebview2 { mode, path, .. } => match mode {
 				Webview2Mode::Skip => true,
 				Webview2Mode::FixedRuntime => path

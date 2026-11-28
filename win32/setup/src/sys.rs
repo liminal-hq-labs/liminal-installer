@@ -119,6 +119,7 @@ pub const INVALID_FILE_ATTRIBUTES: u32 = 0xFFFF_FFFF;
 pub const INVALID_SET_FILE_POINTER: u32 = 0xFFFF_FFFF;
 pub const FILE_BEGIN: u32 = 0;
 pub const MOVEFILE_DELAY_UNTIL_REBOOT: u32 = 4;
+pub const WAIT_TIMEOUT: u32 = 0x102;
 pub const SEM_FAILCRITICALERRORS: u32 = 1;
 pub const MB_OK: u32 = 0;
 pub const MB_YESNO: u32 = 4;
@@ -128,6 +129,7 @@ pub const MB_ICONINFORMATION: u32 = 0x40;
 
 // The shell, the registry and COM.
 pub const CSIDL_PROGRAMS: i32 = 2;
+pub const CSIDL_STARTUP: i32 = 7;
 pub const SHCNE_ASSOCCHANGED: i32 = 0x0800_0000;
 pub const SHCNF_IDLIST: u32 = 0;
 pub const BIF_RETURNONLYFSDIRS: u32 = 1;
@@ -307,6 +309,10 @@ unsafe extern "system" {
 		startup: *const StartupInfoA,
 		info: *mut ProcessInformation,
 	) -> i32;
+	pub fn WaitForSingleObject(handle: Handle, ms: u32) -> u32;
+	pub fn GetExitCodeProcess(process: Handle, code: *mut u32) -> i32;
+	pub fn GetVersion() -> u32;
+	pub fn GetShortPathNameA(long: *const u8, short: *mut u8, len: u32) -> u32;
 	pub fn SetErrorMode(mode: u32) -> u32;
 	pub fn MultiByteToWideChar(code_page: u32, flags: u32, src: *const u8, src_len: i32, dst: *mut u16, dst_len: i32) -> i32;
 	pub fn WideCharToMultiByte(

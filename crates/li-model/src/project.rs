@@ -21,6 +21,41 @@ pub struct InstallerFile {
 	/// Who applies updates; absent means the installer does, from the feed in the receipt.
 	#[serde(default)]
 	pub updates: Option<crate::tauri::Updates>,
+	/// What the project may do beyond copying files and registering them. `run` lets
+	/// `[[uninstall.pre]]` start a program; nothing else is named yet.
+	#[serde(default)]
+	pub capabilities: Vec<String>,
+	/// The `[uninstall]` section: what the installer does before it removes or replaces files.
+	#[serde(default)]
+	pub uninstall: UninstallSection,
+}
+
+/// The capabilities a project may declare in `installer.toml`.
+pub const CAPABILITIES: &[&str] = &["run"];
+
+/// `[uninstall]`.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct UninstallSection {
+	/// `[[uninstall.pre]]`: programs to run, in order, before an uninstall removes files and
+	/// before an update or repair replaces them.
+	#[serde(default)]
+	pub pre: Vec<PreCommand>,
+}
+
+/// One `[[uninstall.pre]]` entry.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PreCommand {
+	/// The program, `{install}/NAME.EXE` or a path with another placeholder.
+	pub run: String,
+	/// Its command line after the program name.
+	#[serde(default)]
+	pub args: String,
+	/// How long to wait for it to exit, in milliseconds; `0` starts it and does not wait.
+	#[serde(default)]
+	pub wait_ms: u32,
+	/// Carry on when it cannot be started, exits non-zero or outlasts `wait_ms`.
+	#[serde(default)]
+	pub ignore_failure: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -146,6 +181,9 @@ pub struct ShortcutRule {
 	pub target: String,
 	#[serde(rename = "in")]
 	pub place: String,
+	/// The shortcut's command line after the target, such as `/quit`.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub args: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
