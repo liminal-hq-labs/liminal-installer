@@ -53,6 +53,8 @@ use alloc::vec::Vec;
 use crate::Error;
 use crate::model::{FileEntry, Op, Project, rooted};
 use crate::pack::{Crc, Pack};
+#[cfg(feature = "shell-extras")]
+use crate::platform::ProgramExit;
 use crate::platform::{GroupAdd, Platform, ShortcutKind};
 use crate::ui::Values;
 
@@ -527,6 +529,116 @@ struct Made {
 	/// A file in the Windows or system folder this install replaced: the full path and the backup
 	/// below the install directory (the receipt's `O`).
 	overwritten: Vec<(String, String)>,
+	/// The programs to run before the files are removed or replaced (the receipt's `U`).
+	#[cfg(feature = "shell-extras")]
+	pre: Vec<PreRecord>,
+}
+
+/// A program to run before an uninstall, or an install over this one, removes or replaces files:
+/// the receipt's `U run|args|wait_ms|ignore`, escaped as the `A` record is (`shell-extras`).
+#[cfg(feature = "shell-extras")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PreRecord {
+	/// The full path of the program.
+	pub run: String,
+	pub args: String,
+	pub wait_ms: u32,
+	pub ignore_failure: bool,
+}
+
+#[cfg(feature = "shell-extras")]
+impl PreRecord {
+	fn line(&self) -> String {
+		format!(
+			"U {}|{}|{}|{}",
+			escape(&self.run),
+			escape(&self.args),
+			self.wait_ms,
+			u8::from(self.ignore_failure)
+		)
+	}
+
+	fn parse(rest: &str) -> Option<PreRecord> {
+		let mut it = rest.splitn(4, '|');
+		Some(PreRecord {
+			run: unescape(it.next()?),
+			args: unescape(it.next()?),
+			wait_ms: it.next()?.parse().ok()?,
+			ignore_failure: it.next()? == "1",
+		})
+	}
+}
+
+/// Runs the programs the receipt of an earlier install asks to be run first, in order. One that
+/// cannot be started, exits non-zero or outlasts its wait stops the work, unless it says to carry
+/// on (`shell-extras`).
+#[cfg(feature = "shell-extras")]
+fn run_pre<P: Platform>(p: &mut P, pre: &[PreRecord]) -> Result<(), Error> {
+	for r in pre {
+		let outcome = match p.shell() {
+			Some(s) => s.run_program(&r.run, &r.args, r.wait_ms),
+			None => Err(no_folder()),
+		};
+		let failure = match outcome {
+			Ok(ProgramExit::Exited(0) | ProgramExit::Started) => None,
+			Ok(ProgramExit::Exited(code)) => Some(format!("{} exited with {code}", r.run)),
+			Ok(ProgramExit::TimedOut) => Some(format!(
+				"{} was still running after {} ms",
+				r.run, r.wait_ms
+			)),
+			Err(e) => Some(e.to_string()),
+		};
+		if let Some(why) = failure {
+			p.notice(&why);
+			if !r.ignore_failure {
+				return Err(Error::Io(why));
+			}
+		}
+	}
+	Ok(())
+}
+
+/// A shortcut with a command line, or in the Startup folder, made through the shell
+/// (`shell-extras`). Where there are no `.lnk` shortcuts it does nothing: the product's own
+/// launcher is the Start menu item.
+#[cfg(feature = "shell-extras")]
+#[allow(clippy::too_many_arguments)]
+fn shell_link<P: Platform>(
+	p: &mut P,
+	project: &Project,
+	dir: &str,
+	name: &str,
+	target: &str,
+	args: &str,
+	startup: bool,
+	j: &mut Journal,
+	made: &mut Made,
+) -> Result<(), Error> {
+	if p.shell().map(|s| s.shortcut_kind()) != Some(ShortcutKind::Link) {
+		return Ok(());
+	}
+	let folder = if startup {
+		p.shell().and_then(|s| s.startup_folder())
+	} else {
+		let programs = p.shell().and_then(|s| s.start_menu_programs());
+		programs.map(|programs| format!("{programs}\\{}", file_safe(&project.name)))
+	};
+	let Some(folder) = folder else {
+		return Ok(());
+	};
+	if !startup && p.mkdir(&folder)? {
+		j.dirs.push(folder.clone());
+	}
+	let lnk = format!("{folder}\\{}.lnk", file_safe(name));
+	let existed = p.exists(&lnk);
+	if let Some(s) = p.shell() {
+		s.make_shortcut_args(&lnk, &join(dir, target), args, dir, name)?;
+	}
+	if !existed {
+		j.files.push(lnk.clone());
+	}
+	made.shortcuts.push(lnk);
+	Ok(())
 }
 
 /// A file type an install registered and what it replaced: the receipt's `A` record.
@@ -636,10 +748,15 @@ pub fn install<P: Platform>(
 		made_groups: Vec::new(),
 		file_types: Vec::new(),
 		overwritten: Vec::new(),
+		#[cfg(feature = "shell-extras")]
+		pre: Vec::new(),
 	};
 	// A reinstall finds its own type where the last install put it; what that install replaced is
 	// still the owner to restore. Its files in the Windows folders are ours, not another's to back up.
 	let before = Receipt::read(p, &dir).unwrap_or_default();
+	// An install over an earlier one replaces its files, so what the earlier one asked to run first runs now.
+	#[cfg(feature = "shell-extras")]
+	run_pre(p, &before.pre)?;
 	let result = do_install(
 		p, project, pack, &dir, selected, v, &files, free, &before, &mut j, &mut made, progress,
 	);
@@ -772,6 +889,25 @@ fn do_install<P: Platform>(
 				name,
 				target,
 			} => file_type(p, dir, ext, prog_id, name, target, &before.file_types, made)?,
+			#[cfg(feature = "shell-extras")]
+			Op::Link {
+				name,
+				target,
+				args,
+				startup,
+			} => shell_link(p, project, dir, name, target, args, *startup, j, made)?,
+			#[cfg(feature = "shell-extras")]
+			Op::PreUninstall {
+				run,
+				args,
+				wait_ms,
+				ignore_failure,
+			} => made.pre.push(PreRecord {
+				run: join(dir, run),
+				args: args.clone(),
+				wait_ms: *wait_ms,
+				ignore_failure: *ignore_failure,
+			}),
 		}
 	}
 	if p.shell().is_some_and(|s| s.keeps_uninstaller()) {
@@ -874,6 +1010,11 @@ fn do_install<P: Platform>(
 		lir.push_str(&t.line());
 		lir.push_str("\r\n");
 	}
+	#[cfg(feature = "shell-extras")]
+	for u in &made.pre {
+		lir.push_str(&u.line());
+		lir.push_str("\r\n");
+	}
 	let receipt = join(dir, RECEIPT);
 	// Noted first, so a receipt that fails half way through is rolled back with the rest.
 	j.files.push(receipt.clone());
@@ -909,6 +1050,9 @@ pub struct Receipt {
 	/// The files in the Windows or system folder the install replaced (`O`): the full path of the
 	/// original and its backup below the install directory.
 	pub overwritten: Vec<(String, String)>,
+	/// The programs to run before the files go (`U`).
+	#[cfg(feature = "shell-extras")]
+	pub pre: Vec<PreRecord>,
 }
 
 impl Receipt {
@@ -922,6 +1066,14 @@ impl Receipt {
 		let mut r = Receipt::default();
 		for line in lines {
 			let line = line.trim_end();
+			// Before the `key=value` lines: a program's command line may hold an `=`.
+			#[cfg(feature = "shell-extras")]
+			if let Some(rest) = line.strip_prefix("U ") {
+				if let Some(u) = PreRecord::parse(rest) {
+					r.pre.push(u);
+				}
+				continue;
+			}
 			if let Some((k, val)) = line.split_once('=') {
 				match k {
 					"product" => r.product = val.to_string(),
@@ -988,6 +1140,51 @@ impl Receipt {
 	}
 }
 
+/// `WININIT.INI` with `short` (the short form of a path) added to its `[Rename]` section, which
+/// Windows 95, 98 and Me read as they start: `NUL=path` deletes the file (`shell-extras`).
+#[cfg(feature = "shell-extras")]
+pub fn wininit_rename(text: &str, short: &str) -> String {
+	let entry = format!("NUL={short}");
+	let mut lines: Vec<&str> = text.lines().collect();
+	match lines
+		.iter()
+		.position(|l| l.trim().eq_ignore_ascii_case("[Rename]"))
+	{
+		// Added after the section's existing lines, so an earlier rename that others rely on runs first.
+		Some(at) => {
+			let mut end = at + 1;
+			while end < lines.len() && !lines[end].trim_start().starts_with('[') {
+				end += 1;
+			}
+			// Blank lines that close the section stay after it.
+			while end > at + 1 && lines[end - 1].trim().is_empty() {
+				end -= 1;
+			}
+			lines.insert(end, &entry);
+		}
+		None => {
+			lines.push("[Rename]");
+			lines.push(&entry);
+		}
+	}
+	let mut out = lines.join("\r\n");
+	out.push_str("\r\n");
+	out
+}
+
+/// A folder that could not be removed because files in it wait for a restart: it waits too, once
+/// they are gone (`shell-extras`).
+#[cfg(feature = "shell-extras")]
+fn defer_folder<P: Platform>(p: &mut P, folder: &str, pending: &mut Vec<String>) {
+	let prefix = format!("{folder}\\");
+	if pending.iter().any(|f| f.starts_with(&prefix))
+		&& !pending.iter().any(|f| f == folder)
+		&& p.shell().is_some_and(|s| s.delete_at_restart(folder))
+	{
+		pending.push(folder.to_string());
+	}
+}
+
 /// Removes what the receipt in `dir` lists: files, then the directories the install made when
 /// they are empty, then the receipt. A file that is already gone is not an error. Returns how many
 /// files were removed. `progress` returning false stops early (the receipt stays, so a second
@@ -999,6 +1196,11 @@ pub fn uninstall<P: Platform>(
 ) -> Result<u32, Error> {
 	let dir = normalize_dir_for(p, dir);
 	let r = Receipt::read(p, &dir)?;
+	// Before any file goes: a program that holds one lets go of it first.
+	#[cfg(feature = "shell-extras")]
+	run_pre(p, &r.pre)?;
+	#[cfg(feature = "shell-extras")]
+	let mut pending: Vec<String> = Vec::new();
 	let total = (r.files.len() + r.others.len() + r.shortcuts.len()) as u32;
 	let mut pr = Progress {
 		files_total: total,
@@ -1016,8 +1218,21 @@ pub fn uninstall<P: Platform>(
 		pr.file = name.to_string();
 		let path = join(&dir, name);
 		if p.exists(&path) {
-			p.remove_file(&path)?;
-			removed += 1;
+			// A file still in use is left for the system to remove at its next start.
+			#[cfg(feature = "shell-extras")]
+			if let Err(e) = p.remove_file(&path) {
+				if !p.shell().is_some_and(|s| s.delete_at_restart(&path)) {
+					return Err(e);
+				}
+				pending.push(path.clone());
+			} else {
+				removed += 1;
+			}
+			#[cfg(not(feature = "shell-extras"))]
+			{
+				p.remove_file(&path)?;
+				removed += 1;
+			}
 		}
 		pr.files_done += 1;
 		pr.bytes_done = u64::from(pr.files_done);
@@ -1027,6 +1242,8 @@ pub fn uninstall<P: Platform>(
 			return Err(Error::Cancelled);
 		}
 	}
+	#[cfg(feature = "shell-extras")]
+	let waiting = pending.len();
 	// A file the install replaced goes back, last first. The copy is kept when it cannot be put back,
 	// so a second run can finish.
 	for (original, backup) in r.overwritten.iter().rev() {
@@ -1072,18 +1289,62 @@ pub fn uninstall<P: Platform>(
 	}
 	p.remove_file(&join(&dir, RECEIPT))?;
 	// The directories the install made, innermost first; the install directory is listed as `.`.
+	#[cfg(feature = "shell-extras")]
+	for d in r.dirs.iter().rev() {
+		let folder = join(&dir, d);
+		if p.remove_dir(&folder).is_err() {
+			defer_folder(p, &folder, &mut pending);
+		}
+	}
+	#[cfg(not(feature = "shell-extras"))]
 	for d in r.dirs.iter().rev() {
 		let _ = p.remove_dir(&join(&dir, d));
 	}
 	// The install folder may have been there before the install, so the receipt does not list it.
 	// Removing a folder fails while it holds anything, so the person's own files are never touched.
+	#[cfg(feature = "shell-extras")]
+	if p.remove_dir(&dir).is_err() {
+		defer_folder(p, &dir, &mut pending);
+	}
+	#[cfg(not(feature = "shell-extras"))]
 	let _ = p.remove_dir(&dir);
+	#[cfg(feature = "shell-extras")]
+	if !pending.is_empty() {
+		let n = waiting.max(1);
+		let text = format!(
+			"{n} file{} still in use. Windows will remove {} the next time it starts.",
+			if n == 1 { " is" } else { "s are" },
+			if n == 1 { "it" } else { "them" }
+		);
+		for f in &pending {
+			p.notice(&format!("removed at restart: {f}"));
+		}
+		p.report(&text);
+	}
 	Ok(removed)
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	#[cfg(feature = "shell-extras")]
+	fn wininit_gets_a_rename_section_or_a_line_in_the_one_it_has() {
+		assert_eq!(
+			wininit_rename("", "C:\\APP\\HELPER.EXE"),
+			"[Rename]\r\nNUL=C:\\APP\\HELPER.EXE\r\n"
+		);
+		let have = "[Rename]\r\nNUL=C:\\OLD.TMP\r\n\r\n[Other]\r\nx=1\r\n";
+		assert_eq!(
+			wininit_rename(have, "C:\\NEW.EXE"),
+			"[Rename]\r\nNUL=C:\\OLD.TMP\r\nNUL=C:\\NEW.EXE\r\n\r\n[Other]\r\nx=1\r\n"
+		);
+		assert_eq!(
+			wininit_rename("[Other]\r\nx=1\r\n", "C:\\A"),
+			"[Other]\r\nx=1\r\n[Rename]\r\nNUL=C:\\A\r\n"
+		);
+	}
 
 	#[test]
 	fn ini_set_adds_and_replaces() {

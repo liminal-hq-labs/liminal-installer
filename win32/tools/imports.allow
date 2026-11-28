@@ -35,15 +35,18 @@ kernel32.dll!GetCommandLineA
 kernel32.dll!GetDiskFreeSpaceA
 kernel32.dll!GetEnvironmentVariableA
 kernel32.dll!GetFileAttributesA
+kernel32.dll!GetExitCodeProcess
 kernel32.dll!GetFileSize
 kernel32.dll!GetLastError
 kernel32.dll!GetModuleFileNameA
 kernel32.dll!GetModuleHandleA
 kernel32.dll!GetProcAddress
 kernel32.dll!GetProcessHeap
+kernel32.dll!GetShortPathNameA
 kernel32.dll!GetSystemDirectoryA
 kernel32.dll!GetTempPathA
 kernel32.dll!GetTickCount
+kernel32.dll!GetVersion
 kernel32.dll!GetWindowsDirectoryA
 kernel32.dll!HeapAlloc
 kernel32.dll!HeapFree
@@ -55,6 +58,7 @@ kernel32.dll!SetErrorMode
 kernel32.dll!SetFileAttributesA
 kernel32.dll!SetFilePointer
 kernel32.dll!Sleep
+kernel32.dll!WaitForSingleObject
 kernel32.dll!WideCharToMultiByte
 kernel32.dll!WriteFile
 ole32.dll!CoCreateInstance

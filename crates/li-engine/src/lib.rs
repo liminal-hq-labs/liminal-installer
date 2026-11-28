@@ -55,8 +55,9 @@ pub use exec::recover;
 pub use fault::FaultMachine;
 pub use flow::{Action, CommitFn, FlowEnv, FlowOutcome, FlowRunner, HeadlessUi, State, Ui};
 pub use lifecycle::{
-	InstallRequest, LaunchOutcome, RepairReport, UpdateInfo, find_update, install, launch, modify,
-	preview, read_receipt, reconcile_receipt, repair, system_info, uninstall, update,
+	InstallRequest, LaunchOutcome, RepairReport, UninstallReport, UpdateInfo, find_update, install,
+	launch, modify, preview, read_receipt, reconcile_receipt, repair, system_info, uninstall,
+	update,
 };
 pub use machine::{Dirs, Machine, NodeKind, Resolver};
 pub use payload::{DirPayload, LipPayload, MemPayload, Payload, expand_sources, pack_payload};

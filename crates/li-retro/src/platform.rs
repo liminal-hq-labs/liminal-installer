@@ -111,6 +111,18 @@ pub trait Platform {
 	}
 }
 
+/// How a program the install ran ended (`shell-extras`).
+#[cfg(feature = "shell-extras")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProgramExit {
+	/// It exited with this code.
+	Exited(u32),
+	/// It was started and not waited for (`wait_ms` was 0).
+	Started,
+	/// It was still running when the wait ran out.
+	TimedOut,
+}
+
 /// How a shell makes a shortcut.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ShortcutKind {
@@ -226,6 +238,41 @@ pub trait Shell {
 		_exe: &str,
 		_previous: Option<&str>,
 	) {
+	}
+	/// The person's Startup folder, without a trailing backslash (`shell-extras`).
+	#[cfg(feature = "shell-extras")]
+	fn startup_folder(&mut self) -> Option<String> {
+		None
+	}
+	/// Writes a shortcut file `lnk` that starts `target` with the command line `args` in `work_dir`
+	/// (`shell-extras`).
+	#[cfg(feature = "shell-extras")]
+	fn make_shortcut_args(
+		&mut self,
+		lnk: &str,
+		target: &str,
+		_args: &str,
+		work_dir: &str,
+		description: &str,
+	) -> Result<(), Error> {
+		self.make_shortcut(lnk, target, work_dir, description)
+	}
+	/// Starts `program` with the command line `args` and waits up to `wait_ms` for it to exit
+	/// (`shell-extras`).
+	#[cfg(feature = "shell-extras")]
+	fn run_program(
+		&mut self,
+		_program: &str,
+		_args: &str,
+		_wait_ms: u32,
+	) -> Result<ProgramExit, Error> {
+		Err(Error::Io(String::from("this machine cannot run a program")))
+	}
+	/// Asks the system to remove `path` when it next starts, for a file that is in use. False when
+	/// it cannot (`shell-extras`).
+	#[cfg(feature = "shell-extras")]
+	fn delete_at_restart(&mut self, _path: &str) -> bool {
+		false
 	}
 	/// Adds the product to Add/Remove Programs: the key's name, its values and the command that
 	/// removes it.

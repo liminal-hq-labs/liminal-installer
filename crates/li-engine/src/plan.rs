@@ -153,6 +153,7 @@ pub fn build_plan_scoped(
 				name: s.name.clone(),
 				target: s.target.clone(),
 				place: s.place.clone(),
+				args: s.args.clone().filter(|a| !a.is_empty()),
 			});
 		}
 		for ft in c.file_types.iter().filter(|_| skip == Skip::Nothing) {
@@ -180,6 +181,15 @@ pub fn build_plan_scoped(
 	if let Some(scripts) = scripts {
 		let so_far = Plan { ops: ops.clone() };
 		ops.extend(scripts.on_commit(&so_far)?);
+	}
+	// Last before the receipt, so an uninstall (which undoes the plan backwards) reaches it first.
+	for pre in &project.installer.uninstall.pre {
+		ops.push(Operation::UninstallPre {
+			run: pre.run.clone(),
+			args: pre.args.clone(),
+			wait_ms: pre.wait_ms,
+			ignore_failure: pre.ignore_failure,
+		});
 	}
 	ops.push(Operation::ReceiptWrite {
 		path: receipt_path(),
@@ -216,6 +226,7 @@ pub fn op_key(op: &Operation) -> String {
 		} => format!("ini:{path}:{section}:{key}"),
 		Operation::WriteJson { path, pointer, .. } => format!("json:{path}:{pointer}"),
 		Operation::Shortcut { name, place, .. } => format!("shortcut:{place}:{name}"),
+		Operation::UninstallPre { run, args, .. } => format!("uninstall_pre:{run}:{args}"),
 		Operation::FileType { extension, .. } => format!("file_type:{extension}"),
 		Operation::UrlScheme { scheme, .. } => format!("url_scheme:{scheme}"),
 		Operation::RegistrySet { key, name, .. } => format!("registry:{key}:{name}"),

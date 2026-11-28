@@ -24,6 +24,9 @@ pub struct Dirs {
 	pub system_data: PathBuf,
 	pub start_menu: PathBuf,
 	pub desktop: PathBuf,
+	/// Where a shortcut starts a program when the person logs in (`{startup}`): the Startup
+	/// folder on Windows, `~/.config/autostart` on Linux.
+	pub startup: PathBuf,
 	pub temp: PathBuf,
 	/// The Windows folder, on a machine that has one (`{windows}`).
 	pub windows: Option<PathBuf>,
@@ -38,6 +41,7 @@ impl Dirs {
 			"system_data" => Some(&self.system_data),
 			"start_menu" => Some(&self.start_menu),
 			"desktop" => Some(&self.desktop),
+			"startup" => Some(&self.startup),
 			"temp" => Some(&self.temp),
 			"windows" => self.windows.as_deref(),
 			"system" => self.system.as_deref(),
@@ -81,6 +85,30 @@ pub trait Machine {
 	/// Runs a program to completion and returns its exit code. Used for installers the engine
 	/// wraps (a Tauri NSIS setup, the WebView2 bootstrapper), so a dry run can answer for them.
 	fn run(&mut self, program: &Path, args: &[String]) -> io::Result<i32>;
+
+	/// Starts a program and waits up to `wait_ms` for it to exit: `Some(code)` when it did and
+	/// `None` when it was still running (it is left running). `0` starts it and does not wait.
+	/// Only a program the product asked for uses this, so a dry run can answer for it.
+	fn run_for(
+		&mut self,
+		program: &Path,
+		args: &[String],
+		wait_ms: u32,
+	) -> io::Result<Option<i32>> {
+		if wait_ms == 0 {
+			self.launch(program, args)?;
+			Ok(None)
+		} else {
+			self.run(program, args).map(Some)
+		}
+	}
+
+	/// Asks the system to remove `path` the next time it restarts, for a file that is still in
+	/// use. `Ok(true)` when it was scheduled; `Ok(false)` when this machine has no way to (the
+	/// default), and the removal fails as it would have.
+	fn schedule_removal(&mut self, _path: &Path) -> io::Result<bool> {
+		Ok(false)
+	}
 
 	/// One registry value: `name` under `key` (`HKLM\SOFTWARE\...`); `""` is the default value.
 	/// Values the engine wrote itself (`registry.set` operations) read back the same way.
@@ -145,6 +173,7 @@ const NAMES: &[&str] = &[
 	"install",
 	"start_menu",
 	"desktop",
+	"startup",
 	"user_data",
 	"system_data",
 	"temp",
@@ -220,6 +249,7 @@ mod tests {
 			system_data: "/usr/share".into(),
 			start_menu: "/h/.local/share/applications".into(),
 			desktop: "/h/Desktop".into(),
+			startup: "/h/.config/autostart".into(),
 			temp: "/tmp".into(),
 			windows: Some("/w".into()),
 			system: Some("/w/system".into()),

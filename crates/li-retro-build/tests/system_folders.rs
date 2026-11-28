@@ -89,7 +89,7 @@ fn no_backup(p: &HostPlatform) -> bool {
 fn the_compiler_stores_the_saver_under_the_windows_token() {
 	for runtime in [Runtime::Win16, Runtime::Win32] {
 		let c = compile(runtime);
-		assert_eq!(c.project.format, model::FORMAT);
+		assert_eq!(c.project.format, model::FORMAT_BASE);
 		let file = c
 			.project
 			.files

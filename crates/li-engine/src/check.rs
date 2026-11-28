@@ -148,6 +148,121 @@ fn check_system_folders(project: &Project, out: &mut Vec<Diagnostic>) {
 	}
 }
 
+/// The places a shortcut may go, as `in = "..."` names them.
+pub const SHORTCUT_PLACES: &[&str] = &["start_menu", "desktop", "startup"];
+
+/// The renderers whose runtimes can run a program before an uninstall removes files and make a
+/// shortcut in the Startup folder with a command line: Windows 95 and later and the engine's own.
+/// DOS and Windows 3.x do neither, and `check` says so.
+const RETRO_WITHOUT_SHELL_EXTRAS: &[&str] = &["tui-retro", "win16"];
+
+/// Shortcut places and arguments, and `[[uninstall.pre]]` with the `run` capability it needs.
+fn check_install_extras(project: &Project, out: &mut Vec<Diagnostic>) {
+	let inst = &project.installer;
+	for cap in &inst.capabilities {
+		if !li_model::CAPABILITIES.contains(&cap.as_str()) {
+			out.push(error(
+				"unknown-capability",
+				"installer.toml",
+				format!(
+					"unknown capability `{cap}`; the capabilities are {}",
+					li_model::CAPABILITIES.join(", ")
+				),
+			));
+		}
+	}
+	let declared = inst.capabilities.iter().any(|c| c == "run");
+	if !inst.uninstall.pre.is_empty() && !declared {
+		out.push(error(
+			"run-undeclared",
+			"installer.toml",
+			"`[[uninstall.pre]]` starts a program, which needs `capabilities = [\"run\"]` at the top of installer.toml",
+		));
+	}
+	for pre in &inst.uninstall.pre {
+		if pre.run.trim().is_empty() {
+			out.push(error(
+				"bad-uninstall-pre",
+				"installer.toml",
+				"an `[[uninstall.pre]]` entry has an empty `run`",
+			));
+		}
+		for t in inst
+			.targets
+			.iter()
+			.filter(|t| RETRO_WITHOUT_SHELL_EXTRAS.contains(&t.renderer.as_str()))
+		{
+			out.push(warning(
+				"uninstall-pre-unsupported",
+				format!("target {}", t.id),
+				format!(
+					"`[[uninstall.pre]]` runs `{}`, which target `{}` (`{}`) does not: its runtime cannot start a program, so the entry is left out of that build",
+					pre.run, t.id, t.renderer
+				),
+			));
+		}
+		for t in inst
+			.targets
+			.iter()
+			.filter(|t| t.renderer == "win32-classic")
+		{
+			if !pre.run.starts_with("{install}/") {
+				out.push(error(
+					"uninstall-pre-outside-install",
+					format!("target {}", t.id),
+					format!(
+						"`[[uninstall.pre]]` runs `{}`; the Windows 95 runtime runs only a program of the product, as `{{install}}/NAME.EXE`",
+						pre.run
+					),
+				));
+			}
+		}
+	}
+	for c in &project.components.components {
+		for s in &c.shortcut {
+			let loc = format!("component {}", c.id);
+			let place = s.place.trim_matches(['{', '}']);
+			if !SHORTCUT_PLACES.contains(&place) {
+				out.push(error(
+					"unknown-shortcut-place",
+					&loc,
+					format!(
+						"shortcut `{}` is `in = \"{}\"`; the places are {}",
+						s.name,
+						s.place,
+						SHORTCUT_PLACES.join(", ")
+					),
+				));
+			}
+			let has_args = s.args.as_deref().is_some_and(|a| !a.is_empty());
+			for t in project.installer.targets.iter().filter(|t| {
+				c.applies_to(&t.id) && RETRO_WITHOUT_SHELL_EXTRAS.contains(&t.renderer.as_str())
+			}) {
+				if has_args {
+					out.push(warning(
+						"shortcut-args-unsupported",
+						&loc,
+						format!(
+							"shortcut `{}` has `args`, which target `{}` (`{}`) leaves out: its launcher takes no fixed command line",
+							s.name, t.id, t.renderer
+						),
+					));
+				}
+				if place == "startup" {
+					out.push(warning(
+						"startup-unsupported",
+						&loc,
+						format!(
+							"shortcut `{}` is in `startup`, which target `{}` (`{}`) has no place for; the shortcut is left out of that build",
+							s.name, t.id, t.renderer
+						),
+					));
+				}
+			}
+		}
+	}
+}
+
 /// Validates a project for every target.
 pub fn check(project: &Project) -> Vec<Diagnostic> {
 	let mut out = Vec::new();
@@ -246,6 +361,7 @@ pub fn check(project: &Project) -> Vec<Diagnostic> {
 	}
 
 	check_system_folders(project, &mut out);
+	check_install_extras(project, &mut out);
 
 	crate::tauri::check::check(project, &mut out);
 

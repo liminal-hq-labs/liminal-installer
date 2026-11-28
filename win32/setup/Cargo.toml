@@ -16,4 +16,4 @@ name = "setup"
 path = "src/main.rs"
 
 [dependencies]
-li-retro = { path = "../../crates/li-retro", default-features = false }
+li-retro = { path = "../../crates/li-retro", default-features = false, features = ["shell-extras"] }

@@ -73,7 +73,7 @@ fn file_types(c: &li_retro_build::Compiled) -> Vec<&Op> {
 #[test]
 fn the_compiler_emits_the_operation_for_windows_and_warns_for_dos() {
 	let c = compile32();
-	assert_eq!(c.project.format, model::FORMAT);
+	assert_eq!(c.project.format, model::FORMAT_BASE);
 	assert_eq!(
 		file_types(&c),
 		[&Op::FileType {

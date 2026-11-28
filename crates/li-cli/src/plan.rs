@@ -69,7 +69,26 @@ pub fn describe(op: &Operation) -> String {
 			name,
 			target,
 			place,
-		} => format!("shortcut       {name} -> {target} in {place}"),
+			args,
+		} => format!(
+			"shortcut       {name} -> {target}{} in {place}",
+			args.as_deref()
+				.filter(|a| !a.is_empty())
+				.map_or(String::new(), |a| format!(" {a}"))
+		),
+		Operation::UninstallPre {
+			run,
+			args,
+			wait_ms,
+			ignore_failure,
+		} => format!(
+			"uninstall.pre  {run} {args} (wait {wait_ms} ms{})",
+			if *ignore_failure {
+				", ignore failure"
+			} else {
+				""
+			}
+		),
 		Operation::FileType {
 			extension, name, ..
 		} => format!(

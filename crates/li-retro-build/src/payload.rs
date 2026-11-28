@@ -190,13 +190,42 @@ pub fn build(
 			let rel = rel_of(&s.target).map_err(|e| {
 				CompileError::Message(format!("component `{}` shortcut `{}`: {e}", c.id, s.name))
 			})?;
+			let args = s.args.clone().unwrap_or_default();
+			let startup = s.place.trim_matches(['{', '}']) == "startup";
 			if flavour == Flavour::Win32 {
-				ops.push(Op::Shortcut {
-					name: s.name.clone(),
-					target: rel,
-					batch: String::new(),
+				// A command line or the Startup folder is a link; anything else the plain item.
+				ops.push(if args.is_empty() && !startup {
+					Op::Shortcut {
+						name: s.name.clone(),
+						target: rel,
+						batch: String::new(),
+					}
+				} else {
+					Op::Link {
+						name: s.name.clone(),
+						target: rel,
+						args,
+						startup,
+					}
 				});
 				continue;
+			}
+			if startup {
+				warnings.push(format!(
+					"component `{}`: the shortcut `{}` is in `startup`, which the {} runtime has no place for, and is skipped",
+					c.id,
+					s.name,
+					flavour.name()
+				));
+				continue;
+			}
+			if !args.is_empty() {
+				warnings.push(format!(
+					"component `{}`: the shortcut `{}` has arguments, which the {} runtime leaves out",
+					c.id,
+					s.name,
+					flavour.name()
+				));
 			}
 			let stem = rel
 				.rsplit('\\')
@@ -246,6 +275,26 @@ pub fn build(
 		}
 		// Every operation this component added belongs to it.
 		owners.resize(ops.len(), ci as u16);
+	}
+	for pre in &project.installer.uninstall.pre {
+		if flavour != Flavour::Win32 {
+			warnings.push(format!(
+				"`[[uninstall.pre]]` runs `{}`, which the {} runtime cannot do, and is left out",
+				pre.run,
+				flavour.name()
+			));
+			continue;
+		}
+		let run = rel_of(&pre.run).map_err(|e| {
+			CompileError::Message(format!("`[[uninstall.pre]]` `{}`: {e}", pre.run))
+		})?;
+		ops.push(Op::PreUninstall {
+			run,
+			args: pre.args.clone(),
+			wait_ms: pre.wait_ms,
+			ignore_failure: pre.ignore_failure,
+		});
+		owners.push(li_retro::model::NO_OWNER);
 	}
 	files.sort_by(|a, b| a.0.dest.cmp(&b.0.dest));
 	// The names the pack stores them under: the destination itself on DOS, `F0000001` and on for a

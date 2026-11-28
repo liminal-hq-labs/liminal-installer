@@ -308,7 +308,12 @@ pub fn compile_for(
 		slug = "APP".into();
 	}
 	let out = model::Project {
-		format: model::FORMAT,
+		// Format 6 only for a project that needs it, so the others stay readable by the DOS and Windows 3.1 runtimes.
+		format: if ops.iter().any(model::Op::needs_format_6) {
+			model::FORMAT
+		} else {
+			model::FORMAT_BASE
+		},
 		id: project.installer.product.id.clone(),
 		name: project.installer.product.name.clone(),
 		publisher: project.installer.product.publisher.clone(),

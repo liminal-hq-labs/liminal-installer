@@ -15,7 +15,9 @@ rust-version.workspace = true
 [features]
 default = ["std"]
 # The host build: the `HostPlatform` simulator and tests. The DOS build turns it off.
-std = ["dep:serde", "dep:postcard", "serde/std", "postcard/use-std"]
+std = ["dep:serde", "dep:postcard", "serde/std", "postcard/use-std", "shell-extras"]
+# What only a Windows 95 (or later) shell does: a shortcut with a command line or in the Startup folder, a program run before an uninstall, a file left for the next restart. The DOS and Windows 3.1 runtimes build without it, so their code and data do not grow by a byte.
+shell-extras = []
 
 [dependencies]
 serde = { version = "1", default-features = false, features = ["derive", "alloc"], optional = true }

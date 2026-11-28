@@ -303,6 +303,8 @@ impl R<'_> {
 	fn op(&mut self) -> Op {
 		// Format 3 added the file type; under format 2 its tag is not an operation at all.
 		let known = if self.format >= 3 { 4 } else { 3 };
+		#[cfg(feature = "shell-extras")]
+		let known = if self.format >= 6 { 6 } else { known };
 		match self.tag(known) {
 			0 => Op::Mkdir {
 				path: self.string(),
@@ -324,6 +326,20 @@ impl R<'_> {
 				prog_id: self.string(),
 				name: self.string(),
 				target: self.string(),
+			},
+			#[cfg(feature = "shell-extras")]
+			4 => Op::Link {
+				name: self.string(),
+				target: self.string(),
+				args: self.string(),
+				startup: self.bool(),
+			},
+			#[cfg(feature = "shell-extras")]
+			5 => Op::PreUninstall {
+				run: self.string(),
+				args: self.string(),
+				wait_ms: self.var(),
+				ignore_failure: self.bool(),
 			},
 			_ => self.unknown(Op::Mkdir {
 				path: String::new(),

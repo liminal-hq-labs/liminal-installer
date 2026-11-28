@@ -10,7 +10,7 @@ use alloc::vec::Vec;
 use core::ptr::{null, null_mut};
 
 use li_retro::gui::Gui;
-use li_retro::platform::{Key, Shell};
+use li_retro::platform::{Key, ProgramExit, Shell};
 use li_retro::ui::Cells;
 use li_retro::{Error, Platform};
 
@@ -420,8 +420,109 @@ impl Shell for Win32 {
 	}
 
 	fn make_shortcut(&mut self, lnk: &str, target: &str, work_dir: &str, description: &str) -> Result<(), Error> {
-		shell::make_shortcut(lnk, target, work_dir, description)
+		self.make_shortcut_args(lnk, target, "", work_dir, description)
+	}
+
+	fn startup_folder(&mut self) -> Option<String> {
+		shell::special_folder(CSIDL_STARTUP)
+	}
+
+	fn make_shortcut_args(
+		&mut self,
+		lnk: &str,
+		target: &str,
+		args: &str,
+		work_dir: &str,
+		description: &str,
+	) -> Result<(), Error> {
+		shell::make_shortcut(lnk, target, args, work_dir, description)
 			.map_err(|c| Error::Io(format!("cannot write the shortcut {lnk} (COM error {c:08X})")))
+	}
+
+	fn run_program(&mut self, program: &str, args: &str, wait_ms: u32) -> Result<ProgramExit, Error> {
+		let mut cmd = ansi(&if args.is_empty() {
+			format!("\"{program}\"")
+		} else {
+			format!("\"{program}\" {args}")
+		});
+		let dir = ansi(program.rsplit_once('\\').map_or("", |(d, _)| d));
+		// SAFETY: process calls on NUL-ended strings and local structures; both handles are closed.
+		unsafe {
+			let si = core::mem::zeroed::<StartupInfoA>();
+			let si = StartupInfoA {
+				cb: core::mem::size_of::<StartupInfoA>() as u32,
+				..si
+			};
+			let mut pi = core::mem::zeroed::<ProcessInformation>();
+			// No application name, so Windows finds the program from the command line (a batch file
+			// is run by the command interpreter, as a person typing it would).
+			let started = CreateProcessA(
+				null(),
+				cmd.as_mut_ptr(),
+				null(),
+				null(),
+				0,
+				0,
+				null(),
+				if dir.len() > 1 { dir.as_ptr() } else { null() },
+				&si,
+				&mut pi,
+			) != 0;
+			if !started {
+				let code = GetLastError();
+				return Err(Error::Io(format!("cannot start {program} (Windows error {code})")));
+			}
+			CloseHandle(pi.thread);
+			if wait_ms == 0 {
+				CloseHandle(pi.process);
+				return Ok(ProgramExit::Started);
+			}
+			let waited = WaitForSingleObject(pi.process, wait_ms);
+			let mut code = 0u32;
+			let got = waited != WAIT_TIMEOUT && GetExitCodeProcess(pi.process, &mut code) != 0;
+			CloseHandle(pi.process);
+			Ok(if waited == WAIT_TIMEOUT {
+				ProgramExit::TimedOut
+			} else if got {
+				ProgramExit::Exited(code)
+			} else {
+				return Err(Error::Io(format!("cannot read how {program} ended")));
+			})
+		}
+	}
+
+	fn delete_at_restart(&mut self, path: &str) -> bool {
+		let p = ansi(path);
+		// SAFETY: file calls on NUL-ended paths and local buffers.
+		unsafe {
+			// Windows NT, 2000, XP and later (and ReactOS): the session manager's list.
+			if MoveFileExA(p.as_ptr(), null(), MOVEFILE_DELAY_UNTIL_REBOOT) != 0 {
+				return true;
+			}
+			// Windows 95, 98 and Me have the function and not the flag: WININIT.INI is read at the next start.
+			if GetVersion() & 0x8000_0000 == 0 {
+				return false;
+			}
+			let mut short = [0u8; 300];
+			let n = GetShortPathNameA(p.as_ptr(), short.as_mut_ptr(), short.len() as u32) as usize;
+			if n == 0 || n >= short.len() {
+				return false;
+			}
+			let Some(windows) = known_dir(GetWindowsDirectoryA) else {
+				return false;
+			};
+			let ini = format!("{windows}\\WININIT.INI");
+			let old = read_whole(&ini)
+				.map(|b| String::from_utf8_lossy(&b).into_owned())
+				.unwrap_or_default();
+			let text = li_retro::install::wininit_rename(&old, &utf8(&short[..n]));
+			let Ok(h) = self.create(&ini) else {
+				return false;
+			};
+			let written = self.write(h, text.as_bytes());
+			let _ = self.close(h);
+			written.is_ok()
+		}
 	}
 
 	fn file_types(&self) -> bool {

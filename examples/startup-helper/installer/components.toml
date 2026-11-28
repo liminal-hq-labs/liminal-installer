@@ -1,0 +1,35 @@
+# Startup helper example project: what gets installed.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[[component]]
+id       = "helper"
+name     = "Helper Sample"
+required = true
+targets  = ["windows-x86"]
+files = [
+  { from = "dist/{target}/HELPER.EXE", to = "{install}/" },
+  { from = "dist/{target}/HELPER.INI", to = "{install}/" },
+  { from = "dist/{target}/HELPER.LOG", to = "{install}/" },
+  { from = "dist/{target}/STOP.BAT", to = "{install}/" },
+]
+shortcut = [
+  { name = "Helper Sample", target = "{install}/HELPER.EXE", in = "start_menu" },
+  # A command line after the target: a Start menu item that stops the helper.
+  { name = "Stop Helper Sample", target = "{install}/HELPER.EXE", in = "start_menu", args = "/quit" },
+  # In the person's Startup folder, so the helper starts at logon.
+  { name = "Helper Sample at login", target = "{install}/HELPER.EXE", in = "startup", args = "/background" },
+]
+
+# On Linux the same shortcuts are desktop entries: `startup` is `~/.config/autostart`, and `args` follows the program in `Exec=`.
+[[component]]
+id       = "helper-linux"
+name     = "Helper Sample"
+required = true
+targets  = ["linux-x86_64"]
+files    = [{ from = "dist/{target}/helper", to = "{install}/" }]
+shortcut = [
+  { name = "Helper Sample", target = "{install}/helper", in = "start_menu" },
+  { name = "Helper Sample at login", target = "{install}/helper", in = "startup", args = "--background" },
+]

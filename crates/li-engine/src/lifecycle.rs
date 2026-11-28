@@ -35,6 +35,14 @@ pub struct InstallRequest {
 	pub channel: Option<String>,
 }
 
+/// What `uninstall` did beyond removing files.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct UninstallReport {
+	/// Files (and the folders that held them) still in use, which the machine will remove the
+	/// next time it restarts. The person should be told: the uninstall is finished only then.
+	pub restart_pending: Vec<PathBuf>,
+}
+
 /// What `repair` did.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RepairReport {
@@ -247,7 +255,7 @@ fn run_steps(
 	steps: &[Step],
 	receipt_from: impl FnOnce(&[Operation], &dyn Machine) -> Option<Receipt>,
 	opts: &mut RunOptions<'_>,
-) -> Result<Option<Receipt>> {
+) -> Result<(Option<Receipt>, Vec<PathBuf>)> {
 	let totals = stage(m, res, payload, steps)?;
 	let mut session = Session::begin(m, res, payload, product, totals, opts)?;
 	let mut effective = Vec::new();
@@ -262,10 +270,7 @@ fn run_steps(
 		Ok(receipt)
 	})();
 	match run {
-		Ok(receipt) => {
-			session.finish();
-			Ok(receipt)
-		}
+		Ok(receipt) => Ok((receipt, session.finish())),
 		Err(e) => Err(session.abort(e)),
 	}
 }
@@ -326,6 +331,8 @@ fn reconcile(m: &mut dyn Machine, r: Reconcile<'_>, opts: &mut RunOptions<'_>) -
 		}
 	}
 
+	hooks_first(old_ops, &mut steps);
+
 	let product = r.project.installer.product.id.clone();
 	let full = full_target(r.project, r.target)?;
 	let base = Receipt {
@@ -344,7 +351,7 @@ fn reconcile(m: &mut dyn Machine, r: Reconcile<'_>, opts: &mut RunOptions<'_>) -
 	// a new menu directory) may depend on them without the plan naming them. A directory the
 	// plan no longer names stays in the receipt unless reverting it really removed it.
 	let old_kept: Vec<Operation> = old_ops.to_vec();
-	let receipt = run_steps(
+	let (receipt, _) = run_steps(
 		m,
 		&res,
 		Some(r.payload),
@@ -375,6 +382,26 @@ fn reconcile(m: &mut dyn Machine, r: Reconcile<'_>, opts: &mut RunOptions<'_>) -
 		opts,
 	)?;
 	receipt.ok_or_else(|| EngineError::Other("no receipt was written".into()))
+}
+
+/// Puts the recorded `uninstall.pre` programs ahead of `steps` when those steps replace or remove
+/// a file, so a program that holds one lets go first. They run in the order the plan names them.
+fn hooks_first(recorded: &[Operation], steps: &mut Vec<Step>) {
+	let touches_files = steps.iter().any(|s| {
+		matches!(
+			s,
+			Step::Apply(Operation::Copy { .. } | Operation::WriteFile { .. })
+				| Step::Revert(Operation::Copy { .. } | Operation::WriteFile { .. })
+		)
+	});
+	if !touches_files {
+		return;
+	}
+	let hooks = recorded
+		.iter()
+		.filter(|o| matches!(o, Operation::UninstallPre { .. }))
+		.map(|o| Step::Hook(o.clone()));
+	steps.splice(0..0, hooks);
 }
 
 /// Installs a product, or reinstalls over an older receipt (keeping what has not changed).
@@ -553,6 +580,7 @@ pub fn repair(
 			steps.push(Step::Apply(op.clone()));
 		}
 	}
+	hooks_first(&receipt.operations, &mut steps);
 	if !steps.is_empty() {
 		run_steps(
 			m,
@@ -575,10 +603,18 @@ pub fn uninstall(
 	project: Option<&Project>,
 	install_dir: &Path,
 	opts: &mut RunOptions<'_>,
-) -> Result<()> {
+) -> Result<UninstallReport> {
 	let receipt = read_receipt(m, install_dir)?;
 	let res = Resolver::new(install_dir, m.dirs());
 	let mut steps = Vec::new();
+	// First of all: a program the product asked to be stopped holds its files until it is.
+	for op in receipt
+		.operations
+		.iter()
+		.filter(|o| matches!(o, Operation::UninstallPre { .. }))
+	{
+		steps.push(Step::Hook(op.clone()));
+	}
 	if let Some(project) = project {
 		let env = script_env(
 			m,
@@ -600,8 +636,9 @@ pub fn uninstall(
 			steps.push(Step::Revert(op.clone()));
 		}
 	}
-	run_steps(m, &res, None, &receipt.product, &steps, |_, _| None, opts)?;
-	Ok(())
+	let (_, restart_pending) =
+		run_steps(m, &res, None, &receipt.product, &steps, |_, _| None, opts)?;
+	Ok(UninstallReport { restart_pending })
 }
 
 /// Starts the installed product: the target of the first recorded shortcut. With a verified

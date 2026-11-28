@@ -10,7 +10,13 @@ use std::path::{Path, PathBuf};
 use li_model::{ComponentsFile, Flow, InstallerFile, Layout, ThemeFile};
 
 /// Every example project, relative to the repository root.
-pub const EXAMPLES: &[&str] = &["planboard", "lt-fizz", "neutral", "tauri-notes"];
+pub const EXAMPLES: &[&str] = &[
+	"planboard",
+	"lt-fizz",
+	"neutral",
+	"tauri-notes",
+	"startup-helper",
+];
 
 /// An example project read from disk.
 pub struct Example {

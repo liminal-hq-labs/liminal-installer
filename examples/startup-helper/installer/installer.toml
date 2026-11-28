@@ -1,0 +1,42 @@
+# Startup helper example project: a program that starts when the person logs in, and the setup features that needs.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+# `run` lets `[[uninstall.pre]]` start a program. Without it `liminst check` refuses the project.
+capabilities = ["run"]
+
+[product]
+id        = "hq.liminal.helper-sample"
+name      = "Helper Sample"
+publisher = "Liminal HQ"
+version   = "1.0.0"
+licence   = "LICENCE.TXT"
+
+[defaults]
+scope = "user"
+theme = "installshield-classic"
+
+[[target]]
+id       = "linux-x86_64"
+renderer = "canvas"
+theme    = "neutral"
+outputs  = ["run"]
+
+[[target]]
+id       = "windows-x86"
+renderer = "win32-classic"
+theme    = "installshield-classic"
+outputs  = ["zip"]
+
+# Stops the running helper before the files are removed, so its program is not held open
+# (Windows refuses to delete a running program). The same entry runs before an update or a repair
+# replaces a file. `STOP.BAT` stands in for `HELPER.EXE /quit` in the Wine test.
+[[uninstall.pre]]
+run            = "{install}/STOP.BAT"
+args           = "/quit"
+wait_ms        = 5000
+ignore_failure = true
+
+[signing]
+feed_key = "keys/feed.pub"

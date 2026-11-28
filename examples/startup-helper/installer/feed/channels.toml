@@ -1,0 +1,10 @@
+# Where releases of the example are announced.
+#
+# (c) Copyright 2026 Liminal HQ, Scott Morris
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+[channel.stable]
+feed = "https://example.org/helper/feed.json"
+
+[channel.beta]
+feed = "https://example.org/helper/beta/feed.json"
